@@ -7,9 +7,9 @@
 #
 
 Pod::Spec.new do |s|
-  s.name             = 'mobile-sdk'
+  s.name             = 'attentive-mobile-sdk'
   s.version          = '0.1.3'
-  s.summary          = 'A short description of mobile-sdk.'
+  s.summary          = 'Attentive Mobile SDK'
 
 # This description is used to generate tags and improve search results.
 #   * Think: What does it do? Why did you write it? What is the focus?
@@ -18,10 +18,10 @@ Pod::Spec.new do |s|
 #   * Finally, don't worry about the indent, CocoaPods strips it!
 
   s.description      = <<-DESC
-TODO: Add long description of the pod here.
+The Attentive Mobile SDK provides the functionality to render Attentive signup units in iOS mobile applications.
                        DESC
 
-  s.homepage         = 'https://docs.google.com/document/d/1KiS7NbncEmZsCYT7x1NBo6bmj36BsySphPho_yH4mtM/edit'
+  s.homepage         = 'https://www.attentive.com/demo?utm_source=cocoapods.org'
   # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Ivan Loughman-Pawelko' => 'iloughman@attentivemobile.com' }
