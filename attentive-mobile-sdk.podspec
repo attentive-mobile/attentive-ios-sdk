@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'attentive-mobile-sdk'
-  s.version          = '0.1.4'
+  s.version          = '0.1.0'
   s.summary          = 'Attentive Mobile SDK'
 
 # This description is used to generate tags and improve search results.
