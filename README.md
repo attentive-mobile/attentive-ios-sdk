@@ -26,11 +26,12 @@ To make the SDK available, you need to import the header file after installing t
 #import "attentive_mobile_sdk/attentive-mobile-sdk-umbrella.h"
 ```
 
-The SDK can then be initialized and called for a specific company domain:
+The SDK can then be initialized and called for a specific company domain and app user:
 
 ```
 SDK *sdk = [[SDK alloc] initWithDomain:@"${companyDomain}"];
-[sdk trigger:self.view appUserId:@"${appUserId}" xOffset:50 yOffset:50];
+[sdk identify:@"${appUserId}"];
+[sdk trigger:self.view];
 ```
 
 Before attaching the web view to whatever view is passed to trigger function, we first identify whether or not the creative is loaded in the web view. This allows us to decide whether or not to attach the web view based of the fatigue of the creative.
