@@ -37,8 +37,7 @@
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
     if ([_appUserId length] == 0) {
-        NSLog(@"No appUserId registered. `identify` must be called before `trigger`.");
-        return;
+        [NSException raise:@"Missing Attentive Identity" format:@"No appUserId registered. `identify` must be called before `trigger`."];
     }
 
     if ([_mode isEqual:@"debug"]) {
