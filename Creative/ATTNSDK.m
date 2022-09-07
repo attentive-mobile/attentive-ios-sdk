@@ -13,6 +13,7 @@
     WKWebView *_webView;
     NSString *_domain;
     NSString *_mode;
+    NSString *_appUserId;
 }
 
 
@@ -27,14 +28,23 @@
     return [super init];
 }
 
-- (void)trigger:(UIView *)theView appUserId:(NSString *)appUserId {
+- (void)identify: (NSString *)appUserId {
+    _appUserId = appUserId;
+}
+
+- (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
+    if ([_appUserId length] == 0) {
+        NSLog(@"No appUserId registered. `identify` must be called before `trigger`.");
+        return;
+    }
+
     if ([_mode isEqual:@"debug"]) {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-gaming/index.html?domain=%@&app_user_id=%@&debug=matter-trip-grass-symbol", _domain, appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-gaming/index.html?domain=%@&app_user_id=%@&debug=matter-trip-grass-symbol", _domain, _appUserId];
     } else {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-gaming/index.html?domain=%@&app_user_id=%@", _domain, appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-gaming/index.html?domain=%@&app_user_id=%@", _domain, _appUserId];
     }
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);
@@ -99,4 +109,3 @@
 
 
 @end
-

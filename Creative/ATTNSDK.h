@@ -13,6 +13,8 @@
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode;
 
-- (void)trigger:(UIView *)theView appUserId:(NSString *)appUserId;
+- (void)identify: (NSString *)appUserId;
+
+- (void)trigger:(UIView *)theView;
 
 @end
