@@ -1,6 +1,6 @@
-# Attentive Mobile SDK
+# Attentive IOS SDK
 
-The Attentive Mobile SDK is intended to be used to render creative units in mobile gaming applications.
+The Attentive IOS SDK is intended to be used to render creative units in mobile gaming applications.
 
 ## Static landing page to render creative
 
@@ -8,22 +8,22 @@ The SDK works by rendering a web view that loads an index.html page stored [here
 
 ## Installation and Example of calling the SDK trigger function
 
-The attentive-mobile-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, simply run:
+The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, simply run:
 
 ```
-> pod install attentive-mobile-sdk
+> pod install attentive-ios-sdk
 ```
 
 Additionally, if a new version of the SDK is available, it can be updated using:
 
 ```
-> pod update attentive-mobile-sdk
+> pod update attentive-ios-sdk
 ```
 
 To make the SDK available, you need to import the header file after installing the SDK:
 
 ```
-#import "attentive_mobile_sdk/attentive-mobile-sdk-umbrella.h"
+#import "attentive_ios_sdk/attentive-ios-sdk-umbrella.h"
 ```
 
 The SDK can then be initialized and called for a specific company domain and app user:
@@ -58,6 +58,6 @@ Ivan Loughman-Pawelko, iloughman@attentivemobile.com
 
 ## License
 
-attentive-mobile-sdk is available under the MIT license. See the LICENSE file for more info.
+attentive-ios-sdk is available under the MIT license. See the LICENSE file for more info.
 
 
