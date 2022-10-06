@@ -1,6 +1,6 @@
 #import "ViewController.h"
 // Use the Creative package from your local attentive-ios-sdk folder
-#import "../../Creative/ATTNSDK.h"
+#import "ATTNSDK.h"
 // Use the published version of the attentive-ios-sdk
 // #import "attentive_ios_sdk/attentive-ios-sdk-umbrella.h"
 
