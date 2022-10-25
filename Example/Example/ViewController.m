@@ -17,6 +17,8 @@ ATTNSDK *sdk;
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.view.backgroundColor = [UIColor systemGray3Color];
+
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
