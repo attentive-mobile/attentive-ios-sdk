@@ -63,13 +63,14 @@
     _webView = [[WKWebView alloc] initWithFrame:theView.frame configuration:wkWebViewConfiguration];
     _webView.navigationDelegate = self;
 
-    _webView.opaque = NO;
-    _webView.backgroundColor = [UIColor clearColor];
-
     [_webView loadRequest:request ];
     
     if ([_mode isEqual:@"debug"]) {
         [_parentView addSubview:_webView];
+    }
+    else {
+        _webView.opaque = NO;
+        _webView.backgroundColor = [UIColor clearColor];
     }
 }
 
