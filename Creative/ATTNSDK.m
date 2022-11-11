@@ -97,6 +97,7 @@
             NSLog(@"Creative timed out. Not showing WebView.");
             return;
         } else if ([creativeIframeId isEqual:@"attentive_creative"] && ![self->_mode isEqual:@"debug"]) {
+            NSLog(@"Found creative iframe, showing WebView.");
             [self->_parentView addSubview:webView];
         } else {
             NSLog(@"Received unknown creativeIframeId: %@", creativeIframeId);
