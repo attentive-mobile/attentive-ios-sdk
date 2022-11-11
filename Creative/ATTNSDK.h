@@ -6,8 +6,11 @@
 //
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
+#import "ATTNUserIdentifiers.h"
 
 @interface ATTNSDK : NSObject <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
+
+NS_ASSUME_NONNULL_BEGIN
 
 - (id)initWithDomain:(NSString *)domain;
 
@@ -15,6 +18,10 @@
 
 - (void)identify: (NSString *)appUserId;
 
+- (void)identifyWithUserIdentifiers: (ATTNUserIdentifiers *)userIdentfiers;
+
 - (void)trigger:(UIView *)theView;
+
+NS_ASSUME_NONNULL_END
 
 @end

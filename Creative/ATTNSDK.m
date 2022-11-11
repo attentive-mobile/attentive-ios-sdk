@@ -13,7 +13,7 @@
     WKWebView *_webView;
     NSString *_domain;
     NSString *_mode;
-    NSString *_appUserId;
+    ATTNUserIdentifiers *_userIdentifiers;
 }
 
 
@@ -29,21 +29,25 @@
 }
 
 - (void)identify: (NSString *)appUserId {
-    _appUserId = appUserId;
+    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithAppUserId:appUserId];
+}
+
+- (void)identifyWithUserIdentifiers:(ATTNUserIdentifiers *)userIdentfiers {
+    _userIdentifiers = userIdentfiers;
 }
 
 - (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
-    if ([_appUserId length] == 0) {
+    if (_userIdentifiers == nil && _userIdentifiers.appUserId == nil) {
         [NSException raise:@"Missing Attentive Identity" format:@"No appUserId registered. `identify` must be called before `trigger`."];
     }
 
     if ([_mode isEqual:@"debug"]) {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@&debug=matter-trip-grass-symbol", _domain, _appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@&debug=matter-trip-grass-symbol", _domain, _userIdentifiers.appUserId];
     } else {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@", _domain, _appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@", _domain, _userIdentifiers.appUserId];
     }
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);
