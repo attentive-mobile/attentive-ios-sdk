@@ -77,16 +77,29 @@
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
 
     NSString *asyncJs = @"var p = new Promise(resolve => { "
-        "setTimeout(() => { "
-            "resolve(document.querySelector('iframe').id); "
-        "}, 1000); "
+    "    const interval = setInterval(function() {"
+    "        e = document.querySelector('iframe');"
+    "        if(e && e.id === 'attentive_creative') {"
+    "           clearInterval(interval);"
+    "           resolve(e.id);"
+    "        }"
+    "    }, 100);"
+    "    setTimeout(function() {"
+    "        clearInterval(interval);"
+    "        resolve(undefined);"
+    "    }, 5000);"
     "}); "
-    "var iframe = await p; "
-    "return iframe;";
+    "var iframeId = await p; "
+    "return iframeId;";
 
-    [webView callAsyncJavaScript:asyncJs arguments:nil inFrame:nil inContentWorld:WKContentWorld.defaultClientWorld completionHandler:^(NSString *id, NSError *error) {
-        if ([id isEqual:@"attentive_creative"] && ![self->_mode isEqual:@"debug"]) {
+    [webView callAsyncJavaScript:asyncJs arguments:nil inFrame:nil inContentWorld:WKContentWorld.defaultClientWorld completionHandler:^(NSString *creativeIframeId, NSError *error) {
+        if (!creativeIframeId) {
+            NSLog(@"Creative timed out. Not showing WebView.");
+            return;
+        } else if ([creativeIframeId isEqual:@"attentive_creative"] && ![self->_mode isEqual:@"debug"]) {
             [self->_parentView addSubview:webView];
+        } else {
+            NSLog(@"Received unknown creativeIframeId: %@", creativeIframeId);
         }
     }];
 }
