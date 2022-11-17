@@ -28,26 +28,26 @@
     return [super init];
 }
 
-- (void)identify: (NSString *)appUserId {
-    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithAppUserId:appUserId];
+- (void)identify: (NSString *)clientUserId {
+    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithUserIdentifiers:@{ @"clientUserId": clientUserId }];
 }
 
-- (void)identifyWithUserIdentifiers:(ATTNUserIdentifiers *)userIdentfiers {
-    _userIdentifiers = userIdentfiers;
+- (void)identifyWithUserIdentifiers:(NSDictionary *)userIdentfiers {
+    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithUserIdentifiers:userIdentfiers];
 }
 
 - (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
-    if (_userIdentifiers == nil && _userIdentifiers.appUserId == nil) {
-        [NSException raise:@"Missing Attentive Identity" format:@"No appUserId registered. `identify` must be called before `trigger`."];
+    if (_userIdentifiers == nil && _userIdentifiers.clientUserId == nil) {
+        [NSException raise:@"Missing Attentive Identity" format:@"No clientUserId registered. `identify` must be called before `trigger`."];
     }
 
     if ([_mode isEqual:@"debug"]) {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@&debug=matter-trip-grass-symbol", _domain, _userIdentifiers.appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@&debug=matter-trip-grass-symbol", _domain, _userIdentifiers.clientUserId];
     } else {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&app_user_id=%@", _domain, _userIdentifiers.appUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@", _domain, _userIdentifiers.clientUserId];
     }
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);

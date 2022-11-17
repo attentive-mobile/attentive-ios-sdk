@@ -11,21 +11,16 @@
 
 @implementation ATTNUserIdentifiers
 
-- (id)initWithAppUserId:(nonnull NSString *)appUserId {
-    return [self initWithAppUserId:appUserId andPhone:nil andEmail:nil andShopifyId:nil andKlaviyoId:nil andCustomIdentifiers:nil];
-}
 
-- (id)initWithAppUserId:(nonnull NSString *) appUserId andPhone:(nullable NSString *) phone andEmail:(nullable NSString *) email andShopifyId:(nullable NSString *) shopifyId andKlaviyoId:(nullable NSString *) klaviyoId andCustomIdentifiers:(nullable NSDictionary *) customIdentifiers {
+- (id)initWithUserIdentifiers:(nonnull NSDictionary *) userIdentifiers {
     self = [super init];
     
-    _appUserId = appUserId;
-    _phone = phone;
-    _email = email;
-    _shopifyId = shopifyId;
-    _klaviyoId = klaviyoId;
-    if (customIdentifiers != nil) {
-        _customIdentifiers = [[NSDictionary alloc] initWithDictionary:customIdentifiers];
-    }
+    _clientUserId = userIdentifiers[@"clientUserId"];
+    _phone = userIdentifiers[@"phone"];
+    _email = userIdentifiers[@"email"];
+    _shopifyId = userIdentifiers[@"shopifyId"];
+    _klaviyoId = userIdentifiers[@"klaviyoId"];
+    _customIdentifiers = [NSDictionary<NSString *, NSString *> dictionaryWithDictionary:userIdentifiers[@"customIdentifiers"]];
     
     return self;
 }

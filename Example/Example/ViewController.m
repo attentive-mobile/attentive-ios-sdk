@@ -27,9 +27,8 @@ ATTNSDK *sdk;
     // Register the current user with the Attentive SDK. Replace "APP_USER_ID"
     // with the current user's ID. You must register a user ID before calling
     // `trigger` on a Creative.
-    [sdk identifyWithUserIdentifiers:[[ATTNUserIdentifiers alloc] initWithAppUserId:@"APP_USER_ID"]];
-    // If you have other identifiers for the user then instead construct an ATTNUserIdentifiers with them:
-    // [sdk identifyWithUserIdentifiers:[[ATTNUserIdentifiers alloc] initWithAppUserId:@"APP_USER_ID" andPhone:nil andEmail:@"myemail@gmail.com" andShopifyId:nil andKlaviyoId:nil andCustomIdentifiers:nil]];
+    // TODO - more info here
+    [sdk identifyWithUserIdentifiers:@{ @"clientUserId": @"APP_USER_ID" }];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {

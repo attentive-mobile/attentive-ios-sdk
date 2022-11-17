@@ -9,15 +9,13 @@
 
 @interface ATTNUserIdentifiers : NSObject
 
-- (nonnull id)initWithAppUserId:(nonnull NSString *)appUserId;
+- (nonnull id)initWithUserIdentifiers:(nonnull NSDictionary *) userIdentifiers;
 
-- (nonnull id)initWithAppUserId:(nonnull NSString *) appUserId andPhone:(nullable NSString *) phone andEmail:(nullable NSString *) email andShopifyId:(nullable NSString *) shopifyId andKlaviyoId:(nullable NSString *) klaviyoId andCustomIdentifiers:(nullable NSDictionary *) customIdentifiers;
-
-@property (readonly, nonnull) NSString * appUserId;
+@property (readonly, nonnull) NSString * clientUserId;
 @property (readonly, nullable) NSString * email;
 @property (readonly, nullable) NSString * phone;
 @property (readonly, nullable) NSString * klaviyoId;
 @property (readonly, nullable) NSString * shopifyId;
-@property (readonly, nullable) NSDictionary * customIdentifiers;
+@property (readonly, nullable) NSDictionary<NSString *, NSString *> * customIdentifiers;
 
 @end
