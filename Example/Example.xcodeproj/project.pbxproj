@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		52C50DEBB04279F8A7E20246 /* Pods_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C3F246E3A05B2F519A92B5C /* Pods_Example.framework */; };
-		580C4819291DA93400BE4E62 /* ATTNUserIdentifiers.m in Sources */ = {isa = PBXBuildFile; fileRef = 580C4818291DA93400BE4E62 /* ATTNUserIdentifiers.m */; };
+		580C4819291DA93400BE4E62 /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 580C4818291DA93400BE4E62 /* ATTNUserIdentity.m */; };
 		69784D9E28EDF0D60020D9AA /* ATTNSDK.m in Sources */ = {isa = PBXBuildFile; fileRef = 69784D9C28EDF0D60020D9AA /* ATTNSDK.m */; };
 		69CCAF5128DCDE57007620BD /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 69CCAF5028DCDE57007620BD /* AppDelegate.m */; };
 		69CCAF5428DCDE57007620BD /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 69CCAF5328DCDE57007620BD /* SceneDelegate.m */; };
@@ -21,8 +21,8 @@
 
 /* Begin PBXFileReference section */
 		4E05FFEA23C21A885ACD98D7 /* Pods-Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example.debug.xcconfig"; path = "Target Support Files/Pods-Example/Pods-Example.debug.xcconfig"; sourceTree = "<group>"; };
-		580C4817291DA93400BE4E62 /* ATTNUserIdentifiers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNUserIdentifiers.h; path = ../../Creative/ATTNUserIdentifiers.h; sourceTree = "<group>"; };
-		580C4818291DA93400BE4E62 /* ATTNUserIdentifiers.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentifiers.m; path = ../../Creative/ATTNUserIdentifiers.m; sourceTree = "<group>"; };
+		580C4817291DA93400BE4E62 /* ATTNUserIdentity.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNUserIdentity.h; path = ../../Creative/ATTNUserIdentity.h; sourceTree = "<group>"; };
+		580C4818291DA93400BE4E62 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = ../../Creative/ATTNUserIdentity.m; sourceTree = "<group>"; };
 		5C3F246E3A05B2F519A92B5C /* Pods_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		652923B531C8C939076AA858 /* Pods-Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Example/Pods-Example.debug.xcconfig"; sourceTree = "<group>"; };
 		69784D9C28EDF0D60020D9AA /* ATTNSDK.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNSDK.m; path = ../../Creative/ATTNSDK.m; sourceTree = "<group>"; };
@@ -84,8 +84,8 @@
 		69CCAF4E28DCDE57007620BD /* Example */ = {
 			isa = PBXGroup;
 			children = (
-				580C4817291DA93400BE4E62 /* ATTNUserIdentifiers.h */,
-				580C4818291DA93400BE4E62 /* ATTNUserIdentifiers.m */,
+				580C4817291DA93400BE4E62 /* ATTNUserIdentity.h */,
+				580C4818291DA93400BE4E62 /* ATTNUserIdentity.m */,
 				69784D9D28EDF0D60020D9AA /* ATTNSDK.h */,
 				69784D9C28EDF0D60020D9AA /* ATTNSDK.m */,
 				69CCAF4F28DCDE57007620BD /* AppDelegate.h */,
@@ -232,7 +232,7 @@
 				69784D9E28EDF0D60020D9AA /* ATTNSDK.m in Sources */,
 				69CCAF5128DCDE57007620BD /* AppDelegate.m in Sources */,
 				69CCAF6228DCDE5A007620BD /* main.m in Sources */,
-				580C4819291DA93400BE4E62 /* ATTNUserIdentifiers.m in Sources */,
+				580C4819291DA93400BE4E62 /* ATTNUserIdentity.m in Sources */,
 				69CCAF5428DCDE57007620BD /* SceneDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

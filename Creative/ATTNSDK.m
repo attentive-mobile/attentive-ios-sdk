@@ -13,7 +13,7 @@
     WKWebView *_webView;
     NSString *_domain;
     NSString *_mode;
-    ATTNUserIdentifiers *_userIdentifiers;
+    ATTNUserIdentity *_userIdentifiers;
 }
 
 
@@ -29,11 +29,11 @@
 }
 
 - (void)identify: (NSString *)clientUserId {
-    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithUserIdentifiers:@{ @"clientUserId": clientUserId }];
+    _userIdentifiers = [[ATTNUserIdentity alloc] initWithUserIdentifiers:@{ @"clientUserId": clientUserId }];
 }
 
 - (void)identifyWithUserIdentifiers:(NSDictionary *)userIdentfiers {
-    _userIdentifiers = [[ATTNUserIdentifiers alloc] initWithUserIdentifiers:userIdentfiers];
+    _userIdentifiers = [[ATTNUserIdentity alloc] initWithUserIdentifiers:userIdentfiers];
 }
 
 - (void)trigger:(UIView *)theView {
