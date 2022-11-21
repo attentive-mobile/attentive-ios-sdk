@@ -18,10 +18,11 @@ extern const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 
 NS_ASSUME_NONNULL_END
 
+
 @interface ATTNUserIdentity : NSObject
 
-- (nonnull id)initWithUserIdentifiers:(nonnull NSDictionary *) userIdentifiers;
+- (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
 
-@property (readonly, nullable) NSDictionary * userIdentifiers;
+@property (readonly, nullable) NSDictionary * identifiers;
 
 @end

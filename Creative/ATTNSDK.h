@@ -16,9 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode;
 
-- (void)identify: (NSString *)clientUserId;
-
-- (void)identifyWithUserIdentifiers: (NSDictionary *)userIdentfiers;
+- (void)identify: (NSDictionary *)clientUserId;
 
 - (void)trigger:(UIView *)theView;
 

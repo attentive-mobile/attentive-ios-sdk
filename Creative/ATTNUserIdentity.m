@@ -26,10 +26,10 @@ const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 @implementation ATTNUserIdentity
 
 
-- (id)initWithUserIdentifiers:(nonnull NSDictionary *) userIdentifiers {
+- (id)initWithIdentifiers:(nonnull NSDictionary *) identifiers {
     self = [super init];
     
-    _userIdentifiers = userIdentifiers;
+    _identifiers = identifiers;
     
     return self;
 }

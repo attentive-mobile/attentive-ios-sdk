@@ -13,9 +13,8 @@
     WKWebView *_webView;
     NSString *_domain;
     NSString *_mode;
-    ATTNUserIdentity *_userIdentifiers;
+    ATTNUserIdentity *_userIdentity;
 }
-
 
 - (id)initWithDomain:(NSString *)domain {
     _domain = domain;
@@ -28,26 +27,19 @@
     return [super init];
 }
 
-- (void)identify: (NSString *)clientUserId {
-    _userIdentifiers = [[ATTNUserIdentity alloc] initWithUserIdentifiers:@{ @"clientUserId": clientUserId }];
-}
-
-- (void)identifyWithUserIdentifiers:(NSDictionary *)userIdentfiers {
-    _userIdentifiers = [[ATTNUserIdentity alloc] initWithUserIdentifiers:userIdentfiers];
+- (void)identify:(NSDictionary *)userIdentfiers {
+    _userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:userIdentfiers];
 }
 
 - (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
-    if (_userIdentifiers == nil && _userIdentifiers.clientUserId == nil) {
-        [NSException raise:@"Missing Attentive Identity" format:@"No clientUserId registered. `identify` must be called before `trigger`."];
-    }
 
     if ([_mode isEqual:@"debug"]) {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@&debug=matter-trip-grass-symbol", _domain, _userIdentifiers.clientUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@&debug=matter-trip-grass-symbol", _domain, _userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]];
     } else {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@", _domain, _userIdentifiers.clientUserId];
+        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@", _domain, _userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]];
     }
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);
