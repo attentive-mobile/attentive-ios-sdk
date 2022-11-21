@@ -23,6 +23,6 @@ NS_ASSUME_NONNULL_END
 
 - (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
 
-@property (readonly, nullable) NSDictionary * identifiers;
+@property (nonnull) NSDictionary * identifiers;
 
 @end

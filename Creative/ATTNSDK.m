@@ -28,7 +28,15 @@
 }
 
 - (void)identify:(NSDictionary *)userIdentfiers {
-    _userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:userIdentfiers];
+    if(_userIdentity == nil) {
+        // create new UserIdentity
+        _userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:userIdentfiers];
+    } else {
+        // merge identifiers
+        NSMutableDictionary *currentIdentifiersCopy = [_userIdentity.identifiers mutableCopy];
+        [currentIdentifiersCopy addEntriesFromDictionary:userIdentfiers];
+        _userIdentity.identifiers = currentIdentifiersCopy;
+    }
 }
 
 - (void)trigger:(UIView *)theView {
