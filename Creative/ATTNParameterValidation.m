@@ -19,13 +19,13 @@
     return ([inputValue isKindOfClass:[NSString class]] && [(NSData *)inputValue length] > 0);
 }
 
-+ (void)verifyString:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName {
++ (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName {
     if([self isNotNil:inputValue] && ![self isStringAndNotEmtpy:inputValue]) {
         [NSException raise:@"Bad Identifier" format:@"%@ should be a non-empty NSString", inputName];
     }
 }
 
-+ (void)verify1DStringDictionary:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName {
++ (void)verify1DStringDictionaryOrNil:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName {
     if(![self isNotNil:inputValue]) return;
     
     if(![inputValue isKindOfClass:[NSDictionary class]]) {
@@ -33,7 +33,7 @@
     }
     
     for(id key in inputValue) {
-        [self verifyString:[inputValue objectForKey:key] inputName:[NSString stringWithFormat:@"%@[%@]", inputName, key]];
+        [self verifyStringOrNil:[inputValue objectForKey:key] inputName:[NSString stringWithFormat:@"%@[%@]", inputName, key]];
     }
 }
 

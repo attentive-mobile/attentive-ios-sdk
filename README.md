@@ -51,10 +51,10 @@ Register any identifying information you have about the user with the Attentive 
 SDK will function. This method can be called any time you have new information to attribute to the user.
 
 ```objectiveC
-[sdk identifyWithUserIdentifiers:@{ @"clientUserId": @"myAppUserId", @phone: @"+15556667777"}];
+[sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"myAppUserId", IDENTIFIER_TYPE_PHONE: @"+15556667777"}];
 ```
 
-See the [`ATTNUserIdentifiers`](Creative/ATTNUserIdentifiers.h) object for all possible identifier types.
+See the [`ATTNUserIdentity`](Creative/ATTNUserIdentity.m) file for all possible identifier types.
 
 
 ### Load and render the creative

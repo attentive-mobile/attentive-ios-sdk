@@ -18,9 +18,9 @@
 
 + (bool)isStringAndNotEmtpy:(nonnull NSObject *) inputValue;
 
-+ (void)verifyString:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName;
++ (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName;
 
-+ (void)verify1DStringDictionary:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName;
++ (void)verify1DStringDictionaryOrNil:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName;
 
 
 @end

@@ -44,6 +44,7 @@
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
     NSString* creativePageUrl;
 
+    // TODO - update this to use visitor id
     if ([_mode isEqual:@"debug"]) {
         creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@&debug=matter-trip-grass-symbol", _domain, _userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]];
     } else {
