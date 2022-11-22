@@ -17,26 +17,18 @@
 }
 
 - (id)initWithDomain:(NSString *)domain {
-    _domain = domain;
-    return [super init];
+    return [self initWithDomain:domain mode:@"production"];
 }
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode {
     _domain = domain;
     _mode = mode;
+    _userIdentity = [[ATTNUserIdentity alloc] init];
     return [super init];
 }
 
-- (void)identify:(NSDictionary *)userIdentfiers {
-    if(_userIdentity == nil) {
-        // create new UserIdentity
-        _userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:userIdentfiers];
-    } else {
-        // merge identifiers
-        NSMutableDictionary *currentIdentifiersCopy = [_userIdentity.identifiers mutableCopy];
-        [currentIdentifiersCopy addEntriesFromDictionary:userIdentfiers];
-        _userIdentity.identifiers = currentIdentifiersCopy;
-    }
+- (void)identify:(NSDictionary *)userIdentifiers {
+    [_userIdentity mergeIdentifiers:userIdentifiers];
 }
 
 - (void)trigger:(UIView *)theView {

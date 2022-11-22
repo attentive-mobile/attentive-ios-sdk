@@ -23,9 +23,13 @@ NS_ASSUME_NONNULL_END
 
 @interface ATTNUserIdentity : NSObject
 
+- (nonnull id)init;
+
 - (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
 
 - (void)validateIdentifiers:(nonnull NSDictionary *) identifiers;
+
+- (void)mergeIdentifiers:(nonnull NSDictionary *) newIdentifiers;
 
 @property (nonnull) NSDictionary * identifiers;
 

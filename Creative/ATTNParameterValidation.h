@@ -16,11 +16,11 @@
 
 + (bool)isNotNil:(nullable NSObject *) inputValue;
 
-+ (bool)isStringAndNotEmtpy:(nonnull NSObject *) inputValue;
++ (bool)isStringAndNotEmtpy:(nullable NSObject *) inputValue;
 
 + (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName;
 
-+ (void)verify1DStringDictionaryOrNil:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName;
++ (void)verify1DStringDictionaryOrNil:(nullable NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName;
 
 
 @end

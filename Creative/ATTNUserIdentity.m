@@ -25,6 +25,10 @@ const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 
 @implementation ATTNUserIdentity
 
+- (id)init {
+    _identifiers = @{};
+    return [super init];
+}
 
 - (id)initWithIdentifiers:(nonnull NSDictionary *) identifiers {
     self = [super init];
@@ -35,6 +39,14 @@ const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
     return self;
 }
 
+- (void)mergeIdentifiers:(nonnull NSDictionary *) newIdentifiers {
+    [self validateIdentifiers:newIdentifiers];
+
+    NSMutableDictionary *currentIdentifiersCopy = [_identifiers mutableCopy];
+    [currentIdentifiersCopy addEntriesFromDictionary:newIdentifiers];
+    _identifiers = currentIdentifiersCopy;
+}
+
 - (void)validateIdentifiers:(nonnull NSDictionary *) identifiers {
     [ATTNParameterValidation verifyStringOrNil:identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID] inputName:IDENTIFIER_TYPE_CLIENT_USER_ID];
     [ATTNParameterValidation verifyStringOrNil:identifiers[IDENTIFIER_TYPE_PHONE] inputName:IDENTIFIER_TYPE_PHONE];
@@ -43,5 +55,6 @@ const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
     [ATTNParameterValidation verifyStringOrNil:identifiers[IDENTIFIER_TYPE_KLAVIYO_ID] inputName:IDENTIFIER_TYPE_KLAVIYO_ID];
     [ATTNParameterValidation verify1DStringDictionaryOrNil:identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] inputName:IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS];
 }
+
 
 @end

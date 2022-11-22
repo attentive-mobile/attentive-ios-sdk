@@ -15,7 +15,7 @@
     return (inputValue != nil && ![inputValue isKindOfClass:[NSNull class]]);
 }
 
-+ (bool)isStringAndNotEmtpy:(nonnull NSObject *) inputValue {
++ (bool)isStringAndNotEmtpy:(nullable NSObject *) inputValue {
     return ([inputValue isKindOfClass:[NSString class]] && [(NSData *)inputValue length] > 0);
 }
 
@@ -25,7 +25,7 @@
     }
 }
 
-+ (void)verify1DStringDictionaryOrNil:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName {
++ (void)verify1DStringDictionaryOrNil:(nullable NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName {
     if(![ATTNParameterValidation isNotNil:inputValue]) return;
     
     if(![inputValue isKindOfClass:[NSDictionary class]]) {
