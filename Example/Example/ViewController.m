@@ -28,7 +28,7 @@ ATTNSDK *sdk;
     // with the current user's ID. You must register a user ID before calling
     // `trigger` on a Creative.
     // TODO - more info here
-    [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID" }];
+    [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"test", IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"test": @"44"}}];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {

@@ -29,9 +29,19 @@ const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 - (id)initWithIdentifiers:(nonnull NSDictionary *) identifiers {
     self = [super init];
     
+    [self validateIdentifiers:identifiers];
     _identifiers = identifiers;
     
     return self;
+}
+
+- (void)validateIdentifiers:(nonnull NSDictionary *) identifiers {
+    [ATTNParameterValidation verifyString:identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID] inputName:IDENTIFIER_TYPE_CLIENT_USER_ID];
+    [ATTNParameterValidation verifyString:identifiers[IDENTIFIER_TYPE_PHONE] inputName:IDENTIFIER_TYPE_PHONE];
+    [ATTNParameterValidation verifyString:identifiers[IDENTIFIER_TYPE_EMAIL] inputName:IDENTIFIER_TYPE_EMAIL];
+    [ATTNParameterValidation verifyString:identifiers[IDENTIFIER_TYPE_SHOPIFY_ID] inputName:IDENTIFIER_TYPE_SHOPIFY_ID];
+    [ATTNParameterValidation verifyString:identifiers[IDENTIFIER_TYPE_KLAVIYO_ID] inputName:IDENTIFIER_TYPE_KLAVIYO_ID];
+    [ATTNParameterValidation verify1DStringDictionary:identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] inputName:IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS];
 }
 
 @end

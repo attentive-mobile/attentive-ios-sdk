@@ -6,6 +6,8 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "ATTNParameterValidation.h"
+
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -22,6 +24,8 @@ NS_ASSUME_NONNULL_END
 @interface ATTNUserIdentity : NSObject
 
 - (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
+
+- (void)validateIdentifiers:(nonnull NSDictionary *) identifiers;
 
 @property (nonnull) NSDictionary * identifiers;
 
