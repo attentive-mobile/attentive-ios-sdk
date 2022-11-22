@@ -20,20 +20,20 @@
 }
 
 + (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName {
-    if([self isNotNil:inputValue] && ![self isStringAndNotEmtpy:inputValue]) {
+    if([ATTNParameterValidation isNotNil:inputValue] && ![ATTNParameterValidation isStringAndNotEmtpy:inputValue]) {
         [NSException raise:@"Bad Identifier" format:@"%@ should be a non-empty NSString", inputName];
     }
 }
 
 + (void)verify1DStringDictionaryOrNil:(nonnull NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName {
-    if(![self isNotNil:inputValue]) return;
+    if(![ATTNParameterValidation isNotNil:inputValue]) return;
     
     if(![inputValue isKindOfClass:[NSDictionary class]]) {
         [NSException raise:@"Bad Identifier" format:@"%@ should be of form NSDictionary<NSString *, NSString *> *", inputName];
     }
     
     for(id key in inputValue) {
-        [self verifyStringOrNil:[inputValue objectForKey:key] inputName:[NSString stringWithFormat:@"%@[%@]", inputName, key]];
+        [ATTNParameterValidation verifyStringOrNil:[inputValue objectForKey:key] inputName:[NSString stringWithFormat:@"%@[%@]", inputName, key]];
     }
 }
 
