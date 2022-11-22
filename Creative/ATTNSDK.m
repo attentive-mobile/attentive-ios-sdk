@@ -35,6 +35,12 @@
 - (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
+    if (@available(iOS 14, *)) {
+        NSLog(@"The iOS version is new enough, continuing to show the Attentive creative.");
+    } else {
+        NSLog(@"Not showing the Attentive creative because the iOS version is too old.");
+        return;
+    }
     NSString* creativePageUrl;
     if ([_appUserId length] == 0) {
         [NSException raise:@"Missing Attentive Identity" format:@"No appUserId registered. `identify` must be called before `trigger`."];
