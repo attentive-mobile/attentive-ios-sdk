@@ -14,21 +14,21 @@
 
 ATTNSDK *sdk;
 
-
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor systemGray3Color];
-
+    
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN"];
+    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
     // Register the current user with the Attentive SDK. Replace "APP_USER_ID"
     // with the current user's ID. You must register a user ID before calling
-    // `trigger` on a Creative
-    [sdk identify:@"APP_USER_ID"];
+    // `trigger` on a Creative.
+    // TODO - more info here
+    [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID", IDENTIFIER_TYPE_PHONE: @"+14156667777"}];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {
