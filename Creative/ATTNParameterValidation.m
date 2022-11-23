@@ -6,9 +6,10 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "ATTNParameterValidation.h"
 
 
-@implementation ATTNParameterValidation : NSObject
+@implementation ATTNParameterValidation
 
 
 + (bool)isNotNil:(nullable NSObject *) inputValue {
