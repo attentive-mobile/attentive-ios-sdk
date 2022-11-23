@@ -10,17 +10,17 @@
 #import "ATTNUserIdentity.h"
 
 // Your unique identifier for the user - this should be consistent across the user's lifetime, for example a database id
-const NSString * IDENTIFIER_TYPE_CLIENT_USER_ID = @"clientUserId";
+NSString * const IDENTIFIER_TYPE_CLIENT_USER_ID = @"clientUserId";
 // The user's phone number in E.164 format
-const NSString * IDENTIFIER_TYPE_PHONE = @"phone";
+NSString * const IDENTIFIER_TYPE_PHONE = @"phone";
 // The user's email
-const NSString * IDENTIFIER_TYPE_EMAIL = @"email";
+NSString * const IDENTIFIER_TYPE_EMAIL = @"email";
 // The user's Shopify Customer ID
-const NSString * IDENTIFIER_TYPE_SHOPIFY_ID = @"shopifyId";
+NSString * const IDENTIFIER_TYPE_SHOPIFY_ID = @"shopifyId";
 // The user's Klaviyo ID
-const NSString * IDENTIFIER_TYPE_KLAVIYO_ID = @"klaviyoId";
+NSString * const IDENTIFIER_TYPE_KLAVIYO_ID = @"klaviyoId";
 // Key-value pairs of custom identifier names and values (both NSStrings) to associate with this user
-const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
+NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 
 
 @implementation ATTNUserIdentity
