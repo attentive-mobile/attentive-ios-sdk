@@ -27,8 +27,16 @@
     return [super init];
 }
 
-- (void)identify:(NSDictionary *)userIdentifiers {
-    [_userIdentity mergeIdentifiers:userIdentifiers];
+- (void)identify:(NSObject *)userIdentifiers {
+    if([userIdentifiers isKindOfClass:[NSString class]]) {
+        // accept NSString for backward compatibility
+        NSLog(@"WARNING: This way of calling identify is deprecated. Please pass in userIdentifiers as an <NSDictionary *>. See SDK README for details.");
+        [_userIdentity mergeIdentifiers:@{IDENTIFIER_TYPE_CLIENT_USER_ID: (NSString *)userIdentifiers}];
+    } else if([userIdentifiers isKindOfClass:[NSDictionary class]]) {
+        [_userIdentity mergeIdentifiers:(NSDictionary *)userIdentifiers];
+    } else {
+        [NSException raise:@"Incorrect type for userIdentifiers" format:@"userIdentifiers should be of type <NSDictionary *>"];
+    }
 }
 
 - (void)trigger:(UIView *)theView {
