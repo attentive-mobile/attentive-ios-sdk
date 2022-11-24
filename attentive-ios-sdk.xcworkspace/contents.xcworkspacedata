@@ -2,9 +2,12 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "container:/Users/wdavis/repos/attentive-ios-sdk/attentive-ios-sdk.xcodeproj">
+      location = "group:attentive-ios-sdk.xcodeproj">
    </FileRef>
    <FileRef
       location = "group:Example/Example.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:Example/Pods/Pods.xcodeproj">
    </FileRef>
 </Workspace>

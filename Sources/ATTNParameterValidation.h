@@ -10,7 +10,6 @@
 
 #import <Foundation/Foundation.h>
 
-// TODO: move these classes out of the Creative/ dir
 @interface ATTNParameterValidation : NSObject
 
 

@@ -7,12 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = 58317997292F57300003D6B0 /* ATTNSDKFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */; };
-		58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */; };
+		58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */; };
 		58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ED0292EC20700B1ECF3 /* ATTNSDK.m */; };
-		58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED1292EC20700B1ECF3 /* ATTNSDK.h */; };
-		58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED2292EC20700B1ECF3 /* ATTNUserIdentity.h */; };
+		58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED1292EC20700B1ECF3 /* ATTNSDK.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED2292EC20700B1ECF3 /* ATTNUserIdentity.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
@@ -31,6 +32,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		58317997292F57300003D6B0 /* ATTNSDKFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNSDKFramework.h; path = Framework/ATTNSDKFramework.h; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = Sources/ATTNUserIdentity.m; sourceTree = "<group>"; };
 		58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNParameterValidation.h; path = Sources/ATTNParameterValidation.h; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 		58332EDB292EC24200B1ECF3 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				58317997292F57300003D6B0 /* ATTNSDKFramework.h */,
 				58332EDF292EC26000B1ECF3 /* LICENSE */,
 				58332EDE292EC26000B1ECF3 /* README.md */,
 				58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */,
@@ -122,8 +125,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
-				58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */,
 				58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */,
+				58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */,
+				58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -371,6 +375,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
@@ -408,6 +413,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;

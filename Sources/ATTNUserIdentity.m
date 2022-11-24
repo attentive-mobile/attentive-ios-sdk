@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 
+#import "ATTNParameterValidation.h"
 #import "ATTNUserIdentity.h"
 
 // Your unique identifier for the user - this should be consistent across the user's lifetime, for example a database id
