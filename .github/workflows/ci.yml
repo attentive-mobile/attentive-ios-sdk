@@ -1,4 +1,4 @@
-name: Xcode - Build and Analyze
+name: CI
 
 on:
   push:
@@ -13,6 +13,7 @@ on:
     paths:
       - "Sources/**"
       - "Tests/**"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.ref_name }}
@@ -26,5 +27,5 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - name: "Play"
+      - name: "Test"
         run: xcodebuild -project "attentive-ios-sdk.xcodeproj" -scheme "attentive-ios-sdk Tests" -destination "platform=iOS" clean test
