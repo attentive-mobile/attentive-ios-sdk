@@ -1,0 +1,24 @@
+name: Xcode - Build and Analyze
+
+on:
+  push:
+    branches:
+      - test
+  pull_request:
+    branches: 
+      - test
+
+concurrency:
+  group: ${{ github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  iOS:
+    name: Test iOS
+    runs-on: macOS-12
+    env:
+      DEVELOPER_DIR: "/Applications/Xcode_14.1.app/Contents/Developer"
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Play"
+        run: xcodebuild -project "attentive-ios-sdk.xcodeproj" -scheme "attentive-ios-sdk Tests" -destination "platform=iOS" clean test
