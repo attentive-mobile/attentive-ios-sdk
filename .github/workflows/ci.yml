@@ -3,15 +3,13 @@ name: Xcode - Build and Analyze
 on:
   push:
     branches:
-      - main
-      - feature/*
+      - test
     paths:
       - "Sources/**"
       - "Tests/**"
   pull_request:
     branches: 
-      - main
-      - feature/*
+      - test
     paths:
       - "Sources/**"
       - "Tests/**"
