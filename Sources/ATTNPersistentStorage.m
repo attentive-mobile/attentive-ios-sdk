@@ -9,7 +9,7 @@
 #import "ATTNPersistentStorage.h"
 
 
-NSString * const ATTN_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
+NSString * const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
 
 
 @implementation ATTNPersistentStorage
@@ -21,7 +21,7 @@ NSString * const ATTN_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
 }
 
 - (NSString *)getPrefixedKey: (nonnull NSString * ) key {
-    return [NSString stringWithFormat:@"%@:%@", ATTN_PREFIX, key];
+    return [NSString stringWithFormat:@"%@:%@", ATTN_PERSISTENT_STORAGE_PREFIX, key];
 }
 
 - (void)saveObject: (nonnull NSObject *) value forKey:(nonnull NSString *) key {
