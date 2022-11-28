@@ -19,7 +19,7 @@ ATTNSDK *sdk;
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    sdk = [[ATTNSDK alloc] initWithDomain:@"games" mode:@"production"];
+    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
     // Register the current user with the Attentive SDK. Replace "APP_USER_ID"
     // with the current user's ID. You must register a user ID before calling

@@ -10,7 +10,36 @@
 #import "ATTNVisitorService.h"
 
 
+NSString * const VISITOR_ID_KEY = @"visitorId";
+
+
 @implementation ATTNVisitorService
+
+- (id)init {
+    _persistentStorage = [[ATTNPersistentStorage alloc] init];
+    return [super init];
+}
+
+- (NSString *)getVisitorId {
+    NSString * existingVisitorId = [_persistentStorage readStringForKey:VISITOR_ID_KEY];
+    if(existingVisitorId != nil) {
+        return existingVisitorId;
+    } else {
+        return [self createNewVisitorId];
+    }
+}
+
+- (nonnull NSString *)createNewVisitorId {
+    NSString * newVisitorId = [self generateVisitorId];
+    [_persistentStorage saveObject:newVisitorId forKey:VISITOR_ID_KEY];
+    return newVisitorId;
+}
+
+- (nonnull NSString *)generateVisitorId {
+    NSUUID * uuid = [NSUUID UUID];
+    NSString * uuidString = [[uuid UUIDString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    return [uuidString lowercaseString];
+}
 
 
 @end

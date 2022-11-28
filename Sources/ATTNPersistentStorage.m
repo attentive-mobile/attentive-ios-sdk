@@ -32,7 +32,7 @@ NSString * const ATTN_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
     return [_userDefaults stringForKey:[self getPrefixedKey:key]];
 }
 
-- (void)deleteForKey: (nonnull NSString *) key {
+- (void)deleteObjectForKey: (nonnull NSString *) key {
     [_userDefaults removeObjectForKey:[self getPrefixedKey:key]];
 }
 

@@ -25,7 +25,7 @@ NS_ASSUME_NONNULL_END
 
 - (nullable NSString *)readStringForKey: (nonnull NSString *) key;
 
-- (void)deleteForKey: (nonnull NSString *) key;
+- (void)deleteObjectForKey: (nonnull NSString *) key;
 
 @property(nonnull, readonly) NSUserDefaults * userDefaults;
 
