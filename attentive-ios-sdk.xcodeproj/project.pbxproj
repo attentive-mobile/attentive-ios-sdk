@@ -1,0 +1,516 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = 58317997292F57300003D6B0 /* ATTNSDKFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */; };
+		58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */; };
+		58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ED0292EC20700B1ECF3 /* ATTNSDK.m */; };
+		58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED1292EC20700B1ECF3 /* ATTNSDK.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ED2292EC20700B1ECF3 /* ATTNUserIdentity.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
+		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
+		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
+		58D52E1D292EC52B00CF32DE /* attentive_ios_sdk.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */; };
+		58D52E23292EC5A700CF32DE /* ExampleTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 58D52E12292EC4B400CF32DE /* ExampleTest.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		58D52E1E292EC52B00CF32DE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 58332EBA292EC18800B1ECF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 58332EC2292EC18800B1ECF3;
+			remoteInfo = "attentive-ios-sdk";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		58317997292F57300003D6B0 /* ATTNSDKFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNSDKFramework.h; path = Framework/ATTNSDKFramework.h; sourceTree = "<group>"; };
+		58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = Sources/ATTNUserIdentity.m; sourceTree = "<group>"; };
+		58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNParameterValidation.h; path = Sources/ATTNParameterValidation.h; sourceTree = "<group>"; };
+		58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidation.m; path = Sources/ATTNParameterValidation.m; sourceTree = "<group>"; };
+		58332ED0292EC20700B1ECF3 /* ATTNSDK.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNSDK.m; path = Sources/ATTNSDK.m; sourceTree = "<group>"; };
+		58332ED1292EC20700B1ECF3 /* ATTNSDK.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNSDK.h; path = Sources/ATTNSDK.h; sourceTree = "<group>"; };
+		58332ED2292EC20700B1ECF3 /* ATTNUserIdentity.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNUserIdentity.h; path = Sources/ATTNUserIdentity.h; sourceTree = "<group>"; };
+		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; };
+		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		58332EDF292EC26000B1ECF3 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		58D52E12292EC4B400CF32DE /* ExampleTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ExampleTest.m; path = Tests/ExampleTest.m; sourceTree = "<group>"; };
+		58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "attentive-ios-sdk Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		58332EC0292EC18800B1ECF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58D52E16292EC52B00CF32DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58D52E1D292EC52B00CF32DE /* attentive_ios_sdk.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		58332EB9292EC18800B1ECF3 = {
+			isa = PBXGroup;
+			children = (
+				58332ED9292EC21100B1ECF3 /* Sources */,
+				58332EDB292EC24200B1ECF3 /* Supporting Files */,
+				58332EDA292EC23000B1ECF3 /* Tests */,
+				58332EC4292EC18800B1ECF3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		58332EC4292EC18800B1ECF3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */,
+				58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		58332ED9292EC21100B1ECF3 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */,
+				58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */,
+				58332ED1292EC20700B1ECF3 /* ATTNSDK.h */,
+				58332ED0292EC20700B1ECF3 /* ATTNSDK.m */,
+				58332ED2292EC20700B1ECF3 /* ATTNUserIdentity.h */,
+				58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		58332EDA292EC23000B1ECF3 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				58D52E12292EC4B400CF32DE /* ExampleTest.m */,
+			);
+			name = Tests;
+			sourceTree = "<group>";
+		};
+		58332EDB292EC24200B1ECF3 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				58317997292F57300003D6B0 /* ATTNSDKFramework.h */,
+				58332EDF292EC26000B1ECF3 /* LICENSE */,
+				58332EDE292EC26000B1ECF3 /* README.md */,
+				58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		58332EBE292EC18800B1ECF3 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
+				58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */,
+				58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */,
+				58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */;
+			buildPhases = (
+				58332EBE292EC18800B1ECF3 /* Headers */,
+				58332EBF292EC18800B1ECF3 /* Sources */,
+				58332EC0292EC18800B1ECF3 /* Frameworks */,
+				58332EC1292EC18800B1ECF3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "attentive-ios-sdk";
+			productName = "attentive-ios-sdk";
+			productReference = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		58D52E18292EC52B00CF32DE /* attentive-ios-sdk Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 58D52E20292EC52B00CF32DE /* Build configuration list for PBXNativeTarget "attentive-ios-sdk Tests" */;
+			buildPhases = (
+				58D52E15292EC52B00CF32DE /* Sources */,
+				58D52E16292EC52B00CF32DE /* Frameworks */,
+				58D52E17292EC52B00CF32DE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				58D52E1F292EC52B00CF32DE /* PBXTargetDependency */,
+			);
+			name = "attentive-ios-sdk Tests";
+			productName = "attentive-ios-sdk Tests";
+			productReference = 58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		58332EBA292EC18800B1ECF3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1410;
+				TargetAttributes = {
+					58332EC2292EC18800B1ECF3 = {
+						CreatedOnToolsVersion = 14.1;
+					};
+					58D52E18292EC52B00CF32DE = {
+						CreatedOnToolsVersion = 14.1;
+					};
+				};
+			};
+			buildConfigurationList = 58332EBD292EC18800B1ECF3 /* Build configuration list for PBXProject "attentive-ios-sdk" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 58332EB9292EC18800B1ECF3;
+			productRefGroup = 58332EC4292EC18800B1ECF3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */,
+				58D52E18292EC52B00CF32DE /* attentive-ios-sdk Tests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		58332EC1292EC18800B1ECF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58332EE1292EC26000B1ECF3 /* LICENSE in Resources */,
+				58332EE0292EC26000B1ECF3 /* README.md in Resources */,
+				58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58D52E17292EC52B00CF32DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		58332EBF292EC18800B1ECF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */,
+				58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */,
+				58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		58D52E15292EC52B00CF32DE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58D52E23292EC5A700CF32DE /* ExampleTest.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		58D52E1F292EC52B00CF32DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */;
+			targetProxy = 58D52E1E292EC52B00CF32DE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		58332EC8292EC18800B1ECF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		58332EC9292EC18800B1ECF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		58332ECB292EC18800B1ECF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		58332ECC292EC18800B1ECF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		58D52E21292EC52B00CF32DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		58D52E22292EC52B00CF32DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		58332EBD292EC18800B1ECF3 /* Build configuration list for PBXProject "attentive-ios-sdk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				58332EC8292EC18800B1ECF3 /* Debug */,
+				58332EC9292EC18800B1ECF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				58332ECB292EC18800B1ECF3 /* Debug */,
+				58332ECC292EC18800B1ECF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		58D52E20292EC52B00CF32DE /* Build configuration list for PBXNativeTarget "attentive-ios-sdk Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				58D52E21292EC52B00CF32DE /* Debug */,
+				58D52E22292EC52B00CF32DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 58332EBA292EC18800B1ECF3 /* Project object */;
+}
