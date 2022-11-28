@@ -137,8 +137,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
+<<<<<<< HEAD
 				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
 				6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */,
+=======
+>>>>>>> feature/identity-improvements
 				58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */,
 				58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */,
 				58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */,
@@ -248,8 +251,11 @@
 				58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */,
 				58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */,
 				58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */,
+<<<<<<< HEAD
 				6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */,
 				6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */,
+=======
+>>>>>>> feature/identity-improvements
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
