@@ -16,24 +16,24 @@ NS_ASSUME_NONNULL_BEGIN
 
 extern NSString * const VISITOR_ID_KEY;;
 
-NS_ASSUME_NONNULL_END
-
 
 @interface ATTNVisitorService : NSObject
 
 
-- (nonnull id)init;
+- (id)init;
 
-- (nonnull NSString *)getVisitorId;
+- (NSString *)getVisitorId;
 
-- (nonnull NSString *)createNewVisitorId;
+- (NSString *)createNewVisitorId;
 
-- (nonnull NSString *)generateVisitorId;
+- (NSString *)generateVisitorId;
 
-@property(nonnull, readonly) ATTNPersistentStorage * persistentStorage;
+@property(readonly) ATTNPersistentStorage * persistentStorage;
 
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 
 #endif /* ATTNVisitorService_h */

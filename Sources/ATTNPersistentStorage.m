@@ -20,19 +20,19 @@ NSString * const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.PERSIST
     return [super init];
 }
 
-- (NSString *)getPrefixedKey: (nonnull NSString * ) key {
+- (NSString *)getPrefixedKey: (NSString * ) key {
     return [NSString stringWithFormat:@"%@:%@", ATTN_PERSISTENT_STORAGE_PREFIX, key];
 }
 
-- (void)saveObject: (nonnull NSObject *) value forKey:(nonnull NSString *) key {
+- (void)saveObject: (NSObject *) value forKey:(NSString *) key {
     [_userDefaults setObject:value forKey:[self getPrefixedKey:key]];
 }
 
-- (NSString *)readStringForKey: (nonnull NSString *) key {
+- (NSString *)readStringForKey: (NSString *) key {
     return [_userDefaults stringForKey:[self getPrefixedKey:key]];
 }
 
-- (void)deleteObjectForKey: (nonnull NSString *) key {
+- (void)deleteObjectForKey: (NSString *) key {
     [_userDefaults removeObjectForKey:[self getPrefixedKey:key]];
 }
 

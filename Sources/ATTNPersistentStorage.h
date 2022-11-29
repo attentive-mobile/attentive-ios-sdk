@@ -13,24 +13,24 @@ NS_ASSUME_NONNULL_BEGIN
 
 extern NSString * const ATTN_PERSISTENT_STORAGE_PREFIX;
 
-NS_ASSUME_NONNULL_END
-
 
 @interface ATTNPersistentStorage : NSObject
 
 
-- (nonnull NSString *)getPrefixedKey: (nonnull NSString * ) key;
+- (NSString *)getPrefixedKey: (NSString * ) key;
 
-- (void)saveObject: (nonnull NSObject *) value forKey:(nonnull NSString *) key;
+- (void)saveObject: (NSObject *) value forKey:(NSString *) key;
 
-- (nullable NSString *)readStringForKey: (nonnull NSString *) key;
+- (nullable NSString *)readStringForKey: (NSString *) key;
 
-- (void)deleteObjectForKey: (nonnull NSString *) key;
+- (void)deleteObjectForKey: (NSString *) key;
 
-@property(nonnull, readonly) NSUserDefaults * userDefaults;
+@property(readonly) NSUserDefaults * userDefaults;
 
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 
 #endif /* ATTNPersistentStorage_h */

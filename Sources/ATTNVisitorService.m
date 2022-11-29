@@ -29,13 +29,13 @@ NSString * const VISITOR_ID_KEY = @"visitorId";
     }
 }
 
-- (nonnull NSString *)createNewVisitorId {
+- (NSString *)createNewVisitorId {
     NSString * newVisitorId = [self generateVisitorId];
     [_persistentStorage saveObject:newVisitorId forKey:VISITOR_ID_KEY];
     return newVisitorId;
 }
 
-- (nonnull NSString *)generateVisitorId {
+- (NSString *)generateVisitorId {
     NSUUID * uuid = [NSUUID UUID];
     NSString * uuidString = [[uuid UUIDString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
     return [uuidString lowercaseString];
