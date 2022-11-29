@@ -82,10 +82,7 @@
 
 - (nonnull NSString *)buildCompanyCreativeUrl {
 
-    NSURLComponents *components = [[NSURLComponents alloc] init];
-    [components setScheme:@"https"];
-    [components setHost:@"creatives.attn.tv"];
-    [components setPath:@"/mobile-apps/index.html"];
+    NSURLComponents *components = [[NSURLComponents alloc] initWithString:@"https://creatives.attn.tv/mobile-apps/index.html"];
 
     // Add query parameters
     NSMutableArray * queryItems = [[NSMutableArray alloc] initWithObjects:
