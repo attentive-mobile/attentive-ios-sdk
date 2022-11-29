@@ -27,8 +27,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)createNewVisitorId;
 
-- (NSString *)generateVisitorId;
-
 
 @end
 
