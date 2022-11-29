@@ -23,6 +23,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)trigger:(UIView *)theView;
 
+- (void)clearUser;
+
 NS_ASSUME_NONNULL_END
 
 @end

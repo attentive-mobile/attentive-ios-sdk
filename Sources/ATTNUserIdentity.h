@@ -7,6 +7,8 @@
 
 #import <Foundation/Foundation.h>
 
+@class ATTNVisitorService;
+
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -22,6 +24,8 @@ extern NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 
 @property NSDictionary * identifiers;
 
+@property NSString * visitorId;
+
 
 - (id)init;
 
@@ -30,6 +34,8 @@ extern NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 - (void)validateIdentifiers:(NSDictionary *) identifiers;
 
 - (void)mergeIdentifiers:(NSDictionary *) newIdentifiers;
+
+- (void)clearUser;
 
 @end
 

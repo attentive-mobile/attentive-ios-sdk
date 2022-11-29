@@ -9,6 +9,7 @@
 
 #import "ATTNParameterValidation.h"
 #import "ATTNUserIdentity.h"
+#import "ATTNVisitorService.h"
 
 
 // Your unique identifier for the user - this should be consistent across the user's lifetime, for example a database id
@@ -25,21 +26,21 @@ NSString * const IDENTIFIER_TYPE_KLAVIYO_ID = @"klaviyoId";
 NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 
 
-@implementation ATTNUserIdentity
+@implementation ATTNUserIdentity {
+    ATTNVisitorService * _visitorService;
+}
 
 - (id)init {
-    if (self = [super init]) {
-        _identifiers = @{};
-    }
-    return self;
+    return [self initWithIdentifiers:@{}];
 }
 
 - (id)initWithIdentifiers:(nonnull NSDictionary *) identifiers {
-    self = [super init];
-    
-    [self validateIdentifiers:identifiers];
-    _identifiers = identifiers;
-    
+    if (self = [super init]) {
+        [self validateIdentifiers:identifiers];
+        _identifiers = identifiers;
+        _visitorService = [[ATTNVisitorService alloc] init];
+        _visitorId = [_visitorService getVisitorId];
+    }
     return self;
 }
 
@@ -58,6 +59,11 @@ NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
     [ATTNParameterValidation verifyStringOrNil:identifiers[IDENTIFIER_TYPE_SHOPIFY_ID] inputName:IDENTIFIER_TYPE_SHOPIFY_ID];
     [ATTNParameterValidation verifyStringOrNil:identifiers[IDENTIFIER_TYPE_KLAVIYO_ID] inputName:IDENTIFIER_TYPE_KLAVIYO_ID];
     [ATTNParameterValidation verify1DStringDictionaryOrNil:identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] inputName:IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS];
+}
+
+- (void)clearUser {
+    _identifiers = @{};
+    _visitorId = [_visitorService createNewVisitorId];
 }
 
 

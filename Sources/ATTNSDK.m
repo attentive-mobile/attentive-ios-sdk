@@ -83,6 +83,10 @@
     }
 }
 
+- (void)clearUser{
+    [_userIdentity clearUser];
+}
+
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
 
     NSString *asyncJs = @"var p = new Promise(resolve => { "
