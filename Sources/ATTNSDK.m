@@ -44,7 +44,6 @@
         [NSException raise:@"Incorrect type for userIdentifiers" format:@"userIdentifiers should be of type <NSDictionary *>"];
     }
         
-    // send user identifiers
     [_api sendUserIdentity:_userIdentity domain:_domain];
 }
 

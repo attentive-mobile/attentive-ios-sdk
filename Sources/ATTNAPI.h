@@ -15,7 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNAPI : NSObject
 
-- (nonnull id)init;
+- (id)init;
 
 - (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity domain:(NSString *) domain;
 
