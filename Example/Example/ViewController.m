@@ -25,7 +25,7 @@ ATTNSDK *sdk;
     sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
     
-    // Register the current user with the Attentive SDK by calling the `identify` method. The more identifiers you provide, the better the Attentive SDK will function.
+    // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
     _userIdentifiers = @{ IDENTIFIER_TYPE_PHONE: @"+14156667777",
                           IDENTIFIER_TYPE_EMAIL: @"someemail@email.com",
                           IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID",
