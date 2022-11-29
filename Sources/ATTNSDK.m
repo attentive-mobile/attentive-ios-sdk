@@ -42,14 +42,7 @@
 - (void)trigger:(UIView *)theView {
     _parentView = theView;
     NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
-    NSString* creativePageUrl;
-
-    // TODO - update this to use visitor id
-    if ([_mode isEqual:@"debug"]) {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@&debug=matter-trip-grass-symbol", _domain, _userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]];
-    } else {
-        creativePageUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=%@&cuid=%@", _domain, _userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]];
-    }
+    NSString* creativePageUrl = [self buildCompanyCreativeUrl];
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);
     
@@ -70,13 +63,79 @@
 
     [_webView loadRequest:request ];
     
-    if ([_mode isEqual:@"debug"]) {
+    if ([_mode isEqualToString:@"debug"]) {
         [_parentView addSubview:_webView];
     }
     else {
         _webView.opaque = NO;
         _webView.backgroundColor = [UIColor clearColor];
     }
+}
+
+- (nonnull NSString *)buildCompanyCreativeUrl {
+
+    NSURLComponents *components = [[NSURLComponents alloc] init];
+    [components setScheme:@"https"];
+    [components setHost:@"creatives.attn.tv"];
+    [components setPath:@"/mobile-apps/index.html"];
+
+    // Add query parameters
+    NSMutableArray * queryItems = [[NSMutableArray alloc] initWithObjects:
+        [[NSURLQueryItem alloc] initWithName:@"domain" value:_domain],
+        nil];
+
+    if ([_mode isEqualToString:@"debug"]) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:_mode value:@"matter-trip-grass-symbol"]];
+    }
+
+    if (_userIdentity.visitorId != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"vid" value:_userIdentity.visitorId]];
+    }
+    else {
+        NSLog(@"ERROR: No Visitor ID Found. This should not happen.");
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"cuid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]]];
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_PHONE] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"p" value:_userIdentity.identifiers[IDENTIFIER_TYPE_PHONE]]];
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_EMAIL] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"e" value:_userIdentity.identifiers[IDENTIFIER_TYPE_EMAIL]]];
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"kid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID]]];
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_SHOPIFY_ID] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"sid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID]]];
+    }
+
+    if (_userIdentity.identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] != nil) {
+        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"cstm" value:[self getCustomIdentifiersJson]]];
+    }
+
+    [components setQueryItems:queryItems];
+
+    return [components string];
+}
+
+- (nonnull NSString *)getCustomIdentifiersJson {
+    @try {
+        NSError * error;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:_userIdentity.identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS]
+            options:0 // Do not pretty print the json string
+            error:&error];
+        return [[NSString alloc]initWithData:jsonData encoding:NSUTF8StringEncoding];
+    } @catch (NSException *exception) {
+        NSLog(@"ERROR: Could not parse custom identifiers to json %@", exception);
+    }
+
+    return @"{}";
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
@@ -105,10 +164,12 @@
         if (!status) {
             NSLog(@"No status returned from JS. Not showing WebView.");
             return;
-        } else if ([status isEqual:@"SUCCESS"] && ![self->_mode isEqual:@"debug"]) {
+        } else if ([status isEqualToString:@"SUCCESS"]) {
             NSLog(@"Found creative iframe, showing WebView.");
-            [self->_parentView addSubview:webView];
-        } else if ([status isEqual:@"TIMED OUT"]) {
+            if(![self->_mode isEqualToString:@"debug"]) {
+                [self->_parentView addSubview:webView];
+            }
+        } else if ([status isEqualToString:@"TIMED OUT"]) {
             NSLog(@"Creative timed out. Not showing WebView.");
         } else {
             NSLog(@"Received unknown status: %@. Not showing WebView", status);
@@ -119,7 +180,7 @@
 
 - (void)userContentController:(WKUserContentController *)userContentController
     didReceiveScriptMessage:(WKScriptMessage *)message {
-    if ([message.body isEqual:@"CLOSE"]) {
+    if ([message.body isEqualToString:@"CLOSE"]) {
         [_webView removeFromSuperview];
     }
 }
@@ -127,7 +188,7 @@
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     NSURL *url = navigationAction.request.URL;
-    if ([navigationAction.request.URL.scheme isEqual:@"sms"]) {
+    if ([navigationAction.request.URL.scheme isEqualToString:@"sms"]) {
         [UIApplication.sharedApplication openURL:url];
         decisionHandler(WKNavigationActionPolicyCancel);
         return;
