@@ -7,29 +7,37 @@
 
 #import <Foundation/Foundation.h>
 
+@class ATTNVisitorService;
+
 
 NS_ASSUME_NONNULL_BEGIN
 
-extern const NSString * IDENTIFIER_TYPE_CLIENT_USER_ID;
-extern const NSString * IDENTIFIER_TYPE_PHONE;
-extern const NSString * IDENTIFIER_TYPE_EMAIL;
-extern const NSString * IDENTIFIER_TYPE_SHOPIFY_ID;
-extern const NSString * IDENTIFIER_TYPE_KLAVIYO_ID;
-extern const NSString * IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
-
-NS_ASSUME_NONNULL_END
+extern NSString * const IDENTIFIER_TYPE_CLIENT_USER_ID;
+extern NSString * const IDENTIFIER_TYPE_PHONE;
+extern NSString * const IDENTIFIER_TYPE_EMAIL;
+extern NSString * const IDENTIFIER_TYPE_SHOPIFY_ID;
+extern NSString * const IDENTIFIER_TYPE_KLAVIYO_ID;
+extern NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 
 
 @interface ATTNUserIdentity : NSObject
 
-- (nonnull id)init;
+@property NSDictionary * identifiers;
 
-- (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
+@property NSString * visitorId;
 
-- (void)validateIdentifiers:(nonnull NSDictionary *) identifiers;
 
-- (void)mergeIdentifiers:(nonnull NSDictionary *) newIdentifiers;
+- (id)init;
 
-@property (nonnull) NSDictionary * identifiers;
+- (id)initWithIdentifiers:(NSDictionary *) identifiers;
+
+- (void)validateIdentifiers:(NSDictionary *) identifiers;
+
+- (void)mergeIdentifiers:(NSDictionary *) newIdentifiers;
+
+- (void)clearUser;
 
 @end
+
+
+NS_ASSUME_NONNULL_END

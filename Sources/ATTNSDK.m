@@ -7,6 +7,8 @@
 
 #import <WebKit/WebKit.h>
 #import "ATTNSDK.h"
+#import "ATTNUserIdentity.h"
+
 
 @implementation ATTNSDK {
     UIView *_parentView;
@@ -21,10 +23,12 @@
 }
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode {
-    _domain = domain;
-    _mode = mode;
-    _userIdentity = [[ATTNUserIdentity alloc] init];
-    return [super init];
+    if (self = [super init]) {
+        _domain = domain;
+        _mode = mode;
+        _userIdentity = [[ATTNUserIdentity alloc] init];
+    }
+    return self;
 }
 
 - (void)identify:(NSObject *)userIdentifiers {
@@ -77,6 +81,10 @@
         _webView.opaque = NO;
         _webView.backgroundColor = [UIColor clearColor];
     }
+}
+
+- (void)clearUser{
+    [_userIdentity clearUser];
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
