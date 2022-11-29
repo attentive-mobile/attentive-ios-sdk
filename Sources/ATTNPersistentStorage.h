@@ -17,6 +17,9 @@ extern NSString * const ATTN_PERSISTENT_STORAGE_PREFIX;
 @interface ATTNPersistentStorage : NSObject
 
 
+@property(readonly) NSUserDefaults * userDefaults;
+
+
 - (NSString *)getPrefixedKey: (NSString * ) key;
 
 - (void)saveObject: (NSObject *) value forKey:(NSString *) key;
@@ -24,8 +27,6 @@ extern NSString * const ATTN_PERSISTENT_STORAGE_PREFIX;
 - (nullable NSString *)readStringForKey: (NSString *) key;
 
 - (void)deleteObjectForKey: (NSString *) key;
-
-@property(readonly) NSUserDefaults * userDefaults;
 
 
 @end

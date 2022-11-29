@@ -20,6 +20,9 @@ extern NSString * const VISITOR_ID_KEY;;
 @interface ATTNVisitorService : NSObject
 
 
+@property(readonly) ATTNPersistentStorage * persistentStorage;
+
+
 - (id)init;
 
 - (NSString *)getVisitorId;
@@ -27,8 +30,6 @@ extern NSString * const VISITOR_ID_KEY;;
 - (NSString *)createNewVisitorId;
 
 - (NSString *)generateVisitorId;
-
-@property(readonly) ATTNPersistentStorage * persistentStorage;
 
 
 @end
