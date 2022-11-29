@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import "ATTNVisitorService.h"
+#import "ATTNPersistentStorage.h"
 
 
 static NSString *const VISITOR_ID_KEY = @"visitorId";

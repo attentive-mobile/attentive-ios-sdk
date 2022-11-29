@@ -6,7 +6,10 @@
 //
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
-#import "ATTNUserIdentity.h"
+
+
+@class ATTNUserIdentity;
+
 
 @interface ATTNSDK : NSObject <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
 

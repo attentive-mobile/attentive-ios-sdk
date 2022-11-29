@@ -5,7 +5,7 @@
 //  Created by Olivia Kim on 11/23/22.
 //
 
-#import "ATTNPersistentStorage.h"
+@class ATTNPersistentStorage;
 
 
 #ifndef ATTNVisitorService_h

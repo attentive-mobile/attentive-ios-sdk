@@ -7,6 +7,7 @@
 
 #import <WebKit/WebKit.h>
 #import "ATTNSDK.h"
+#import "ATTNUserIdentity.h"
 
 
 @implementation ATTNSDK {

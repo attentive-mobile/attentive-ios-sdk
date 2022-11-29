@@ -10,6 +10,7 @@
 #import "ATTNParameterValidation.h"
 #import "ATTNUserIdentity.h"
 
+
 // Your unique identifier for the user - this should be consistent across the user's lifetime, for example a database id
 NSString * const IDENTIFIER_TYPE_CLIENT_USER_ID = @"clientUserId";
 // The user's phone number in E.164 format
