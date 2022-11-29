@@ -24,15 +24,17 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 
 - (id)init {
     if (self = [super init]) {
+        // It is possible that this is unsafe. If the host app chooses to change the config for the shared NSURLSession then our HTTP calls may be impacted. An alternative is to create our own NSURLSession instance.
         _urlSession = [NSURLSession sharedSession];
     }
     return [super init];
 }
 
 - (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
+    // TODO we should add retries for transient errors
     [self getGeoAdjustedDomain:domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
-            NSLog(@"Got error: %@", error);
+            NSLog(@"Error sending user identity: '%@'", error);
             return;
         }
         
@@ -46,7 +48,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSURL* url = [NSURL URLWithString:urlString];
     NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
-            NSLog(@"Error getting the geo-adjusted domain. Error: %@", [error description]);
+            NSLog(@"Error getting the geo-adjusted domain. Error: '%@'", [error description]);
             completionHandler(nil, error);
             return;
         }
@@ -55,14 +57,22 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
         // The body/data only contains the tag data if the endpoint returns a 200
         if ([httpResponse statusCode] != 200) {
-            NSLog(@"Error getting the geo-adjusted domain. Incorrect status code: %ld", (long)[httpResponse statusCode]);
+            NSLog(@"Error getting the geo-adjusted domain. Incorrect status code: '%ld'", (long)[httpResponse statusCode]);
             completionHandler(nil, error);
             return;
         }
         
         NSString* dataString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-                
-        completionHandler([ATTNAPI extractDomainFromTag:dataString], nil);
+        
+        NSString* geoAdjustedDomain = [ATTNAPI extractDomainFromTag:dataString];
+        
+        if (!geoAdjustedDomain) {
+            NSError* error = [NSError errorWithDomain:@"com.attentive.API" code:NSURLErrorBadServerResponse userInfo:nil];
+            completionHandler(nil, error);
+            return;
+        }
+        
+        completionHandler(geoAdjustedDomain, nil);
     }];
     
     [task resume];
@@ -74,14 +84,14 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSURL* url = [self constructUserIdentityUrl:userIdentity domain:domain];
     NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
-            NSLog(@"Error sending user identity. Error: %@", [error description]);
+            NSLog(@"Error sending user identity. Error: '%@'", [error description]);
             return;
         }
         
         // The response is an HTTP response because the URL had an HTTPS scheme
         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
         if ([httpResponse statusCode] != 200) {
-            NSLog(@"Error sending the event. Incorrect status code: %ld", (long)[httpResponse statusCode]);
+            NSLog(@"Error sending the event. Incorrect status code: '%ld'", (long)[httpResponse statusCode]);
             return;
         }
         
@@ -101,14 +111,6 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     queryParams[@"lt"] = @"0";
     queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];
-    
-    // encode each of the query params
-    /*
-    NSMutableDictionary *encodedQueryParams = [[NSMutableDictionary alloc] init];
-    for (NSString *key in queryParams) {
-        encodedQueryParams[key] = [queryParams[key] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
-    }
-     */
     
     // create query "items" for each query param
     NSMutableArray *queryItems = [NSMutableArray array];
@@ -139,7 +141,6 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
         }
     }
 
-    // TODO
     NSError* error = nil;
     NSData* array = [NSJSONSerialization dataWithJSONObject:ids options:0 error:&error];
     
@@ -198,6 +199,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSRange domainRange = [regexResult rangeAtIndex:1];
     if (NSEqualRanges(domainRange, NSMakeRange(NSNotFound, 0))) {
         NSLog(@"No match found for Attentive domain in the tag.");
+        return nil;
     }
     
     return [tag substringWithRange:domainRange];

@@ -16,7 +16,7 @@
 
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable))completionHandler;
 
-- (NSString*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain;
+- (NSURL*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain;
 
 @end
 
@@ -30,22 +30,13 @@
     // Put teardown code here. This method is called after the invocation of each test method in the class.
 }
 
-- (void)testExample {
-    // Use XCTAssert and related functions to verify your tests produce the correct results.
-}
-
 - (void)testConstructUserIdentityUrl {
     ATTNAPI* api = [[ATTNAPI alloc] init];
     ATTNUserIdentity* userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:@{IDENTIFIER_TYPE_CLIENT_USER_ID: @"some-client-id", IDENTIFIER_TYPE_EMAIL: @"some-email@email.com"}];
     
-    [api constructUserIdentityUrl:userIdentity domain:@"some-domain"];
+    NSURL* url = [api constructUserIdentityUrl:userIdentity domain:@"some-domain"];
+    XCTAssertNotNil(url);
 }
 
-- (void)testPerformanceExample {
-    // This is an example of a performance test case.
-    [self measureBlock:^{
-        // Put the code you want to measure the time of here.
-    }];
-}
 
 @end

@@ -55,6 +55,5 @@ ATTNSDK *sdk;
         NSLog(@"Cleared cookies!");
     }];
 }
-- (IBAction)sendIdentifiersButton:(UIButton *)sender {
-}
+
 @end
