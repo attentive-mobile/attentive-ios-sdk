@@ -78,9 +78,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     [task resume];
 }
 
-- (void)sendUserIdentityInternal:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
-    NSString* urlString = [NSString stringWithFormat:DTAG_URL_FORMAT, domain];
-    
+- (void)sendUserIdentityInternal:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {    
     NSURL* url = [self constructUserIdentityUrl:userIdentity domain:domain];
     NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {

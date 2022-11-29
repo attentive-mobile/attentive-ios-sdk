@@ -9,7 +9,8 @@
 #define ATTNAPI_h
 
 #import <Foundation/Foundation.h>
-#import "ATTNUserIdentity.h"
+
+@class ATTNUserIdentity;
 
 NS_ASSUME_NONNULL_BEGIN
 
