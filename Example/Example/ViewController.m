@@ -4,10 +4,13 @@
 
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
+@property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @end
 
 
-@implementation ViewController
+@implementation ViewController {
+    NSDictionary* _userIdentifiers;
+}
 
 ATTNSDK *sdk;
 
@@ -21,11 +24,16 @@ ATTNSDK *sdk;
     // this in a singleton class rather than each time a view loads.
     sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
-    // Register the current user with the Attentive SDK. Replace "APP_USER_ID"
-    // with the current user's ID. You must register a user ID before calling
-    // `trigger` on a Creative.
-    // TODO - more info here
-    [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID", IDENTIFIER_TYPE_PHONE: @"+14156667777"}];
+    
+    // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
+    _userIdentifiers = @{ IDENTIFIER_TYPE_PHONE: @"+14156667777",
+                          IDENTIFIER_TYPE_EMAIL: @"someemail@email.com",
+                          IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID",
+                          IDENTIFIER_TYPE_SHOPIFY_ID: @"207119551",
+                          IDENTIFIER_TYPE_KLAVIYO_ID: @"555555",
+                          IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId": @"customIdValue"}
+    };
+    [sdk identify:_userIdentifiers];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {
@@ -35,6 +43,10 @@ ATTNSDK *sdk;
     
     // Display the creative.
     [sdk trigger:self.view];
+}
+
+- (IBAction)sendIdentifiersButtonPress:(id)sender {
+    [sdk identify:_userIdentifiers];
 }
 
 - (void)clearCookies {
@@ -47,4 +59,5 @@ ATTNSDK *sdk;
         NSLog(@"Cleared cookies!");
     }];
 }
+
 @end
