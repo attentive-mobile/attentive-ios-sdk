@@ -19,6 +19,10 @@
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
 		58D52E1D292EC52B00CF32DE /* attentive_ios_sdk.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */; };
 		58D52E23292EC5A700CF32DE /* ExampleTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 58D52E12292EC4B400CF32DE /* ExampleTest.m */; };
+		6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874929353A99003F1BEC /* ATTNVisitorService.h */; };
+		6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874A29353A99003F1BEC /* ATTNVisitorService.m */; };
+		6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */; };
+		6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,6 +49,10 @@
 		58332EDF292EC26000B1ECF3 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		58D52E12292EC4B400CF32DE /* ExampleTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ExampleTest.m; path = Tests/ExampleTest.m; sourceTree = "<group>"; };
 		58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "attentive-ios-sdk Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6972874929353A99003F1BEC /* ATTNVisitorService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNVisitorService.h; path = Sources/ATTNVisitorService.h; sourceTree = "<group>"; };
+		6972874A29353A99003F1BEC /* ATTNVisitorService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNVisitorService.m; path = Sources/ATTNVisitorService.m; sourceTree = "<group>"; };
+		6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorage.m; path = Sources/ATTNPersistentStorage.m; sourceTree = "<group>"; };
+		6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNPersistentStorage.h; path = Sources/ATTNPersistentStorage.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,6 +96,10 @@
 		58332ED9292EC21100B1ECF3 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */,
+				6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */,
+				6972874929353A99003F1BEC /* ATTNVisitorService.h */,
+				6972874A29353A99003F1BEC /* ATTNVisitorService.m */,
 				58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */,
 				58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */,
 				58332ED1292EC20700B1ECF3 /* ATTNSDK.h */,
@@ -125,6 +137,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
+				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
+				6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */,
 				58332ED8292EC20700B1ECF3 /* ATTNUserIdentity.h in Headers */,
 				58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */,
 				58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */,
@@ -234,6 +248,8 @@
 				58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */,
 				58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */,
 				58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */,
+				6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */,
+				6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

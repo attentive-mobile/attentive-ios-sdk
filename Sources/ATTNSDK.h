@@ -6,7 +6,10 @@
 //
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
-#import "ATTNUserIdentity.h"
+
+
+@class ATTNUserIdentity;
+
 
 @interface ATTNSDK : NSObject <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
 
@@ -19,6 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)identify: (NSObject *)userIdentifiers;
 
 - (void)trigger:(UIView *)theView;
+
+- (void)clearUser;
 
 NS_ASSUME_NONNULL_END
 
