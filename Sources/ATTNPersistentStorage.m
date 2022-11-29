@@ -9,7 +9,7 @@
 #import "ATTNPersistentStorage.h"
 
 
-NSString * const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
+static NSString *const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.PERSISTENT_STORAGE";
 
 
 @implementation ATTNPersistentStorage
