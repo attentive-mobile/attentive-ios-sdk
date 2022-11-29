@@ -27,8 +27,10 @@ NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS = @"customIdentifiers";
 @implementation ATTNUserIdentity
 
 - (id)init {
-    _identifiers = @{};
-    return [super init];
+    if (self = [super init]) {
+        _identifiers = @{};
+    }
+    return self;
 }
 
 - (id)initWithIdentifiers:(nonnull NSDictionary *) identifiers {

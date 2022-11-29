@@ -16,8 +16,10 @@ NSString * const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.PERSIST
 
 
 - (id)init {
-    _userDefaults = [NSUserDefaults standardUserDefaults];
-    return [super init];
+    if (self = [super init]) {
+        _userDefaults = [NSUserDefaults standardUserDefaults];
+    }
+    return self;
 }
 
 - (NSString *)getPrefixedKey: (NSString * ) key {

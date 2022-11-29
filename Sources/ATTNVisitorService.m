@@ -16,8 +16,10 @@ static NSString *const VISITOR_ID_KEY = @"visitorId";
 @implementation ATTNVisitorService
 
 - (id)init {
-    _persistentStorage = [[ATTNPersistentStorage alloc] init];
-    return [super init];
+    if (self = [super init]) {
+        _persistentStorage = [[ATTNPersistentStorage alloc] init];
+    }
+    return self;
 }
 
 - (NSString *)getVisitorId {

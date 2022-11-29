@@ -8,6 +8,7 @@
 #import <WebKit/WebKit.h>
 #import "ATTNSDK.h"
 
+
 @implementation ATTNSDK {
     UIView *_parentView;
     WKWebView *_webView;
@@ -21,10 +22,12 @@
 }
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode {
-    _domain = domain;
-    _mode = mode;
-    _userIdentity = [[ATTNUserIdentity alloc] init];
-    return [super init];
+    if (self = [super init]) {
+        _domain = domain;
+        _mode = mode;
+        _userIdentity = [[ATTNUserIdentity alloc] init];
+    }
+    return self;
 }
 
 - (void)identify:(NSObject *)userIdentifiers {
