@@ -4,10 +4,13 @@
 
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
+@property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @end
 
 
-@implementation ViewController
+@implementation ViewController {
+    NSDictionary* _userIdentifiers;
+}
 
 ATTNSDK *sdk;
 
@@ -19,13 +22,14 @@ ATTNSDK *sdk;
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
+    sdk = [[ATTNSDK alloc] initWithDomain:@"offersbytext" mode:@"production"];
+    
     
     // Register the current user with the Attentive SDK. Replace "APP_USER_ID"
-    // with the current user's ID. You must register a user ID before calling
-    // `trigger` on a Creative.
+    // with the current user's ID.
     // TODO - more info here
-    [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID", IDENTIFIER_TYPE_PHONE: @"+14156667777"}];
+    _userIdentifiers = @{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID", IDENTIFIER_TYPE_PHONE: @"+14445558888"};
+    [sdk identify:_userIdentifiers];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {
@@ -37,6 +41,10 @@ ATTNSDK *sdk;
     [sdk trigger:self.view];
 }
 
+- (IBAction)sendIdentifiersButtonPress:(id)sender {
+    [sdk identify:_userIdentifiers];
+}
+
 - (void)clearCookies {
     NSLog(@"Clearing cookies!");
     NSSet *websiteDataTypes = [NSSet setWithArray:@[WKWebsiteDataTypeCookies]];
@@ -46,5 +54,7 @@ ATTNSDK *sdk;
                                            completionHandler:^() {
         NSLog(@"Cleared cookies!");
     }];
+}
+- (IBAction)sendIdentifiersButton:(UIButton *)sender {
 }
 @end
