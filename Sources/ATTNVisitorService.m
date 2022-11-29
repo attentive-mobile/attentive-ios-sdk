@@ -10,7 +10,7 @@
 #import "ATTNVisitorService.h"
 
 
-NSString * const VISITOR_ID_KEY = @"visitorId";
+static NSString *const VISITOR_ID_KEY = @"visitorId";
 
 
 @implementation ATTNVisitorService

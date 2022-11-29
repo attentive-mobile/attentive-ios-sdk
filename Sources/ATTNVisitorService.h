@@ -14,8 +14,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-extern NSString * const VISITOR_ID_KEY;;
-
 
 @interface ATTNVisitorService : NSObject
 
