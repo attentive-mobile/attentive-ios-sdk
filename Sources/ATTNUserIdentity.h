@@ -17,19 +17,21 @@ extern NSString * const IDENTIFIER_TYPE_SHOPIFY_ID;
 extern NSString * const IDENTIFIER_TYPE_KLAVIYO_ID;
 extern NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 
-NS_ASSUME_NONNULL_END
-
 
 @interface ATTNUserIdentity : NSObject
 
-- (nonnull id)init;
+@property NSDictionary * identifiers;
 
-- (nonnull id)initWithIdentifiers:(nonnull NSDictionary *) identifiers;
 
-- (void)validateIdentifiers:(nonnull NSDictionary *) identifiers;
+- (id)init;
 
-- (void)mergeIdentifiers:(nonnull NSDictionary *) newIdentifiers;
+- (id)initWithIdentifiers:(NSDictionary *) identifiers;
 
-@property (nonnull) NSDictionary * identifiers;
+- (void)validateIdentifiers:(NSDictionary *) identifiers;
+
+- (void)mergeIdentifiers:(NSDictionary *) newIdentifiers;
 
 @end
+
+
+NS_ASSUME_NONNULL_END
