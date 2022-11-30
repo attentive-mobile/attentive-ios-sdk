@@ -31,8 +31,6 @@ extern NSString * const IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS;
 
 - (id)initWithIdentifiers:(NSDictionary *) identifiers;
 
-- (void)validateIdentifiers:(NSDictionary *) identifiers;
-
 - (void)mergeIdentifiers:(NSDictionary *) newIdentifiers;
 
 - (void)clearUser;

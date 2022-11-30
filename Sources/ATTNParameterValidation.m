@@ -16,12 +16,12 @@
     return (inputValue != nil && ![inputValue isKindOfClass:[NSNull class]]);
 }
 
-+ (bool)isStringAndNotEmtpy:(nullable NSObject *) inputValue {
++ (bool)isStringAndNotEmpty:(nullable NSObject *) inputValue {
     return ([inputValue isKindOfClass:[NSString class]] && [(NSData *)inputValue length] > 0);
 }
 
 + (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName {
-    if([ATTNParameterValidation isNotNil:inputValue] && ![ATTNParameterValidation isStringAndNotEmtpy:inputValue]) {
+    if([ATTNParameterValidation isNotNil:inputValue] && ![ATTNParameterValidation isStringAndNotEmpty:inputValue]) {
         [NSException raise:@"Bad Identifier" format:@"%@ should be a non-empty NSString", inputName];
     }
 }

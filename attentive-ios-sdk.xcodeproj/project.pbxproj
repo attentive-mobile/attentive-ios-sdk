@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */; };
+		5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */; };
+		5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */; };
 		58317998292F57300003D6B0 /* ATTNSDKFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = 58317997292F57300003D6B0 /* ATTNSDKFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */; };
 		58332ED4292EC20700B1ECF3 /* ATTNParameterValidation.h in Headers */ = {isa = PBXBuildFile; fileRef = 58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -39,6 +42,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidationTest.m; path = Tests/ATTNParameterValidationTest.m; sourceTree = "<group>"; };
+		5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorageTest.m; path = Tests/ATTNPersistentStorageTest.m; sourceTree = "<group>"; };
+		5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentityTest.m; path = Tests/ATTNUserIdentityTest.m; sourceTree = "<group>"; };
 		58317997292F57300003D6B0 /* ATTNSDKFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNSDKFramework.h; path = Framework/ATTNSDKFramework.h; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = Sources/ATTNUserIdentity.m; sourceTree = "<group>"; };
@@ -123,6 +129,9 @@
 			children = (
 				58D52E12292EC4B400CF32DE /* ExampleTest.m */,
 				58A6EA2629359757009BE922 /* ATTNAPITest.m */,
+				5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */,
+				5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */,
+				5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */,
 			);
 			name = Tests;
 			sourceTree = "<group>";
@@ -269,7 +278,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				58D52E23292EC5A700CF32DE /* ExampleTest.m in Sources */,
+				5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */,
+				5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */,
 				58A6EA2729359A84009BE922 /* ATTNAPITest.m in Sources */,
+				5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
