@@ -15,7 +15,7 @@
 
 + (bool)isNotNil:(nullable NSObject *) inputValue;
 
-+ (bool)isStringAndNotEmtpy:(nullable NSObject *) inputValue;
++ (bool)isStringAndNotEmpty:(nullable NSObject *) inputValue;
 
 + (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName;
 
