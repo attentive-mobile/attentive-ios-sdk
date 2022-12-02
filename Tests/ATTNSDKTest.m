@@ -39,14 +39,11 @@
     // Use XCTAssert and related functions to verify your tests produce the correct results.
 }
 
-- (void)testPerformanceExample {
-    // This is an example of a performance test case.
-    [self measureBlock:^{
-        // Put the code you want to measure the time of here.
-    }];
-}
-
 /*
+ 
+ // TODO here are the public methods. Add test cases for them
+ 
+ 
  - (id)initWithDomain:(NSString *)domain;
  
  // init with empty domain, throws
@@ -64,7 +61,7 @@
 
  - (void)trigger:(UIView *)theView;
  
- //
+ // the URL passed to the view/webview is correct
 
  - (void)clearUser;
  
