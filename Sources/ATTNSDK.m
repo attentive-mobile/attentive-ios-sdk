@@ -33,7 +33,7 @@
     return self;
 }
 
-- (void)identify:(NSObject *)userIdentifiers {
+- (void)identify:(NSDictionary *)userIdentifiers {
     if([userIdentifiers isKindOfClass:[NSString class]]) {
         // accept NSString for backward compatibility
         NSLog(@"WARNING: This way of calling identify is deprecated. Please pass in userIdentifiers as an <NSDictionary *>. See SDK README for details.");
