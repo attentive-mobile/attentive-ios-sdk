@@ -31,6 +31,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 }
 
 - (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
+    NSLog(@"visitorId: %@", userIdentity.visitorId);
     // TODO we should add retries for transient errors
     [self getGeoAdjustedDomain:domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
@@ -58,7 +59,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
         // The body/data only contains the tag data if the endpoint returns a 200
         if ([httpResponse statusCode] != 200) {
             NSLog(@"Error getting the geo-adjusted domain. Incorrect status code: '%ld'", (long)[httpResponse statusCode]);
-            completionHandler(nil, error);
+            completionHandler(nil, [NSError errorWithDomain:@"com.attentive.API" code:NSURLErrorBadServerResponse userInfo:nil]);
             return;
         }
         
@@ -109,6 +110,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     queryParams[@"lt"] = @"0";
     queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];
+    queryParams[@"u"] = userIdentity.visitorId;
     
     // create query "items" for each query param
     NSMutableArray *queryItems = [NSMutableArray array];
