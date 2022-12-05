@@ -31,7 +31,6 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 }
 
 - (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
-    NSLog(@"visitorId: %@", userIdentity.visitorId);
     // TODO we should add retries for transient errors
     [self getGeoAdjustedDomain:domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
