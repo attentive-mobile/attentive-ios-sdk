@@ -35,12 +35,23 @@
                                     <action selector="sendIdentifiersButtonPress:" destination="BYZ-38-t0r" eventType="touchUpInside" id="c3z-Mo-1hx"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="FZT-nD-dxR">
+                                <rect key="frame" x="88" y="318" width="238" height="63"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Push me to clear the User!"/>
+                                <connections>
+                                    <action selector="clearUserButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="vn1-pc-QIS"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
                     <connections>
+                        <outlet property="clearUserButton" destination="FZT-nD-dxR" id="4cF-7K-VSD"/>
                         <outlet property="creativeButton" destination="6EU-4M-k4b" id="J9E-Ow-UKl"/>
+                        <outlet property="sendIdentifiersButton" destination="Oaz-PN-whY" id="eQT-h6-6qn"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>

@@ -5,6 +5,7 @@
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
+@property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
 @end
 
 
@@ -58,6 +59,10 @@ ATTNSDK *sdk;
                                            completionHandler:^() {
         NSLog(@"Cleared cookies!");
     }];
+}
+
+- (IBAction)clearUserButtonPressed:(id)sender {
+    [sdk clearUser];
 }
 
 @end
