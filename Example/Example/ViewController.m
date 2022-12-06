@@ -1,7 +1,6 @@
 #import "ViewController.h"
 #import "ImportAttentiveSDK.h"
 
-
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
