@@ -24,6 +24,8 @@ ATTNSDK *sdk;
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
     sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
+    
+    // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events.
     [ATTNEventTracker setupWithSdk:sdk];
     
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
