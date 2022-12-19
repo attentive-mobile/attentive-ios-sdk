@@ -44,6 +44,15 @@
                                     <action selector="clearUserButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="vn1-pc-QIS"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="TZj-pY-Pq3">
+                                <rect key="frame" x="85" y="417" width="245" height="63"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Push me to send a Purchase!"/>
+                                <connections>
+                                    <action selector="purchaseButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="FSX-tq-Ef9"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -51,6 +60,7 @@
                     <connections>
                         <outlet property="clearUserButton" destination="FZT-nD-dxR" id="4cF-7K-VSD"/>
                         <outlet property="creativeButton" destination="6EU-4M-k4b" id="J9E-Ow-UKl"/>
+                        <outlet property="purchaseButton" destination="TZj-pY-Pq3" id="I7x-eo-SFY"/>
                         <outlet property="sendIdentifiersButton" destination="Oaz-PN-whY" id="eQT-h6-6qn"/>
                     </connections>
                 </viewController>
