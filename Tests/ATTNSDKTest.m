@@ -33,7 +33,7 @@
 - (void)testExample {
     ATTNUserIdentity* identity = [[ATTNUserIdentity alloc] init];
     ATTNAPI* api = [[ATTNAPI alloc] init];
-    ATTNSDK* sdk = [[ATTNSDK alloc] initWithDomain:@"domainValue" mode:@"Production" userIdentity:identity api:api];
+    // ATTNSDK* sdk = [[ATTNSDK alloc] initWithDomain:@"domainValue" mode:@"Production" userIdentity:identity api:api];
     
     // This is an example of a functional test case.
     // Use XCTAssert and related functions to verify your tests produce the correct results.

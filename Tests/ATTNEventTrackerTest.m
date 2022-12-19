@@ -15,7 +15,7 @@
 
 @interface ATTNEventTracker (Test)
 
-+ (void)resetInstance;
+- (id)initWithSdk:(ATTNSDK*)sdk;
 
 @end
 
@@ -29,11 +29,15 @@
 }
 
 - (void)tearDown {
-    [ATTNEventTracker resetInstance];
 }
 
-
 - (void)testGetSharedInstance_notSetup_throws {
+    // This method has multiple cases so that the order of the cases is always the same. If each case was in a separate test method we could not guarantee ordering.
+    
+    // **************
+    // Case 1: verify that if getSharedInstance is called before setupWithSdk is called then an assertion is triggered
+    // **************
+    
     NSAssertionHandler* originalHandler = [NSAssertionHandler currentHandler];
     
     // add the test handler
@@ -48,9 +52,10 @@
     // reset the original handler
     [[[NSThread currentThread] threadDictionary] setValue:originalHandler
                                                      forKey:NSAssertionHandlerKey];
-}
+    // **************
+    // CASE 2: verify that if setupWithSdk is called before getSharedInstance then no assertion is triggered
+    // **************
 
-- (void)testSetupWithSDK_validSdk_getSharedInstanceSucceeds {
     ATTNSDK* sdkMock = OCMClassMock([ATTNSDK class]);
     [ATTNEventTracker setupWithSdk:sdkMock];
     
@@ -60,15 +65,12 @@
 
 - (void)testRecordEvent_validEvent_callsApi {
     ATTNSDK* sdkMock = OCMClassMock([ATTNSDK class]);
-    [ATTNEventTracker setupWithSdk:sdkMock];
-    
-    // Does not throw
-    [ATTNEventTracker sharedInstance];
+    ATTNEventTracker* eventTracker = [[ATTNEventTracker alloc] initWithSdk:sdkMock];
     
     ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:[[NSArray alloc] init] order:[[ATTNOrder alloc] initWithOrderId:@"orderId"]];
     
     // Does not throw
-    [[ATTNEventTracker sharedInstance] recordEvent:purchase];
+    [eventTracker recordEvent:purchase];
     
     // TODO validate it calls the API
 }
