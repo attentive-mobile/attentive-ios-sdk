@@ -10,12 +10,6 @@
 
 static ATTNEventTracker* __sharedInstance = nil;
 
-@interface ATTNEventTracker (internal)
-
-- (id)initWithSdk:(ATTNSDK*)sdk;
-
-@end
-
 @implementation ATTNEventTracker {
     ATTNSDK* _sdk;
 }
