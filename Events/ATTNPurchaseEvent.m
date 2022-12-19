@@ -8,6 +8,8 @@
 #import "ATTNEvent.h"
 #import "ATTNPurchaseEvent.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @implementation ATTNPurchaseEvent
 
 - (instancetype)initWithItems:(NSArray<ATTNItem*>*)items order:(ATTNOrder*)order {
@@ -20,3 +22,5 @@
 }
 
 @end
+
+NS_ASSUME_NONNULL_END

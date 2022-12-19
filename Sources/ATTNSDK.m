@@ -9,7 +9,6 @@
 #import "ATTNAPI.h"
 #import "ATTNSDK.h"
 #import "ATTNUserIdentity.h"
-#import "ATTNEventTracker.h"
 
 @implementation ATTNSDK {
     UIView *_parentView;
@@ -18,7 +17,6 @@
     NSString *_mode;
     ATTNUserIdentity *_userIdentity;
     ATTNAPI *_api;
-    ATTNEventTracker *_eventTracker;
 }
 
 - (id)initWithDomain:(NSString *)domain {

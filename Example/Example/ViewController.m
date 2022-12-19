@@ -27,12 +27,12 @@ ATTNSDK *sdk;
     [ATTNEventTracker setupWithSdk:sdk];
     
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
-    _userIdentifiers = @{ IDENTIFIER_TYPE_PHONE: @"+14156667776",
-                          IDENTIFIER_TYPE_EMAIL: @"someemail6@email.com",
-                          IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID6",
-                          IDENTIFIER_TYPE_SHOPIFY_ID: @"2071195516",
-                          IDENTIFIER_TYPE_KLAVIYO_ID: @"5555556",
-                          IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId6": @"customIdValue6"}
+    _userIdentifiers = @{ IDENTIFIER_TYPE_PHONE: @"+14156667777",
+                          IDENTIFIER_TYPE_EMAIL: @"someemail@email.com",
+                          IDENTIFIER_TYPE_CLIENT_USER_ID: @"APP_USER_ID",
+                          IDENTIFIER_TYPE_SHOPIFY_ID: @"207119551",
+                          IDENTIFIER_TYPE_KLAVIYO_ID: @"555555",
+                          IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId": @"customIdValue"}
     };
     [sdk identify:_userIdentifiers];
 }

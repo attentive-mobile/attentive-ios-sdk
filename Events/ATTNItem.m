@@ -7,6 +7,8 @@
 
 #import "ATTNItem.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @implementation ATTNItem
 
 - (instancetype)initWithProductId:(NSString*) productId productVariantId:(NSString*) productVariantId price:(ATTNPrice*)price {
@@ -20,3 +22,5 @@
 }
 
 @end
+
+NS_ASSUME_NONNULL_END

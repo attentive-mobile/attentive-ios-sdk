@@ -7,6 +7,8 @@
 
 #import "ATTNOrder.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @implementation ATTNOrder
 
 - (instancetype)initWithOrderId:(NSString*)orderId {
@@ -18,3 +20,5 @@
 }
 
 @end
+
+NS_ASSUME_NONNULL_END

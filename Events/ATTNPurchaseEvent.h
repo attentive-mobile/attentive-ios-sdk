@@ -5,11 +5,10 @@
 //  Created by Wyatt Davis on 12/7/22.
 //
 
-#ifndef ATTNPurchaseEvent_h
-#define ATTNPurchaseEvent_h
-
 #import <Foundation/Foundation.h>
 #import "ATTNEvent.h"
+
+NS_ASSUME_NONNULL_BEGIN
 
 @class ATTNOrder;
 @class ATTNItem;
@@ -27,4 +26,4 @@
 
 @end
 
-#endif /* ATTNPurchaseEvent_h */
+NS_ASSUME_NONNULL_END

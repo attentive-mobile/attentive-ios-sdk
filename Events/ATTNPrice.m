@@ -7,6 +7,8 @@
 
 #import "ATTNPrice.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @implementation ATTNPrice
 
 - (instancetype)initWithPrice:(NSDecimalNumber*)price currency:(NSString*)currency {
@@ -19,3 +21,5 @@
 }
 
 @end
+
+NS_ASSUME_NONNULL_END

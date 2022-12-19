@@ -44,7 +44,7 @@ static ATTNEventTracker* __sharedInstance = nil;
     return __sharedInstance;
 }
 
-// For testing
+// For testing, not exposed publicly
 + (void)resetInstance {
     __sharedInstance = nil;
 }

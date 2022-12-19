@@ -5,16 +5,12 @@
 //  Created by Wyatt Davis on 12/6/22.
 //
 
-
-#ifndef ATTNEventTracker_h
-#define ATTNEventTracker_h
-
 #import <Foundation/Foundation.h>
+
+NS_ASSUME_NONNULL_BEGIN
 
 @protocol ATTNEvent;
 @class ATTNSDK;
-
-NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNEventTracker : NSObject
 
@@ -27,5 +23,3 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
-
-#endif /* ATTNEventTracker_h */
