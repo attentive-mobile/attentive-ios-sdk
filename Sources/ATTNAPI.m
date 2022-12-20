@@ -244,7 +244,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 - (NSURLComponents*)constructEventUrlComponentsForEventRequest:(EventRequest*)eventRequest userIdentity:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
     NSURLComponents* urlComponents = [[NSURLComponents alloc] initWithString:@"https://events.attentivemobile.com/e"];
     
-    NSMutableDictionary* queryParams = [self constructQueryParams:userIdentity domain:domain];
+    NSMutableDictionary* queryParams = [self constructBaseQueryParams:userIdentity domain:domain];
     NSMutableDictionary* combinedMetadata = [self buildBaseMetadata:userIdentity];
     [combinedMetadata addEntriesFromDictionary:eventRequest.metadata];
     queryParams[@"m"] = [self convertDictionaryToJson:combinedMetadata];
@@ -260,26 +260,12 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     return urlComponents;
 }
 
-- (NSString*)getAbbreviationForEvent:(id<ATTNEvent>)event {
-    if ([event isKindOfClass:[ATTNPurchaseEvent class]]) {
-        return @"p";
-    } else {
-        NSException *e = [NSException
-                exceptionWithName:@"UnknownEventException"
-                reason:[NSString stringWithFormat:@"Unknown Event type: %@", [event class]]
-                userInfo:nil];
-            @throw e;
-    }
-}
-
-- (NSMutableDictionary*)constructQueryParams:(ATTNUserIdentity*)userIdentity domain:(NSString*)domain {
+- (NSMutableDictionary*)constructBaseQueryParams:(ATTNUserIdentity*)userIdentity domain:(NSString*)domain {
     NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
     queryParams[@"v"] = @"mobile-app";
     queryParams[@"c"] = domain;
-    //queryParams[@"t"] = @"idn";
     queryParams[@"lt"] = @"0";
     queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
-    //queryParams[@"m"] = [self buildMetadataJson:userIdentity];
     queryParams[@"u"] = userIdentity.visitorId;
     return queryParams;
 }
