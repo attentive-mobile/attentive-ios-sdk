@@ -23,7 +23,7 @@ ATTNSDK *sdk;
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    sdk = [[ATTNSDK alloc] initWithDomain:@"games" mode:@"production"];
+    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
     // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events.
     [ATTNEventTracker setupWithSdk:sdk];
