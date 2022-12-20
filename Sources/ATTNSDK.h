@@ -15,6 +15,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@property (readonly) NSString* domain;
+
+- (id)init NS_UNAVAILABLE;
+
 - (id)initWithDomain:(NSString *)domain;
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode;

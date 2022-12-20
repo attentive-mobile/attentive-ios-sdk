@@ -18,7 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (readonly) NSArray<ATTNItem*>* items;
 @property (readonly) ATTNOrder* order;
-@property ATTNCart* cart;
+@property (nullable) ATTNCart* cart;
 
 - (instancetype)init NS_UNAVAILABLE;
 

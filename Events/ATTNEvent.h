@@ -9,7 +9,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@protocol ATTNEvent
+@protocol ATTNEvent <NSObject>
 
 @end
 

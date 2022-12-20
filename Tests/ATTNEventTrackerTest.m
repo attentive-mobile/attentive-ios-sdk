@@ -12,6 +12,7 @@
 #import "ATTNSDK.h"
 #import "ATTNPurchaseEvent.h"
 #import "ATTNOrder.h"
+#import "ATTNAPI.h"
 
 @interface ATTNEventTracker (Test)
 
@@ -20,6 +21,12 @@
 @end
 
 @interface ATTNEventTrackerTest : XCTestCase
+
+@end
+
+@interface ATTNSDK (Internal)
+
+- (ATTNAPI*)getApi;
 
 @end
 
@@ -64,15 +71,21 @@
 }
 
 - (void)testRecordEvent_validEvent_callsApi {
+    // Arrange
     ATTNSDK* sdkMock = OCMClassMock([ATTNSDK class]);
+    ATTNAPI* apiMock = OCMClassMock([ATTNAPI class]);
+    OCMStub([sdkMock getApi]).andReturn(apiMock);
+
     ATTNEventTracker* eventTracker = [[ATTNEventTracker alloc] initWithSdk:sdkMock];
     
     ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:[[NSArray alloc] init] order:[[ATTNOrder alloc] initWithOrderId:@"orderId"]];
     
+    // Act
     // Does not throw
     [eventTracker recordEvent:purchase];
     
-    // TODO validate it calls the API
+    // Assert
+    OCMVerify([apiMock sendEvent:purchase userIdentity:[OCMArg isNil] domain:[OCMArg isNil]]);
 }
 
 @end
