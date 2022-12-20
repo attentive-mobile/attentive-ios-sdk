@@ -43,6 +43,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4825840976EC9B134106599B /* libPods-Example - Pod.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Example - Pod.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		58317979292EEEAA0003D6B0 /* Example - Local.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Example - Local.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5831797A292EEEB30003D6B0 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58317993292EF6F70003D6B0 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -63,6 +64,8 @@
 		6F479792BC83079236F72CF1 /* Pods-Example - Pod.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example - Pod.debug.xcconfig"; path = "Target Support Files/Pods-Example - Pod/Pods-Example - Pod.debug.xcconfig"; sourceTree = "<group>"; };
 		7B8828B08D7E2DB6703354E8 /* Pods-Example - Pod.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example - Pod.release.xcconfig"; path = "Target Support Files/Pods-Example - Pod/Pods-Example - Pod.release.xcconfig"; sourceTree = "<group>"; };
 		A6F5932642D2BF98834A4354 /* Pods-Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example.debug.xcconfig"; path = "Target Support Files/Pods-Example/Pods-Example.debug.xcconfig"; sourceTree = "<group>"; };
+		B848506B94C7A4C85DFF3DA4 /* Pods-Example - Pod.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example - Pod.release.xcconfig"; path = "Target Support Files/Pods-Example - Pod/Pods-Example - Pod.release.xcconfig"; sourceTree = "<group>"; };
+		BB41E44861A6C5E40579C79E /* Pods-Example - Pod.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example - Pod.debug.xcconfig"; path = "Target Support Files/Pods-Example - Pod/Pods-Example - Pod.debug.xcconfig"; sourceTree = "<group>"; };
 		FDEDF14001E311BED132C759 /* Pods-Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Example.release.xcconfig"; path = "Target Support Files/Pods-Example/Pods-Example.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 

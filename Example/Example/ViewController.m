@@ -5,6 +5,7 @@
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
+@property (weak, nonatomic) IBOutlet UIButton *purchaseButton;
 @end
 
 
@@ -24,6 +25,8 @@ ATTNSDK *sdk;
     // this in a singleton class rather than each time a view loads.
     sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
     
+    // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events.
+    [ATTNEventTracker setupWithSdk:sdk];
     
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
     _userIdentifiers = @{ IDENTIFIER_TYPE_PHONE: @"+14156667777",
@@ -62,6 +65,19 @@ ATTNSDK *sdk;
 
 - (IBAction)clearUserButtonPressed:(id)sender {
     [sdk clearUser];
+}
+
+- (IBAction)purchaseButtonPressed:(id)sender {
+    NSLog(@"Purchase button pressed");
+    
+    // Create the Items that were purchased
+    ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+    // Create the Order
+    ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
+    // Create PurchaseEvent
+    ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
+    
+    [[ATTNEventTracker sharedInstance] recordEvent:purchase];
 }
 
 @end

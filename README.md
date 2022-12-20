@@ -43,6 +43,9 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain"];
 
 // Alternatively, initialize the SDK in debug mode for more information about your creative and filtering rules
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"];
+
+// Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
+[ATTNEventTracker setupWithSDk:sdk];
 ```
 
 ### Identify information about the current user
@@ -61,6 +64,20 @@ See the [`ATTNUserIdentity`](Creative/ATTNUserIdentity.m) file for all possible 
 
 ```objectiveC
 [sdk trigger:self.view];
+```
+
+### Record user events
+
+```objectiveC
+// Create the Item(s) that was/were purchased
+ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+// Create the Order
+ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
+// Create PurchaseEvent
+ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
+
+// Finally, record the event!
+[[ATTNEventTracker sharedInstance] recordEvent:purchase];
 ```
 
 ### Clear the current user
