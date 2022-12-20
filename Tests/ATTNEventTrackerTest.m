@@ -85,7 +85,7 @@
     [eventTracker recordEvent:purchase];
     
     // Assert
-    OCMVerify([apiMock sendEvent:purchase userIdentity:[OCMArg isNil] domain:[OCMArg isNil]]);
+    OCMVerify([apiMock sendEvent:purchase userIdentity:[OCMArg isNil]]);
 }
 
 @end

@@ -17,11 +17,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNAPI : NSObject
 
-- (instancetype)init;
+- (instancetype)init NS_UNAVAILABLE;
 
-- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity domain:(NSString *) domain;
+- (instancetype)initWithDomain:(NSString*)domain;
 
-- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity domain:(NSString*) domain;
+- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity;
+
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity;
 
 @end
 

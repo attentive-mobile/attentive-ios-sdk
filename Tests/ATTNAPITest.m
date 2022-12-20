@@ -19,7 +19,7 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 
 @interface ATTNAPI (Testing)
 
-- (instancetype)initWithUrlSession:(NSURLSession*)urlSession;
+- (instancetype)initWithDomain:domain urlSession:(NSURLSession*)urlSession;
 
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable))completionHandler;
 
@@ -103,10 +103,10 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 
 - (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    ATTNAPI* api = [[ATTNAPI alloc] initWithUrlSession:sessionMock];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     
     ATTNUserIdentity* userIdentity = [self buildUserIdentity];
-    [api sendUserIdentity:userIdentity domain:TEST_DOMAIN];
+    [api sendUserIdentity:userIdentity];
     
     XCTAssertTrue(sessionMock.didCallDtag);
     XCTAssertTrue(sessionMock.didCallEventsApi);
@@ -115,12 +115,12 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 - (void)testSendEvent_validEvent_callsEventEndpoint {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    ATTNAPI* api = [[ATTNAPI alloc] initWithUrlSession:sessionMock];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     ATTNPurchaseEvent* purchase = [self buildPurchase];
     ATTNUserIdentity* userIdentity = [self buildUserIdentity];
     
     // Act
-    [api sendEvent:purchase userIdentity:userIdentity domain:TEST_DOMAIN];
+    [api sendEvent:purchase userIdentity:userIdentity];
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
@@ -134,12 +134,12 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 - (void)testSendEvent_validEvent_urlContainsExpectedMetadata {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    ATTNAPI* api = [[ATTNAPI alloc] initWithUrlSession:sessionMock];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     ATTNPurchaseEvent* purchase = [self buildPurchase];
     ATTNUserIdentity* userIdentity = [self buildUserIdentity];
     
     // Act
-    [api sendEvent:purchase userIdentity:userIdentity domain:TEST_DOMAIN];
+    [api sendEvent:purchase userIdentity:userIdentity];
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
@@ -164,12 +164,12 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 - (void)testSendEvent_purchaseEventWithTwoItems_twoRequestsAreSent {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    ATTNAPI* api = [[ATTNAPI alloc] initWithUrlSession:sessionMock];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     ATTNPurchaseEvent* purchase = [self buildPurchaseWithMultipleItems];
     ATTNUserIdentity* userIdentity = [self buildUserIdentity];
     
     // Act
-    [api sendEvent:purchase userIdentity:userIdentity domain:TEST_DOMAIN];
+    [api sendEvent:purchase userIdentity:userIdentity];
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);

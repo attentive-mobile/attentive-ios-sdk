@@ -38,7 +38,8 @@ static ATTNEventTracker* __sharedInstance = nil;
 }
 
 - (void)recordEvent:(id<ATTNEvent>)event {
-    [[_sdk getApi] sendEvent:event userIdentity:[_sdk getUserIdentity] domain:_sdk.domain];
+    // TODO: Would be good to clone the UserIdentity so any changes to UserIdentity from another thread don't interfere with the API code
+    [[_sdk getApi] sendEvent:event userIdentity:[_sdk getUserIdentity]];
 }
 
 + (instancetype)sharedInstance {

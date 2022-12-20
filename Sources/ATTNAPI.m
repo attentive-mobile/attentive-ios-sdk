@@ -65,16 +65,18 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 @implementation ATTNAPI {
     NSURLSession* _Nonnull _urlSession;
     NSNumberFormatter* _Nonnull _priceFormatter;
+    NSString* _Nonnull _domain;
 }
 
-- (id)init {
-    return [self initWithUrlSession:[NSURLSession sharedSession]];
+- (instancetype)initWithDomain:(NSString*)domain {
+    return [self initWithDomain:domain urlSession:[NSURLSession sharedSession]];
 }
 
 // Private constructor that makes testing easier
-- (instancetype)initWithUrlSession:(NSURLSession*)urlSession {
+- (instancetype)initWithDomain:domain urlSession:(NSURLSession*)urlSession {
     if (self = [super init]) {
         _urlSession = urlSession;
+        _domain = domain;
         _priceFormatter = [NSNumberFormatter new];
         [_priceFormatter setMinimumFractionDigits:2];
     }
@@ -83,9 +85,9 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 }
 
 // TODO: When we add the other events, the USER_IDENTIFIER_COLLECTED event code will be wrapped into the generic event code
-- (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
+- (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity {
     // TODO we should add retries for transient errors
-    [self getGeoAdjustedDomain:domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
+    [self getGeoAdjustedDomain:_domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
             NSLog(@"Error sending user identity: '%@'", error);
             return;
@@ -95,14 +97,14 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     }];
 }
 
-- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity domain:(NSString*) domain {
-    [self getGeoAdjustedDomain:domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity {
+    [self getGeoAdjustedDomain:_domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
             NSLog(@"Error sending user identity: '%@'.", error);
             
         }
         
-        [self sendEventInternal:event userIdentity:userIdentity domain:domain];
+        [self sendEventInternal:event userIdentity:userIdentity domain:geoAdjustedDomain];
     }];
 }
 
