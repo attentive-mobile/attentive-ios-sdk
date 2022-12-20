@@ -16,10 +16,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly) NSString* productId;
 @property (readonly) NSString* productVariantId;
 @property (readonly) ATTNPrice* price;
-@property NSString* productImage;
-@property NSString* name;
-@property NSString* category;
 @property int quantity;
+@property (nullable) NSString* productImage;
+@property (nullable) NSString* name;
+@property (nullable) NSString* category;
 
 - (instancetype)init NS_UNAVAILABLE;
 

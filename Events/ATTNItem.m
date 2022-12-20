@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
         self->_productId = productId;
         self->_productVariantId = productVariantId;
         self->_price = price;
+        self->_quantity = 1;
     }
     
     return self;
