@@ -124,14 +124,14 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
     NSURL* eventsUrl = sessionMock.urlCalls[1];
-    NSDictionary* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    NSDictionary* queryItems = [self getQueryItemsFromUrl:eventsUrl];
     XCTAssertEqualObjects(@"mobile-app", queryItems[@"v"]);
     XCTAssertEqualObjects(@"p", queryItems[@"t"]);
 }
 
-- (void)testSendEvent_validEvent_urlContainsExpectedMetadata {
+- (void)testSendEvent_validPurchaseEvent_urlContainsExpectedPurchaseMetadata {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
@@ -143,9 +143,9 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(2, sessionMock.urlCalls.count);
-    NSURL* eventsUrl = sessionMock.urlCalls[1];
-    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    NSURL* purchaseUrl = sessionMock.urlCalls[1];
+    NSDictionary<NSString*, NSString*>* queryItems = [self getQueryItemsFromUrl:purchaseUrl];
     NSString* queryItemsString = queryItems[@"m"];
     NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
@@ -161,11 +161,11 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     XCTAssertEqualObjects(purchase.cart.cartCoupon, metadata[@"cartCoupon"]);
 }
 
-- (void)testSendEvent_purchaseEventWithTwoItems_twoRequestsAreSent {
+- (void)testSendEvent_validPurchaseEventWithTwoItems_urlContainsExpectedOrderConfirmedMetadata {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
-    ATTNPurchaseEvent* purchase = [self buildPurchaseWithMultipleItems];
+    ATTNPurchaseEvent* purchase = [self buildPurchaseWithTwoItems];
     ATTNUserIdentity* userIdentity = [self buildUserIdentity];
     
     // Act
@@ -173,24 +173,78 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    XCTAssertEqual(4, sessionMock.urlCalls.count);
+    NSURL* orderConfirmedUrl = nil;
+    for (NSURL* url in sessionMock.urlCalls) {
+        if ([url.absoluteString containsString:@"t=oc"]){
+            orderConfirmedUrl = url;
+        }
+    }
+    XCTAssertNotNil(orderConfirmedUrl);
     
-    // check the first item was converted to an event call
-    NSDictionary* metadata = [self getQueryItemsFromUrl:sessionMock.urlCalls[1]];
-    XCTAssertEqualObjects(purchase.items[0].productId, metadata[@"productId"]);
+    NSDictionary* ocMetadata = [self getMetadataFromUrl:orderConfirmedUrl];
+    NSArray<NSDictionary*>* products = [NSJSONSerialization JSONObjectWithData:[ocMetadata[@"products"] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    XCTAssertEqual(2, products.count);
     
-    // check the second item was converted to an event call
-    NSDictionary* metadata2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
-    XCTAssertEqualObjects(purchase.items[1].productId, metadata2[@"productId"]);
+    [self verifyProductFromItem:purchase.items[0] product:products[0]];
+    [self verifyProductFromItem:purchase.items[1] product:products[1]];
+
+    XCTAssertEqualObjects(purchase.order.orderId, ocMetadata[@"orderId"]);
+    XCTAssertEqualObjects(@"35.99", ocMetadata[@"cartTotal"]);
+    XCTAssertEqualObjects(purchase.items[0].price.currency, ocMetadata[@"currency"]);
 }
 
-- (NSDictionary*)getQueryItemsFromUrl:(NSURL*)url {
-    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:url.absoluteString].queryItems];
+- (void)verifyProductFromItem:(ATTNItem*)item product:(NSDictionary*)product {
+    XCTAssertEqualObjects(item.productId, product[@"productId"]);
+    XCTAssertEqualObjects(item.productVariantId, product[@"subProductId"]);
+    XCTAssertEqualObjects(item.price.price, [[NSDecimalNumber alloc] initWithString: product[@"price"]]);
+    XCTAssertEqualObjects(item.price.currency, product[@"currency"]);
+    XCTAssertEqualObjects(item.category, product[@"category"]);
+    XCTAssertEqualObjects(item.productImage, product[@"image"]);
+    XCTAssertEqualObjects(item.name, product[@"name"]);
+}
+
+- (void)testSendEvent_purchaseEventWithTwoItems_threeRequestsAreSent {
+    // Arrange
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNPurchaseEvent* purchase = [self buildPurchaseWithTwoItems];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    
+    // Act
+    [api sendEvent:purchase userIdentity:userIdentity];
+    
+    // Assert
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(4, sessionMock.urlCalls.count);
+    
+    // check the first item was converted to an event call
+    NSDictionary* metadata = [self getMetadataFromUrl:sessionMock.urlCalls[1]];
+    XCTAssertEqualObjects(purchase.items[0].productId, metadata[@"productId"]);
+    NSDictionary* queryItems = [self getQueryItemsFromUrl:sessionMock.urlCalls[1]];
+    XCTAssertEqualObjects(@"p", queryItems[@"t"]);
+    
+    // check the second item was converted to an event call
+    NSDictionary* metadata2 = [self getMetadataFromUrl:sessionMock.urlCalls[2]];
+    XCTAssertEqualObjects(purchase.items[1].productId, metadata2[@"productId"]);
+    NSDictionary* queryItems2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
+    XCTAssertEqualObjects(@"p", queryItems2[@"t"]);
+    
+    // check an OrderConfirmed was created
+    NSDictionary* metadata3 = [self getMetadataFromUrl:sessionMock.urlCalls[3]];
+    XCTAssertEqualObjects(purchase.order.orderId, metadata3[@"orderId"]);
+    NSDictionary* queryItems3 = [self getQueryItemsFromUrl:sessionMock.urlCalls[3]];
+    XCTAssertEqualObjects(@"oc", queryItems3[@"t"]);
+}
+
+- (NSDictionary*)getMetadataFromUrl:(NSURL*)url {
+    NSDictionary<NSString*, NSString*>* queryItems = [self getQueryItemsFromUrl:url];
     NSString* queryItemsString = queryItems[@"m"];
     return [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
 }
 
-- (NSDictionary<NSString*, NSString*>*)getDictionaryFromQueryItems:(NSArray<NSURLQueryItem*>*)queryItems {
+- (NSDictionary<NSString*, NSString*>*)getQueryItemsFromUrl:(NSURL*)url {
+    NSArray<NSURLQueryItem*>* queryItems = [[NSURLComponents alloc] initWithString:url.absoluteString].queryItems;
     NSMutableDictionary* queryItemDict = [[NSMutableDictionary alloc] init];
     for (NSURLQueryItem* item in queryItems) {
         queryItemDict[item.name] = item.value;
@@ -213,12 +267,12 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     return purchaseEvent;
 }
 
-- (ATTNPurchaseEvent*)buildPurchaseWithMultipleItems {
+- (ATTNPurchaseEvent*)buildPurchaseWithTwoItems {
     ATTNItem* item1 = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
     item1.category = @"someCategory";
     item1.productImage = @"someImage";
     item1.name = @"someName";
-    ATTNItem* item2 = [[ATTNItem alloc] initWithProductId:@"2222" productVariantId:@"555552" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.92"] currency:@"USD"]];
+    ATTNItem* item2 = [[ATTNItem alloc] initWithProductId:@"2222" productVariantId:@"555552" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"20.00"] currency:@"USD"]];
     item2.category = @"someCategory2";
     item2.productImage = @"someImage2";
     item2.name = @"someName2";

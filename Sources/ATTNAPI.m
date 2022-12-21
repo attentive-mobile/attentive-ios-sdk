@@ -144,19 +144,17 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     if ([event isKindOfClass:[ATTNPurchaseEvent class]]) {
         ATTNPurchaseEvent* purchase = (ATTNPurchaseEvent*)event;
         
+        if ([purchase.items count] == 0) {
+            NSLog(@"No items found in the purchase event.");
+            return @[];
+        }
+        
+        // Create EventRequests for each of the items in the PurchaseEvent
         NSDecimalNumber* cartTotal = [NSDecimalNumber zero];
         NSMutableArray<EventRequest*>* eventRequests = [[NSMutableArray alloc] init];
         for (ATTNItem* item in purchase.items) {
             NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
-
-            metadata[@"productId"] = item.productId;
-            metadata[@"subProductId"] = item.productVariantId;
-            metadata[@"price"] = [_priceFormatter stringFromNumber:item.price.price];
-            metadata[@"currency"] = item.price.currency;
-            metadata[@"quantity"] = [NSString stringWithFormat:@"%d", item.quantity];
-            [metadata addEntryIfNotNil:@"category" value:item.category];
-            [metadata addEntryIfNotNil:@"image" value:item.productImage];
-            [metadata addEntryIfNotNil:@"name" value:item.name];
+            [self addProductDataToDictionary:item dictionary:metadata];
             
             metadata[@"orderId"] = purchase.order.orderId;
             
@@ -170,11 +168,26 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             cartTotal = [cartTotal decimalNumberByAdding:item.price.price];
         }
         
-        // Add cart total to each metadata
+        // Add cart total to each Purchase metadata
         NSString* cartTotalString = [_priceFormatter stringFromNumber:cartTotal];
         for (EventRequest* eventRequest in eventRequests) {
             eventRequest.metadata[@"cartTotal"] = cartTotalString;
         }
+        
+        // create another EventRequest for an OrderConfirmed
+        NSMutableDictionary* orderConfirmedMetadata = [[NSMutableDictionary alloc] init];
+        orderConfirmedMetadata[@"orderId"] = purchase.order.orderId;
+        orderConfirmedMetadata[@"cartTotal"] = cartTotalString;
+        orderConfirmedMetadata[@"currency"] = purchase.items[0].price.currency;
+        
+        NSMutableArray<NSMutableDictionary*>* products = [[NSMutableArray alloc] init];
+        for (ATTNItem* item in purchase.items) {
+            NSMutableDictionary* product = [[NSMutableDictionary alloc] init];
+            [self addProductDataToDictionary:item dictionary:product];
+            [products addObject:product];
+        }
+        orderConfirmedMetadata[@"products"] = [self convertObjectToJson:products defaultValue:@"[]"];
+        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:@"oc"]];
         
         return eventRequests;
     } else {
@@ -184,6 +197,17 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
                 userInfo:nil];
             @throw e;
     }
+}
+
+- (void)addProductDataToDictionary:(ATTNItem*)item dictionary:(NSMutableDictionary*)dictionary {
+    dictionary[@"productId"] = item.productId;
+    dictionary[@"subProductId"] = item.productVariantId;
+    dictionary[@"price"] = [_priceFormatter stringFromNumber:item.price.price];
+    dictionary[@"currency"] = item.price.currency;
+    dictionary[@"quantity"] = [NSString stringWithFormat:@"%d", item.quantity];
+    [dictionary addEntryIfNotNil:@"category" value:item.category];
+    [dictionary addEntryIfNotNil:@"image" value:item.productImage];
+    [dictionary addEntryIfNotNil:@"name" value:item.name];
 }
 
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable)) completionHandler {
@@ -249,7 +273,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSMutableDictionary* queryParams = [self constructBaseQueryParams:userIdentity domain:domain];
     NSMutableDictionary* combinedMetadata = [self buildBaseMetadata:userIdentity];
     [combinedMetadata addEntriesFromDictionary:eventRequest.metadata];
-    queryParams[@"m"] = [self convertDictionaryToJson:combinedMetadata];
+    queryParams[@"m"] = [self convertObjectToJson:combinedMetadata defaultValue:@"{}"];
     queryParams[@"t"] = eventRequest.eventNameAbbreviation;
     
     NSMutableArray *queryItems = [NSMutableArray array];
@@ -338,14 +362,13 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 }
 
-// Will return an empty dictionary if there are any issues
-- (NSString*)convertDictionaryToJson:(NSDictionary*)dictionary {
+- (NSString*)convertObjectToJson:(id)object defaultValue:(NSString*)defaultValue {
     NSError* error = nil;
-    NSData* json = [NSJSONSerialization dataWithJSONObject:dictionary options:0 error:&error];
+    NSData* json = [NSJSONSerialization dataWithJSONObject:object options:0 error:&error];
     
     if (error) {
-        NSLog(@"Could not serialize the dictionary to JSON. Returning an empty blob. Error: '%@'", [error description]);
-        return @"{}";
+        NSLog(@"Could not serialize the object to JSON. Error: '%@'", [error description]);
+        return defaultValue;
     }
     
     return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
