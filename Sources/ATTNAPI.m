@@ -178,7 +178,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
         NSMutableDictionary* orderConfirmedMetadata = [[NSMutableDictionary alloc] init];
         orderConfirmedMetadata[@"orderId"] = purchase.order.orderId;
         orderConfirmedMetadata[@"cartTotal"] = cartTotalString;
-        orderConfirmedMetadata[@"currency"] = @""; // TODO
+        orderConfirmedMetadata[@"currency"] = purchase.items[0].price.currency;
         
         NSMutableArray<NSMutableDictionary*>* products = [[NSMutableArray alloc] init];
         for (ATTNItem* item in purchase.items) {
