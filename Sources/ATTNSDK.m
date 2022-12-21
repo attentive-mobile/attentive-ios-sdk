@@ -13,7 +13,6 @@
 @implementation ATTNSDK {
     UIView *_parentView;
     WKWebView *_webView;
-    NSString *_domain;
     NSString *_mode;
     ATTNUserIdentity *_userIdentity;
     ATTNAPI *_api;
@@ -25,10 +24,10 @@
 
 - (id)initWithDomain:(NSString *)domain mode:(NSString *)mode {
     if (self = [super init]) {
-        _domain = domain;
+        self->_domain = domain;
         _mode = mode;
         _userIdentity = [[ATTNUserIdentity alloc] init];
-        _api = [[ATTNAPI alloc] init];
+        _api = [[ATTNAPI alloc] initWithDomain:domain];
     }
     return self;
 }
@@ -44,7 +43,7 @@
         [NSException raise:@"Incorrect type for userIdentifiers" format:@"userIdentifiers should be of type <NSDictionary *>"];
     }
         
-    [_api sendUserIdentity:_userIdentity domain:_domain];
+    [_api sendUserIdentity:_userIdentity];
 }
 
 - (void)trigger:(UIView *)theView {
@@ -212,5 +211,12 @@
     }
 }
 
+- (ATTNAPI*)getApi {
+    return _api;
+}
+
+- (ATTNUserIdentity*)getUserIdentity {
+    return _userIdentity;
+}
 
 @end

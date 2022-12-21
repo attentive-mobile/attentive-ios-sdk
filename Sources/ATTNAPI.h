@@ -11,14 +11,19 @@
 #import <Foundation/Foundation.h>
 
 @class ATTNUserIdentity;
+@protocol ATTNEvent;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNAPI : NSObject
 
-- (id)init;
+- (instancetype)init NS_UNAVAILABLE;
 
-- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity domain:(NSString *) domain;
+- (instancetype)initWithDomain:(NSString*)domain;
+
+- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity;
+
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity;
 
 @end
 

@@ -11,8 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNCart : NSObject
 
-@property NSString* cartId;
-@property NSString* cartCoupon;
+@property (nullable) NSString* cartId;
+@property (nullable) NSString* cartCoupon;
 
 @end
 

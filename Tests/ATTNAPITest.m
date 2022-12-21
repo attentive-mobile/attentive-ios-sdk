@@ -8,20 +8,18 @@
 #import <XCTest/XCTest.h>
 #import "ATTNAPI.h"
 #import "ATTNUserIdentity.h"
+#import "ATTNPurchaseEvent.h"
+#import "ATTNEvent.h"
+#import "ATTNItem.h"
+#import "ATTNOrder.h"
+#import "ATTNPrice.h"
+#import "ATTNCart.h"
+
+static NSString* const TEST_DOMAIN = @"some-domain";
 
 @interface ATTNAPI (Testing)
 
-- (NSURLSession*)session;
-
-- (void)setSession:(NSURLSession*)session;
-
-@end
-
-@interface ATTNAPITest : XCTestCase
-
-@end
-
-@interface ATTNAPI (Testing)
+- (instancetype)initWithDomain:domain urlSession:(NSURLSession*)urlSession;
 
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable))completionHandler;
 
@@ -58,6 +56,7 @@
 
 @property bool didCallDtag;
 @property bool didCallEventsApi;
+@property NSMutableArray<NSURL*>* urlCalls;
 
 - (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url completionHandler:(void (NS_SWIFT_SENDABLE ^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler;
 
@@ -65,11 +64,21 @@
 
 @implementation NSURLSessionMock
 
+- (instancetype)init {
+    if (self = [super init]) {
+        _urlCalls = [[NSMutableArray alloc] init];
+    }
+    
+    return self;
+}
+
 - (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url completionHandler:(void (NS_SWIFT_SENDABLE ^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler {
+    [_urlCalls addObject:url];
+    
     if ([[url absoluteString] containsString:@"cdn.attn.tv"]) {
         _didCallDtag = true;
         return [[NSURLSessionDataTaskMock alloc] initWithHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
-            completionHandler([@"window.__attentive_domain='fakedomain.attn.tv'" dataUsingEncoding:NSUTF8StringEncoding], [[NSHTTPURLResponse alloc] initWithURL:url statusCode:200 HTTPVersion:nil headerFields:nil], nil);
+            completionHandler([@"window.__attentive_domain='some-domain.attn.tv'" dataUsingEncoding:NSUTF8StringEncoding], [[NSHTTPURLResponse alloc] initWithURL:url statusCode:200 HTTPVersion:nil headerFields:nil], nil);
         }];
     }
     
@@ -86,20 +95,144 @@
 
 @end
 
+@interface ATTNAPITest : XCTestCase
+
+@end
 
 @implementation ATTNAPITest
 
 - (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
-    ATTNAPI* api = [[ATTNAPI alloc] init];
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    api.session = sessionMock;
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     
-    ATTNUserIdentity* userIdentity = [[ATTNUserIdentity alloc] initWithIdentifiers:@{IDENTIFIER_TYPE_CLIENT_USER_ID: @"some-client-id", IDENTIFIER_TYPE_EMAIL: @"some-email@email.com"}];
-    [api sendUserIdentity:userIdentity domain:@"some-domain"];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    [api sendUserIdentity:userIdentity];
     
     XCTAssertTrue(sessionMock.didCallDtag);
     XCTAssertTrue(sessionMock.didCallEventsApi);
 }
 
+- (void)testSendEvent_validEvent_callsEventEndpoint {
+    // Arrange
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNPurchaseEvent* purchase = [self buildPurchase];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    
+    // Act
+    [api sendEvent:purchase userIdentity:userIdentity];
+    
+    // Assert
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    NSURL* eventsUrl = sessionMock.urlCalls[1];
+    NSDictionary* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    XCTAssertEqualObjects(@"mobile-app", queryItems[@"v"]);
+    XCTAssertEqualObjects(@"p", queryItems[@"t"]);
+}
+
+- (void)testSendEvent_validEvent_urlContainsExpectedMetadata {
+    // Arrange
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNPurchaseEvent* purchase = [self buildPurchase];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    
+    // Act
+    [api sendEvent:purchase userIdentity:userIdentity];
+    
+    // Assert
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    NSURL* eventsUrl = sessionMock.urlCalls[1];
+    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    XCTAssertEqualObjects(purchase.items[0].productId, metadata[@"productId"]);
+    XCTAssertEqualObjects(purchase.items[0].productVariantId, metadata[@"subProductId"]);
+    XCTAssertEqualObjects(purchase.items[0].price.price, [[NSDecimalNumber alloc] initWithString: metadata[@"price"]]);
+    XCTAssertEqualObjects(purchase.items[0].price.currency, metadata[@"currency"]);
+    XCTAssertEqualObjects(purchase.items[0].category, metadata[@"category"]);
+    XCTAssertEqualObjects(purchase.items[0].productImage, metadata[@"image"]);
+    XCTAssertEqualObjects(purchase.items[0].name, metadata[@"name"]);
+    XCTAssertEqualObjects(purchase.order.orderId, metadata[@"orderId"]);
+    XCTAssertEqualObjects(purchase.cart.cartId, metadata[@"cartId"]);
+    XCTAssertEqualObjects(purchase.cart.cartCoupon, metadata[@"cartCoupon"]);
+}
+
+- (void)testSendEvent_purchaseEventWithTwoItems_twoRequestsAreSent {
+    // Arrange
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNPurchaseEvent* purchase = [self buildPurchaseWithMultipleItems];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    
+    // Act
+    [api sendEvent:purchase userIdentity:userIdentity];
+    
+    // Assert
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    
+    // check the first item was converted to an event call
+    NSDictionary* metadata = [self getQueryItemsFromUrl:sessionMock.urlCalls[1]];
+    XCTAssertEqualObjects(purchase.items[0].productId, metadata[@"productId"]);
+    
+    // check the second item was converted to an event call
+    NSDictionary* metadata2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
+    XCTAssertEqualObjects(purchase.items[1].productId, metadata2[@"productId"]);
+}
+
+- (NSDictionary*)getQueryItemsFromUrl:(NSURL*)url {
+    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:url.absoluteString].queryItems];
+    NSString* queryItemsString = queryItems[@"m"];
+    return [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+}
+
+- (NSDictionary<NSString*, NSString*>*)getDictionaryFromQueryItems:(NSArray<NSURLQueryItem*>*)queryItems {
+    NSMutableDictionary* queryItemDict = [[NSMutableDictionary alloc] init];
+    for (NSURLQueryItem* item in queryItems) {
+        queryItemDict[item.name] = item.value;
+    }
+    
+    return queryItemDict;
+}
+
+- (ATTNPurchaseEvent*)buildPurchase {
+    ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+    item.category = @"someCategory";
+    item.productImage = @"someImage";
+    item.name = @"someName";
+    ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
+    ATTNCart* cart = [[ATTNCart alloc] init];
+    cart.cartId = @"789123";
+    cart.cartCoupon = @"someCoupon";
+    ATTNPurchaseEvent* purchaseEvent = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
+    purchaseEvent.cart = cart;
+    return purchaseEvent;
+}
+
+- (ATTNPurchaseEvent*)buildPurchaseWithMultipleItems {
+    ATTNItem* item1 = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+    item1.category = @"someCategory";
+    item1.productImage = @"someImage";
+    item1.name = @"someName";
+    ATTNItem* item2 = [[ATTNItem alloc] initWithProductId:@"2222" productVariantId:@"555552" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.92"] currency:@"USD"]];
+    item2.category = @"someCategory2";
+    item2.productImage = @"someImage2";
+    item2.name = @"someName2";
+    ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
+    ATTNCart* cart = [[ATTNCart alloc] init];
+    cart.cartId = @"789123";
+    cart.cartCoupon = @"someCoupon";
+    ATTNPurchaseEvent* purchaseEvent = [[ATTNPurchaseEvent alloc] initWithItems:@[item1, item2] order:order];
+    purchaseEvent.cart = cart;
+    return purchaseEvent;
+}
+
+- (ATTNUserIdentity*)buildUserIdentity {
+    return [[ATTNUserIdentity alloc] initWithIdentifiers:@{IDENTIFIER_TYPE_CLIENT_USER_ID: @"some-client-id", IDENTIFIER_TYPE_EMAIL: @"some-email@email.com"}];
+}
 
 @end

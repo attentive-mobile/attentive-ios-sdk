@@ -7,8 +7,16 @@
 
 #import "ATTNEventTracker.h"
 #import "ATTNSDK.h"
+#import "ATTNAPI.h"
 
 static ATTNEventTracker* __sharedInstance = nil;
+
+@interface ATTNSDK (Internal)
+
+- (ATTNAPI*)getApi;
+- (ATTNUserIdentity*)getUserIdentity;
+
+@end
 
 @implementation ATTNEventTracker {
     ATTNSDK* _sdk;
@@ -30,7 +38,8 @@ static ATTNEventTracker* __sharedInstance = nil;
 }
 
 - (void)recordEvent:(id<ATTNEvent>)event {
-    // TODO
+    // TODO: Would be good to clone the UserIdentity so any changes to UserIdentity from another thread don't interfere with the API code
+    [[_sdk getApi] sendEvent:event userIdentity:[_sdk getUserIdentity]];
 }
 
 + (instancetype)sharedInstance {
