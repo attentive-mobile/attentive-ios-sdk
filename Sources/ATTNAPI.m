@@ -174,7 +174,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             eventRequest.metadata[@"cartTotal"] = cartTotalString;
         }
         
-        // create another EventRequest for an OrderCompleted
+        // create another EventRequest for an OrderConfirmed
         NSMutableDictionary* orderConfirmedMetadata = [[NSMutableDictionary alloc] init];
         orderConfirmedMetadata[@"orderId"] = purchase.order.orderId;
         orderConfirmedMetadata[@"cartTotal"] = cartTotalString;

@@ -187,7 +187,7 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     NSDictionary* queryItems2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
     XCTAssertEqualObjects(@"p", queryItems2[@"t"]);
     
-    // check an OrderCompleted was created
+    // check an OrderConfirmed was created
     NSDictionary* metadata3 = [self getMetadataFromUrl:sessionMock.urlCalls[3]];
     XCTAssertEqualObjects(purchase.order.orderId, metadata3[@"orderId"]);
     NSDictionary* queryItems3 = [self getQueryItemsFromUrl:sessionMock.urlCalls[3]];
