@@ -124,9 +124,9 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
     NSURL* eventsUrl = sessionMock.urlCalls[1];
-    NSDictionary* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    NSDictionary* queryItems = [self getQueryItemsFromUrl:eventsUrl];
     XCTAssertEqualObjects(@"mobile-app", queryItems[@"v"]);
     XCTAssertEqualObjects(@"p", queryItems[@"t"]);
 }
@@ -143,9 +143,9 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(2, sessionMock.urlCalls.count);
-    NSURL* eventsUrl = sessionMock.urlCalls[1];
-    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:eventsUrl.absoluteString].queryItems];
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    NSURL* purchaseUrl = sessionMock.urlCalls[1];
+    NSDictionary<NSString*, NSString*>* queryItems = [self getQueryItemsFromUrl:purchaseUrl];
     NSString* queryItemsString = queryItems[@"m"];
     NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
@@ -161,7 +161,7 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     XCTAssertEqualObjects(purchase.cart.cartCoupon, metadata[@"cartCoupon"]);
 }
 
-- (void)testSendEvent_purchaseEventWithTwoItems_twoRequestsAreSent {
+- (void)testSendEvent_purchaseEventWithTwoItems_threeRequestsAreSent {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
@@ -173,24 +173,35 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     
     // Assert
     XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    XCTAssertEqual(4, sessionMock.urlCalls.count);
     
     // check the first item was converted to an event call
-    NSDictionary* metadata = [self getQueryItemsFromUrl:sessionMock.urlCalls[1]];
+    NSDictionary* metadata = [self getMetadataFromUrl:sessionMock.urlCalls[1]];
     XCTAssertEqualObjects(purchase.items[0].productId, metadata[@"productId"]);
+    NSDictionary* queryItems = [self getQueryItemsFromUrl:sessionMock.urlCalls[1]];
+    XCTAssertEqualObjects(@"p", queryItems[@"t"]);
     
     // check the second item was converted to an event call
-    NSDictionary* metadata2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
+    NSDictionary* metadata2 = [self getMetadataFromUrl:sessionMock.urlCalls[2]];
     XCTAssertEqualObjects(purchase.items[1].productId, metadata2[@"productId"]);
+    NSDictionary* queryItems2 = [self getQueryItemsFromUrl:sessionMock.urlCalls[2]];
+    XCTAssertEqualObjects(@"p", queryItems2[@"t"]);
+    
+    // check an OrderCompleted was created
+    NSDictionary* metadata3 = [self getMetadataFromUrl:sessionMock.urlCalls[3]];
+    XCTAssertEqualObjects(purchase.order.orderId, metadata3[@"orderId"]);
+    NSDictionary* queryItems3 = [self getQueryItemsFromUrl:sessionMock.urlCalls[3]];
+    XCTAssertEqualObjects(@"oc", queryItems3[@"t"]);
 }
 
-- (NSDictionary*)getQueryItemsFromUrl:(NSURL*)url {
-    NSDictionary<NSString*, NSString*>* queryItems = [self getDictionaryFromQueryItems:[[NSURLComponents alloc] initWithString:url.absoluteString].queryItems];
+- (NSDictionary*)getMetadataFromUrl:(NSURL*)url {
+    NSDictionary<NSString*, NSString*>* queryItems = [self getQueryItemsFromUrl:url];
     NSString* queryItemsString = queryItems[@"m"];
     return [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
 }
 
-- (NSDictionary<NSString*, NSString*>*)getDictionaryFromQueryItems:(NSArray<NSURLQueryItem*>*)queryItems {
+- (NSDictionary<NSString*, NSString*>*)getQueryItemsFromUrl:(NSURL*)url {
+    NSArray<NSURLQueryItem*>* queryItems = [[NSURLComponents alloc] initWithString:url.absoluteString].queryItems;
     NSMutableDictionary* queryItemDict = [[NSMutableDictionary alloc] init];
     for (NSURLQueryItem* item in queryItems) {
         queryItemDict[item.name] = item.value;
