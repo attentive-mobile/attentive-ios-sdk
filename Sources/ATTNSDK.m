@@ -202,7 +202,6 @@
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     NSURL *url = navigationAction.request.URL;
-    NSLog(@"did decide policy for: %@", url);
     if ([navigationAction.request.URL.scheme isEqualToString:@"sms"]) {
         [UIApplication.sharedApplication openURL:url];
         decisionHandler(WKNavigationActionPolicyCancel);
