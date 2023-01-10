@@ -22,4 +22,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: "Play"
-        run: xcodebuild -project "attentive-ios-sdk.xcodeproj" -scheme "attentive-ios-sdk Tests" -destination "platform=iOS" clean test
+        run: xcodebuild -project "attentive-ios-sdk.xcodeproj" -scheme "attentive-ios-sdk Tests" -destination "OS=15.5,name=iPhone 13 Pro" clean test
