@@ -202,10 +202,20 @@
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     NSURL *url = navigationAction.request.URL;
+    NSLog(@"did decide policy for: %@", url);
     if ([navigationAction.request.URL.scheme isEqualToString:@"sms"]) {
         [UIApplication.sharedApplication openURL:url];
         decisionHandler(WKNavigationActionPolicyCancel);
         return;
+    } else if ([navigationAction.request.URL.scheme isEqualToString:@"http"] || [navigationAction.request.URL.scheme isEqualToString:@"https"]) {
+        // If the targetFrame is nil then the link was defined to open in a new tab (two examples of this are the Privacy and Terms links). In this case, open the url in the phone's web browser instead of the webview.
+        if ([navigationAction targetFrame] == nil) {
+            [UIApplication.sharedApplication openURL:url];
+            decisionHandler(WKNavigationActionPolicyCancel);
+            return;
+        } else {
+            decisionHandler(WKNavigationActionPolicyAllow);
+        }
     } else {
         decisionHandler(WKNavigationActionPolicyAllow);
     }
