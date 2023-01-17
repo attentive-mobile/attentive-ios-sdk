@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5806DE6D29773F6100C18FFA /* ATTNAddToCartEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE6B29773F6100C18FFA /* ATTNAddToCartEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		5806DE6E29773F6100C18FFA /* ATTNAddToCartEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */; };
+		5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		5806DE722977457600C18FFA /* ATTNProductViewEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE702977457600C18FFA /* ATTNProductViewEvent.m */; };
 		5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */; };
 		5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */; };
 		5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */; };
@@ -58,6 +62,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		5806DE6B29773F6100C18FFA /* ATTNAddToCartEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNAddToCartEvent.h; path = Sources/ATTNAddToCartEvent.h; sourceTree = "<group>"; };
+		5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNAddToCartEvent.m; path = Sources/ATTNAddToCartEvent.m; sourceTree = "<group>"; };
+		5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNProductViewEvent.h; path = Sources/ATTNProductViewEvent.h; sourceTree = "<group>"; };
+		5806DE702977457600C18FFA /* ATTNProductViewEvent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNProductViewEvent.m; path = Sources/ATTNProductViewEvent.m; sourceTree = "<group>"; };
 		5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidationTest.m; path = Tests/ATTNParameterValidationTest.m; sourceTree = "<group>"; };
 		5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorageTest.m; path = Tests/ATTNPersistentStorageTest.m; sourceTree = "<group>"; };
 		5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentityTest.m; path = Tests/ATTNUserIdentityTest.m; sourceTree = "<group>"; };
@@ -133,6 +141,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5806DE772977570100C18FFA /* Events */ = {
+			isa = PBXGroup;
+			children = (
+				587234B72953AAD800EE12B6 /* ATTNCart.h */,
+				587234B92953AAD800EE12B6 /* ATTNCart.m */,
+				587234BC2953AAD800EE12B6 /* ATTNEvent.h */,
+				587234BD2953AAD800EE12B6 /* ATTNItem.h */,
+				587234BA2953AAD800EE12B6 /* ATTNItem.m */,
+				587234B62953AAD800EE12B6 /* ATTNOrder.h */,
+				587234BB2953AAD800EE12B6 /* ATTNOrder.m */,
+				587234B82953AAD800EE12B6 /* ATTNPrice.h */,
+				587234B42953AAD800EE12B6 /* ATTNPrice.m */,
+				587234B52953AAD800EE12B6 /* ATTNPurchaseEvent.h */,
+				587234BE2953AAD800EE12B6 /* ATTNPurchaseEvent.m */,
+				5806DE6B29773F6100C18FFA /* ATTNAddToCartEvent.h */,
+				5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */,
+				5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */,
+				5806DE702977457600C18FFA /* ATTNProductViewEvent.m */,
+			);
+			name = Events;
+			sourceTree = "<group>";
+		};
 		58332EB9292EC18800B1ECF3 = {
 			isa = PBXGroup;
 			children = (
@@ -156,17 +186,7 @@
 		58332ED9292EC21100B1ECF3 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				587234B72953AAD800EE12B6 /* ATTNCart.h */,
-				587234B92953AAD800EE12B6 /* ATTNCart.m */,
-				587234BC2953AAD800EE12B6 /* ATTNEvent.h */,
-				587234BD2953AAD800EE12B6 /* ATTNItem.h */,
-				587234BA2953AAD800EE12B6 /* ATTNItem.m */,
-				587234B62953AAD800EE12B6 /* ATTNOrder.h */,
-				587234BB2953AAD800EE12B6 /* ATTNOrder.m */,
-				587234B82953AAD800EE12B6 /* ATTNPrice.h */,
-				587234B42953AAD800EE12B6 /* ATTNPrice.m */,
-				587234B52953AAD800EE12B6 /* ATTNPurchaseEvent.h */,
-				587234BE2953AAD800EE12B6 /* ATTNPurchaseEvent.m */,
+				5806DE772977570100C18FFA /* Events */,
 				6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */,
 				6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */,
 				6972874929353A99003F1BEC /* ATTNVisitorService.h */,
@@ -263,6 +283,8 @@
 				587234C72953AAD800EE12B6 /* ATTNEvent.h in Headers */,
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
 				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
+				5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */,
+				5806DE6D29773F6100C18FFA /* ATTNAddToCartEvent.h in Headers */,
 				6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */,
 				5862BE4029407DAC002C1403 /* ATTNEventTracker.h in Headers */,
 				58A6EA2329354D02009BE922 /* ATTNAPI.h in Headers */,
@@ -373,12 +395,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				587234BF2953AAD800EE12B6 /* ATTNPrice.m in Sources */,
+				5806DE6E29773F6100C18FFA /* ATTNAddToCartEvent.m in Sources */,
 				58332ED6292EC20700B1ECF3 /* ATTNSDK.m in Sources */,
 				587234C92953AAD800EE12B6 /* ATTNPurchaseEvent.m in Sources */,
 				58A6EA2529354D59009BE922 /* ATTNAPI.m in Sources */,
 				5862BE462940820C002C1403 /* ATTNEventTracker.m in Sources */,
 				587234C62953AAD800EE12B6 /* ATTNOrder.m in Sources */,
 				58332ED3292EC20700B1ECF3 /* ATTNUserIdentity.m in Sources */,
+				5806DE722977457600C18FFA /* ATTNProductViewEvent.m in Sources */,
 				587234C42953AAD800EE12B6 /* ATTNCart.m in Sources */,
 				58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */,
 				587234C52953AAD800EE12B6 /* ATTNItem.m in Sources */,

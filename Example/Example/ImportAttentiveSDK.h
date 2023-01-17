@@ -18,6 +18,8 @@
 #import "ATTNUserIdentity.h"
 #import "ATTNEventTracker.h"
 #import "ATTNPurchaseEvent.h"
+#import "ATTNAddToCartEvent.h"
+#import "ATTNProductViewEvent.h"
 #import "ATTNItem.h"
 #import "ATTNPrice.h"
 #import "ATTNOrder.h"

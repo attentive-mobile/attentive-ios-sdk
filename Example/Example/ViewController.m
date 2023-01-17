@@ -67,17 +67,4 @@ ATTNSDK *sdk;
     [sdk clearUser];
 }
 
-- (IBAction)purchaseButtonPressed:(id)sender {
-    NSLog(@"Purchase button pressed");
-    
-    // Create the Items that were purchased
-    ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
-    // Create the Order
-    ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
-    // Create PurchaseEvent
-    ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
-    
-    [[ATTNEventTracker sharedInstance] recordEvent:purchase];
-}
-
 @end
