@@ -16,6 +16,8 @@
 #import "ATTNOrder.h"
 #import "ATTNCart.h"
 #import "ATTNPurchaseEvent.h"
+#import "ATTNAddToCartEvent.h"
+#import "ATTNProductViewEvent.h"
 
 // A single event can create multiple requests. The EventRequest class represents a single request.
 @interface EventRequest : NSObject
@@ -62,6 +64,12 @@ static NSString* const EXTERNAL_VENDOR_TYPE_KLAVIYO = @"1";
 static NSString* const EXTERNAL_VENDOR_TYPE_CLIENT_USER = @"2";
 static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 
+static NSString* const EVENT_TYPE_PURCHASE = @"p";
+static NSString* const EVENT_TYPE_ADD_TO_CART = @"c";
+static NSString* const EVENT_TYPE_PRODUCT_VIEW = @"d";
+static NSString* const EVENT_TYPE_ORDER_CONFIRMED = @"oc";
+static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
+
 @implementation ATTNAPI {
     NSURLSession* _Nonnull _urlSession;
     NSNumberFormatter* _Nonnull _priceFormatter;
@@ -100,7 +108,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 - (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity {
     [self getGeoAdjustedDomain:_domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
-            NSLog(@"Error sending user identity: '%@'.", error);
+            NSLog(@"Error sending event: '%@'.", error);
             
         }
         
@@ -141,6 +149,8 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 
 // A single event can create multiple requests to our servers. This method converts an event to multiple request objects.
 - (NSArray<EventRequest *>*)convertEventToRequests:(id<ATTNEvent>)event {
+    NSMutableArray<EventRequest*>* eventRequests = [[NSMutableArray alloc] init];
+
     if ([event isKindOfClass:[ATTNPurchaseEvent class]]) {
         ATTNPurchaseEvent* purchase = (ATTNPurchaseEvent*)event;
         
@@ -151,7 +161,6 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
         
         // Create EventRequests for each of the items in the PurchaseEvent
         NSDecimalNumber* cartTotal = [NSDecimalNumber zero];
-        NSMutableArray<EventRequest*>* eventRequests = [[NSMutableArray alloc] init];
         for (ATTNItem* item in purchase.items) {
             NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
             [self addProductDataToDictionary:item dictionary:metadata];
@@ -163,7 +172,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
                 [metadata addEntryIfNotNil:@"cartCoupon" value:purchase.cart.cartCoupon];
             }
             
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:@"p"]];
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PURCHASE]];
             
             cartTotal = [cartTotal decimalNumberByAdding:item.price.price];
         }
@@ -187,7 +196,39 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             [products addObject:product];
         }
         orderConfirmedMetadata[@"products"] = [self convertObjectToJson:products defaultValue:@"[]"];
-        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:@"oc"]];
+        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:EVENT_TYPE_ORDER_CONFIRMED]];
+        
+        return eventRequests;
+    } else if ([event isKindOfClass:[ATTNAddToCartEvent class]]) {
+        ATTNAddToCartEvent* addToCart = (ATTNAddToCartEvent*)event;
+        
+        if ([addToCart.items count] == 0) {
+            NSLog(@"No items found in the AddToCart event.");
+            return @[];
+        }
+        
+        for (ATTNItem* item in addToCart.items) {
+            NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
+            [self addProductDataToDictionary:item dictionary:metadata];
+            
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_ADD_TO_CART]];
+        }
+        
+        return eventRequests;
+    } else if ([event isKindOfClass:[ATTNProductViewEvent class]]) {
+        ATTNProductViewEvent* productView = (ATTNProductViewEvent*)event;
+        
+        if ([productView.items count] == 0) {
+            NSLog(@"No items found in the ProductView event.");
+            return @[];
+        }
+        
+        for (ATTNItem* item in productView.items) {
+            NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
+            [self addProductDataToDictionary:item dictionary:metadata];
+            
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PRODUCT_VIEW]];
+        }
         
         return eventRequests;
     } else {
@@ -302,7 +343,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
     queryParams[@"v"] = @"mobile-app";
     queryParams[@"c"] = domain;
-    queryParams[@"t"] = @"idn";
+    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
     queryParams[@"lt"] = @"0";
     queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];

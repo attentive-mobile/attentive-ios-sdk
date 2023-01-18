@@ -14,5 +14,7 @@ FOUNDATION_EXPORT const unsigned char ATTNSDKFrameworkVersionString[];
 #import <attentive_ios_sdk/ATTNPrice.h>
 #import <attentive_ios_sdk/ATTNEvent.h>
 #import <attentive_ios_sdk/ATTNPurchaseEvent.h>
+#import <attentive_ios_sdk/ATTNProductViewEvent.h>
+#import <attentive_ios_sdk/ATTNAddToCartEvent.h>
 #import <attentive_ios_sdk/ATTNOrder.h>
 #import <attentive_ios_sdk/ATTNCart.h>
