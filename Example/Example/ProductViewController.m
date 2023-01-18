@@ -24,16 +24,6 @@
     [self showToast:@"Product View event sent"];
 }
 
-/*
-#pragma mark - Navigation
-
-// In a storyboard-based application, you will often want to do a little preparation before navigation
-- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
-    // Get the new view controller using [segue destinationViewController].
-    // Pass the selected object to the new view controller.
-}
-*/
-
 - (IBAction)addToCartButtonPressed:(id)sender {
     ATTNItem* item = [self buildItem];
     ATTNAddToCartEvent* addToCart = [[ATTNAddToCartEvent alloc] initWithItems:@[item]];

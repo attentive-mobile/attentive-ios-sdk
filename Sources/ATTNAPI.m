@@ -64,6 +64,12 @@ static NSString* const EXTERNAL_VENDOR_TYPE_KLAVIYO = @"1";
 static NSString* const EXTERNAL_VENDOR_TYPE_CLIENT_USER = @"2";
 static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
 
+static NSString* const EVENT_TYPE_PURCHASE = @"p";
+static NSString* const EVENT_TYPE_ADD_TO_CART = @"c";
+static NSString* const EVENT_TYPE_PRODUCT_VIEW = @"d";
+static NSString* const EVENT_TYPE_ORDER_CONFIRMED = @"oc";
+static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
+
 @implementation ATTNAPI {
     NSURLSession* _Nonnull _urlSession;
     NSNumberFormatter* _Nonnull _priceFormatter;
@@ -166,7 +172,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
                 [metadata addEntryIfNotNil:@"cartCoupon" value:purchase.cart.cartCoupon];
             }
             
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:@"p"]];
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PURCHASE]];
             
             cartTotal = [cartTotal decimalNumberByAdding:item.price.price];
         }
@@ -190,7 +196,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             [products addObject:product];
         }
         orderConfirmedMetadata[@"products"] = [self convertObjectToJson:products defaultValue:@"[]"];
-        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:@"oc"]];
+        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:EVENT_TYPE_ORDER_CONFIRMED]];
         
         return eventRequests;
     } else if ([event isKindOfClass:[ATTNAddToCartEvent class]]) {
@@ -205,7 +211,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
             [self addProductDataToDictionary:item dictionary:metadata];
             
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:@"c"]];
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_ADD_TO_CART]];
         }
         
         return eventRequests;
@@ -221,7 +227,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
             NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
             [self addProductDataToDictionary:item dictionary:metadata];
             
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:@"d"]];
+            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PRODUCT_VIEW]];
         }
         
         return eventRequests;
@@ -337,7 +343,7 @@ static NSString* const EXTERNAL_VENDOR_TYPE_CUSTOM_USER = @"6";
     NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
     queryParams[@"v"] = @"mobile-app";
     queryParams[@"c"] = domain;
-    queryParams[@"t"] = @"idn";
+    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
     queryParams[@"lt"] = @"0";
     queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];
