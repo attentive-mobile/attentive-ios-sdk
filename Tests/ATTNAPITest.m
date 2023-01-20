@@ -18,7 +18,7 @@
 #import "ATTNCart.h"
 
 static NSString* const TEST_DOMAIN = @"some-domain";
-static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain";
+static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 
 @interface ATTNAPI (Testing)
 
