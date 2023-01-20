@@ -74,6 +74,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
     NSURLSession* _Nonnull _urlSession;
     NSNumberFormatter* _Nonnull _priceFormatter;
     NSString* _Nonnull _domain;
+    NSString* _Nullable _cachedGeoAdjustedDomain;
 }
 
 - (instancetype)initWithDomain:(NSString*)domain {
@@ -87,6 +88,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
         _domain = domain;
         _priceFormatter = [NSNumberFormatter new];
         [_priceFormatter setMinimumFractionDigits:2];
+        _cachedGeoAdjustedDomain = nil;
     }
     
     return [super init];
@@ -252,6 +254,13 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 }
 
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable)) completionHandler {
+    if (_cachedGeoAdjustedDomain != nil) {
+        completionHandler(_cachedGeoAdjustedDomain, nil);
+        return;
+    }
+    
+    NSLog(@"%@", [NSString stringWithFormat:@"Getting the geoAdjustedDomain for domain '%@'...", domain]);
+    
     NSString* urlString = [NSString stringWithFormat:DTAG_URL_FORMAT, domain];
     
     NSURL* url = [NSURL URLWithString:urlString];
@@ -281,6 +290,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             return;
         }
         
+        _cachedGeoAdjustedDomain = geoAdjustedDomain;
         completionHandler(geoAdjustedDomain, nil);
     }];
     
@@ -467,6 +477,11 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 // For testing only
 - (void)setSession:(NSURLSession*)session {
     _urlSession = session;
+}
+
+// For testing only
+- (NSString* _Nullable)getCachedGeoAdjustedDomain {
+    return _cachedGeoAdjustedDomain;
 }
 
 @end
