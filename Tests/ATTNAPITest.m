@@ -18,6 +18,7 @@
 #import "ATTNCart.h"
 
 static NSString* const TEST_DOMAIN = @"some-domain";
+static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 
 @interface ATTNAPI (Testing)
 
@@ -26,6 +27,8 @@ static NSString* const TEST_DOMAIN = @"some-domain";
 - (void)getGeoAdjustedDomain:(NSString *)domain completionHandler:(void (^)(NSString* _Nullable, NSError* _Nullable))completionHandler;
 
 - (NSURL*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain;
+
+- (NSString*)getCachedGeoAdjustedDomain;
 
 @end
 
@@ -80,7 +83,7 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     if ([[url absoluteString] containsString:@"cdn.attn.tv"]) {
         _didCallDtag = true;
         return [[NSURLSessionDataTaskMock alloc] initWithHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
-            completionHandler([@"window.__attentive_domain='some-domain.attn.tv'" dataUsingEncoding:NSUTF8StringEncoding], [[NSHTTPURLResponse alloc] initWithURL:url statusCode:200 HTTPVersion:nil headerFields:nil], nil);
+            completionHandler([[NSString stringWithFormat:@"window.__attentive_domain='%@.attn.tv'", TEST_GEO_ADJUSTED_DOMAIN] dataUsingEncoding:NSUTF8StringEncoding], [[NSHTTPURLResponse alloc] initWithURL:url statusCode:200 HTTPVersion:nil headerFields:nil], nil);
         }];
     }
     
@@ -301,6 +304,43 @@ static NSString* const TEST_DOMAIN = @"some-domain";
     XCTAssertEqualObjects(productView.items[0].name, metadata[@"name"]);
     NSString* quantity = [NSString stringWithFormat:@"%d", productView.items[0].quantity];
     XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
+}
+
+- (void)testSendEvent_multipleEventsSent_onlyGetsGeoAdjustedDomainOnce {
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNAddToCartEvent* addToCart1 = [self buildAddToCart];
+    ATTNAddToCartEvent* addToCart2 = [self buildAddToCart];
+    ATTNUserIdentity* userIdentity = [self buildUserIdentity];
+    
+    [api sendEvent:addToCart1 userIdentity:userIdentity];
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    
+    [api sendEvent:addToCart2 userIdentity:userIdentity];
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(3, sessionMock.urlCalls.count);
+    
+    int numberOfGeoAdjustedDomainCalls = 0;
+    for (NSURL* urlCall in sessionMock.urlCalls) {
+        if ([urlCall.host isEqualToString:@"cdn.attn.tv"]) {
+            numberOfGeoAdjustedDomainCalls++;
+        }
+    }
+    XCTAssertEqual(1, numberOfGeoAdjustedDomainCalls);
+}
+
+- (void)testGetGeoAdjustedDomain_notCachedYet_savesTheCorrectDomainValue {
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    
+    XCTAssertNil([api getCachedGeoAdjustedDomain]);
+    
+    [api getGeoAdjustedDomain:TEST_DOMAIN completionHandler:^(NSString * _Nullable geoAdjustedDomain, NSError * _Nullable error) {
+        XCTAssertEqualObjects(TEST_GEO_ADJUSTED_DOMAIN, geoAdjustedDomain);
+    }];
+    
+    XCTAssertEqualObjects(TEST_GEO_ADJUSTED_DOMAIN, [api getCachedGeoAdjustedDomain]);
 }
 
 - (NSDictionary*)getMetadataFromUrl:(NSURL*)url {
