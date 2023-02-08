@@ -74,7 +74,7 @@
     _webView = [[WKWebView alloc] initWithFrame:theView.frame configuration:wkWebViewConfiguration];
     _webView.navigationDelegate = self;
 
-    [_webView loadRequest:request ];
+    [_webView loadRequest:request];
     
     if ([_mode isEqualToString:@"debug"]) {
         [_parentView addSubview:_webView];
@@ -169,7 +169,7 @@
     "    timeoutHandle = setTimeout(function() {"
     "        clearInterval(interval);"
     "        resolve('TIMED OUT');"
-    "    }, 5000);"
+    "    }, 10000);"
     "}); "
     "var status = await p; "
     "return status;";
