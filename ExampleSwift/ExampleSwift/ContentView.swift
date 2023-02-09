@@ -9,7 +9,7 @@ import SwiftUI
 import os
 
 struct CustomViewSwift : UIViewRepresentable {
-typealias UIViewType = UIView
+    typealias UIViewType = UIView
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
         category: String(describing: CustomViewSwift.self)
@@ -32,7 +32,19 @@ class CustomViewController : UIViewController {
     
     override func addChild(_ childController: UIViewController) {
         super.addChild(childController)
+        os_log("addChildAction")
         addChildAction?()
+    }
+    
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        let webview : WKWebView
+        for subview in self.view.subviews {
+            if (subview as? WKWebView) != nil {
+                subview.frame = self.view.frame
+            }
+        }
+        os_log("viewWillLayoutSubviews")
     }
 }
 
@@ -43,6 +55,28 @@ class CustomView : UIView {
         os_log("removeFromSuperview called")
         super.removeFromSuperview()
         self.removeFromSuperViewAction?()
+    }
+    
+    override func addSubview(_ view: UIView) {
+        super.addSubview(view)
+        os_log("addSubview called")
+    }
+    
+    override func didAddSubview(_ subview: UIView) {
+        super.didAddSubview(subview)
+        if (subview as? WKWebView) != nil {
+            os_log("didAddSubview for WebView")
+        }
+        os_log("didAddSubview for non-WebView")
+    }
+    
+    override func willRemoveSubview(_ subview: UIView) {
+        super.willRemoveSubview(subview)
+        if (subview as? WKWebView) != nil {
+            os_log("willRemoveSubview for WebView")
+        } else {
+            os_log("willRemoveSubview for non-WebView")
+        }
     }
 }
 
@@ -55,6 +89,7 @@ struct CustomViewControllerSwift : UIViewControllerRepresentable {
     var viewController : CustomViewController = CustomViewController()
         
     func makeUIViewController(context: Context) -> CustomViewController {
+        os_log("makeUIViewController")
         let customView : CustomView = CustomView()
         customView.removeFromSuperViewAction = { () -> Void in showingPopover = false; os_log("remove from superview called, so removing popover");}
         
@@ -64,21 +99,28 @@ struct CustomViewControllerSwift : UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: CustomViewController, context: Context) {
+        os_log("updateUIViewController")
         // TODO
     }
 }
 
 struct CreativeView : View {
-    @State var shouldShow : Bool
-    
     let view : CustomViewControllerSwift = CustomViewControllerSwift()
 
     var body: some View {
         view
     }
     
+    init() {
+        os_log("create CreativeView")
+    }
+    
     func getView() -> UIView {
         return view.viewController.view
+    }
+    
+    func getViewController() -> UIViewController {
+        return view.viewController
     }
 }
 
@@ -87,20 +129,26 @@ struct ContentView: View {
     
     @State private var showingPopover = false
     
+    // TODO ignoresSafeArea ?
+    
     //let view : CustomViewControllerSwift = CustomViewControllerSwift()
-    let creative : CreativeView = CreativeView(shouldShow: false)
+    let creative : CreativeView = CreativeView()
     let customView : CustomViewSwift = CustomViewSwift()
 
     var body: some View {
         VStack {
-            //view
             Button("Load Creative") {
                 print("Done")
-                attentiveData.sdk?.trigger(creative.getView())
-                //showingPopover = true
+                //attentiveData.sdk?.trigger(creative.getView())
+                showingPopover.toggle()
             }.fullScreenCover(isPresented: $showingPopover) {
                 creative
+                    .border(.green, width: 4).onAppear(perform: {
+                        attentiveData.sdk?.trigger(creative.getView())
+                    })
+                 
             }
+            .border(.red, width: 4)
             Button("Show Product Page") {
                 
             }
