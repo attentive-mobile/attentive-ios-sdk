@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="z6X-Cg-nbe">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="hgT-G7-Daq">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
@@ -10,25 +10,25 @@
     </dependencies>
     <scenes>
         <!--Navigation Controller-->
-        <scene sceneID="MOM-6S-MMr">
+        <scene sceneID="RYA-FX-dEm">
             <objects>
-                <navigationController id="z6X-Cg-nbe" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="KXw-M3-D9I">
+                <navigationController id="hgT-G7-Daq" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="QNE-qX-zY2">
                         <rect key="frame" x="0.0" y="48" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <connections>
-                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="rootViewController" id="haS-rh-XGC"/>
+                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="rootViewController" id="tkJ-Gb-YXg"/>
                     </connections>
                 </navigationController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="PBS-Hg-Tpn" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="AzZ-bd-OcU" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="-859" y="139"/>
+            <point key="canvasLocation" x="-1128" y="150"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="tne-QT-ifu">
             <objects>
-                <viewController id="BYZ-38-t0r" customClass="ViewController" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="MainVC" id="BYZ-38-t0r" customClass="ViewController" customModule="ExampleSwift___Local" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -37,30 +37,44 @@
                                 <rect key="frame" x="106" y="141" width="202" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Push me for Creative!"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Push me for Creative!">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
                                 <connections>
-                                    <action selector="creativeButtonPress:" destination="BYZ-38-t0r" eventType="touchUpInside" id="KQG-yF-8JO"/>
+                                    <action selector="creativeBtnPressedWithSender:" destination="BYZ-38-t0r" eventType="touchUpInside" id="Vzd-bw-tA7"/>
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Oaz-PN-whY">
                                 <rect key="frame" x="88" y="228" width="238" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Push me to Identify!"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Push me to Identify!">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="sendIdentifiersBtnPressedWithSender:" destination="BYZ-38-t0r" eventType="touchUpInside" id="O2e-Ro-Ibh"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="FZT-nD-dxR">
                                 <rect key="frame" x="88" y="318" width="238" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Push me to clear the User!"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Push me to clear the User!">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="clearUserBtnPressedWithSender:" destination="BYZ-38-t0r" eventType="touchUpInside" id="Ung-Nm-6d6"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="kje-cU-hHI">
                                 <rect key="frame" x="85" y="405" width="245" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="View Product Page"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="View Product Page">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
                                 <connections>
-                                    <segue destination="Xj3-Ru-nwo" kind="show" id="a2W-Fj-YWe"/>
+                                    <segue destination="Xj3-Ru-nwo" kind="show" id="dma-YL-oDJ"/>
                                 </connections>
                             </button>
                         </subviews>
@@ -69,8 +83,9 @@
                     </view>
                     <navigationItem key="navigationItem" id="4gh-gN-hKC"/>
                     <connections>
-                        <outlet property="clearUserButton" destination="FZT-nD-dxR" id="BfD-L6-L38"/>
-                        <outlet property="sendIdentifiersButton" destination="Oaz-PN-whY" id="zMH-Id-C8b"/>
+                        <outlet property="clearUserBtn" destination="FZT-nD-dxR" id="3Qd-2m-Y2K"/>
+                        <outlet property="creativeBtn" destination="6EU-4M-k4b" id="wzW-Za-iuA"/>
+                        <outlet property="sendIdentifiersBtn" destination="Oaz-PN-whY" id="3hm-m7-7Jb"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
@@ -80,7 +95,7 @@
         <!--Product View Controller-->
         <scene sceneID="Ao7-F8-PxY">
             <objects>
-                <viewController id="Xj3-Ru-nwo" customClass="ProductViewController" sceneMemberID="viewController">
+                <viewController id="Xj3-Ru-nwo" customClass="ProductViewController" customModule="ExampleSwift___Local" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="Cbr-lz-R7p">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -101,18 +116,22 @@
                                 <rect key="frame" x="88" y="325" width="238" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Add To Cart"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Add To Cart">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
                                 <connections>
-                                    <action selector="addToCartButtonPressed:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="wpQ-qK-0S1"/>
+                                    <action selector="addToCartBtnPressedWithSender:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="vbq-WE-3av"/>
                                 </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oiK-SR-ICR">
                                 <rect key="frame" x="87" y="412" width="238" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Purchase"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Purchase">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
                                 <connections>
-                                    <action selector="purchaseButtonPressed:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="ZGF-RD-AUi"/>
+                                    <action selector="purchaseBtnPressedWithSender:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="J9H-rF-L5F"/>
                                 </connections>
                             </button>
                         </subviews>
@@ -120,6 +139,10 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
                     <navigationItem key="navigationItem" id="gu9-Nv-e2w"/>
+                    <connections>
+                        <outlet property="addToCartBtn" destination="oAv-pI-GrN" id="CJS-8k-HWp"/>
+                        <outlet property="purchaseBtn" destination="oiK-SR-ICR" id="P4e-Nc-GWc"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="8Cz-Zk-anv" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
@@ -133,6 +156,9 @@
         </systemColor>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+        <systemColor name="systemGreenColor">
+            <color red="0.20392156862745098" green="0.7803921568627451" blue="0.34901960784313724" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
     </resources>
 </document>

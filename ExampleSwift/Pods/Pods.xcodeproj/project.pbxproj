@@ -1,0 +1,615 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		024D9D9E3B10898C9C383FDBEE158481 /* ATTNPersistentStorage.m in Sources */ = {isa = PBXBuildFile; fileRef = 5232C4909720ABFB38C6005770E6DAB6 /* ATTNPersistentStorage.m */; };
+		08AAA586ACFCA542D30514473776FDFE /* ATTNEventTracker.h in Headers */ = {isa = PBXBuildFile; fileRef = 4BB928468DCDFCF8522384511AB88945 /* ATTNEventTracker.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		0EF0B292BAB3E6B7D4BF02528C5010A1 /* ATTNPersistentStorage.h in Headers */ = {isa = PBXBuildFile; fileRef = DECA5F09158585B224AA96051836F935 /* ATTNPersistentStorage.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		0FB171C2A47A6B5178B3C1C89776F069 /* ATTNOrder.h in Headers */ = {isa = PBXBuildFile; fileRef = A4FBF7E0BDC4C21FBFB9C32150983736 /* ATTNOrder.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		1831D637DE2CCB7647FD26012CB23067 /* ATTNProductViewEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 250D1E203B9AB7788C23F68D3B0E3BB6 /* ATTNProductViewEvent.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		1EA543516669E959D3201E8340AF9BB6 /* ATTNItem.h in Headers */ = {isa = PBXBuildFile; fileRef = ADC067C4FDAAFB4B274BE891E0A3516A /* ATTNItem.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		3E309999F3CAF55798472F8D1E20F1B5 /* ATTNPurchaseEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = FE06372ABE071632DF6F7962FA96E702 /* ATTNPurchaseEvent.m */; };
+		4BACC7A6E5B79CFF8B84620FEE2DAFAF /* ATTNSDK.m in Sources */ = {isa = PBXBuildFile; fileRef = 7397C8595279FBFF44E32DA96B0597D2 /* ATTNSDK.m */; };
+		4EF98E030A933EB1E1DE8176C7940F7C /* ATTNCart.h in Headers */ = {isa = PBXBuildFile; fileRef = 73D8F0AB127DAE119A160F77F31515AB /* ATTNCart.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		5114A754C9C4701A221028B01F32D310 /* ATTNEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = FE765670601DD9C23149B10A64EA1CFF /* ATTNEvent.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		5E4E85EDE6205EE6C0D7EB81484D004B /* ATTNPrice.h in Headers */ = {isa = PBXBuildFile; fileRef = AF5E699ABB784740C3F775CC587DBF34 /* ATTNPrice.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		77D8397532A55CA6E089A0AE884917A8 /* ATTNVisitorService.h in Headers */ = {isa = PBXBuildFile; fileRef = 5C9AAAF6059A12EFC29D58A9CA6C2F96 /* ATTNVisitorService.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		86C2307C8A1ADA08BB10662AB831007C /* ATTNParameterValidation.h in Headers */ = {isa = PBXBuildFile; fileRef = 4A66D33F467567B377BA4680FBB7136C /* ATTNParameterValidation.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		886EEEBA54D74584185EFA943BE28848 /* ATTNAddToCartEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 695C76DFB96B9FE47F9A1764DB8B3362 /* ATTNAddToCartEvent.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		92A2D6D3540CBE41392C25376B5C2106 /* ATTNItem.m in Sources */ = {isa = PBXBuildFile; fileRef = E919D40C68BD25DE978F5E2EBAB955E2 /* ATTNItem.m */; };
+		94C13B66A621AF8CCE5DFE67A25ED665 /* ATTNCart.m in Sources */ = {isa = PBXBuildFile; fileRef = A69D670128E1F8D6B2831D5D770841CB /* ATTNCart.m */; };
+		A056609FC490B59FE4EBDE42DBC1FC90 /* ATTNEventTracker.m in Sources */ = {isa = PBXBuildFile; fileRef = 04A6C4462F41C824C9DE39280A8C5101 /* ATTNEventTracker.m */; };
+		A0787AB8720790924EA8E96315DC4DC0 /* attentive-ios-sdk-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 180D3846C01C7212CE24E450BA6868F4 /* attentive-ios-sdk-dummy.m */; };
+		AA756A3847A6DBBA3A64A56F58857BB1 /* ATTNPurchaseEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5FC36C9D0F408E5DE39B3479A07A9505 /* ATTNPurchaseEvent.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		B68F5AB5AB24305F039B92E65937B11E /* ATTNPrice.m in Sources */ = {isa = PBXBuildFile; fileRef = D0435984C1A7458075A5019D1B42B670 /* ATTNPrice.m */; };
+		B90727EB38E7381504234B86523D7064 /* ATTNProductViewEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 522F61311B386F03F99E4CA2A9E9581D /* ATTNProductViewEvent.m */; };
+		BE3D52C0861EF9DAEE8FB9E4F7D45C22 /* ATTNUserIdentity.h in Headers */ = {isa = PBXBuildFile; fileRef = 69809666DCA0F223CA84E6D0D961D667 /* ATTNUserIdentity.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		BFF16D1C775B0C57999B973A1E7F59E5 /* ATTNParameterValidation.m in Sources */ = {isa = PBXBuildFile; fileRef = 149696D313C8AD193EA8E13EDA3AA9AC /* ATTNParameterValidation.m */; };
+		C793E95C93381DC632028BAE727E8118 /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 57504AEA4DB5D282753865004A9CBAA3 /* ATTNUserIdentity.m */; };
+		CB08F8AECF72557E698A5DD34F676847 /* ATTNAPI.m in Sources */ = {isa = PBXBuildFile; fileRef = 02AC7DCA04C73AC0BD07DBE842F5F835 /* ATTNAPI.m */; };
+		D726B32FB766C733B5A1D86B73C42C37 /* ATTNOrder.m in Sources */ = {isa = PBXBuildFile; fileRef = D689F0BF923D5C3356B4C5AE42FE5343 /* ATTNOrder.m */; };
+		DBC63467C6D3FF613A37E947C551927D /* ATTNAddToCartEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = C1B26B3D68BAF2389957BB33BF7681E2 /* ATTNAddToCartEvent.m */; };
+		E01E3407888D64A4428F305D03594C67 /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 17F053C73FB3086372D2CB1A9B434B2A /* ATTNVisitorService.m */; };
+		E785101D5E59E99DA35E23C9FF1FDF0D /* Pods-ExampleSwift - Pod-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 24732C8FB4AAA7A4545C86649BB8FE3F /* Pods-ExampleSwift - Pod-dummy.m */; };
+		F938E4B1AAB0668EADCF48BE59CF6F08 /* ATTNAPI.h in Headers */ = {isa = PBXBuildFile; fileRef = 56994A25D4148E5E8B7452AC81CA61B8 /* ATTNAPI.h */; settings = {ATTRIBUTES = (Project, ); }; };
+		FF3D7D843382A6F7B1013424306108BA /* ATTNSDK.h in Headers */ = {isa = PBXBuildFile; fileRef = B6185F3C703DD249C5262AB4A249B104 /* ATTNSDK.h */; settings = {ATTRIBUTES = (Project, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		83679D4396B4B34B0FF8121CC37E720F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 39D9018AF20A48CFB8676A8086F9FB8A;
+			remoteInfo = "attentive-ios-sdk";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		02AC7DCA04C73AC0BD07DBE842F5F835 /* ATTNAPI.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNAPI.m; path = Sources/ATTNAPI.m; sourceTree = "<group>"; };
+		04A6C4462F41C824C9DE39280A8C5101 /* ATTNEventTracker.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNEventTracker.m; path = Sources/ATTNEventTracker.m; sourceTree = "<group>"; };
+		080576DF4BFAA4DB7506DE1C51587370 /* Pods-ExampleSwift - Pod-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-ExampleSwift - Pod-acknowledgements.markdown"; sourceTree = "<group>"; };
+		149696D313C8AD193EA8E13EDA3AA9AC /* ATTNParameterValidation.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidation.m; path = Sources/ATTNParameterValidation.m; sourceTree = "<group>"; };
+		17F053C73FB3086372D2CB1A9B434B2A /* ATTNVisitorService.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNVisitorService.m; path = Sources/ATTNVisitorService.m; sourceTree = "<group>"; };
+		180D3846C01C7212CE24E450BA6868F4 /* attentive-ios-sdk-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "attentive-ios-sdk-dummy.m"; sourceTree = "<group>"; };
+		24732C8FB4AAA7A4545C86649BB8FE3F /* Pods-ExampleSwift - Pod-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-ExampleSwift - Pod-dummy.m"; sourceTree = "<group>"; };
+		250D1E203B9AB7788C23F68D3B0E3BB6 /* ATTNProductViewEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNProductViewEvent.h; path = Sources/ATTNProductViewEvent.h; sourceTree = "<group>"; };
+		46669E0D752AF97F2B86B461F9A1D5D6 /* attentive-ios-sdk-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "attentive-ios-sdk-prefix.pch"; sourceTree = "<group>"; };
+		4A66D33F467567B377BA4680FBB7136C /* ATTNParameterValidation.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNParameterValidation.h; path = Sources/ATTNParameterValidation.h; sourceTree = "<group>"; };
+		4BB928468DCDFCF8522384511AB88945 /* ATTNEventTracker.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNEventTracker.h; path = Sources/ATTNEventTracker.h; sourceTree = "<group>"; };
+		4BC394906CEAC243AACBFCC98E690954 /* Pods-ExampleSwift - Pod-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-ExampleSwift - Pod-acknowledgements.plist"; sourceTree = "<group>"; };
+		522F61311B386F03F99E4CA2A9E9581D /* ATTNProductViewEvent.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNProductViewEvent.m; path = Sources/ATTNProductViewEvent.m; sourceTree = "<group>"; };
+		5232C4909720ABFB38C6005770E6DAB6 /* ATTNPersistentStorage.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorage.m; path = Sources/ATTNPersistentStorage.m; sourceTree = "<group>"; };
+		56994A25D4148E5E8B7452AC81CA61B8 /* ATTNAPI.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNAPI.h; path = Sources/ATTNAPI.h; sourceTree = "<group>"; };
+		57504AEA4DB5D282753865004A9CBAA3 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = Sources/ATTNUserIdentity.m; sourceTree = "<group>"; };
+		5C9AAAF6059A12EFC29D58A9CA6C2F96 /* ATTNVisitorService.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNVisitorService.h; path = Sources/ATTNVisitorService.h; sourceTree = "<group>"; };
+		5FC36C9D0F408E5DE39B3479A07A9505 /* ATTNPurchaseEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNPurchaseEvent.h; path = Sources/ATTNPurchaseEvent.h; sourceTree = "<group>"; };
+		695C76DFB96B9FE47F9A1764DB8B3362 /* ATTNAddToCartEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNAddToCartEvent.h; path = Sources/ATTNAddToCartEvent.h; sourceTree = "<group>"; };
+		69809666DCA0F223CA84E6D0D961D667 /* ATTNUserIdentity.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNUserIdentity.h; path = Sources/ATTNUserIdentity.h; sourceTree = "<group>"; };
+		6E73E3FDE03AE9CDE1B74E33A8348074 /* attentive-ios-sdk.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "attentive-ios-sdk.release.xcconfig"; sourceTree = "<group>"; };
+		7397C8595279FBFF44E32DA96B0597D2 /* ATTNSDK.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNSDK.m; path = Sources/ATTNSDK.m; sourceTree = "<group>"; };
+		73D8F0AB127DAE119A160F77F31515AB /* ATTNCart.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNCart.h; path = Sources/ATTNCart.h; sourceTree = "<group>"; };
+		8357F5C4F240BC453ACE88A2B9BB092E /* attentive-ios-sdk.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "attentive-ios-sdk.debug.xcconfig"; sourceTree = "<group>"; };
+		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		A4FBF7E0BDC4C21FBFB9C32150983736 /* ATTNOrder.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNOrder.h; path = Sources/ATTNOrder.h; sourceTree = "<group>"; };
+		A69D670128E1F8D6B2831D5D770841CB /* ATTNCart.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNCart.m; path = Sources/ATTNCart.m; sourceTree = "<group>"; };
+		ADC067C4FDAAFB4B274BE891E0A3516A /* ATTNItem.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNItem.h; path = Sources/ATTNItem.h; sourceTree = "<group>"; };
+		AF5E699ABB784740C3F775CC587DBF34 /* ATTNPrice.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNPrice.h; path = Sources/ATTNPrice.h; sourceTree = "<group>"; };
+		B6185F3C703DD249C5262AB4A249B104 /* ATTNSDK.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNSDK.h; path = Sources/ATTNSDK.h; sourceTree = "<group>"; };
+		C1B26B3D68BAF2389957BB33BF7681E2 /* ATTNAddToCartEvent.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNAddToCartEvent.m; path = Sources/ATTNAddToCartEvent.m; sourceTree = "<group>"; };
+		D0435984C1A7458075A5019D1B42B670 /* ATTNPrice.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNPrice.m; path = Sources/ATTNPrice.m; sourceTree = "<group>"; };
+		D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "attentive-ios-sdk"; path = "libattentive-ios-sdk.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D689F0BF923D5C3356B4C5AE42FE5343 /* ATTNOrder.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNOrder.m; path = Sources/ATTNOrder.m; sourceTree = "<group>"; };
+		DECA5F09158585B224AA96051836F935 /* ATTNPersistentStorage.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNPersistentStorage.h; path = Sources/ATTNPersistentStorage.h; sourceTree = "<group>"; };
+		E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "Pods-ExampleSwift - Pod"; path = "libPods-ExampleSwift - Pod.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E919D40C68BD25DE978F5E2EBAB955E2 /* ATTNItem.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNItem.m; path = Sources/ATTNItem.m; sourceTree = "<group>"; };
+		F0C2E9B7133AE21C28941BE61D3F5179 /* Pods-ExampleSwift - Pod.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-ExampleSwift - Pod.release.xcconfig"; sourceTree = "<group>"; };
+		FE06372ABE071632DF6F7962FA96E702 /* ATTNPurchaseEvent.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNPurchaseEvent.m; path = Sources/ATTNPurchaseEvent.m; sourceTree = "<group>"; };
+		FE765670601DD9C23149B10A64EA1CFF /* ATTNEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNEvent.h; path = Sources/ATTNEvent.h; sourceTree = "<group>"; };
+		FEDA157F2BB141B9CFB60C22BED10D86 /* Pods-ExampleSwift - Pod.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-ExampleSwift - Pod.debug.xcconfig"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1C4EE3EC55EFD13813E4F614D62CD3AC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF14FA4C20507A45691D84B2FF162AEB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		09C27B40F318254BC3DC33F2F738664C /* Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				180D3846C01C7212CE24E450BA6868F4 /* attentive-ios-sdk-dummy.m */,
+				46669E0D752AF97F2B86B461F9A1D5D6 /* attentive-ios-sdk-prefix.pch */,
+				8357F5C4F240BC453ACE88A2B9BB092E /* attentive-ios-sdk.debug.xcconfig */,
+				6E73E3FDE03AE9CDE1B74E33A8348074 /* attentive-ios-sdk.release.xcconfig */,
+			);
+			name = "Support Files";
+			path = "../Target Support Files/attentive-ios-sdk";
+			sourceTree = "<group>";
+		};
+		1268FE4EC6E6F07F9DCC1C8B03B169C2 /* Pods-ExampleSwift - Pod */ = {
+			isa = PBXGroup;
+			children = (
+				080576DF4BFAA4DB7506DE1C51587370 /* Pods-ExampleSwift - Pod-acknowledgements.markdown */,
+				4BC394906CEAC243AACBFCC98E690954 /* Pods-ExampleSwift - Pod-acknowledgements.plist */,
+				24732C8FB4AAA7A4545C86649BB8FE3F /* Pods-ExampleSwift - Pod-dummy.m */,
+				FEDA157F2BB141B9CFB60C22BED10D86 /* Pods-ExampleSwift - Pod.debug.xcconfig */,
+				F0C2E9B7133AE21C28941BE61D3F5179 /* Pods-ExampleSwift - Pod.release.xcconfig */,
+			);
+			name = "Pods-ExampleSwift - Pod";
+			path = "Target Support Files/Pods-ExampleSwift - Pod";
+			sourceTree = "<group>";
+		};
+		3E684FDEA49224D28512777DFE161907 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */,
+				E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4E2C29AE2915A2EC0C40B01939BD296B /* Targets Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				1268FE4EC6E6F07F9DCC1C8B03B169C2 /* Pods-ExampleSwift - Pod */,
+			);
+			name = "Targets Support Files";
+			sourceTree = "<group>";
+		};
+		89AC9F0D6E9FC4857D72DB9B49320945 /* attentive-ios-sdk */ = {
+			isa = PBXGroup;
+			children = (
+				695C76DFB96B9FE47F9A1764DB8B3362 /* ATTNAddToCartEvent.h */,
+				C1B26B3D68BAF2389957BB33BF7681E2 /* ATTNAddToCartEvent.m */,
+				56994A25D4148E5E8B7452AC81CA61B8 /* ATTNAPI.h */,
+				02AC7DCA04C73AC0BD07DBE842F5F835 /* ATTNAPI.m */,
+				73D8F0AB127DAE119A160F77F31515AB /* ATTNCart.h */,
+				A69D670128E1F8D6B2831D5D770841CB /* ATTNCart.m */,
+				FE765670601DD9C23149B10A64EA1CFF /* ATTNEvent.h */,
+				4BB928468DCDFCF8522384511AB88945 /* ATTNEventTracker.h */,
+				04A6C4462F41C824C9DE39280A8C5101 /* ATTNEventTracker.m */,
+				ADC067C4FDAAFB4B274BE891E0A3516A /* ATTNItem.h */,
+				E919D40C68BD25DE978F5E2EBAB955E2 /* ATTNItem.m */,
+				A4FBF7E0BDC4C21FBFB9C32150983736 /* ATTNOrder.h */,
+				D689F0BF923D5C3356B4C5AE42FE5343 /* ATTNOrder.m */,
+				4A66D33F467567B377BA4680FBB7136C /* ATTNParameterValidation.h */,
+				149696D313C8AD193EA8E13EDA3AA9AC /* ATTNParameterValidation.m */,
+				DECA5F09158585B224AA96051836F935 /* ATTNPersistentStorage.h */,
+				5232C4909720ABFB38C6005770E6DAB6 /* ATTNPersistentStorage.m */,
+				AF5E699ABB784740C3F775CC587DBF34 /* ATTNPrice.h */,
+				D0435984C1A7458075A5019D1B42B670 /* ATTNPrice.m */,
+				250D1E203B9AB7788C23F68D3B0E3BB6 /* ATTNProductViewEvent.h */,
+				522F61311B386F03F99E4CA2A9E9581D /* ATTNProductViewEvent.m */,
+				5FC36C9D0F408E5DE39B3479A07A9505 /* ATTNPurchaseEvent.h */,
+				FE06372ABE071632DF6F7962FA96E702 /* ATTNPurchaseEvent.m */,
+				B6185F3C703DD249C5262AB4A249B104 /* ATTNSDK.h */,
+				7397C8595279FBFF44E32DA96B0597D2 /* ATTNSDK.m */,
+				69809666DCA0F223CA84E6D0D961D667 /* ATTNUserIdentity.h */,
+				57504AEA4DB5D282753865004A9CBAA3 /* ATTNUserIdentity.m */,
+				5C9AAAF6059A12EFC29D58A9CA6C2F96 /* ATTNVisitorService.h */,
+				17F053C73FB3086372D2CB1A9B434B2A /* ATTNVisitorService.m */,
+				09C27B40F318254BC3DC33F2F738664C /* Support Files */,
+			);
+			name = "attentive-ios-sdk";
+			path = "attentive-ios-sdk";
+			sourceTree = "<group>";
+		};
+		AB3A8F2B1028A70E3578A3BE20BCD6C6 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				89AC9F0D6E9FC4857D72DB9B49320945 /* attentive-ios-sdk */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
+		CF1408CF629C7361332E53B88F7BD30C = {
+			isa = PBXGroup;
+			children = (
+				9D940727FF8FB9C785EB98E56350EF41 /* Podfile */,
+				D89477F20FB1DE18A04690586D7808C4 /* Frameworks */,
+				AB3A8F2B1028A70E3578A3BE20BCD6C6 /* Pods */,
+				3E684FDEA49224D28512777DFE161907 /* Products */,
+				4E2C29AE2915A2EC0C40B01939BD296B /* Targets Support Files */,
+			);
+			sourceTree = "<group>";
+		};
+		D89477F20FB1DE18A04690586D7808C4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		660AEDA2B5F843892AB09F351B60C8BB /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0489BADC09DDBC37ED12430B4B4CCD /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				886EEEBA54D74584185EFA943BE28848 /* ATTNAddToCartEvent.h in Headers */,
+				F938E4B1AAB0668EADCF48BE59CF6F08 /* ATTNAPI.h in Headers */,
+				4EF98E030A933EB1E1DE8176C7940F7C /* ATTNCart.h in Headers */,
+				5114A754C9C4701A221028B01F32D310 /* ATTNEvent.h in Headers */,
+				08AAA586ACFCA542D30514473776FDFE /* ATTNEventTracker.h in Headers */,
+				1EA543516669E959D3201E8340AF9BB6 /* ATTNItem.h in Headers */,
+				0FB171C2A47A6B5178B3C1C89776F069 /* ATTNOrder.h in Headers */,
+				86C2307C8A1ADA08BB10662AB831007C /* ATTNParameterValidation.h in Headers */,
+				0EF0B292BAB3E6B7D4BF02528C5010A1 /* ATTNPersistentStorage.h in Headers */,
+				5E4E85EDE6205EE6C0D7EB81484D004B /* ATTNPrice.h in Headers */,
+				1831D637DE2CCB7647FD26012CB23067 /* ATTNProductViewEvent.h in Headers */,
+				AA756A3847A6DBBA3A64A56F58857BB1 /* ATTNPurchaseEvent.h in Headers */,
+				FF3D7D843382A6F7B1013424306108BA /* ATTNSDK.h in Headers */,
+				BE3D52C0861EF9DAEE8FB9E4F7D45C22 /* ATTNUserIdentity.h in Headers */,
+				77D8397532A55CA6E089A0AE884917A8 /* ATTNVisitorService.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		39D9018AF20A48CFB8676A8086F9FB8A /* attentive-ios-sdk */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10918BC311A4E459DE2BD5472EE8C05A /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */;
+			buildPhases = (
+				CC0489BADC09DDBC37ED12430B4B4CCD /* Headers */,
+				79B498CC3A2446AF2384616D27191591 /* Sources */,
+				1C4EE3EC55EFD13813E4F614D62CD3AC /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "attentive-ios-sdk";
+			productName = "attentive-ios-sdk";
+			productReference = D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */;
+			productType = "com.apple.product-type.library.static";
+		};
+		EE4643341FE5017D3D6F395C0C822C49 /* Pods-ExampleSwift - Pod */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 54B148BD6B72871B13EC8104BD62EC9E /* Build configuration list for PBXNativeTarget "Pods-ExampleSwift - Pod" */;
+			buildPhases = (
+				660AEDA2B5F843892AB09F351B60C8BB /* Headers */,
+				30F369C2FD7C981C180A9B64B29EB9D6 /* Sources */,
+				BF14FA4C20507A45691D84B2FF162AEB /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9FFE4FE21C4E986D3ADECA252EDDC7F9 /* PBXTargetDependency */,
+			);
+			name = "Pods-ExampleSwift - Pod";
+			productName = "Pods-ExampleSwift - Pod";
+			productReference = E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BFDFE7DC352907FC980B868725387E98 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1300;
+				LastUpgradeCheck = 1300;
+			};
+			buildConfigurationList = 4821239608C13582E20E6DA73FD5F1F9 /* Build configuration list for PBXProject "Pods" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = CF1408CF629C7361332E53B88F7BD30C;
+			productRefGroup = 3E684FDEA49224D28512777DFE161907 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				39D9018AF20A48CFB8676A8086F9FB8A /* attentive-ios-sdk */,
+				EE4643341FE5017D3D6F395C0C822C49 /* Pods-ExampleSwift - Pod */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		30F369C2FD7C981C180A9B64B29EB9D6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E785101D5E59E99DA35E23C9FF1FDF0D /* Pods-ExampleSwift - Pod-dummy.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		79B498CC3A2446AF2384616D27191591 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0787AB8720790924EA8E96315DC4DC0 /* attentive-ios-sdk-dummy.m in Sources */,
+				DBC63467C6D3FF613A37E947C551927D /* ATTNAddToCartEvent.m in Sources */,
+				CB08F8AECF72557E698A5DD34F676847 /* ATTNAPI.m in Sources */,
+				94C13B66A621AF8CCE5DFE67A25ED665 /* ATTNCart.m in Sources */,
+				A056609FC490B59FE4EBDE42DBC1FC90 /* ATTNEventTracker.m in Sources */,
+				92A2D6D3540CBE41392C25376B5C2106 /* ATTNItem.m in Sources */,
+				D726B32FB766C733B5A1D86B73C42C37 /* ATTNOrder.m in Sources */,
+				BFF16D1C775B0C57999B973A1E7F59E5 /* ATTNParameterValidation.m in Sources */,
+				024D9D9E3B10898C9C383FDBEE158481 /* ATTNPersistentStorage.m in Sources */,
+				B68F5AB5AB24305F039B92E65937B11E /* ATTNPrice.m in Sources */,
+				B90727EB38E7381504234B86523D7064 /* ATTNProductViewEvent.m in Sources */,
+				3E309999F3CAF55798472F8D1E20F1B5 /* ATTNPurchaseEvent.m in Sources */,
+				4BACC7A6E5B79CFF8B84620FEE2DAFAF /* ATTNSDK.m in Sources */,
+				C793E95C93381DC632028BAE727E8118 /* ATTNUserIdentity.m in Sources */,
+				E01E3407888D64A4428F305D03594C67 /* ATTNVisitorService.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9FFE4FE21C4E986D3ADECA252EDDC7F9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "attentive-ios-sdk";
+			target = 39D9018AF20A48CFB8676A8086F9FB8A /* attentive-ios-sdk */;
+			targetProxy = 83679D4396B4B34B0FF8121CC37E720F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		34F2F370DE5237DF56759157C82F26F6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8357F5C4F240BC453ACE88A2B9BB092E /* attentive-ios-sdk.debug.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				GCC_PREFIX_HEADER = "Target Support Files/attentive-ios-sdk/attentive-ios-sdk-prefix.pch";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PRIVATE_HEADERS_FOLDER_PATH = "";
+				PRODUCT_MODULE_NAME = attentive_ios_sdk;
+				PRODUCT_NAME = "attentive-ios-sdk";
+				PUBLIC_HEADERS_FOLDER_PATH = "";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6CCEFA1EC208F4CB9418551EFE4DD63A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6E73E3FDE03AE9CDE1B74E33A8348074 /* attentive-ios-sdk.release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				GCC_PREFIX_HEADER = "Target Support Files/attentive-ios-sdk/attentive-ios-sdk-prefix.pch";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PRIVATE_HEADERS_FOLDER_PATH = "";
+				PRODUCT_MODULE_NAME = attentive_ios_sdk;
+				PRODUCT_NAME = "attentive-ios-sdk";
+				PUBLIC_HEADERS_FOLDER_PATH = "";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		7EE7A78859F657F6BEFC651185B43192 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"POD_CONFIGURATION_RELEASE=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "${SRCROOT}/../build";
+			};
+			name = Release;
+		};
+		D299434AB35E7FD6F7921C8EF24742FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"POD_CONFIGURATION_DEBUG=1",
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "${SRCROOT}/../build";
+			};
+			name = Debug;
+		};
+		EF907E93BF17174C053CC418B11C6F44 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0C2E9B7133AE21C28941BE61D3F5179 /* Pods-ExampleSwift - Pod.release.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		FD02F9641250DBB19DFB00C6799C8A1C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = FEDA157F2BB141B9CFB60C22BED10D86 /* Pods-ExampleSwift - Pod.debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10918BC311A4E459DE2BD5472EE8C05A /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				34F2F370DE5237DF56759157C82F26F6 /* Debug */,
+				6CCEFA1EC208F4CB9418551EFE4DD63A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4821239608C13582E20E6DA73FD5F1F9 /* Build configuration list for PBXProject "Pods" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D299434AB35E7FD6F7921C8EF24742FF /* Debug */,
+				7EE7A78859F657F6BEFC651185B43192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		54B148BD6B72871B13EC8104BD62EC9E /* Build configuration list for PBXNativeTarget "Pods-ExampleSwift - Pod" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD02F9641250DBB19DFB00C6799C8A1C /* Debug */,
+				EF907E93BF17174C053CC418B11C6F44 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+}

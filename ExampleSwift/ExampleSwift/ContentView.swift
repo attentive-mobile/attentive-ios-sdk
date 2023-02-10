@@ -10,10 +10,6 @@ import os
 
 struct CustomViewSwift : UIViewRepresentable {
     typealias UIViewType = UIView
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier!,
-        category: String(describing: CustomViewSwift.self)
-    )
     
     var view : UIView = UIView()
     
@@ -23,7 +19,6 @@ struct CustomViewSwift : UIViewRepresentable {
     
     func updateUIView(_ uiView: UIView, context: Context) {
         // TODO
-        CustomViewSwift.logger.info("Updated uiview")
     }
 }
 
@@ -38,7 +33,6 @@ class CustomViewController : UIViewController {
     
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        let webview : WKWebView
         for subview in self.view.subviews {
             if (subview as? WKWebView) != nil {
                 subview.frame = self.view.frame
@@ -137,18 +131,22 @@ struct ContentView: View {
 
     var body: some View {
         VStack {
-            Button("Load Creative") {
-                print("Done")
-                //attentiveData.sdk?.trigger(creative.getView())
-                showingPopover.toggle()
-            }.fullScreenCover(isPresented: $showingPopover) {
-                creative
-                    .border(.green, width: 4).onAppear(perform: {
-                        attentiveData.sdk?.trigger(creative.getView())
-                    })
-                 
+            if #available(iOS 14.0, *) {
+                Button("Load Creative") {
+                    print("Done")
+                    //attentiveData.sdk?.trigger(creative.getView())
+                    showingPopover.toggle()
+                }.fullScreenCover(isPresented: $showingPopover) {
+                    creative
+                        .border(.green, width: 4).onAppear(perform: {
+                            attentiveData.sdk?.trigger(creative.getView())
+                        })
+                    
+                }
+                .border(.red, width: 4)
+            } else {
+                // Fallback on earlier versions
             }
-            .border(.red, width: 4)
             Button("Show Product Page") {
                 
             }

@@ -5,7 +5,6 @@
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
-@property (weak, nonatomic) IBOutlet UIButton *purchaseButton;
 @end
 
 

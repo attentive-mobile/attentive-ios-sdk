@@ -7,15 +7,21 @@
 
 import SwiftUI
 
+
 class AttentiveData: ObservableObject {
     @Published var sdk : ATTNSDK?
     @Published var userIdentifiers : [String:String]?
 }
 
-@main
+/*
 struct ExampleSwiftApp: App {
-    @StateObject var attentiveData : AttentiveData
+    init() {
+        // TODO
+    }
     
+    //@StateObject var attentiveData : AttentiveData
+    
+    /*
     init() {
         // Alternatively, this code can go in your AppDelegate's "didFinishLaunchingWithOptions" method
         let sdk = ATTNSDK(domain: "games", mode: "production")
@@ -42,10 +48,12 @@ struct ExampleSwiftApp: App {
         let dataWrapper = StateObject(wrappedValue: attentiveData)
         self._attentiveData = dataWrapper
     }
+     */
 
     var body: some Scene {
         WindowGroup {
-            ContentView().environmentObject(attentiveData)
+            ContentView2()
         }
     }
 }
+*/
