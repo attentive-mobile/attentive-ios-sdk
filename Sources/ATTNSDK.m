@@ -169,7 +169,7 @@
     "    timeoutHandle = setTimeout(function() {"
     "        clearInterval(interval);"
     "        resolve('TIMED OUT');"
-    "    }, 10000);"
+    "    }, 5000);"
     "}); "
     "var status = await p; "
     "return status;";
