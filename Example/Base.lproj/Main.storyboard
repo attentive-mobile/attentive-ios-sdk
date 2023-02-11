@@ -47,12 +47,18 @@
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="tinted" title="Push me to Identify!"/>
+                                <connections>
+                                    <action selector="sendIdentifiersButtonPress:" destination="BYZ-38-t0r" eventType="touchUpInside" id="1LC-5j-XXO"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="FZT-nD-dxR">
                                 <rect key="frame" x="88" y="318" width="238" height="63"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="tinted" title="Push me to clear the User!"/>
+                                <connections>
+                                    <action selector="clearUserButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="75P-t0-J5k"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="kje-cU-hHI">
                                 <rect key="frame" x="85" y="405" width="245" height="63"/>
@@ -70,6 +76,7 @@
                     <navigationItem key="navigationItem" id="4gh-gN-hKC"/>
                     <connections>
                         <outlet property="clearUserButton" destination="FZT-nD-dxR" id="BfD-L6-L38"/>
+                        <outlet property="creativeButton" destination="6EU-4M-k4b" id="JLZ-5M-zca"/>
                         <outlet property="sendIdentifiersButton" destination="Oaz-PN-whY" id="zMH-Id-C8b"/>
                     </connections>
                 </viewController>
