@@ -7,6 +7,6 @@ target 'ExampleSwift - Pod' do
   # use_frameworks!
 
   # Pods for Example
-  pod 'attentive-ios-sdk', '~> 0.3.2'
+  pod 'attentive-ios-sdk'
 
 end
