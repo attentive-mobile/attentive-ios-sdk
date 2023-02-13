@@ -19,8 +19,11 @@ class ViewController : UIViewController {
     }
     
     @IBAction func creativeBtnPressed(sender: Any) {
+        // Clear cookies to avoid Creative filtering during testing. Do not clear
+        // cookies if you want to test Creative fatigue and filtering.
         self.clearCookies()
         
+        // Display the creative.
         self.getAttentiveSdk().trigger(self.view)
     }
 
@@ -29,6 +32,7 @@ class ViewController : UIViewController {
     }
     
     @IBAction func clearUserBtnPressed(sender: Any) {
+        os_log("Clearing user!")
         self.getAttentiveSdk().clearUser()
     }
     
