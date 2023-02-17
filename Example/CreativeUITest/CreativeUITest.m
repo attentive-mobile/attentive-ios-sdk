@@ -24,14 +24,13 @@
     // In UI tests it is usually best to stop immediately when a failure occurs.
     self.continueAfterFailure = NO;
     
-    [self clearCookies];
+    [[self class] clearCookies];
     
     app = [[XCUIApplication alloc] init];
 }
 
-
-- (void)tearDown {
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
++ (void)tearDown {
+    // reset cookies & user defaults after all tests have run
     [self clearCookies];
     [self resetUserDefaults];
 }
@@ -102,7 +101,7 @@
 }
 
 
-- (void)clearCookies {
++ (void)clearCookies {
     NSLog(@"Clearing cookies!");
     NSSet *websiteDataTypes = [NSSet setWithArray:@[WKWebsiteDataTypeCookies]];
     NSDate *dateFrom = [NSDate dateWithTimeIntervalSince1970:0];
@@ -114,7 +113,7 @@
 }
 
 
-- (void)resetUserDefaults {
++ (void)resetUserDefaults {
     // Reset user defaults for example app, not the test runner
     [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:@"com.attentive.Example"];
 }
