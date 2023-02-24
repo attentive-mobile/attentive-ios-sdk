@@ -21,7 +21,7 @@ ATTNSDK *sdk;
     self.view.backgroundColor = [UIColor systemGray3Color];
     
     // Replace with your Attentive domain to test with your Attentive account
-    _domain = @"YOUR_ATTENTIVE_DOMAIN";
+    _domain = @"mobileapps";
     _mode = @"production";
 
     // Setup for Testing purposes only
@@ -78,14 +78,22 @@ ATTNSDK *sdk;
 // Method for setting up UI Tests. Only used for testing purposes
 - (void)setupForUITests {
     // Override the hard-coded domain & mode with the values from the environment variables
-    _domain = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.DOMAIN"];
-    _mode = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.MODE"];
+    NSString * envDomain = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.DOMAIN"];
+    NSString * envMode = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.MODE"];
+
+    if (envDomain != nil) {
+        _domain = envDomain;
+    }
+    if (envMode != nil) {
+        _mode = envMode;
+    }
 
     // Reset the standard user defaults - this must be done from within the app to avoid
     // race conditions
-    NSString * persistentDomainToRemove = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.PERSISTENT_DOMAIN_TO_REMOVE"];
-    if ([persistentDomainToRemove isEqualToString:@"com.attentive.Example"]) {
-        [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:persistentDomainToRemove];
+    NSString * persistentDomainToRemove = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.REMOVE_PERSISTENT_DOMAIN"];
+    if ([persistentDomainToRemove isEqualToString:@"YES"]) {
+        NSString *bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
+        [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:bundleIdentifier];
     }
 }
 

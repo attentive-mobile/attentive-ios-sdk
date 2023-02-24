@@ -20,6 +20,20 @@
                ReferencedContainer = "container:Example.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "NO"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "69D3C148299EF2D10027934F"
+               BuildableName = "CreativeUITest.xctest"
+               BlueprintName = "CreativeUITest"
+               ReferencedContainer = "container:Example.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -62,6 +76,11 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "com.attentive.Example.HOST"
+            value = "local"
+            isEnabled = "YES">
+         </EnvironmentVariable>
          <EnvironmentVariable
             key = "com.attentive.Example.DOMAIN"
             value = "mobileapps"

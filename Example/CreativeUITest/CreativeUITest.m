@@ -61,7 +61,7 @@
     [emailField typeText:@"testemail@attentivemobile.com"];
     
     // Tap something else on the creative to dismiss the keyboard
-    [app.staticTexts[@"UNLOCK"] tap];
+    [app.staticTexts[@"10% OFF"] tap];
     
     // Submit email
     XCTAssertTrue([app.buttons[@"CONTINUE"] waitForExistenceWithTimeout:5.0]);
@@ -71,10 +71,20 @@
     XCTAssertTrue([app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] waitForExistenceWithTimeout:5.0]);
     [app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] tap];
 
-    // Assert that the SMS app is opened with prepoulated text
-    XCUIApplication * smsApp = [[XCUIApplication alloc] initWithBundleIdentifier:@"com.apple.MobileSMS"];
-    XCTAssertTrue([smsApp.textFields[@"Message"] waitForExistenceWithTimeout:5.0]);
-    XCTAssertTrue([smsApp.textFields[@"Message"].value containsString:@"Send this text to subscribe to recurring automated personalized marketing alerts (e.g. cart reminders) from Attentive Mobile Apps Test"]);
+
+    NSString * envHost = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.HOST"];
+
+    if ([envHost isEqualToString:@"device_farm"]) {
+        // Assert that the creative is closed because device farm doesn't allow the
+        // SMS app to be installed or used
+        XCTAssertTrue([app.buttons[@"Push me for Creative!"] waitForExistenceWithTimeout:5.0]);
+        XCTAssertEqual(app.buttons[@"Push me for Creative!"].isHittable, true);
+    } else {
+        // Assert that the SMS app is opened with prepopulated text
+        XCUIApplication * smsApp = [[XCUIApplication alloc] initWithBundleIdentifier:@"com.apple.MobileSMS"];
+        XCTAssertTrue([smsApp.textFields[@"Message"] waitForExistenceWithTimeout:5.0]);
+        XCTAssertTrue([smsApp.textFields[@"Message"].value containsString:@"Send this text to subscribe to recurring automated personalized marketing alerts (e.g. cart reminders) from Attentive Mobile Apps Test"]);
+    }
 }
 
 
@@ -123,7 +133,7 @@
     app.launchEnvironment = @{
         @"com.attentive.Example.DOMAIN": @"mobileapps",
         @"com.attentive.Example.MODE": mode,
-        @"com.attentive.Example.PERSISTENT_DOMAIN_TO_REMOVE": @"com.attentive.Example"
+        @"com.attentive.Example.REMOVE_PERSISTENT_DOMAIN": @"com.attentive.ios.sdk.Example"
     };
     [app launch];
 }
