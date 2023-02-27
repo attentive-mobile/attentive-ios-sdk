@@ -71,16 +71,10 @@
     XCTAssertTrue([app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] waitForExistenceWithTimeout:5.0]);
     [app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] tap];
 
-
-    NSString * envHost = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.HOST"];
-
-    if ([envHost isEqualToString:@"device_farm"]) {
-        // Assert that the creative is closed because device farm doesn't allow the
-        // SMS app to be installed or used
-        XCTAssertTrue([app.buttons[@"Push me for Creative!"] waitForExistenceWithTimeout:5.0]);
-        XCTAssertEqual(app.buttons[@"Push me for Creative!"].isHittable, true);
-    } else {
-        // Assert that the SMS app is opened with prepopulated text
+    // Assert that the SMS app is opened with prepopulated text if running locally
+    // (AWS Device Farm doesn't allow use of SMS apps)
+    NSString * envHost = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_HOST"];
+    if ([envHost isEqualToString:@"local"]) {
         XCUIApplication * smsApp = [[XCUIApplication alloc] initWithBundleIdentifier:@"com.apple.MobileSMS"];
         XCTAssertTrue([smsApp.textFields[@"Message"] waitForExistenceWithTimeout:5.0]);
         XCTAssertTrue([smsApp.textFields[@"Message"].value containsString:@"Send this text to subscribe to recurring automated personalized marketing alerts (e.g. cart reminders) from Attentive Mobile Apps Test"]);
@@ -125,15 +119,16 @@
 
 + (void)resetUserDefaults {
     // Reset user defaults for example app, not the test runner
+    // TODO - fix this domain name
     [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:@"com.attentive.Example"];
 }
 
 
 - (void)launchAppWithMode:(NSString *) mode {
     app.launchEnvironment = @{
-        @"com.attentive.Example.DOMAIN": @"mobileapps",
-        @"com.attentive.Example.MODE": mode,
-        @"com.attentive.Example.REMOVE_PERSISTENT_DOMAIN": @"com.attentive.ios.sdk.Example"
+        @"COM_ATTENTIVE_EXAMPLE_DOMAIN": @"mobileapps",
+        @"COM_ATTENTIVE_EXAMPLE_MODE": mode,
+        @"COM_ATTENTIVE_EXAMPLE_IS_UI_TEST": @"YES",
     };
     [app launch];
 }

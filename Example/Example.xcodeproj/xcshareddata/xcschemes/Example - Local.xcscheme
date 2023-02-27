@@ -77,17 +77,17 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "com.attentive.Example.HOST"
+            key = "COM_ATTENTIVE_EXAMPLE_HOST"
             value = "local"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "com.attentive.Example.DOMAIN"
+            key = "COM_ATTENTIVE_EXAMPLE_DOMAIN"
             value = "mobileapps"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "com.attentive.Example.MODE"
+            key = "COM_ATTENTIVE_EXAMPLE_MODE"
             value = "production"
             isEnabled = "YES">
          </EnvironmentVariable>
