@@ -119,7 +119,6 @@
 
 + (void)resetUserDefaults {
     // Reset user defaults for example app, not the test runner
-    // TODO - fix this domain name
     [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:@"com.attentive.Example"];
 }
 
