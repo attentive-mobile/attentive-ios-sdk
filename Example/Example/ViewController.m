@@ -78,14 +78,22 @@ ATTNSDK *sdk;
 // Method for setting up UI Tests. Only used for testing purposes
 - (void)setupForUITests {
     // Override the hard-coded domain & mode with the values from the environment variables
-    _domain = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.DOMAIN"];
-    _mode = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.MODE"];
+    NSString * envDomain = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_DOMAIN"];
+    NSString * envMode = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_MODE"];
+
+    if (envDomain != nil) {
+        _domain = envDomain;
+    }
+    if (envMode != nil) {
+        _mode = envMode;
+    }
 
     // Reset the standard user defaults - this must be done from within the app to avoid
     // race conditions
-    NSString * persistentDomainToRemove = [[[NSProcessInfo processInfo] environment] objectForKey:@"com.attentive.Example.PERSISTENT_DOMAIN_TO_REMOVE"];
-    if ([persistentDomainToRemove isEqualToString:@"com.attentive.Example"]) {
-        [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:persistentDomainToRemove];
+    NSString * isUITest = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_IS_UI_TEST"];
+    if ([isUITest isEqualToString:@"YES"]) {
+        NSString *bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
+        [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:bundleIdentifier];
     }
 }
 

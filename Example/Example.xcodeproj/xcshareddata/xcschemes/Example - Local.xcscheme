@@ -20,6 +20,20 @@
                ReferencedContainer = "container:Example.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "NO"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "69D3C148299EF2D10027934F"
+               BuildableName = "CreativeUITest.xctest"
+               BlueprintName = "CreativeUITest"
+               ReferencedContainer = "container:Example.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -63,12 +77,17 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "com.attentive.Example.DOMAIN"
+            key = "COM_ATTENTIVE_EXAMPLE_HOST"
+            value = "local"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "COM_ATTENTIVE_EXAMPLE_DOMAIN"
             value = "mobileapps"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "com.attentive.Example.MODE"
+            key = "COM_ATTENTIVE_EXAMPLE_MODE"
             value = "production"
             isEnabled = "YES">
          </EnvironmentVariable>
