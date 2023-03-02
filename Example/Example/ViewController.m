@@ -21,7 +21,7 @@ ATTNSDK *sdk;
     self.view.backgroundColor = [UIColor systemGray3Color];
     
     // Replace with your Attentive domain to test with your Attentive account
-    _domain = @"mobileapps";
+    _domain = @"YOUR_ATTENTIVE_DOMAIN";
     _mode = @"production";
 
     // Setup for Testing purposes only
