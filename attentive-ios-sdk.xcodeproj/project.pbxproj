@@ -49,6 +49,8 @@
 		6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874A29353A99003F1BEC /* ATTNVisitorService.m */; };
 		6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */; };
 		6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */; };
+		69BA6D5929B7812C00CCA573 /* ATTNAPITestIT.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */; };
+		69BA6D5B29B782CE00CCA573 /* ATTNTestEventUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,6 +121,9 @@
 		6972874A29353A99003F1BEC /* ATTNVisitorService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNVisitorService.m; path = Sources/ATTNVisitorService.m; sourceTree = "<group>"; };
 		6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorage.m; path = Sources/ATTNPersistentStorage.m; sourceTree = "<group>"; };
 		6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNPersistentStorage.h; path = Sources/ATTNPersistentStorage.h; sourceTree = "<group>"; };
+		69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNAPITestIT.m; path = Tests/ATTNAPITestIT.m; sourceTree = "<group>"; };
+		69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNTestEventUtils.m; path = Tests/ATTNTestEventUtils.m; sourceTree = "<group>"; };
+		69BA6D5C29B785ED00CCA573 /* ATTNTestEventUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ATTNTestEventUtils.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -216,6 +221,9 @@
 				58B01AAE294CFF8A0001CEBF /* ATTNEventTrackerTest.m */,
 				58B01AB0294D305C0001CEBF /* TestAssertionHandler.h */,
 				58B01AB2294D3F9B0001CEBF /* TestAssertionHandler.m */,
+				69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */,
+				69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */,
+				69BA6D5C29B785ED00CCA573 /* ATTNTestEventUtils.h */,
 			);
 			name = Tests;
 			sourceTree = "<group>";
@@ -415,11 +423,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				69BA6D5929B7812C00CCA573 /* ATTNAPITestIT.m in Sources */,
 				5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */,
 				5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */,
 				5809FEAF2937C8F100BDE364 /* ATTNVisitorServiceTest.m in Sources */,
 				58A6EA2729359A84009BE922 /* ATTNAPITest.m in Sources */,
 				58B01AAF294CFF8A0001CEBF /* ATTNEventTrackerTest.m in Sources */,
+				69BA6D5B29B782CE00CCA573 /* ATTNTestEventUtils.m in Sources */,
 				5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */,
 				58B01AB3294D3F9C0001CEBF /* TestAssertionHandler.m in Sources */,
 			);
