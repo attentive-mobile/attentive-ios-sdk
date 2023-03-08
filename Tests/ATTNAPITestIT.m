@@ -24,6 +24,41 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 
 @implementation ATTNAPITestIT
 
+- (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
+    // Arrange
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
+    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+    
+    XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
+    __block NSURLResponse* urlResponse;
+    __block NSURL* eventUrl;
+
+    
+    // Act
+    [api sendUserIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+        if ([url.absoluteString containsString:@"t=idn"]){
+            urlResponse = response;
+            eventUrl = url;
+            [eventTaskExpectation fulfill];
+        }
+    }];
+    [self waitForExpectationsWithTimeout:EVENT_SEND_TIMEOUT_SEC handler:nil];
+    
+    
+    // Assert
+    NSHTTPURLResponse *response = (NSHTTPURLResponse*) urlResponse;
+    XCTAssertEqual(200, [response statusCode]);
+    
+    NSDictionary<NSString*, NSString*>* queryItems = [[ATTNTestEventUtils class] getQueryItemsFromUrl:eventUrl];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    // TODO add all identifiers to this test & other tests
+    // TODO break out common functions into ATTNTestEventUtils
+    XCTAssertEqualObjects(@"[{\"vendor\":\"2\",\"id\":\"some-client-id\"}]", queryItems[@"evs"]);
+    XCTAssertEqualObjects(@"idn", queryItems[@"t"]);
+}
+
 - (void)testSendEvent_validPurchaseEvent_urlContainsExpectedPurchaseMetadata {
     // Arrange
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
@@ -94,5 +129,92 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     XCTAssertEqualObjects(@"15.99", ocMetadata[@"cartTotal"]);
     XCTAssertEqualObjects(purchase.items[0].price.currency, ocMetadata[@"currency"]);
 }
+
+- (void)testSendEvent_validAddToCartEvent_urlContainsExpectedMetadata {
+    // Arrange
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
+    ATTNAddToCartEvent* addToCart = [[ATTNTestEventUtils class] buildAddToCart];
+    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+    
+    XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
+    __block NSURLResponse* urlResponse;
+    __block NSURL* eventUrl;
+
+    
+    // Act
+    [api sendEvent:addToCart userIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+        if ([url.absoluteString containsString:@"t=c"]){
+            urlResponse = response;
+            eventUrl = url;
+            [eventTaskExpectation fulfill];
+        }
+    }];
+    [self waitForExpectationsWithTimeout:EVENT_SEND_TIMEOUT_SEC handler:nil];
+    
+    
+    // Assert
+    NSHTTPURLResponse *response = (NSHTTPURLResponse*) urlResponse;
+    XCTAssertEqual(200, [response statusCode]);
+    
+    NSDictionary<NSString*, NSString*>* queryItems = [[ATTNTestEventUtils class] getQueryItemsFromUrl:eventUrl];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    XCTAssertEqualObjects(@"c", queryItems[@"t"]);
+    
+    XCTAssertEqualObjects(addToCart.items[0].productId, metadata[@"productId"]);
+    XCTAssertEqualObjects(addToCart.items[0].productVariantId, metadata[@"subProductId"]);
+    XCTAssertEqualObjects(addToCart.items[0].price.price, [[NSDecimalNumber alloc] initWithString: metadata[@"price"]]);
+    XCTAssertEqualObjects(addToCart.items[0].price.currency, metadata[@"currency"]);
+    XCTAssertEqualObjects(addToCart.items[0].category, metadata[@"category"]);
+    XCTAssertEqualObjects(addToCart.items[0].productImage, metadata[@"image"]);
+    XCTAssertEqualObjects(addToCart.items[0].name, metadata[@"name"]);
+    NSString* quantity = [NSString stringWithFormat:@"%d", addToCart.items[0].quantity];
+    XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
+}
+
+- (void)testSendEvent_validProductViewEvent_urlContainsExpectedMetadata {
+    // Arrange
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
+    ATTNProductViewEvent* productView = [[ATTNTestEventUtils class] buildProductView];
+    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+    
+    XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
+    __block NSURLResponse* urlResponse;
+    __block NSURL* eventUrl;
+
+    
+    // Act
+    [api sendEvent:productView userIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+        if ([url.absoluteString containsString:@"t=d"]){
+            urlResponse = response;
+            eventUrl = url;
+            [eventTaskExpectation fulfill];
+        }
+    }];
+    [self waitForExpectationsWithTimeout:EVENT_SEND_TIMEOUT_SEC handler:nil];
+    
+    
+    // Assert
+    NSHTTPURLResponse *response = (NSHTTPURLResponse*) urlResponse;
+    XCTAssertEqual(200, [response statusCode]);
+    
+    NSDictionary<NSString*, NSString*>* queryItems = [[ATTNTestEventUtils class] getQueryItemsFromUrl:eventUrl];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    XCTAssertEqualObjects(@"d", queryItems[@"t"]);
+    
+    XCTAssertEqualObjects(productView.items[0].productId, metadata[@"productId"]);
+    XCTAssertEqualObjects(productView.items[0].productVariantId, metadata[@"subProductId"]);
+    XCTAssertEqualObjects(productView.items[0].price.price, [[NSDecimalNumber alloc] initWithString: metadata[@"price"]]);
+    XCTAssertEqualObjects(productView.items[0].price.currency, metadata[@"currency"]);
+    XCTAssertEqualObjects(productView.items[0].category, metadata[@"category"]);
+    XCTAssertEqualObjects(productView.items[0].productImage, metadata[@"image"]);
+    XCTAssertEqualObjects(productView.items[0].name, metadata[@"name"]);
+    NSString* quantity = [NSString stringWithFormat:@"%d", productView.items[0].quantity];
+    XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
+}
+
 
 @end
