@@ -78,7 +78,15 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 }
 
 - (instancetype)initWithDomain:(NSString*)domain {
-    return [self initWithDomain:domain urlSession:[NSURLSession sharedSession]];
+    return [self initWithDomain:domain urlSession:[self buildUrlSession]];
+}
+
+- (NSURLSession*)buildUrlSession {
+    NSURLSessionConfiguration* configWithUserAgent = [NSURLSessionConfiguration defaultSessionConfiguration];
+    NSDictionary* additionalHeadersWithUserAgent = @{@"User-Agent": @"attentive-ios-sdk/0.3.2 (iPhone)"};
+    [configWithUserAgent setHTTPAdditionalHeaders:additionalHeadersWithUserAgent];
+
+    return [NSURLSession sessionWithConfiguration:configWithUserAgent];
 }
 
 // Private constructor that makes testing easier
@@ -290,7 +298,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             return;
         }
         
-        _cachedGeoAdjustedDomain = geoAdjustedDomain;
+        self->_cachedGeoAdjustedDomain = geoAdjustedDomain;
         completionHandler(geoAdjustedDomain, nil);
     }];
     

@@ -5,6 +5,8 @@
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
+@property (weak, nonatomic) IBOutlet UILabel *domainLabel;
+
 @end
 
 
@@ -22,7 +24,8 @@ ATTNSDK *sdk;
     // with your Attentive account.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"production"];
+    NSString* domain = @"games";
+    sdk = [[ATTNSDK alloc] initWithDomain:domain mode:@"production"];
     
     // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events.
     [ATTNEventTracker setupWithSdk:sdk];
@@ -36,6 +39,10 @@ ATTNSDK *sdk;
                           IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId": @"customIdValue"}
     };
     [sdk identify:_userIdentifiers];
+    
+    
+    // Random Example app stuff
+    [_domainLabel setText:domain];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {

@@ -69,14 +69,33 @@
                                     <segue destination="Xj3-Ru-nwo" kind="show" id="a2W-Fj-YWe"/>
                                 </connections>
                             </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" text="" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="KsW-KC-BMs">
+                                <rect key="frame" x="211" y="73" width="97" height="0.0"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" text="Domain:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="gxU-kM-f6P">
+                                <rect key="frame" x="140" y="73" width="63" height="20"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="KsW-KC-BMs" firstAttribute="top" secondItem="gxU-kM-f6P" secondAttribute="top" id="GYM-cM-BCz"/>
+                            <constraint firstItem="gxU-kM-f6P" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" constant="73" id="NFB-SL-KsG"/>
+                            <constraint firstItem="KsW-KC-BMs" firstAttribute="leading" secondItem="gxU-kM-f6P" secondAttribute="trailing" constant="8" id="ryQ-DM-GEr"/>
+                            <constraint firstItem="KsW-KC-BMs" firstAttribute="leading" secondItem="gxU-kM-f6P" secondAttribute="trailing" constant="8" id="wSS-yH-e8x"/>
+                        </constraints>
                     </view>
                     <navigationItem key="navigationItem" id="4gh-gN-hKC"/>
                     <connections>
                         <outlet property="clearUserButton" destination="FZT-nD-dxR" id="BfD-L6-L38"/>
                         <outlet property="creativeButton" destination="6EU-4M-k4b" id="JLZ-5M-zca"/>
+                        <outlet property="domainLabel" destination="KsW-KC-BMs" id="BN7-L0-B84"/>
                         <outlet property="sendIdentifiersButton" destination="Oaz-PN-whY" id="zMH-Id-C8b"/>
                     </connections>
                 </viewController>
