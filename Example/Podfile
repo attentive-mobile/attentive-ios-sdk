@@ -2,10 +2,7 @@ platform :ios, '10.0'
 
 target 'Example - Pod' do
   # The 'use_frameworks!' option builds the pods as dynamic frameworks instead of static libs.
-  # Static libs are preferred in this workspace because a dynamic framework from the 'attentive-ios-sdk'
-  # pod clashes with the 'attentive-ios-sdk' project. It's very likely that in your own app's project you 
-  # will want to use 'use_frameworks!'
-  # use_frameworks!
+  use_frameworks!
 
   # Pods for Example
   pod 'attentive-ios-sdk'

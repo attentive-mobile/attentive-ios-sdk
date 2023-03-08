@@ -44,7 +44,7 @@
 		58B01AAF294CFF8A0001CEBF /* ATTNEventTrackerTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 58B01AAE294CFF8A0001CEBF /* ATTNEventTrackerTest.m */; };
 		58B01AB3294D3F9C0001CEBF /* TestAssertionHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = 58B01AB2294D3F9B0001CEBF /* TestAssertionHandler.m */; };
 		58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58B01AB6294D44140001CEBF /* libOCMock.a */; };
-		58D52E1D292EC52B00CF32DE /* attentive_ios_sdk.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */; };
+		58D52E1D292EC52B00CF32DE /* attentive_ios_sdk_framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk_framework.framework */; };
 		6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874929353A99003F1BEC /* ATTNVisitorService.h */; };
 		6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874A29353A99003F1BEC /* ATTNVisitorService.m */; };
 		6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */; };
@@ -71,7 +71,7 @@
 		5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentityTest.m; path = Tests/ATTNUserIdentityTest.m; sourceTree = "<group>"; };
 		5809FEAE2937C8F100BDE364 /* ATTNVisitorServiceTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNVisitorServiceTest.m; path = Tests/ATTNVisitorServiceTest.m; sourceTree = "<group>"; };
 		58317997292F57300003D6B0 /* ATTNSDKFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNSDKFramework.h; path = Framework/ATTNSDKFramework.h; sourceTree = "<group>"; };
-		58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		58332EC3292EC18800B1ECF3 /* attentive_ios_sdk_framework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk_framework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentity.m; path = Sources/ATTNUserIdentity.m; sourceTree = "<group>"; };
 		58332ECE292EC20700B1ECF3 /* ATTNParameterValidation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ATTNParameterValidation.h; path = Sources/ATTNParameterValidation.h; sourceTree = "<group>"; };
 		58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidation.m; path = Sources/ATTNParameterValidation.m; sourceTree = "<group>"; };
@@ -133,7 +133,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				58D52E1D292EC52B00CF32DE /* attentive_ios_sdk.framework in Frameworks */,
+				58D52E1D292EC52B00CF32DE /* attentive_ios_sdk_framework.framework in Frameworks */,
 				58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -177,7 +177,7 @@
 		58332EC4292EC18800B1ECF3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */,
+				58332EC3292EC18800B1ECF3 /* attentive_ios_sdk_framework.framework */,
 				58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */,
 			);
 			name = Products;
@@ -297,9 +297,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */ = {
+		58332EC2292EC18800B1ECF3 /* attentive-ios-sdk-framework */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */;
+			buildConfigurationList = 58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk-framework" */;
 			buildPhases = (
 				58332EBE292EC18800B1ECF3 /* Headers */,
 				58332EBF292EC18800B1ECF3 /* Sources */,
@@ -310,9 +310,9 @@
 			);
 			dependencies = (
 			);
-			name = "attentive-ios-sdk";
+			name = "attentive-ios-sdk-framework";
 			productName = "attentive-ios-sdk";
-			productReference = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk.framework */;
+			productReference = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk_framework.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		58D52E18292EC52B00CF32DE /* attentive-ios-sdk Tests */ = {
@@ -363,7 +363,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */,
+				58332EC2292EC18800B1ECF3 /* attentive-ios-sdk-framework */,
 				58D52E18292EC52B00CF32DE /* attentive-ios-sdk Tests */,
 			);
 		};
@@ -430,7 +430,7 @@
 /* Begin PBXTargetDependency section */
 		58D52E1F292EC52B00CF32DE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 58332EC2292EC18800B1ECF3 /* attentive-ios-sdk */;
+			target = 58332EC2292EC18800B1ECF3 /* attentive-ios-sdk-framework */;
 			targetProxy = 58D52E1E292EC52B00CF32DE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -576,7 +576,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk-local";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -614,7 +614,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.6;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.attentive.attentive-ios-sdk-local";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -694,7 +694,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk" */ = {
+		58332ECA292EC18800B1ECF3 /* Build configuration list for PBXNativeTarget "attentive-ios-sdk-framework" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				58332ECB292EC18800B1ECF3 /* Debug */,

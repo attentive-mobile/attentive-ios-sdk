@@ -7,13 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		57EFE7BECF797DEAC5D66F80 /* libPods-ExampleSwift - Pod.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8FE8BD418C3A4A98CE30AED6 /* libPods-ExampleSwift - Pod.a */; };
+		0FCA287A57FA7E931DD97683 /* Pods_ExampleSwift___Pod.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ECCE8A4C3DF5E1DC2D9DBC3D /* Pods_ExampleSwift___Pod.framework */; };
 		58389AB62987647B00A31A35 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 58389AB52987647B00A31A35 /* Preview Assets.xcassets */; };
 		587DC5BF299550DA0082F8D0 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587DC5BE299550DA0082F8D0 /* AppDelegate.swift */; };
 		587DC5C4299554B00082F8D0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 587DC5C3299554B00082F8D0 /* Assets.xcassets */; };
 		587DC5CB2995551A0082F8D0 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 587DC5C82995551A0082F8D0 /* Main.storyboard */; };
 		587DC5CD299555D70082F8D0 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587DC5CC299555D70082F8D0 /* ViewController.swift */; };
 		587DC5CF2995748B0082F8D0 /* ProductViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587DC5CE2995748B0082F8D0 /* ProductViewController.swift */; };
+		588B597829B94AC200E3BA33 /* attentive_ios_sdk_framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 588B597729B94AC200E3BA33 /* attentive_ios_sdk_framework.framework */; };
+		588B597929B94AC200E3BA33 /* attentive_ios_sdk_framework.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 588B597729B94AC200E3BA33 /* attentive_ios_sdk_framework.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		588EB71A2995BBB700C0163A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 588EB7182995BBB700C0163A /* LaunchScreen.storyboard */; };
 		588EB71D2995BC3A00C0163A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587DC5BE299550DA0082F8D0 /* AppDelegate.swift */; };
 		588EB71E2995BC3A00C0163A /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587DC5CC299555D70082F8D0 /* ViewController.swift */; };
@@ -22,8 +24,6 @@
 		588EB7242995BC3A00C0163A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 588EB7182995BBB700C0163A /* LaunchScreen.storyboard */; };
 		588EB7252995BC3A00C0163A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 587DC5C3299554B00082F8D0 /* Assets.xcassets */; };
 		588EB7262995BC3A00C0163A /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 587DC5C82995551A0082F8D0 /* Main.storyboard */; };
-		58ADF92F2988738D002EA268 /* attentive_ios_sdk.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58ADF92E2988738D002EA268 /* attentive_ios_sdk.framework */; };
-		58ADF9302988738D002EA268 /* attentive_ios_sdk.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 58ADF92E2988738D002EA268 /* attentive_ios_sdk.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -33,7 +33,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				58ADF9302988738D002EA268 /* attentive_ios_sdk.framework in Embed Frameworks */,
+				588B597929B94AC200E3BA33 /* attentive_ios_sdk_framework.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -50,6 +50,7 @@
 		587DC5C92995551A0082F8D0 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = SOURCE_ROOT; };
 		587DC5CC299555D70082F8D0 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		587DC5CE2995748B0082F8D0 /* ProductViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductViewController.swift; sourceTree = "<group>"; };
+		588B597729B94AC200E3BA33 /* attentive_ios_sdk_framework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = attentive_ios_sdk_framework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		588EB7192995BBB700C0163A /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = SOURCE_ROOT; };
 		588EB72C2995BC3A00C0163A /* ExampleSwift - Pod.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ExampleSwift - Pod.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		588EB72D2995BC3A00C0163A /* ExampleSwift - Local copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "ExampleSwift - Local copy-Info.plist"; path = "/Users/wdavis/repos/attentive-ios-sdk/ExampleSwift/ExampleSwift - Local copy-Info.plist"; sourceTree = "<absolute>"; };
@@ -57,7 +58,7 @@
 		58ADF92E2988738D002EA268 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58ADF9322988746D002EA268 /* attentive-ios-sdk-local-bridging-header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "attentive-ios-sdk-local-bridging-header.h"; sourceTree = "<group>"; };
 		859F6AE5F75849A800B53A78 /* Pods-ExampleSwift - Pod.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExampleSwift - Pod.release.xcconfig"; path = "Target Support Files/Pods-ExampleSwift - Pod/Pods-ExampleSwift - Pod.release.xcconfig"; sourceTree = "<group>"; };
-		8FE8BD418C3A4A98CE30AED6 /* libPods-ExampleSwift - Pod.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ExampleSwift - Pod.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECCE8A4C3DF5E1DC2D9DBC3D /* Pods_ExampleSwift___Pod.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ExampleSwift___Pod.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,7 +66,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				58ADF92F2988738D002EA268 /* attentive_ios_sdk.framework in Frameworks */,
+				588B597829B94AC200E3BA33 /* attentive_ios_sdk_framework.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -73,7 +74,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57EFE7BECF797DEAC5D66F80 /* libPods-ExampleSwift - Pod.a in Frameworks */,
+				0FCA287A57FA7E931DD97683 /* Pods_ExampleSwift___Pod.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,8 +138,9 @@
 		58ADF92D2988738D002EA268 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				588B597729B94AC200E3BA33 /* attentive_ios_sdk_framework.framework */,
 				58ADF92E2988738D002EA268 /* attentive_ios_sdk.framework */,
-				8FE8BD418C3A4A98CE30AED6 /* libPods-ExampleSwift - Pod.a */,
+				ECCE8A4C3DF5E1DC2D9DBC3D /* Pods_ExampleSwift___Pod.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -181,6 +183,7 @@
 				588EB71C2995BC3A00C0163A /* Sources */,
 				588EB7202995BC3A00C0163A /* Frameworks */,
 				588EB7222995BC3A00C0163A /* Resources */,
+				2DDBEEF11B26F3D0A486B571 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -251,6 +254,23 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		2DDBEEF11B26F3D0A486B571 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ExampleSwift - Pod/Pods-ExampleSwift - Pod-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ExampleSwift - Pod/Pods-ExampleSwift - Pod-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ExampleSwift - Pod/Pods-ExampleSwift - Pod-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		91D7BFB881B221C30507B74F /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;

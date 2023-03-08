@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "58332EC2292EC18800B1ECF3"
-               BuildableName = "attentive_ios_sdk.framework"
-               BlueprintName = "attentive-ios-sdk"
+               BuildableName = "attentive_ios_sdk_framework.framework"
+               BlueprintName = "attentive-ios-sdk-framework"
                ReferencedContainer = "container:attentive-ios-sdk.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -51,8 +51,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "58332EC2292EC18800B1ECF3"
-            BuildableName = "attentive_ios_sdk.framework"
-            BlueprintName = "attentive-ios-sdk"
+            BuildableName = "attentive_ios_sdk_framework.framework"
+            BlueprintName = "attentive-ios-sdk-framework"
             ReferencedContainer = "container:attentive-ios-sdk.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
