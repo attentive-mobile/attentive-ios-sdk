@@ -10,6 +10,9 @@
 
 #import <Foundation/Foundation.h>
 
+typedef void (^ATTNAPICallback)(NSURL* _Nullable url, NSURLResponse *response, NSError *error);
+
+
 @class ATTNUserIdentity;
 @protocol ATTNEvent;
 
@@ -23,7 +26,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity;
 
+- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity callback:(ATTNAPICallback)callback;
+
 - (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity;
+
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity callback:(ATTNAPICallback)callback;
+
 
 @end
 
