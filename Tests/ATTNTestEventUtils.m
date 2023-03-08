@@ -11,6 +11,24 @@
 @implementation ATTNTestEventUtils
 
 
++ (void)verifyCommonQueryItems:(NSDictionary<NSString*, NSString*>*)queryItems
+                  userIdentity:(ATTNUserIdentity *)userIdentity
+             geoAdjustedDomain:(NSString *)geoAdjustedDomain
+                     eventType:(NSString *)eventType
+                      metadata:(NSDictionary *) metadata
+{
+    XCTAssertEqualObjects(@"modern", queryItems[@"tag"]);
+    XCTAssertEqualObjects(@"mobile-app", queryItems[@"v"]);
+    XCTAssertEqualObjects(@"0", queryItems[@"lt"]);
+    XCTAssertEqualObjects(geoAdjustedDomain, queryItems[@"c"]);
+    XCTAssertEqualObjects(eventType, queryItems[@"t"]);
+    XCTAssertEqualObjects(userIdentity.visitorId, queryItems[@"u"]);
+    
+    XCTAssertEqualObjects(userIdentity.identifiers[IDENTIFIER_TYPE_PHONE], metadata[@"phone"]);
+    XCTAssertEqualObjects(userIdentity.identifiers[IDENTIFIER_TYPE_EMAIL], metadata[@"email"]);
+    XCTAssertEqualObjects(@"msdk", metadata[@"source"]);
+}
+
 + (void)verifyProductFromItem:(ATTNItem*)item product:(NSDictionary*)product {
     XCTAssertEqualObjects(item.productId, product[@"productId"]);
     XCTAssertEqualObjects(item.productVariantId, product[@"subProductId"]);
@@ -90,7 +108,14 @@
 }
 
 + (ATTNUserIdentity*)buildUserIdentity {
-    return [[ATTNUserIdentity alloc] initWithIdentifiers:@{IDENTIFIER_TYPE_CLIENT_USER_ID: @"some-client-id", IDENTIFIER_TYPE_EMAIL: @"some-email@email.com"}];
+    return [[ATTNUserIdentity alloc] initWithIdentifiers:@{
+        IDENTIFIER_TYPE_PHONE: @"+14156667777",
+        IDENTIFIER_TYPE_EMAIL: @"someEmail@email.com",
+        IDENTIFIER_TYPE_CLIENT_USER_ID: @"someClientUserId",
+        IDENTIFIER_TYPE_SHOPIFY_ID: @"someShopifyId",
+        IDENTIFIER_TYPE_KLAVIYO_ID: @"someKlaviyoId",
+        IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId": @"customIdValue"}
+    }];
 }
 
 @end

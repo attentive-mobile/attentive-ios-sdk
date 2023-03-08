@@ -11,10 +11,12 @@
 #import "ATTNTestEventUtils.h"
 
 
-
 static NSString* const TEST_DOMAIN = @"mobileapps";
 // Update this accordingly when running on VPN
-static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"mobileapps";
+static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"mobileapps-ca";
+
+
+
 static int EVENT_SEND_TIMEOUT_SEC = 6;
 
 
@@ -53,9 +55,14 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSString* queryItemsString = queryItems[@"m"];
     NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
-    // TODO add all identifiers to this test & other tests
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:queryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"idn"
+                                              metadata:metadata];
+    
     // TODO break out common functions into ATTNTestEventUtils
-    XCTAssertEqualObjects(@"[{\"vendor\":\"2\",\"id\":\"some-client-id\"}]", queryItems[@"evs"]);
+    XCTAssertEqualObjects(@"[{\"vendor\":\"2\",\"id\":\"someClientUserId\"},{\"vendor\":\"1\",\"id\":\"someKlaviyoId\"},{\"vendor\":\"0\",\"id\":\"someShopifyId\"},{\"vendor\":\"6\",\"id\":\"customIdValue\",\"name\":\"customId\"}]", queryItems[@"evs"]);
     XCTAssertEqualObjects(@"idn", queryItems[@"t"]);
 }
 
@@ -99,6 +106,12 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSString* purchaseQueryItemsString = purchaseQueryItems[@"m"];
     NSDictionary* purchaseMetadata = [NSJSONSerialization JSONObjectWithData:[purchaseQueryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:purchaseQueryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"p"
+                                              metadata:purchaseMetadata];
+    
     XCTAssertEqualObjects(purchase.items[0].productId, purchaseMetadata[@"productId"]);
     XCTAssertEqualObjects(purchase.items[0].productVariantId, purchaseMetadata[@"subProductId"]);
     XCTAssertEqualObjects(purchase.items[0].price.price, [[NSDecimalNumber alloc] initWithString: purchaseMetadata[@"price"]]);
@@ -122,6 +135,12 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSDictionary* ocMetadata = [[ATTNTestEventUtils class] getMetadataFromUrl:ocUrl];
     NSArray<NSDictionary*>* products = [NSJSONSerialization JSONObjectWithData:[ocMetadata[@"products"] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     XCTAssertEqual(1, products.count);
+    
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:ocQueryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"oc"
+                                              metadata:ocMetadata];
     
     [[ATTNTestEventUtils class] verifyProductFromItem:purchase.items[0] product:products[0]];
 
@@ -160,7 +179,11 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSString* queryItemsString = queryItems[@"m"];
     NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
-    XCTAssertEqualObjects(@"c", queryItems[@"t"]);
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:queryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"c"
+                                              metadata:metadata];
     
     XCTAssertEqualObjects(addToCart.items[0].productId, metadata[@"productId"]);
     XCTAssertEqualObjects(addToCart.items[0].productVariantId, metadata[@"subProductId"]);
@@ -203,7 +226,11 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSString* queryItemsString = queryItems[@"m"];
     NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
     
-    XCTAssertEqualObjects(@"d", queryItems[@"t"]);
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:queryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"d"
+                                              metadata:metadata];
     
     XCTAssertEqualObjects(productView.items[0].productId, metadata[@"productId"]);
     XCTAssertEqualObjects(productView.items[0].productVariantId, metadata[@"subProductId"]);

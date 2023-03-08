@@ -25,6 +25,11 @@
 
 @interface ATTNTestEventUtils: NSObject
 
++ (void)verifyCommonQueryItems:(NSDictionary<NSString*, NSString*>*)queryItems
+                  userIdentity:(ATTNUserIdentity *)userIdentity
+             geoAdjustedDomain:(NSString *)geoAdjustedDomain
+                     eventType:(NSString *)eventType
+                      metadata:(NSDictionary *) metadata;
 + (void)verifyProductFromItem:(ATTNItem*)item product:(NSDictionary*)product;
 + (NSDictionary*)getMetadataFromUrl:(NSURL*)url;
 + (NSDictionary<NSString*, NSString*>*)getQueryItemsFromUrl:(NSURL*)url;

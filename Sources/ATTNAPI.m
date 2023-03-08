@@ -361,6 +361,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 
 - (NSMutableDictionary*)constructBaseQueryParams:(ATTNUserIdentity*)userIdentity domain:(NSString*)domain {
     NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
+    queryParams[@"tag"] = @"modern";
     queryParams[@"v"] = @"mobile-app";
     queryParams[@"c"] = domain;
     queryParams[@"lt"] = @"0";
@@ -372,14 +373,10 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 - (NSURLComponents*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
     NSURLComponents* urlComponents = [[NSURLComponents alloc] initWithString:@"https://events.attentivemobile.com/e"];
     
-    NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
-    queryParams[@"v"] = @"mobile-app";
-    queryParams[@"c"] = domain;
-    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
-    queryParams[@"lt"] = @"0";
-    queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
+    NSMutableDictionary* queryParams = [self constructBaseQueryParams:userIdentity domain:domain];
+
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];
-    queryParams[@"u"] = userIdentity.visitorId;
+    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
     
     // create query "items" for each query param
     NSMutableArray *queryItems = [NSMutableArray array];
