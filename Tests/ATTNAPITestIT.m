@@ -14,9 +14,6 @@
 static NSString* const TEST_DOMAIN = @"mobileapps";
 // Update this accordingly when running on VPN
 static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"mobileapps-ca";
-
-
-
 static int EVENT_SEND_TIMEOUT_SEC = 6;
 
 
@@ -24,13 +21,18 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 @end
 
 
-@implementation ATTNAPITestIT
+@implementation ATTNAPITestIT {
+    ATTNAPI* api;
+    ATTNUserIdentity* userIdentity;
+}
 
-- (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
+- (void)setUp {
+    api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
+    userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+}
+
+- (void)testSendUserIdentity_validIdentifiers_sendsUserIdentifierCollectedEvent {
     // Arrange
-    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
-    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
-    
     XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
     __block NSURLResponse* urlResponse;
     __block NSURL* eventUrl;
@@ -61,16 +63,13 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
                                              eventType:@"idn"
                                               metadata:metadata];
     
-    // TODO break out common functions into ATTNTestEventUtils
     XCTAssertEqualObjects(@"[{\"vendor\":\"2\",\"id\":\"someClientUserId\"},{\"vendor\":\"1\",\"id\":\"someKlaviyoId\"},{\"vendor\":\"0\",\"id\":\"someShopifyId\"},{\"vendor\":\"6\",\"id\":\"customIdValue\",\"name\":\"customId\"}]", queryItems[@"evs"]);
     XCTAssertEqualObjects(@"idn", queryItems[@"t"]);
 }
 
-- (void)testSendEvent_validPurchaseEvent_urlContainsExpectedPurchaseMetadata {
+- (void)testSendEvent_validPurchaseEvent_sendsPurchaseAndOrderConfirmedEvents {
     // Arrange
-    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
     ATTNPurchaseEvent* purchase = [[ATTNTestEventUtils class] buildPurchase];
-    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
     
     XCTestExpectation *purchaseTaskExpectation = [self expectationWithDescription:@"purchaseTask"];
     __block NSURLResponse* purchaseUrlResponse;
@@ -149,11 +148,9 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     XCTAssertEqualObjects(purchase.items[0].price.currency, ocMetadata[@"currency"]);
 }
 
-- (void)testSendEvent_validAddToCartEvent_urlContainsExpectedMetadata {
+- (void)testSendEvent_validAddToCartEvent_sendsAddToCartEvent {
     // Arrange
-    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
     ATTNAddToCartEvent* addToCart = [[ATTNTestEventUtils class] buildAddToCart];
-    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
     
     XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
     __block NSURLResponse* urlResponse;
@@ -196,11 +193,9 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
 }
 
-- (void)testSendEvent_validProductViewEvent_urlContainsExpectedMetadata {
+- (void)testSendEvent_validProductViewEvent_sendsProductViewEvent {
     // Arrange
-    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN];
     ATTNProductViewEvent* productView = [[ATTNTestEventUtils class] buildProductView];
-    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
     
     XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
     __block NSURLResponse* urlResponse;

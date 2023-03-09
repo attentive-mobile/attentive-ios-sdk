@@ -30,14 +30,23 @@
              geoAdjustedDomain:(NSString *)geoAdjustedDomain
                      eventType:(NSString *)eventType
                       metadata:(NSDictionary *) metadata;
+
 + (void)verifyProductFromItem:(ATTNItem*)item product:(NSDictionary*)product;
+
 + (NSDictionary*)getMetadataFromUrl:(NSURL*)url;
+
 + (NSDictionary<NSString*, NSString*>*)getQueryItemsFromUrl:(NSURL*)url;
+
 + (ATTNPurchaseEvent*)buildPurchase;
+
 + (ATTNAddToCartEvent*)buildAddToCart;
+
 + (ATTNProductViewEvent*)buildProductView;
+
 + (ATTNItem*)buildItem;
+
 + (ATTNPurchaseEvent*)buildPurchaseWithTwoItems;
+
 + (ATTNUserIdentity*)buildUserIdentity;
 
 @end
