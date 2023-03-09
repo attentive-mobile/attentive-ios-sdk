@@ -39,7 +39,7 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 
     
     // Act
-    [api sendUserIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+    [api sendUserIdentity:userIdentity callback:^ void (NSData* data, NSURL* url, NSURLResponse *response, NSError *error) {
         if ([url.absoluteString containsString:@"t=idn"]){
             urlResponse = response;
             eventUrl = url;
@@ -81,7 +81,7 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 
     
     // Act
-    [api sendEvent:purchase userIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+    [api sendEvent:purchase userIdentity:userIdentity callback:^ void (NSData* data, NSURL* url, NSURLResponse *response, NSError *error) {
         if ([url.absoluteString containsString:@"t=p"]){
             purchaseUrlResponse = response;
             purchaseUrl = url;
@@ -158,7 +158,7 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 
     
     // Act
-    [api sendEvent:addToCart userIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+    [api sendEvent:addToCart userIdentity:userIdentity callback:^ void (NSData* data, NSURL* url, NSURLResponse *response, NSError *error) {
         if ([url.absoluteString containsString:@"t=c"]){
             urlResponse = response;
             eventUrl = url;
@@ -203,7 +203,7 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
 
     
     // Act
-    [api sendEvent:productView userIdentity:userIdentity callback:^ void (NSURL* url, NSURLResponse *response, NSError *error) {
+    [api sendEvent:productView userIdentity:userIdentity callback:^ void (NSData* data, NSURL* url, NSURLResponse *response, NSError *error) {
         if ([url.absoluteString containsString:@"t=d"]){
             urlResponse = response;
             eventUrl = url;
@@ -237,6 +237,5 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     NSString* quantity = [NSString stringWithFormat:@"%d", productView.items[0].quantity];
     XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
 }
-
 
 @end

@@ -157,7 +157,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
         
         NSLog(@"%@", message);
         if (callback != nil) {
-            callback(url, response, error);
+            callback(data, url, response, error);
         }
     }];
     
@@ -305,7 +305,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             return;
         }
         
-        _cachedGeoAdjustedDomain = geoAdjustedDomain;
+        self->_cachedGeoAdjustedDomain = geoAdjustedDomain;
         completionHandler(geoAdjustedDomain, nil);
     }];
     
@@ -333,7 +333,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
         
         NSLog(@"%@", message);
         if (callback != nil) {
-            callback(url, response, error);
+            callback(data, url, response, error);
         }
     }];
     
