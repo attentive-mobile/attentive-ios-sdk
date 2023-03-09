@@ -51,6 +51,9 @@
 		6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874E29353FEA003F1BEC /* ATTNPersistentStorage.h */; };
 		69BA6D5929B7812C00CCA573 /* ATTNAPITestIT.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */; };
 		69BA6D5B29B782CE00CCA573 /* ATTNTestEventUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */; };
+		69BA6D6F29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D6E29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m */; };
+		69BA6D7129BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */; };
+		69BA6D7329BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h in Headers */ = {isa = PBXBuildFile; fileRef = 69BA6D7229BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,6 +127,9 @@
 		69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNAPITestIT.m; path = Tests/ATTNAPITestIT.m; sourceTree = "<group>"; };
 		69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNTestEventUtils.m; path = Tests/ATTNTestEventUtils.m; sourceTree = "<group>"; };
 		69BA6D5C29B785ED00CCA573 /* ATTNTestEventUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ATTNTestEventUtils.h; sourceTree = "<group>"; };
+		69BA6D6E29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNCreativeUrlFormatterTest.m; path = Tests/ATTNCreativeUrlFormatterTest.m; sourceTree = "<group>"; };
+		69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNCreativeUrlFormatter.m; path = Sources/ATTNCreativeUrlFormatter.m; sourceTree = "<group>"; };
+		69BA6D7229BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNCreativeUrlFormatter.h; path = Sources/ATTNCreativeUrlFormatter.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +212,8 @@
 				58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */,
 				5862BE3F29407DAC002C1403 /* ATTNEventTracker.h */,
 				5862BE452940820C002C1403 /* ATTNEventTracker.m */,
+				69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */,
+				69BA6D7229BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h */,
 			);
 			name = Sources;
 			sourceTree = "<group>";
@@ -224,6 +232,7 @@
 				69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */,
 				69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */,
 				69BA6D5C29B785ED00CCA573 /* ATTNTestEventUtils.h */,
+				69BA6D6E29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m */,
 			);
 			name = Tests;
 			sourceTree = "<group>";
@@ -292,6 +301,7 @@
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
 				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
 				5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */,
+				69BA6D7329BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h in Headers */,
 				5806DE6D29773F6100C18FFA /* ATTNAddToCartEvent.h in Headers */,
 				6972875029353FEA003F1BEC /* ATTNPersistentStorage.h in Headers */,
 				5862BE4029407DAC002C1403 /* ATTNEventTracker.h in Headers */,
@@ -413,6 +423,7 @@
 				5806DE722977457600C18FFA /* ATTNProductViewEvent.m in Sources */,
 				587234C42953AAD800EE12B6 /* ATTNCart.m in Sources */,
 				58332ED5292EC20700B1ECF3 /* ATTNParameterValidation.m in Sources */,
+				69BA6D7129BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m in Sources */,
 				587234C52953AAD800EE12B6 /* ATTNItem.m in Sources */,
 				6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */,
 				6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */,
@@ -425,6 +436,7 @@
 			files = (
 				69BA6D5929B7812C00CCA573 /* ATTNAPITestIT.m in Sources */,
 				5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */,
+				69BA6D6F29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m in Sources */,
 				5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */,
 				5809FEAF2937C8F100BDE364 /* ATTNVisitorServiceTest.m in Sources */,
 				58A6EA2729359A84009BE922 /* ATTNAPITest.m in Sources */,

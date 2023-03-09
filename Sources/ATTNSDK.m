@@ -9,6 +9,7 @@
 #import "ATTNAPI.h"
 #import "ATTNSDK.h"
 #import "ATTNUserIdentity.h"
+#import "ATTNCreativeUrlFormatter.h"
 
 @implementation ATTNSDK {
     UIView *_parentView;
@@ -55,7 +56,10 @@
         NSLog(@"Not showing the Attentive creative because the iOS version is too old.");
         return;
     }
-    NSString* creativePageUrl = [self buildCompanyCreativeUrl];
+    NSString* creativePageUrl = [[ATTNCreativeUrlFormatter class]
+                                 buildCompanyCreativeUrlForDomain:_domain
+                                 mode:_mode
+                                 userIdentity:_userIdentity];
 
     NSLog(@"Requesting creative page url: %@", creativePageUrl);
     
@@ -87,69 +91,6 @@
 
 - (void)clearUser{
     [_userIdentity clearUser];
-}
-
-- (nonnull NSString *)buildCompanyCreativeUrl {
-
-    NSURLComponents *components = [[NSURLComponents alloc] initWithString:@"https://creatives.attn.tv/mobile-apps/index.html"];
-
-    // Add query parameters
-    NSMutableArray * queryItems = [[NSMutableArray alloc] initWithObjects:
-        [[NSURLQueryItem alloc] initWithName:@"domain" value:_domain],
-        nil];
-
-    if ([_mode isEqualToString:@"debug"]) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:_mode value:@"matter-trip-grass-symbol"]];
-    }
-
-    if (_userIdentity.visitorId != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"vid" value:_userIdentity.visitorId]];
-    }
-    else {
-        NSLog(@"ERROR: No Visitor ID Found. This should not happen.");
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"cuid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_CLIENT_USER_ID]]];
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_PHONE] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"p" value:_userIdentity.identifiers[IDENTIFIER_TYPE_PHONE]]];
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_EMAIL] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"e" value:_userIdentity.identifiers[IDENTIFIER_TYPE_EMAIL]]];
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"kid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID]]];
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_SHOPIFY_ID] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"sid" value:_userIdentity.identifiers[IDENTIFIER_TYPE_KLAVIYO_ID]]];
-    }
-
-    if (_userIdentity.identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] != nil) {
-        [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"cstm" value:[self getCustomIdentifiersJson]]];
-    }
-
-    [components setQueryItems:queryItems];
-
-    return [components string];
-}
-
-- (nonnull NSString *)getCustomIdentifiersJson {
-    @try {
-        NSError * error;
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:_userIdentity.identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS]
-            options:0 // Do not pretty print the json string
-            error:&error];
-        return [[NSString alloc]initWithData:jsonData encoding:NSUTF8StringEncoding];
-    } @catch (NSException *exception) {
-        NSLog(@"ERROR: Could not parse custom identifiers to json %@", exception);
-    }
-
-    return @"{}";
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
