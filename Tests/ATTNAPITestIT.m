@@ -13,7 +13,7 @@
 
 static NSString* const TEST_DOMAIN = @"mobileapps";
 // Update this accordingly when running on VPN
-static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"mobileapps-ca";
+static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"mobileapps";
 static int EVENT_SEND_TIMEOUT_SEC = 6;
 
 
