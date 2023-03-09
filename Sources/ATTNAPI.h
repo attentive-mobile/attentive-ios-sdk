@@ -31,7 +31,7 @@ typedef void (^ATTNAPICallback)(NSData * _Nullable data, NSURL* _Nullable url, N
 
 - (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity;
 
-- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity callback:( nullable ATTNAPICallback)callback;
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity callback:(nullable ATTNAPICallback)callback;
 
 
 @end
