@@ -96,6 +96,10 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 
 // TODO: When we add the other events, the USER_IDENTIFIER_COLLECTED event code will be wrapped into the generic event code
 - (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity {
+    [self sendUserIdentity:userIdentity callback:nil];
+}
+
+- (void)sendUserIdentity:(ATTNUserIdentity *)userIdentity callback:(ATTNAPICallback)callback {
     // TODO we should add retries for transient errors
     [self getGeoAdjustedDomain:_domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
@@ -103,47 +107,58 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             return;
         }
         
-        [self sendUserIdentityInternal:userIdentity domain:geoAdjustedDomain];
+        [self sendUserIdentityInternal:userIdentity domain:geoAdjustedDomain callback:callback];
     }];
 }
 
 - (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity {
+    [self sendEvent:event userIdentity:userIdentity callback:nil];
+}
+
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity callback:(ATTNAPICallback)callback {
     [self getGeoAdjustedDomain:_domain completionHandler:^(NSString* geoAdjustedDomain, NSError* error) {
         if (error) {
             NSLog(@"Error sending event: '%@'.", error);
             
         }
         
-        [self sendEventInternal:event userIdentity:userIdentity domain:geoAdjustedDomain];
+        [self sendEventInternal:event userIdentity:userIdentity domain:geoAdjustedDomain callback:callback];
     }];
 }
 
-- (void)sendEventInternal:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity domain:(NSString*) domain {
+- (void)sendEventInternal:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity domain:(NSString*) domain callback:(ATTNAPICallback)callback{
     // slice up the Event into individual EventRequests
     NSArray<EventRequest *>* requests = [self convertEventToRequests:event];
     
     for (EventRequest* request in requests) {
-        [self sendEventInternalForRequest:request userIdentity:userIdentity domain:domain];
+        [self sendEventInternalForRequest:request userIdentity:userIdentity domain:domain callback:callback];
     }
 }
 
-- (void)sendEventInternalForRequest:(EventRequest*)request userIdentity: (ATTNUserIdentity*)userIdentity domain:(NSString*) domain {
+- (void)sendEventInternalForRequest:(EventRequest*)request userIdentity: (ATTNUserIdentity*)userIdentity domain:(NSString*) domain callback:(ATTNAPICallback)callback{
     NSURL* url = [self constructEventUrlComponentsForEventRequest:request userIdentity:userIdentity domain:domain].URL;
 
     NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+
+        NSString * message;
         if (error) {
-            NSLog(@"Error sending for event '%@'. Error: '%@'", request.eventNameAbbreviation, [error description]);
-            return;
+            message = [NSString stringWithFormat:@"Error sending for event '%@'. Error: '%@'", request.eventNameAbbreviation, [error description]];
+        }
+        else {
+            // The response is an HTTP response because the URL had an HTTPS scheme
+            NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
+            if ([httpResponse statusCode] != 200) {
+                message = [NSString stringWithFormat:@"Error sending the event. Incorrect status code: '%ld'", (long)[httpResponse statusCode]];
+            }
+            else {
+                message = [NSString stringWithFormat:@"Successfully sent event of type '%@'", request.eventNameAbbreviation];
+            }
         }
         
-        // The response is an HTTP response because the URL had an HTTPS scheme
-        NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
-        if ([httpResponse statusCode] != 200) {
-            NSLog(@"Error sending the event '%@'. Incorrect status code: '%ld'", request.eventNameAbbreviation, (long)[httpResponse statusCode]);
-            return;
+        NSLog(@"%@", message);
+        if (callback != nil) {
+            callback(data, url, response, error);
         }
-        
-        NSLog(@"%@", [NSString stringWithFormat:@"Successfully sent event of type '%@'", request.eventNameAbbreviation]);
     }];
     
     [task resume];
@@ -290,29 +305,36 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             return;
         }
         
-        _cachedGeoAdjustedDomain = geoAdjustedDomain;
+        self->_cachedGeoAdjustedDomain = geoAdjustedDomain;
         completionHandler(geoAdjustedDomain, nil);
     }];
     
     [task resume];
 }
 
-- (void)sendUserIdentityInternal:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
+- (void)sendUserIdentityInternal:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain callback:(ATTNAPICallback)callback {
     NSURL* url = [self constructUserIdentityUrl:userIdentity domain:domain].URL;
     NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+
+        NSString * message;
         if (error) {
-            NSLog(@"Error sending user identity. Error: '%@'", [error description]);
-            return;
+            message = [NSString stringWithFormat:@"Error sending user identity. Error: '%@'", [error description]];
+        }
+        else {
+            // The response is an HTTP response because the URL had an HTTPS scheme
+            NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
+            if ([httpResponse statusCode] != 200) {
+                message = [NSString stringWithFormat:@"Error sending the event. Incorrect status code: '%ld'", (long)[httpResponse statusCode]];
+            }
+            else {
+                message = @"Successfully sent user identity event";
+            }
         }
         
-        // The response is an HTTP response because the URL had an HTTPS scheme
-        NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*) response;
-        if ([httpResponse statusCode] != 200) {
-            NSLog(@"Error sending the event. Incorrect status code: '%ld'", (long)[httpResponse statusCode]);
-            return;
+        NSLog(@"%@", message);
+        if (callback != nil) {
+            callback(data, url, response, error);
         }
-        
-        NSLog(@"Successfully sent user identity event");
     }];
     
     [task resume];
@@ -339,6 +361,7 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 
 - (NSMutableDictionary*)constructBaseQueryParams:(ATTNUserIdentity*)userIdentity domain:(NSString*)domain {
     NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
+    queryParams[@"tag"] = @"modern";
     queryParams[@"v"] = @"mobile-app";
     queryParams[@"c"] = domain;
     queryParams[@"lt"] = @"0";
@@ -350,14 +373,10 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 - (NSURLComponents*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain {
     NSURLComponents* urlComponents = [[NSURLComponents alloc] initWithString:@"https://events.attentivemobile.com/e"];
     
-    NSMutableDictionary* queryParams = [[NSMutableDictionary alloc] init];
-    queryParams[@"v"] = @"mobile-app";
-    queryParams[@"c"] = domain;
-    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
-    queryParams[@"lt"] = @"0";
-    queryParams[@"evs"] = [self buildExternalVendorIdsJson:userIdentity];
+    NSMutableDictionary* queryParams = [self constructBaseQueryParams:userIdentity domain:domain];
+
     queryParams[@"m"] = [self buildMetadataJson:userIdentity];
-    queryParams[@"u"] = userIdentity.visitorId;
+    queryParams[@"t"] = EVENT_TYPE_USER_IDENTIFIER_COLLECTED;
     
     // create query "items" for each query param
     NSMutableArray *queryItems = [NSMutableArray array];
