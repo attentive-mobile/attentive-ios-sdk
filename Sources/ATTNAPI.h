@@ -10,10 +10,14 @@
 
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
+typedef void (^ATTNAPICallback)(NSData * _Nullable data, NSURL* _Nullable url, NSURLResponse * _Nullable response, NSError * _Nullable error);
+
+
 @class ATTNUserIdentity;
 @protocol ATTNEvent;
 
-NS_ASSUME_NONNULL_BEGIN
 
 @interface ATTNAPI : NSObject
 
@@ -23,7 +27,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity;
 
+- (void)sendUserIdentity:(ATTNUserIdentity *) userIdentity callback:(nullable ATTNAPICallback)callback;
+
 - (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity;
+
+- (void)sendEvent:(id<ATTNEvent>)event userIdentity:(ATTNUserIdentity*)userIdentity callback:(nullable ATTNAPICallback)callback;
+
 
 @end
 

@@ -12,6 +12,8 @@
 
 @implementation ViewController {
     NSDictionary* _userIdentifiers;
+    NSString* _domain;
+    NSString* _mode;
 }
 
 ATTNSDK *sdk;
@@ -20,12 +22,17 @@ ATTNSDK *sdk;
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor systemGray3Color];
     
-    // Intialize the Attentive SDK. Replace with your Attentive domain to test
-    // with your Attentive account.
+    // Replace with your Attentive domain to test with your Attentive account
+    _domain = @"YOUR_ATTENTIVE_DOMAIN";
+    _mode = @"production";
+
+    // Setup for Testing purposes only
+    [self setupForUITests];
+
+    // Intialize the Attentive SDK.
     // This only has to be done once per application lifecycle so you can do
     // this in a singleton class rather than each time a view loads.
-    NSString* domain = @"games";
-    sdk = [[ATTNSDK alloc] initWithDomain:domain mode:@"production"];
+    sdk = [[ATTNSDK alloc] initWithDomain:_domain mode:_mode];
     
     // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events.
     [ATTNEventTracker setupWithSdk:sdk];
@@ -55,6 +62,8 @@ ATTNSDK *sdk;
 }
 
 - (IBAction)sendIdentifiersButtonPress:(id)sender {
+    // Sends the identifiers to Attentive. This should be done whenever a new identifier becomes
+    // available
     [sdk identify:_userIdentifiers];
 }
 
@@ -71,6 +80,28 @@ ATTNSDK *sdk;
 
 - (IBAction)clearUserButtonPressed:(id)sender {
     [sdk clearUser];
+}
+
+// Method for setting up UI Tests. Only used for testing purposes
+- (void)setupForUITests {
+    // Override the hard-coded domain & mode with the values from the environment variables
+    NSString * envDomain = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_DOMAIN"];
+    NSString * envMode = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_MODE"];
+
+    if (envDomain != nil) {
+        _domain = envDomain;
+    }
+    if (envMode != nil) {
+        _mode = envMode;
+    }
+
+    // Reset the standard user defaults - this must be done from within the app to avoid
+    // race conditions
+    NSString * isUITest = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_IS_UI_TEST"];
+    if ([isUITest isEqualToString:@"YES"]) {
+        NSString *bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
+        [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:bundleIdentifier];
+    }
 }
 
 @end
