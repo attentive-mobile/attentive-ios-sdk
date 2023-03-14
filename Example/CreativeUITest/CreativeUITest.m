@@ -61,7 +61,7 @@
     [emailField typeText:@"testemail@attentivemobile.com"];
     
     // Tap something else on the creative to dismiss the keyboard
-    [app.staticTexts[@"UNLOCK"] tap];
+    [app.staticTexts[@"10% OFF"] tap];
     
     // Submit email
     XCTAssertTrue([app.buttons[@"CONTINUE"] waitForExistenceWithTimeout:5.0]);
@@ -71,10 +71,14 @@
     XCTAssertTrue([app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] waitForExistenceWithTimeout:5.0]);
     [app.buttons[@"GET 10% OFF NOW when you sign up for email and texts"] tap];
 
-    // Assert that the SMS app is opened with prepoulated text
-    XCUIApplication * smsApp = [[XCUIApplication alloc] initWithBundleIdentifier:@"com.apple.MobileSMS"];
-    XCTAssertTrue([smsApp.textFields[@"Message"] waitForExistenceWithTimeout:5.0]);
-    XCTAssertTrue([smsApp.textFields[@"Message"].value containsString:@"Send this text to subscribe to recurring automated personalized marketing alerts (e.g. cart reminders) from Attentive Mobile Apps Test"]);
+    // Assert that the SMS app is opened with prepopulated text if running locally
+    // (AWS Device Farm doesn't allow use of SMS apps)
+    NSString * envHost = [[[NSProcessInfo processInfo] environment] objectForKey:@"COM_ATTENTIVE_EXAMPLE_HOST"];
+    if ([envHost isEqualToString:@"local"]) {
+        XCUIApplication * smsApp = [[XCUIApplication alloc] initWithBundleIdentifier:@"com.apple.MobileSMS"];
+        XCTAssertTrue([smsApp.textFields[@"Message"] waitForExistenceWithTimeout:5.0]);
+        XCTAssertTrue([smsApp.textFields[@"Message"].value containsString:@"Send this text to subscribe to recurring automated personalized marketing alerts (e.g. cart reminders) from Attentive Mobile Apps Test"]);
+    }
 }
 
 
@@ -121,9 +125,9 @@
 
 - (void)launchAppWithMode:(NSString *) mode {
     app.launchEnvironment = @{
-        @"com.attentive.Example.DOMAIN": @"mobileapps",
-        @"com.attentive.Example.MODE": mode,
-        @"com.attentive.Example.PERSISTENT_DOMAIN_TO_REMOVE": @"com.attentive.Example"
+        @"COM_ATTENTIVE_EXAMPLE_DOMAIN": @"mobileapps",
+        @"COM_ATTENTIVE_EXAMPLE_MODE": mode,
+        @"COM_ATTENTIVE_EXAMPLE_IS_UI_TEST": @"YES",
     };
     [app launch];
 }
