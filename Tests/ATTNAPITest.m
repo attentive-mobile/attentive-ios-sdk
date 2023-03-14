@@ -9,6 +9,7 @@
 #import <OCMock/OCMock.h>
 #import "ATTNAPI.h"
 #import "ATTNTestEventUtils.h"
+#import "ATTNUserAgentBuilder.h"
 
 static NSString* const TEST_DOMAIN = @"some-domain";
 static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
