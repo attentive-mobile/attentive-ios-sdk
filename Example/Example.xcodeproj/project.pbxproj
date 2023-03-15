@@ -27,8 +27,8 @@
 		69CCAF5C28DCDE5A007620BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 69CCAF5B28DCDE5A007620BD /* Assets.xcassets */; };
 		69CCAF5F28DCDE5A007620BD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 69CCAF5D28DCDE5A007620BD /* LaunchScreen.storyboard */; };
 		69CCAF6228DCDE5A007620BD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 69CCAF6128DCDE5A007620BD /* main.m */; };
-		C77C85E38A76EFB4A30A63ED /* Pods_Example___Pod.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E225173AF4DB16299D85458 /* Pods_Example___Pod.framework */; };
 		69D3C14C299EF2D10027934F /* CreativeUITest.m in Sources */ = {isa = PBXBuildFile; fileRef = 69D3C14B299EF2D10027934F /* CreativeUITest.m */; };
+		C77C85E38A76EFB4A30A63ED /* Pods_Example___Pod.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E225173AF4DB16299D85458 /* Pods_Example___Pod.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -280,8 +280,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				69CCAF4B28DCDE57007620BD /* Example - Pod */,
 				58317964292EEEAA0003D6B0 /* Example - Local */,
+				69CCAF4B28DCDE57007620BD /* Example - Pod */,
 				69D3C148299EF2D10027934F /* CreativeUITest */,
 			);
 		};

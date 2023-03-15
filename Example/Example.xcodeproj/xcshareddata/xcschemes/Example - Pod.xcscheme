@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1410"
+   LastUpgradeVersion = "1420"
    version = "1.3">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -9,15 +9,15 @@
          <BuildActionEntry
             buildForTesting = "YES"
             buildForRunning = "YES"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "58D52E18292EC52B00CF32DE"
-               BuildableName = "attentive-ios-sdk Tests.xctest"
-               BlueprintName = "attentive-ios-sdk Tests"
-               ReferencedContainer = "container:attentive-ios-sdk.xcodeproj">
+               BlueprintIdentifier = "69CCAF4B28DCDE57007620BD"
+               BuildableName = "Example - Pod.app"
+               BlueprintName = "Example - Pod"
+               ReferencedContainer = "container:Example.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -28,17 +28,6 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "58D52E18292EC52B00CF32DE"
-               BuildableName = "attentive-ios-sdk Tests.xctest"
-               BlueprintName = "attentive-ios-sdk Tests"
-               ReferencedContainer = "container:attentive-ios-sdk.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -51,6 +40,16 @@
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "69CCAF4B28DCDE57007620BD"
+            BuildableName = "Example - Pod.app"
+            BlueprintName = "Example - Pod"
+            ReferencedContainer = "container:Example.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -58,15 +57,16 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "58D52E18292EC52B00CF32DE"
-            BuildableName = "attentive-ios-sdk Tests.xctest"
-            BlueprintName = "attentive-ios-sdk Tests"
-            ReferencedContainer = "container:attentive-ios-sdk.xcodeproj">
+            BlueprintIdentifier = "69CCAF4B28DCDE57007620BD"
+            BuildableName = "Example - Pod.app"
+            BlueprintName = "Example - Pod"
+            ReferencedContainer = "container:Example.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
