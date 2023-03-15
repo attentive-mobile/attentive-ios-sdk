@@ -86,7 +86,7 @@
 		8A751582F25C45F082535E727D12112B /* Pods-ExampleSwift - Pod-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-ExampleSwift - Pod-umbrella.h"; sourceTree = "<group>"; };
 		8D1BFE662F601B758E17B1990414499C /* ATTNEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNEvent.h; path = Sources/ATTNEvent.h; sourceTree = "<group>"; };
 		948015156DD1B18F03DD9BFDB8E346BD /* Pods-ExampleSwift - Pod-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-ExampleSwift - Pod-Info.plist"; sourceTree = "<group>"; };
-		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		A2F5A38C462710C4B351C45064DCD7B3 /* ATTNEventTracker.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNEventTracker.m; path = Sources/ATTNEventTracker.m; sourceTree = "<group>"; };
 		BA6F92E19D46CF7C5C46294D868C8854 /* ATTNItem.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNItem.h; path = Sources/ATTNItem.h; sourceTree = "<group>"; };
 		BF5C6773258EBE0260EA20E9D21C7BED /* ATTNOrder.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNOrder.h; path = Sources/ATTNOrder.h; sourceTree = "<group>"; };
@@ -94,12 +94,12 @@
 		C9BFCB8433C9711E9DF8DE19B102443A /* Pods-ExampleSwift - Pod-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-ExampleSwift - Pod-acknowledgements.markdown"; sourceTree = "<group>"; };
 		CFA5754E72C32987925F886DBB2CA924 /* ATTNPurchaseEvent.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNPurchaseEvent.m; path = Sources/ATTNPurchaseEvent.m; sourceTree = "<group>"; };
 		D1023E1E66C70B5891CEBC18D3C33AE7 /* ATTNCart.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNCart.h; path = Sources/ATTNCart.h; sourceTree = "<group>"; };
-		D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "attentive-ios-sdk"; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D399DC301E89ECADBB58FEB9AACDB91C /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DBE51CC8A5A9CFCAAD143B3AADD9CB33 /* ATTNAddToCartEvent.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNAddToCartEvent.h; path = Sources/ATTNAddToCartEvent.h; sourceTree = "<group>"; };
 		DC10795C4062D2FC2C622081CE7C384F /* ATTNEventTracker.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNEventTracker.h; path = Sources/ATTNEventTracker.h; sourceTree = "<group>"; };
 		DDC7CA37166ADB0FE3A8AC2A96D7B622 /* ATTNItem.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = ATTNItem.m; path = Sources/ATTNItem.m; sourceTree = "<group>"; };
 		DF108ADD176B0CEEA8E9EC22E053BA93 /* attentive-ios-sdk-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "attentive-ios-sdk-umbrella.h"; sourceTree = "<group>"; };
-		E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-ExampleSwift - Pod"; path = Pods_ExampleSwift___Pod.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E2B376B2F82C729D44D12C5022FD1C87 /* Pods_ExampleSwift___Pod.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "Pods_ExampleSwift___Pod.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E71FD87CEA555DA1CA17DD652DBA7037 /* Pods-ExampleSwift - Pod-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-ExampleSwift - Pod-acknowledgements.plist"; sourceTree = "<group>"; };
 		EC5CCC9A561605E24D5B5D1F837653B2 /* ATTNAPI.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ATTNAPI.h; path = Sources/ATTNAPI.h; sourceTree = "<group>"; };
 		EC6C31E60E3B7C44E736D989D1D48BB6 /* attentive-ios-sdk-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "attentive-ios-sdk-prefix.pch"; sourceTree = "<group>"; };
@@ -160,7 +160,6 @@
 				70BF147FA3D3F79B392731FB4A85B642 /* ATTNVisitorService.m */,
 				6A890F7E801CA6D651878128F1A99070 /* Support Files */,
 			);
-			name = "attentive-ios-sdk";
 			path = "attentive-ios-sdk";
 			sourceTree = "<group>";
 		};
@@ -242,8 +241,8 @@
 		E11B95D2837B4063B068390E8A2EE430 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */,
-				E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */,
+				D399DC301E89ECADBB58FEB9AACDB91C /* attentive_ios_sdk.framework */,
+				E2B376B2F82C729D44D12C5022FD1C87 /* Pods_ExampleSwift___Pod.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -300,7 +299,7 @@
 			);
 			name = "attentive-ios-sdk";
 			productName = attentive_ios_sdk;
-			productReference = D399DC301E89ECADBB58FEB9AACDB91C /* attentive-ios-sdk */;
+			productReference = D399DC301E89ECADBB58FEB9AACDB91C /* attentive_ios_sdk.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		EE4643341FE5017D3D6F395C0C822C49 /* Pods-ExampleSwift - Pod */ = {
@@ -318,8 +317,8 @@
 				8C68C25E6C68BB301122F728EB33F49A /* PBXTargetDependency */,
 			);
 			name = "Pods-ExampleSwift - Pod";
-			productName = Pods_ExampleSwift___Pod;
-			productReference = E2B376B2F82C729D44D12C5022FD1C87 /* Pods-ExampleSwift - Pod */;
+			productName = "Pods_ExampleSwift___Pod";
+			productReference = E2B376B2F82C729D44D12C5022FD1C87 /* Pods_ExampleSwift___Pod.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */

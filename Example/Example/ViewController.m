@@ -47,9 +47,8 @@ ATTNSDK *sdk;
     };
     [sdk identify:_userIdentifiers];
     
-    
-    // Random Example app stuff
-    [_domainLabel setText:domain];
+    // Attentive Example app specific setup code
+    [_domainLabel setText:_domain];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {
