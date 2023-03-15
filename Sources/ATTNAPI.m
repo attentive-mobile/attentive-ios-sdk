@@ -147,8 +147,9 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 
 - (void)sendEventInternalForRequest:(EventRequest*)request userIdentity: (ATTNUserIdentity*)userIdentity domain:(NSString*) domain callback:(ATTNAPICallback)callback{
     NSURL* url = [self constructEventUrlComponentsForEventRequest:request userIdentity:userIdentity domain:domain].URL;
-
-    NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+    NSMutableURLRequest* urlRequest = [NSMutableURLRequest requestWithURL:url];
+    [urlRequest setHTTPMethod:@"POST"];
+    NSURLSessionDataTask* task = [_urlSession dataTaskWithRequest:urlRequest completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
 
         NSString * message;
         if (error) {
@@ -289,7 +290,8 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
     NSString* urlString = [NSString stringWithFormat:DTAG_URL_FORMAT, domain];
     
     NSURL* url = [NSURL URLWithString:urlString];
-    NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+    NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:url];
+    NSURLSessionDataTask* task = [_urlSession dataTaskWithRequest:request completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (error) {
             NSLog(@"Error getting the geo-adjusted domain. Error: '%@'", [error description]);
             completionHandler(nil, error);
@@ -324,7 +326,9 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 
 - (void)sendUserIdentityInternal:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain callback:(ATTNAPICallback)callback {
     NSURL* url = [self constructUserIdentityUrl:userIdentity domain:domain].URL;
-    NSURLSessionDataTask* task = [_urlSession dataTaskWithURL:url completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+    NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:url];
+    [request setHTTPMethod:@"POST"];
+    NSURLSessionDataTask* task = [_urlSession dataTaskWithRequest:request completionHandler:^ void (NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
 
         NSString * message;
         if (error) {
