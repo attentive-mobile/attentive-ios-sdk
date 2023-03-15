@@ -1,1 +1,0 @@
-../../../attentive-ios-sdk/Sources/ATTNPurchaseEvent.h

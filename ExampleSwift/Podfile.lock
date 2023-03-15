@@ -2,7 +2,7 @@ PODS:
   - attentive-ios-sdk (0.3.2)
 
 DEPENDENCIES:
-  - attentive-ios-sdk (~> 0.3.2)
+  - attentive-ios-sdk
 
 SPEC REPOS:
   trunk:
@@ -11,6 +11,6 @@ SPEC REPOS:
 SPEC CHECKSUMS:
   attentive-ios-sdk: a57deefc671e36886ce90da369db9ce8505bf0a1
 
-PODFILE CHECKSUM: 9505bcadab7e3e7af8d9ec4632f7a2d871321c5a
+PODFILE CHECKSUM: f10aeee61e5d03d783da7f32dae98581d4e7f101
 
 COCOAPODS: 1.11.3

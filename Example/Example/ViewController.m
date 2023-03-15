@@ -5,6 +5,8 @@
 @property (weak, nonatomic) IBOutlet UIButton *creativeButton;
 @property (weak, nonatomic) IBOutlet UIButton *sendIdentifiersButton;
 @property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
+@property (weak, nonatomic) IBOutlet UILabel *domainLabel;
+
 @end
 
 
@@ -43,6 +45,10 @@ ATTNSDK *sdk;
                           IDENTIFIER_TYPE_KLAVIYO_ID: @"555555",
                           IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS: @{@"customId": @"customIdValue"}
     };
+    [sdk identify:_userIdentifiers];
+    
+    // Attentive Example app specific setup code
+    [_domainLabel setText:_domain];
 }
 
 - (IBAction)creativeButtonPress:(id)sender {

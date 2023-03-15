@@ -6,9 +6,10 @@
 //
 
 #import <XCTest/XCTest.h>
+#import <OCMock/OCMock.h>
 #import "ATTNAPI.h"
 #import "ATTNTestEventUtils.h"
-
+#import "ATTNUserAgentBuilder.h"
 
 static NSString* const TEST_DOMAIN = @"some-domain";
 static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
@@ -23,6 +24,8 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 - (NSURL*)constructUserIdentityUrl:(ATTNUserIdentity *)userIdentity domain:(NSString *)domain;
 
 - (NSString*)getCachedGeoAdjustedDomain;
+
+- (NSURLSession*)session;
 
 @end
 
@@ -103,13 +106,37 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 
 @implementation ATTNAPITest
 
+
+- (void)testURLSession_verifySessionHasUserAgent {
+    // Arrange
+    id appInfoMock = [OCMockObject mockForClass:[ATTNUserAgentBuilder class]];
+    [[[appInfoMock stub] andReturn:@"fakeUserAgent"] buildUserAgent];
+
+    // Act
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:@"somedomain"];
+    
+    // Assert
+    NSDictionary* additionalHeaders = [api session].configuration.HTTPAdditionalHeaders;
+    XCTAssertEqual(1, additionalHeaders.count);
+    XCTAssertEqualObjects(@"User-Agent", [additionalHeaders allKeys][0]);
+    
+    NSString* actualUserAgent = additionalHeaders[@"User-Agent"];
+    XCTAssertEqualObjects(@"fakeUserAgent", actualUserAgent);
+    
+    [appInfoMock stopMocking];
+}
+
 - (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
+    // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
     
     ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+    
+    // Act
     [api sendUserIdentity:userIdentity];
     
+    // Assert
     XCTAssertTrue(sessionMock.didCallDtag);
     XCTAssertTrue(sessionMock.didCallEventsApi);
 }

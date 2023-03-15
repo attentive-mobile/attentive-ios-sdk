@@ -6,6 +6,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 #import "ATTNParameterValidation.h"
 #import "ATTNUserIdentity.h"
@@ -18,6 +19,7 @@
 #import "ATTNPurchaseEvent.h"
 #import "ATTNAddToCartEvent.h"
 #import "ATTNProductViewEvent.h"
+#import "ATTNUserAgentBuilder.h"
 
 // A single event can create multiple requests. The EventRequest class represents a single request.
 @interface EventRequest : NSObject
@@ -78,7 +80,15 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 }
 
 - (instancetype)initWithDomain:(NSString*)domain {
-    return [self initWithDomain:domain urlSession:[NSURLSession sharedSession]];
+    return [self initWithDomain:domain urlSession:[self buildUrlSession]];
+}
+
+- (NSURLSession*)buildUrlSession {
+    NSURLSessionConfiguration* configWithUserAgent = [NSURLSessionConfiguration defaultSessionConfiguration];
+    NSDictionary* additionalHeadersWithUserAgent = @{@"User-Agent": [ATTNUserAgentBuilder buildUserAgent]};
+    [configWithUserAgent setHTTPAdditionalHeaders:additionalHeadersWithUserAgent];
+
+    return [NSURLSession sessionWithConfiguration:configWithUserAgent];
 }
 
 // Private constructor that makes testing easier
@@ -491,11 +501,6 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 // For testing only
 - (NSURLSession*)session {
     return _urlSession;
-}
-
-// For testing only
-- (void)setSession:(NSURLSession*)session {
-    _urlSession = session;
 }
 
 // For testing only
