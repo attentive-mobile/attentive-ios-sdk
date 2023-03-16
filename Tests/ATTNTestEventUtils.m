@@ -118,4 +118,8 @@
     }];
 }
 
++ (ATTNInfoEvent*)buildInfoEvent {
+    return [[ATTNInfoEvent alloc] init];
+}
+
 @end

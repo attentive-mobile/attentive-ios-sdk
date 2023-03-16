@@ -247,8 +247,8 @@
 				58B01AB2294D3F9B0001CEBF /* TestAssertionHandler.m */,
 				583C29F829C101A300EABBC9 /* ATTNUserAgentBuilderTest.m */,
 				69BA6D5829B7812C00CCA573 /* ATTNAPITestIT.m */,
-				69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */,
 				69BA6D5C29B785ED00CCA573 /* ATTNTestEventUtils.h */,
+				69BA6D5A29B782CE00CCA573 /* ATTNTestEventUtils.m */,
 				69BA6D6E29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m */,
 			);
 			name = Tests;
