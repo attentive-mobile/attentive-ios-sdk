@@ -6,7 +6,7 @@
 //
 
 #import "ATTNCreativeUrlFormatter.h"
-
+#import "ATTNAppInfo.h"
 
 @implementation ATTNCreativeUrlFormatter
 
@@ -55,6 +55,10 @@
     if (userIdentity.identifiers[IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS] != nil) {
         [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"cstm" value:[[self class] getCustomIdentifiersJson:userIdentity]]];
     }
+    
+    // Add SDK info just for analytics purposes
+    [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"sdkVersion" value:[ATTNAppInfo getSdkVersion]]];
+    [queryItems addObject:[[NSURLQueryItem alloc] initWithName:@"sdkName" value:[ATTNAppInfo getSdkName]]];
     
     [components setQueryItems:queryItems];
     
