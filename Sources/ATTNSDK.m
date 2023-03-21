@@ -10,6 +10,7 @@
 #import "ATTNSDK.h"
 #import "ATTNUserIdentity.h"
 #import "ATTNCreativeUrlFormatter.h"
+#import "ATTNInfoEvent.h"
 
 @implementation ATTNSDK {
     UIView *_parentView;
@@ -30,14 +31,7 @@
         _userIdentity = [[ATTNUserIdentity alloc] init];
         _api = [[ATTNAPI alloc] initWithDomain:domain];
         
-        NSString* bundleVersion = [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
-        NSLog(@"Bundle build version: %@", bundleVersion);
-        NSString* bundleShortVersion = [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
-        NSLog(@"Bundle marketing version: %@", bundleShortVersion);
-        NSString* bundleName = [[NSBundle mainBundle] infoDictionary][@"CFBundleName"];
-        NSLog(@"Bundle name: %@", bundleName);
-        NSString* bundleId = [[NSBundle mainBundle] bundleIdentifier];
-        NSLog(@"Bundle id: %@", bundleId);
+        [self sendInfoEvent];
     }
     return self;
 }
@@ -176,6 +170,10 @@
 
 - (ATTNUserIdentity*)getUserIdentity {
     return _userIdentity;
+}
+
+- (void)sendInfoEvent {
+    [_api sendEvent:[[ATTNInfoEvent alloc] init] userIdentity:_userIdentity];
 }
 
 @end

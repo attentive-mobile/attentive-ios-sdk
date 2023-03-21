@@ -19,6 +19,7 @@
 #import "ATTNPurchaseEvent.h"
 #import "ATTNAddToCartEvent.h"
 #import "ATTNProductViewEvent.h"
+#import "ATTNInfoEvent.h"
 #import "ATTNUserAgentBuilder.h"
 
 // A single event can create multiple requests. The EventRequest class represents a single request.
@@ -71,6 +72,7 @@ static NSString* const EVENT_TYPE_ADD_TO_CART = @"c";
 static NSString* const EVENT_TYPE_PRODUCT_VIEW = @"d";
 static NSString* const EVENT_TYPE_ORDER_CONFIRMED = @"oc";
 static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
+static NSString* const EVENT_TYPE_INFO = @"i";
 
 @implementation ATTNAPI {
     NSURLSession* _Nonnull _urlSession;
@@ -258,6 +260,9 @@ static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
             [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PRODUCT_VIEW]];
         }
         
+        return eventRequests;
+    } else if ([event isKindOfClass:[ATTNInfoEvent class]]) {
+        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:[[NSMutableDictionary alloc] init] eventNameAbbreviation:EVENT_TYPE_INFO]];
         return eventRequests;
     } else {
         NSException *e = [NSException

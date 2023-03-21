@@ -325,6 +325,27 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
     XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
 }
 
+- (void)testSendEvent_validInfoEvent_urlContainsExpectedMetadata {
+    // Arrange
+    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+    ATTNInfoEvent* infoEvent = [[ATTNTestEventUtils class] buildInfoEvent];
+    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+    
+    // Act
+    [api sendEvent:infoEvent userIdentity:userIdentity];
+    
+    // Assert
+    XCTAssertTrue(sessionMock.didCallEventsApi);
+    XCTAssertEqual(2, sessionMock.urlCalls.count);
+    NSURL* url = sessionMock.urlCalls[1];
+    NSDictionary<NSString*, NSString*>* queryItems = [[ATTNTestEventUtils class] getQueryItemsFromUrl:url];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    XCTAssertEqualObjects(@"i", queryItems[@"t"]);
+}
+
 - (void)testSendEvent_validEvent_httpMethodIsPost {
     // Arrange
     NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
