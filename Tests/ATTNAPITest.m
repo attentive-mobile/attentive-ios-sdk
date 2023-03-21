@@ -114,8 +114,8 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 
 - (void)testURLSession_verifySessionHasUserAgent {
     // Arrange
-    id appInfoMock = [OCMockObject mockForClass:[ATTNUserAgentBuilder class]];
-    [[[appInfoMock stub] andReturn:@"fakeUserAgent"] buildUserAgent];
+    id userAgentBuilderMock = [OCMockObject mockForClass:[ATTNUserAgentBuilder class]];
+    [[[userAgentBuilderMock stub] andReturn:@"fakeUserAgent"] buildUserAgent];
 
     // Act
     ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:@"somedomain"];
@@ -128,7 +128,7 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
     NSString* actualUserAgent = additionalHeaders[@"User-Agent"];
     XCTAssertEqualObjects(@"fakeUserAgent", actualUserAgent);
     
-    [appInfoMock stopMocking];
+    [userAgentBuilderMock stopMocking];
 }
 
 - (void)testSendUserIdentity_validIdentifiers_callsEndpoints {
