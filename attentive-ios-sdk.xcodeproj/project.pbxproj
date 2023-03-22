@@ -11,7 +11,7 @@
 		5806DE6E29773F6100C18FFA /* ATTNAddToCartEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */; };
 		5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		5806DE722977457600C18FFA /* ATTNProductViewEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE702977457600C18FFA /* ATTNProductViewEvent.m */; };
-		5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE782977630800C18FFA /* ATTNCustomEvent.h */; };
+		5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE782977630800C18FFA /* ATTNCustomEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		5806DE7B2977630800C18FFA /* ATTNCustomEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE792977630800C18FFA /* ATTNCustomEvent.m */; };
 		5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */; };
 		5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */; };
@@ -332,7 +332,6 @@
 				587234C12953AAD800EE12B6 /* ATTNOrder.h in Headers */,
 				587234C22953AAD800EE12B6 /* ATTNCart.h in Headers */,
 				583C29FB29C271F500EABBC9 /* ATTNInfoEvent.h in Headers */,
-				5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */,
 				587234C02953AAD800EE12B6 /* ATTNPurchaseEvent.h in Headers */,
 				587234C32953AAD800EE12B6 /* ATTNPrice.h in Headers */,
 				587234C82953AAD800EE12B6 /* ATTNItem.h in Headers */,
@@ -340,6 +339,7 @@
 				583C29F529C100D800EABBC9 /* ATTNUserAgentBuilder.h in Headers */,
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
 				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
+				5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */,
 				5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */,
 				69BA6D7329BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h in Headers */,
 				5806DE6D29773F6100C18FFA /* ATTNAddToCartEvent.h in Headers */,

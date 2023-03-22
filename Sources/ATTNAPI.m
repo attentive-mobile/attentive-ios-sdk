@@ -20,6 +20,7 @@
 #import "ATTNAddToCartEvent.h"
 #import "ATTNProductViewEvent.h"
 #import "ATTNInfoEvent.h"
+#import "ATTNCustomEvent.h"
 #import "ATTNUserAgentBuilder.h"
 
 // A single event can create multiple requests. The EventRequest class represents a single request.
@@ -73,6 +74,7 @@ static NSString* const EVENT_TYPE_PRODUCT_VIEW = @"d";
 static NSString* const EVENT_TYPE_ORDER_CONFIRMED = @"oc";
 static NSString* const EVENT_TYPE_USER_IDENTIFIER_COLLECTED = @"idn";
 static NSString* const EVENT_TYPE_INFO = @"i";
+static NSString* const EVENT_TYPE_CUSTOM_EVENT = @"ce";
 
 @implementation ATTNAPI {
     NSURLSession* _Nonnull _urlSession;
@@ -263,6 +265,15 @@ static NSString* const EVENT_TYPE_INFO = @"i";
         return eventRequests;
     } else if ([event isKindOfClass:[ATTNInfoEvent class]]) {
         [eventRequests addObject:[[EventRequest alloc] initWithMetadata:[[NSMutableDictionary alloc] init] eventNameAbbreviation:EVENT_TYPE_INFO]];
+        return eventRequests;
+    } else if ([event isKindOfClass:[ATTNCustomEvent class]]) {
+        ATTNCustomEvent* customEvent = (ATTNCustomEvent*)event;
+        
+        NSMutableDictionary* customEventMetadata = [[NSMutableDictionary alloc] init];
+        customEventMetadata[@"type"] = customEvent.type;
+        customEventMetadata[@"properties"] = [self convertObjectToJson:customEvent.properties defaultValue:@"{}"];
+        
+        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:customEventMetadata eventNameAbbreviation:EVENT_TYPE_CUSTOM_EVENT]];
         return eventRequests;
     } else {
         NSException *e = [NSException

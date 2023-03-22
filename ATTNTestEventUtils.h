@@ -19,6 +19,7 @@
 #import "ATTNPrice.h"
 #import "ATTNCart.h"
 #import "ATTNInfoEvent.h"
+#import "ATTNCustomEvent.h"
 
 #ifndef ATTNTestEventUtils_h
 #define ATTNTestEventUtils_h
@@ -51,6 +52,8 @@
 + (ATTNUserIdentity*)buildUserIdentity;
 
 + (ATTNInfoEvent*)buildInfoEvent;
+
++ (ATTNCustomEvent*)buildCustomEvent;
 
 @end
 
