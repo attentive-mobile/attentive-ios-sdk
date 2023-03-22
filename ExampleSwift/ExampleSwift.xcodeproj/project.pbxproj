@@ -58,7 +58,7 @@
 		58ADF92E2988738D002EA268 /* attentive_ios_sdk.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = attentive_ios_sdk.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58ADF9322988746D002EA268 /* attentive-ios-sdk-local-bridging-header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "attentive-ios-sdk-local-bridging-header.h"; sourceTree = "<group>"; };
 		859F6AE5F75849A800B53A78 /* Pods-ExampleSwift - Pod.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ExampleSwift - Pod.release.xcconfig"; path = "Target Support Files/Pods-ExampleSwift - Pod/Pods-ExampleSwift - Pod.release.xcconfig"; sourceTree = "<group>"; };
-		ECCE8A4C3DF5E1DC2D9DBC3D /* Pods_ExampleSwift___Pod.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ExampleSwift___Pod.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECCE8A4C3DF5E1DC2D9DBC3D /* Pods_ExampleSwift___Pod.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "Pods_ExampleSwift___Pod.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -460,7 +460,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"ExampleSwift/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ExampleSwift---Local-Info.plist";
+				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = NO;
@@ -501,7 +501,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"ExampleSwift/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ExampleSwift---Local-Info.plist";
+				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = NO;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = NO;

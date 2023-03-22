@@ -18,5 +18,6 @@
 #import "ATTNPrice.h"
 #import "ATTNOrder.h"
 #import "ATTNCart.h"
+#import "ATTNCustomEvent.h"
 
 #endif /* attentive_ios_sdk_bridging_header_h */

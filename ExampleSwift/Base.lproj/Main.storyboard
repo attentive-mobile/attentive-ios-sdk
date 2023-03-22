@@ -134,6 +134,17 @@
                                     <action selector="purchaseBtnPressedWithSender:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="J9H-rF-L5F"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="uPS-9r-YOK">
+                                <rect key="frame" x="89" y="499" width="238" height="63"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Send Custom Event">
+                                    <color key="baseBackgroundColor" systemColor="systemGreenColor"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="customEventBtnPressedWithSender:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="ALp-0d-ych"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="KyE-6k-rz2"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -141,6 +152,7 @@
                     <navigationItem key="navigationItem" id="gu9-Nv-e2w"/>
                     <connections>
                         <outlet property="addToCartBtn" destination="oAv-pI-GrN" id="CJS-8k-HWp"/>
+                        <outlet property="customEventBtn" destination="uPS-9r-YOK" id="n96-EZ-hG0"/>
                         <outlet property="purchaseBtn" destination="oiK-SR-ICR" id="P4e-Nc-GWc"/>
                     </connections>
                 </viewController>
