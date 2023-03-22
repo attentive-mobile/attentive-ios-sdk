@@ -46,7 +46,6 @@ class ProductViewController : UIViewController {
     
     @IBAction func customEventBtnPressed(sender: Any) {
         let customEvent : ATTNCustomEvent = ATTNCustomEvent(type: "Added to Wishlist", properties: ["wishlistName": "Gift Ideas"]);
-        // Send the CustomEvent
         ATTNEventTracker.sharedInstance().record(customEvent)
         
         showToast(message: "Custom event sent")
