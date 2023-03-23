@@ -11,6 +11,8 @@
 		5806DE6E29773F6100C18FFA /* ATTNAddToCartEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */; };
 		5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		5806DE722977457600C18FFA /* ATTNProductViewEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE702977457600C18FFA /* ATTNProductViewEvent.m */; };
+		5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */ = {isa = PBXBuildFile; fileRef = 5806DE782977630800C18FFA /* ATTNCustomEvent.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		5806DE7B2977630800C18FFA /* ATTNCustomEvent.m in Sources */ = {isa = PBXBuildFile; fileRef = 5806DE792977630800C18FFA /* ATTNCustomEvent.m */; };
 		5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */; };
 		5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */; };
 		5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */; };
@@ -78,6 +80,8 @@
 		5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNAddToCartEvent.m; path = Sources/ATTNAddToCartEvent.m; sourceTree = "<group>"; };
 		5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNProductViewEvent.h; path = Sources/ATTNProductViewEvent.h; sourceTree = "<group>"; };
 		5806DE702977457600C18FFA /* ATTNProductViewEvent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNProductViewEvent.m; path = Sources/ATTNProductViewEvent.m; sourceTree = "<group>"; };
+		5806DE782977630800C18FFA /* ATTNCustomEvent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ATTNCustomEvent.h; path = Sources/ATTNCustomEvent.h; sourceTree = "<group>"; };
+		5806DE792977630800C18FFA /* ATTNCustomEvent.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNCustomEvent.m; path = Sources/ATTNCustomEvent.m; sourceTree = "<group>"; };
 		5809FEA829370A2600BDE364 /* ATTNParameterValidationTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNParameterValidationTest.m; path = Tests/ATTNParameterValidationTest.m; sourceTree = "<group>"; };
 		5809FEAA29370E3300BDE364 /* ATTNPersistentStorageTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNPersistentStorageTest.m; path = Tests/ATTNPersistentStorageTest.m; sourceTree = "<group>"; };
 		5809FEAC2937147E00BDE364 /* ATTNUserIdentityTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ATTNUserIdentityTest.m; path = Tests/ATTNUserIdentityTest.m; sourceTree = "<group>"; };
@@ -185,6 +189,8 @@
 				5806DE6C29773F6100C18FFA /* ATTNAddToCartEvent.m */,
 				5806DE6F2977457600C18FFA /* ATTNProductViewEvent.h */,
 				5806DE702977457600C18FFA /* ATTNProductViewEvent.m */,
+				5806DE782977630800C18FFA /* ATTNCustomEvent.h */,
+				5806DE792977630800C18FFA /* ATTNCustomEvent.m */,
 			);
 			name = Events;
 			sourceTree = "<group>";
@@ -333,6 +339,7 @@
 				583C29F529C100D800EABBC9 /* ATTNUserAgentBuilder.h in Headers */,
 				58332ED7292EC20700B1ECF3 /* ATTNSDK.h in Headers */,
 				6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */,
+				5806DE7A2977630800C18FFA /* ATTNCustomEvent.h in Headers */,
 				5806DE712977457600C18FFA /* ATTNProductViewEvent.h in Headers */,
 				69BA6D7329BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h in Headers */,
 				5806DE6D29773F6100C18FFA /* ATTNAddToCartEvent.h in Headers */,
@@ -462,6 +469,7 @@
 				69BA6D7129BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m in Sources */,
 				587234C52953AAD800EE12B6 /* ATTNItem.m in Sources */,
 				583C29F729C1011000EABBC9 /* ATTNUserAgentBuilder.m in Sources */,
+				5806DE7B2977630800C18FFA /* ATTNCustomEvent.m in Sources */,
 				6972874F29353FEA003F1BEC /* ATTNPersistentStorage.m in Sources */,
 				6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */,
 			);

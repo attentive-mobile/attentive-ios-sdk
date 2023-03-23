@@ -13,10 +13,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (weak, nonatomic) IBOutlet UIButton *addToCartButton;
 @property (weak, nonatomic) IBOutlet UIButton *purchaseButton;
+@property (weak, nonatomic) IBOutlet UIButton *customEventButton;
 
 - (IBAction)addToCartButtonPressed:(id)sender;
 
 - (IBAction)purchaseButtonPressed:(id)sender;
+
+- (IBAction)customEventButtonPressed:(id)sender;
 
 @end
 

@@ -11,6 +11,7 @@ import os
 class ProductViewController : UIViewController {
     @IBOutlet var addToCartBtn : UIButton?
     @IBOutlet var purchaseBtn : UIButton?
+    @IBOutlet weak var customEventBtn: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -41,6 +42,13 @@ class ProductViewController : UIViewController {
         ATTNEventTracker.sharedInstance().record(purchase)
         
         showToast(message: "Purchase event sent")
+    }
+    
+    @IBAction func customEventBtnPressed(sender: Any) {
+        let customEvent : ATTNCustomEvent = ATTNCustomEvent(type: "Added to Wishlist", properties: ["wishlistName": "Gift Ideas"]);
+        ATTNEventTracker.sharedInstance().record(customEvent)
+        
+        showToast(message: "Custom event sent")
     }
 
     func buildItem() -> ATTNItem {

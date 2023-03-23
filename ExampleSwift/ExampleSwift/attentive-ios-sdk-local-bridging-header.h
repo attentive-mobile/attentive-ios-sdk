@@ -10,6 +10,6 @@
 #ifndef attentive_ios_sdk_local_bridging_header_h
 #define attentive_ios_sdk_local_bridging_header_h
 
-#import <attentive_ios_sdk/ATTNSDKFramework.h>
+#import <attentive_ios_sdk_framework/ATTNSDKFramework.h>
 
 #endif /* attentive_ios_sdk_local_bridging_header_h */

@@ -238,4 +238,42 @@ static int EVENT_SEND_TIMEOUT_SEC = 6;
     XCTAssertEqualObjects(quantity, metadata[@"quantity"]);
 }
 
+- (void)testSendEvent_validCustomEvent_sendsCustomEvent {
+    // Arrange
+    ATTNCustomEvent* customEvent = [[ATTNTestEventUtils class] buildCustomEvent];
+    
+    XCTestExpectation *eventTaskExpectation = [self expectationWithDescription:@"sendEventTask"];
+    __block NSURLResponse* urlResponse;
+    __block NSURL* eventUrl;
+
+    
+    // Act
+    [api sendEvent:customEvent userIdentity:userIdentity callback:^ void (NSData* data, NSURL* url, NSURLResponse *response, NSError *error) {
+        if ([url.absoluteString containsString:@"t=ce"]){
+            urlResponse = response;
+            eventUrl = url;
+            [eventTaskExpectation fulfill];
+        }
+    }];
+    [self waitForExpectationsWithTimeout:EVENT_SEND_TIMEOUT_SEC handler:nil];
+    
+    
+    // Assert
+    NSHTTPURLResponse *response = (NSHTTPURLResponse*) urlResponse;
+    XCTAssertEqual(200, [response statusCode]);
+    
+    NSDictionary<NSString*, NSString*>* queryItems = [[ATTNTestEventUtils class] getQueryItemsFromUrl:eventUrl];
+    NSString* queryItemsString = queryItems[@"m"];
+    NSDictionary* metadata = [NSJSONSerialization JSONObjectWithData:[queryItemsString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    
+    [[ATTNTestEventUtils class] verifyCommonQueryItems:queryItems
+                                          userIdentity:userIdentity
+                                     geoAdjustedDomain:TEST_GEO_ADJUSTED_DOMAIN
+                                             eventType:@"ce"
+                                              metadata:metadata];
+    
+    XCTAssertEqualObjects(customEvent.type, metadata[@"type"]);
+    XCTAssertEqualObjects(customEvent.properties, [NSJSONSerialization JSONObjectWithData:[metadata[@"properties"] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil]);
+}
+
 @end

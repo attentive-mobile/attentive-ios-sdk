@@ -141,6 +141,15 @@
                                     <action selector="purchaseButtonPressed:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="ZGF-RD-AUi"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oL8-3x-dTc">
+                                <rect key="frame" x="87" y="500" width="238" height="63"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Send Custom Event"/>
+                                <connections>
+                                    <action selector="customEventButtonPressed:" destination="Xj3-Ru-nwo" eventType="touchUpInside" id="CaV-GA-xkL"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="KyE-6k-rz2"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -148,6 +157,7 @@
                     <navigationItem key="navigationItem" id="gu9-Nv-e2w"/>
                     <connections>
                         <outlet property="addToCartButton" destination="oAv-pI-GrN" id="Mjq-gi-XsA"/>
+                        <outlet property="customEventButton" destination="oL8-3x-dTc" id="pHg-2s-GU5"/>
                         <outlet property="purchaseButton" destination="oiK-SR-ICR" id="QDh-Vs-jjt"/>
                     </connections>
                 </viewController>
