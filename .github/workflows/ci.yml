@@ -45,4 +45,4 @@ jobs:
             -path "./*/build/*" -prune -o \
             -path "./attentive-ios-sdk.xc*" -prune \
             \) \
-            -o -name "*.m" -print | xargs clang-format --dry-run --Werror
+            -o -name "*.h" -o -name "*.m" -print | xargs clang-format --dry-run --Werror --assume-filename=Objective-C
