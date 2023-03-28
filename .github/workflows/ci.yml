@@ -34,5 +34,13 @@ jobs:
       - name: "Run lint"
         run: |
           sudo apt -y install clang-format
-          git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
-          git diff --name-only origin/main HEAD | xargs clang-format --dry-run --Werror
+          find . \( \
+            -path "./Vendor/*" -prune -o \
+            -path "./*/Pods/*" -prune -o \
+            -path "./DerivedData/*" -prune -o \
+            -path "./build/*" -prune -o \
+            -path "./*/DerivedData/*" -prune -o \
+            -path "./*/build/*" -prune -o \
+            -path "./attentive-ios-sdk.xc*" -prune \
+            \) \
+            -o -name "*.m" -print | xargs clang-format --dry-run --Werror
