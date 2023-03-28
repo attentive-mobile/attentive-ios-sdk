@@ -16,26 +16,26 @@ static NSString *const ATTN_PERSISTENT_STORAGE_PREFIX = @"com.attentive.iossdk.P
 
 
 - (id)init {
-    if (self = [super init]) {
-        _userDefaults = [NSUserDefaults standardUserDefaults];
-    }
-    return self;
+  if (self = [super init]) {
+    _userDefaults = [NSUserDefaults standardUserDefaults];
+  }
+  return self;
 }
 
-- (NSString *)getPrefixedKey: (NSString * ) key {
-    return [NSString stringWithFormat:@"%@:%@", ATTN_PERSISTENT_STORAGE_PREFIX, key];
+- (NSString *)getPrefixedKey:(NSString *)key {
+  return [NSString stringWithFormat:@"%@:%@", ATTN_PERSISTENT_STORAGE_PREFIX, key];
 }
 
-- (void)saveObject: (NSObject *) value forKey:(NSString *) key {
-    [_userDefaults setObject:value forKey:[self getPrefixedKey:key]];
+- (void)saveObject:(NSObject *)value forKey:(NSString *)key {
+  [_userDefaults setObject:value forKey:[self getPrefixedKey:key]];
 }
 
-- (NSString *)readStringForKey: (NSString *) key {
-    return [_userDefaults stringForKey:[self getPrefixedKey:key]];
+- (NSString *)readStringForKey:(NSString *)key {
+  return [_userDefaults stringForKey:[self getPrefixedKey:key]];
 }
 
-- (void)deleteObjectForKey: (NSString *) key {
-    [_userDefaults removeObjectForKey:[self getPrefixedKey:key]];
+- (void)deleteObjectForKey:(NSString *)key {
+  [_userDefaults removeObjectForKey:[self getPrefixedKey:key]];
 }
 
 

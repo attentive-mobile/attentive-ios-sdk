@@ -14,17 +14,15 @@
                        object:(id)object
                          file:(NSString *)fileName
                    lineNumber:(NSInteger)line
-                  description:(NSString *)format, ...
-{
-    self->_wasAssertionThrown = true;
+                  description:(NSString *)format, ... {
+  self->_wasAssertionThrown = true;
 }
 
 - (void)handleFailureInFunction:(NSString *)functionName
                            file:(NSString *)fileName
                      lineNumber:(NSInteger)line
-                    description:(NSString *)format, ...
-{
-    self->_wasAssertionThrown = true;
+                    description:(NSString *)format, ... {
+  self->_wasAssertionThrown = true;
 }
 
 @end
