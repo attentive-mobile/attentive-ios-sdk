@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: "Install clang-format"
-        run: sudo apt -y install clang-format
+        run:i sudo apt update && apt -y install clang-format-15.0
       - name: "Run lint"
         run: |
           echo "Running lint"
