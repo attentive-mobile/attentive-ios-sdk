@@ -36,4 +36,4 @@ jobs:
       - name: "Run lint"
         run: |
           echo "Running lint"
-          ./lint ci
+          ./lint.sh ci
