@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x
 
 HOST=${1:-local}
 
@@ -18,13 +19,11 @@ FILES_TO_LINT=$(find . \( \
 
 case "$HOST" in
   local)
-    clang-format-11 --dry-run --assume-filename=Objective-C $FILES_TO_LINT
-    exit $?
+    clang-format-11 -i --assume-filename=Objective-C $FILES_TO_LINT
     ;;
 
   ci)
     clang-format --dry-run --Werror --assume-filename=Objective-C
-    exit $?
     ;;
   *)
     echo "invalid host name"

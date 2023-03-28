@@ -34,6 +34,4 @@ jobs:
       - name: "Install clang-format"
         run: sudo apt -y install clang-format-11
       - name: "Run lint"
-        run: |
-          echo "Running lint"
-          ./lint.sh ci
+        run: ./lint.sh ci
