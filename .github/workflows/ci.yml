@@ -31,16 +31,16 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
+      - name: "Install clang-format"
+        run: sudo apt -y install clang-format
       - name: "Run lint"
-        run: |
-          sudo apt -y install clang-format
-          find . \( \
-            -path "./Vendor/*" -prune -o \
-            -path "./*/Pods/*" -prune -o \
-            -path "./DerivedData/*" -prune -o \
-            -path "./build/*" -prune -o \
-            -path "./*/DerivedData/*" -prune -o \
-            -path "./*/build/*" -prune -o \
-            -path "./attentive-ios-sdk.xc*" -prune \
-            \) \
-            -o -name "*.m" -print | xargs clang-format --dry-run --Werror
+        run: find . \( \
+              -path "./Vendor/*" -prune -o \
+              -path "./*/Pods/*" -prune -o \
+              -path "./DerivedData/*" -prune -o \
+              -path "./build/*" -prune -o \
+              -path "./*/DerivedData/*" -prune -o \
+              -path "./*/build/*" -prune -o \
+              -path "./attentive-ios-sdk.xc*" -prune \
+              \) \
+              -o -name "*.m" -print | xargs clang-format --dry-run --Werror
