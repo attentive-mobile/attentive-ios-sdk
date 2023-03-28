@@ -15,7 +15,7 @@
   // We replace the spaces with dashes for the app name because spaces in a User-Agent represent a new "product", so app names that have spaces are harder to parse if we don't replace spaces with dashes
   return [NSString stringWithFormat:@"%@/%@.%@ (%@; %@ %@) %@/%@",
                                     [self replaceSpacesWithDashes:[ATTNAppInfo getAppName]],
-                                        [ATTNAppInfo getAppVersion],
+                                    [ATTNAppInfo getAppVersion],
                                     [ATTNAppInfo getAppBuild],
                                     [ATTNAppInfo getDeviceModelName],
                                     [ATTNAppInfo getDevicePlatform],
