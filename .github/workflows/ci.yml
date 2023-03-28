@@ -31,11 +31,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
-#      - name: "Install clang-format"
-#        run: sudo apt -y install clang-format
+      - name: "Install clang-format"
+        run: sudo apt -y install clang-format
       - name: "Run lint"
         run: |
-          sudo apt -y install clang-format
+          echo "Running lint"
+#          sudo apt -y install clang-format
           find . \( \
             -path "./Vendor/*" -prune -o \
             -path "./*/Pods/*" -prune -o \
