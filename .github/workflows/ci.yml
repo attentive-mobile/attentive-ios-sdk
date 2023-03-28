@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
-      - name: "clang-format"
+      - name: "Run lint"
         run: |
           sudo apt -y install clang-format
-          git diff main --name-only | xargs clang-format
+          git diff --name-only origin/main HEAD | xargs clang-format --dry-run --Werror
