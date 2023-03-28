@@ -18,13 +18,16 @@ FILES_TO_LINT=$(find . \( \
 
 case "$HOST" in
   local)
-    clang-format-11 -i --assume-filename=Objective-C $FILES_TO_LINT
+    clang-format-11 --dry-run --assume-filename=Objective-C $FILES_TO_LINT
+    exit $?
     ;;
 
   ci)
     clang-format --dry-run --Werror --assume-filename=Objective-C
+    exit $?
     ;;
   *)
     echo "invalid host name"
+    exit 1
     ;;
 esac
