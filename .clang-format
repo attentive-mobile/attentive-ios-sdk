@@ -10,7 +10,7 @@ MaxEmptyLinesToKeep: 4
 ObjCSpaceAfterProperty: true
 ObjCSpaceBeforeProtocolList: false
 PointerBindsToType: false
-SortIncludes: Never
+SortIncludes: false
 SpacesBeforeTrailingComments: 1
 TabWidth: 4
 UseTab: Never
