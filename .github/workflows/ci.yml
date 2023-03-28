@@ -36,7 +36,6 @@ jobs:
       - name: "Run lint"
         run: |
           echo "Running lint"
-#          sudo apt -y install clang-format
           find . \( \
             -path "./Vendor/*" -prune -o \
             -path "./*/Pods/*" -prune -o \
