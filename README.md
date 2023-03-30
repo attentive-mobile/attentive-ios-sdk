@@ -1,6 +1,6 @@
 # Attentive IOS SDK
 
-The Attentive IOS SDK provides the functionality to render Attentive creative units in IOS mobile applications.
+The Attentive IOS SDK provides the functionality to render Attentive creative units and collect Attentive events in IOS mobile applications.
 
 
 ## Installation
@@ -27,6 +27,8 @@ pod update attentive-ios-sdk
 ## Usage
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 IOS SDK is used.
+
+__*** NOTE: Please refrain from using any internal or undocumented classes or methods as they may change between releases. ***__
 
 
 ### Initialize the SDK
