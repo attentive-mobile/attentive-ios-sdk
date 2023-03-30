@@ -8,8 +8,8 @@ The Attentive IOS SDK provides the functionality to render Attentive creative un
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```
-target ‘MyApp’ do
-  pod ‘attentive-ios-sdk’
+target 'MyApp' do
+  pod 'attentive-ios-sdk', 'THE_SDK_VERSION'
 end
 ```
 
@@ -19,10 +19,11 @@ And then make sure to run:
 pod install
 ```
 
-Additionally, if a new version of the SDK is available, it can be updated using:
+Check for new versions of the SDK using this command:
 ```
 pod update attentive-ios-sdk
 ```
+You can then update the version in your pod file and run `pod install` again to pull the changes.
 
 ## Usage
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
