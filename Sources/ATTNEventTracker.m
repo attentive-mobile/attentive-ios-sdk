@@ -19,32 +19,32 @@ static ATTNEventTracker* __sharedInstance = nil;
 @end
 
 @implementation ATTNEventTracker {
-    ATTNSDK* _sdk;
+  ATTNSDK* _sdk;
 }
 
 + (void)setupWithSdk:(ATTNSDK*)sdk {
-    static dispatch_once_t ensureOnlyOnceToken;
-    dispatch_once(&ensureOnlyOnceToken, ^{
-        __sharedInstance = [[self alloc] initWithSdk:sdk];
-    });
+  static dispatch_once_t ensureOnlyOnceToken;
+  dispatch_once(&ensureOnlyOnceToken, ^{
+    __sharedInstance = [[self alloc] initWithSdk:sdk];
+  });
 }
 
 - (id)initWithSdk:(ATTNSDK*)sdk {
-    if (self = [super init]) {
-        _sdk = sdk;
-    }
-    
-    return self;
+  if (self = [super init]) {
+    _sdk = sdk;
+  }
+
+  return self;
 }
 
 - (void)recordEvent:(id<ATTNEvent>)event {
-    // TODO: Would be good to clone the UserIdentity so any changes to UserIdentity from another thread don't interfere with the API code
-    [[_sdk getApi] sendEvent:event userIdentity:[_sdk getUserIdentity]];
+  // TODO: Would be good to clone the UserIdentity so any changes to UserIdentity from another thread don't interfere with the API code
+  [[_sdk getApi] sendEvent:event userIdentity:[_sdk getUserIdentity]];
 }
 
 + (instancetype)sharedInstance {
-    NSAssert(__sharedInstance != nil, @"ATTNEventTracker must be setup before being used");
-    return __sharedInstance;
+  NSAssert(__sharedInstance != nil, @"ATTNEventTracker must be setup before being used");
+  return __sharedInstance;
 }
 
 @end

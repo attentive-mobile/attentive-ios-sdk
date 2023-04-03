@@ -16,25 +16,25 @@
 
 
 @implementation ATTNUserAgentBuilderTest {
-    id _appInfoMock;
+  id _appInfoMock;
 }
 
 - (void)setUp {
-    // Put setup code here. This method is called before the invocation of each test method in the class.
-    _appInfoMock = [OCMockObject mockForClass:[ATTNAppInfo class]];
+  // Put setup code here. This method is called before the invocation of each test method in the class.
+  _appInfoMock = [OCMockObject mockForClass:[ATTNAppInfo class]];
 }
 
 - (void)tearDown {
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
-    [_appInfoMock stopMocking];
+  // Put teardown code here. This method is called after the invocation of each test method in the class.
+  [_appInfoMock stopMocking];
 }
 
 - (void)testBuildUserAgent_appInfoReturnsAllValues_userAgentIsFormattedCorrectly {
-    [self mockAppInfo];
-    
-    NSString* actualUserAgent = [ATTNUserAgentBuilder buildUserAgent];
-    
-    XCTAssertEqualObjects(@"appName-Value/appVersionValue.appBuildValue (deviceModelNameValue; devicePlatformValue deviceOsVersionValue) sdkNameValue/sdkVersionValue", actualUserAgent);
+  [self mockAppInfo];
+
+  NSString* actualUserAgent = [ATTNUserAgentBuilder buildUserAgent];
+
+  XCTAssertEqualObjects(@"appName-Value/appVersionValue.appBuildValue (deviceModelNameValue; devicePlatformValue deviceOsVersionValue) sdkNameValue/sdkVersionValue", actualUserAgent);
 }
 
 static const NSString* APP_BUILD = @"appBuildValue";
@@ -48,17 +48,17 @@ static const NSString* SDK_NAME = @"sdkNameValue";
 static const NSString* SDK_VERSION = @"sdkVersionValue";
 
 - (void)mockAppInfo {
-    [[[_appInfoMock stub] andReturn:APP_BUILD] getAppBuild];
-    [[[_appInfoMock stub] andReturn:APP_VERSION] getAppVersion];
-    [[[_appInfoMock stub] andReturn:APP_NAME] getAppName];
-    [[[_appInfoMock stub] andReturn:APP_ID] getAppId];
+  [[[_appInfoMock stub] andReturn:APP_BUILD] getAppBuild];
+  [[[_appInfoMock stub] andReturn:APP_VERSION] getAppVersion];
+  [[[_appInfoMock stub] andReturn:APP_NAME] getAppName];
+  [[[_appInfoMock stub] andReturn:APP_ID] getAppId];
 
-    [[[_appInfoMock stub] andReturn:DEVICE_MODEL_NAME] getDeviceModelName];
-    [[[_appInfoMock stub] andReturn:DEVICE_PLATFORM] getDevicePlatform];
-    [[[_appInfoMock stub] andReturn:DEVICE_OS_VERSION] getDeviceOsVersion];
+  [[[_appInfoMock stub] andReturn:DEVICE_MODEL_NAME] getDeviceModelName];
+  [[[_appInfoMock stub] andReturn:DEVICE_PLATFORM] getDevicePlatform];
+  [[[_appInfoMock stub] andReturn:DEVICE_OS_VERSION] getDeviceOsVersion];
 
-    [[[_appInfoMock stub] andReturn:SDK_NAME] getSdkName];
-    [[[_appInfoMock stub] andReturn:SDK_VERSION] getSdkVersion];
+  [[[_appInfoMock stub] andReturn:SDK_NAME] getSdkName];
+  [[[_appInfoMock stub] andReturn:SDK_VERSION] getSdkVersion];
 }
 
 @end

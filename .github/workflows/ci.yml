@@ -15,7 +15,7 @@ concurrency:
   group: ${{ github.ref_name }}
   cancel-in-progress: true
 jobs:
-  iOS:
+  test:
     name: Test iOS
     runs-on: macOS-12
     env:
@@ -23,5 +23,26 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - name: "Play"
+      - name: "Run tests"
         run: xcodebuild -project "attentive-ios-sdk.xcodeproj" -scheme "attentive-ios-sdk-framework" -destination "platform=iOS Simulator,OS=16.1,name=iPhone 13 Pro" test
+
+  lint:
+    name: Run lint
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install clang-format"
+        run: sudo apt -y install clang-format-11
+      - name: "Run lint"
+        run: |
+          echo "Running lint"
+          find . \( \
+            -path "./Vendor/*" -prune -o \
+            -path "./*/Pods/*" -prune -o \
+            -path "./DerivedData/*" -prune -o \
+            -path "./build/*" -prune -o \
+            -path "./*/DerivedData/*" -prune -o \
+            -path "./*/build/*" -prune -o \
+            -path "./attentive-ios-sdk.xc*" -prune \
+            \) \
+            -o -name "*.h" -o -name "*.m" -print | xargs clang-format --dry-run --Werror --assume-filename=Objective-C
