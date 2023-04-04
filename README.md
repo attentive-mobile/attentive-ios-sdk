@@ -71,7 +71,7 @@ See the [`ATTNUserIdentity`](Sources/ATTNUserIdentity.m#L15) file for all possib
 
 ### Record user events
 
-The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, and `ATTNProductViewEvent`.
+The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
 
 ```objectiveC
 // Create the Item(s) that was/were purchased
