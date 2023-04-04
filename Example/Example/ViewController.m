@@ -7,8 +7,6 @@
 @property (weak, nonatomic) IBOutlet UIButton *clearUserButton;
 @property (weak, nonatomic) IBOutlet UILabel *domainLabel;
 
-@property (weak, nonatomic) IBOutlet UILabel *domainLabel;
-
 @end
 
 
