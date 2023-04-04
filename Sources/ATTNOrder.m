@@ -12,11 +12,11 @@ NS_ASSUME_NONNULL_BEGIN
 @implementation ATTNOrder
 
 - (instancetype)initWithOrderId:(NSString*)orderId {
-    if (self = [super init]) {
-        self->_orderId = orderId;
-    }
-    
-    return self;
+  if (self = [super init]) {
+    self->_orderId = orderId;
+  }
+
+  return self;
 }
 
 @end

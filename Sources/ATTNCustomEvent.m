@@ -10,12 +10,12 @@
 @implementation ATTNCustomEvent
 
 - (instancetype)initWithType:(NSString*)type properties:(NSDictionary<NSString*, NSString*>*)properties {
-    if (self = [super init]) {
-        _type = type;
-        _properties = [[NSDictionary alloc] initWithDictionary:properties];
-    }
-    
-    return self;
+  if (self = [super init]) {
+    _type = type;
+    _properties = [[NSDictionary alloc] initWithDictionary:properties];
+  }
+
+  return self;
 }
 
 @end
