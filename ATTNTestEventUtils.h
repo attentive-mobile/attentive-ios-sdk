@@ -51,6 +51,8 @@
 
 + (ATTNUserIdentity*)buildUserIdentity;
 
++ (ATTNInfoEvent*)buildInfoEvent;
+
 @end
 
 
