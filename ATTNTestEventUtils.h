@@ -53,6 +53,8 @@
 
 + (ATTNInfoEvent*)buildInfoEvent;
 
++ (ATTNCustomEvent*)buildCustomEvent;
+
 @end
 
 
