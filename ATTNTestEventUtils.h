@@ -51,10 +51,6 @@
 
 + (ATTNUserIdentity*)buildUserIdentity;
 
-+ (ATTNInfoEvent*)buildInfoEvent;
-
-+ (ATTNCustomEvent*)buildCustomEvent;
-
 @end
 
 

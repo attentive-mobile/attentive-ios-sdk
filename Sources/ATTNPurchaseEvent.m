@@ -12,7 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @implementation ATTNPurchaseEvent
 
-- (instancetype)initWithItems:(NSArray<ATTNItem*>*)items order:(ATTNOrder*)order {
+- (instancetype)initWithItems:(NSArray<ATTNItem *> *)items order:(ATTNOrder *)order {
   if (self = [super init]) {
     self->_items = items;
     self->_order = order;

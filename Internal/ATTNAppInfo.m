@@ -13,36 +13,36 @@
 
 @implementation ATTNAppInfo
 
-+ (NSString*)getAppBuild {
++ (NSString *)getAppBuild {
   return [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
 }
-+ (NSString*)getAppVersion {
++ (NSString *)getAppVersion {
   return [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
 }
-+ (NSString*)getAppName {
++ (NSString *)getAppName {
   return [[NSBundle mainBundle] infoDictionary][@"CFBundleName"];
 }
-+ (NSString*)getAppId {
++ (NSString *)getAppId {
   return [[NSBundle mainBundle] bundleIdentifier];
 }
 
-+ (NSString*)getDeviceModelName {
++ (NSString *)getDeviceModelName {
   return [[UIDevice currentDevice] model];
 }
 
-+ (NSString*)getDevicePlatform {
++ (NSString *)getDevicePlatform {
   return [[UIDevice currentDevice] systemName];
 }
 
-+ (NSString*)getDeviceOsVersion {
++ (NSString *)getDeviceOsVersion {
   return [[NSProcessInfo processInfo] operatingSystemVersionString];
 }
 
-+ (NSString*)getSdkName {
++ (NSString *)getSdkName {
   return @"attentive-ios-sdk";
 }
 
-+ (NSString*)getSdkVersion {
++ (NSString *)getSdkVersion {
   return SDK_VERSION;
 }
 

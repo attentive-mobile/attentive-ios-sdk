@@ -11,7 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @implementation ATTNItem
 
-- (instancetype)initWithProductId:(NSString*)productId productVariantId:(NSString*)productVariantId price:(ATTNPrice*)price {
+- (instancetype)initWithProductId:(NSString *)productId productVariantId:(NSString *)productVariantId price:(ATTNPrice *)price {
   if (self = [super init]) {
     self->_productId = productId;
     self->_productVariantId = productVariantId;
