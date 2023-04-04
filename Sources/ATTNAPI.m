@@ -85,15 +85,15 @@ static NSString* const EVENT_TYPE_CUSTOM_EVENT = @"ce";
 }
 
 - (instancetype)initWithDomain:(NSString*)domain {
-    return [self initWithDomain:domain urlSession:[self buildUrlSession]];
+  return [self initWithDomain:domain urlSession:[self buildUrlSession]];
 }
 
 - (NSURLSession*)buildUrlSession {
-    NSURLSessionConfiguration* configWithUserAgent = [NSURLSessionConfiguration defaultSessionConfiguration];
-    NSDictionary* additionalHeadersWithUserAgent = @{@"User-Agent": [ATTNUserAgentBuilder buildUserAgent]};
-    [configWithUserAgent setHTTPAdditionalHeaders:additionalHeadersWithUserAgent];
+  NSURLSessionConfiguration* configWithUserAgent = [NSURLSessionConfiguration defaultSessionConfiguration];
+  NSDictionary* additionalHeadersWithUserAgent = @{@"User-Agent" : [ATTNUserAgentBuilder buildUserAgent]};
+  [configWithUserAgent setHTTPAdditionalHeaders:additionalHeadersWithUserAgent];
 
-    return [NSURLSession sessionWithConfiguration:configWithUserAgent];
+  return [NSURLSession sessionWithConfiguration:configWithUserAgent];
 }
 
 // Private constructor that makes testing easier
@@ -183,105 +183,105 @@ static NSString* const EVENT_TYPE_CUSTOM_EVENT = @"ce";
 - (NSArray<EventRequest*>*)convertEventToRequests:(id<ATTNEvent>)event {
   NSMutableArray<EventRequest*>* eventRequests = [[NSMutableArray alloc] init];
 
-    if ([event isKindOfClass:[ATTNPurchaseEvent class]]) {
-        ATTNPurchaseEvent* purchase = (ATTNPurchaseEvent*)event;
-        
-        if ([purchase.items count] == 0) {
-            NSLog(@"No items found in the purchase event.");
-            return @[];
-        }
-        
-        // Create EventRequests for each of the items in the PurchaseEvent
-        NSDecimalNumber* cartTotal = [NSDecimalNumber zero];
-        for (ATTNItem* item in purchase.items) {
-            NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
-            [self addProductDataToDictionary:item dictionary:metadata];
-            
-            metadata[@"orderId"] = purchase.order.orderId;
-            
-            if (purchase.cart != nil) {
-                [metadata addEntryIfNotNil:@"cartId" value:purchase.cart.cartId];
-                [metadata addEntryIfNotNil:@"cartCoupon" value:purchase.cart.cartCoupon];
-            }
-            
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PURCHASE]];
-            
-            cartTotal = [cartTotal decimalNumberByAdding:item.price.price];
-        }
-        
-        // Add cart total to each Purchase metadata
-        NSString* cartTotalString = [_priceFormatter stringFromNumber:cartTotal];
-        for (EventRequest* eventRequest in eventRequests) {
-            eventRequest.metadata[@"cartTotal"] = cartTotalString;
-        }
-        
-        // create another EventRequest for an OrderConfirmed
-        NSMutableDictionary* orderConfirmedMetadata = [[NSMutableDictionary alloc] init];
-        orderConfirmedMetadata[@"orderId"] = purchase.order.orderId;
-        orderConfirmedMetadata[@"cartTotal"] = cartTotalString;
-        orderConfirmedMetadata[@"currency"] = purchase.items[0].price.currency;
-        
-        NSMutableArray<NSMutableDictionary*>* products = [[NSMutableArray alloc] init];
-        for (ATTNItem* item in purchase.items) {
-            NSMutableDictionary* product = [[NSMutableDictionary alloc] init];
-            [self addProductDataToDictionary:item dictionary:product];
-            [products addObject:product];
-        }
-        orderConfirmedMetadata[@"products"] = [self convertObjectToJson:products defaultValue:@"[]"];
-        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:EVENT_TYPE_ORDER_CONFIRMED]];
-        
-        return eventRequests;
-    } else if ([event isKindOfClass:[ATTNAddToCartEvent class]]) {
-        ATTNAddToCartEvent* addToCart = (ATTNAddToCartEvent*)event;
-        
-        if ([addToCart.items count] == 0) {
-            NSLog(@"No items found in the AddToCart event.");
-            return @[];
-        }
-        
-        for (ATTNItem* item in addToCart.items) {
-            NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
-            [self addProductDataToDictionary:item dictionary:metadata];
-            
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_ADD_TO_CART]];
-        }
-        
-        return eventRequests;
-    } else if ([event isKindOfClass:[ATTNProductViewEvent class]]) {
-        ATTNProductViewEvent* productView = (ATTNProductViewEvent*)event;
-        
-        if ([productView.items count] == 0) {
-            NSLog(@"No items found in the ProductView event.");
-            return @[];
-        }
-        
-        for (ATTNItem* item in productView.items) {
-            NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
-            [self addProductDataToDictionary:item dictionary:metadata];
-            
-            [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PRODUCT_VIEW]];
-        }
-        
-        return eventRequests;
-    } else if ([event isKindOfClass:[ATTNInfoEvent class]]) {
-        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:[[NSMutableDictionary alloc] init] eventNameAbbreviation:EVENT_TYPE_INFO]];
-        return eventRequests;
-    } else if ([event isKindOfClass:[ATTNCustomEvent class]]) {
-        ATTNCustomEvent* customEvent = (ATTNCustomEvent*)event;
-        
-        NSMutableDictionary* customEventMetadata = [[NSMutableDictionary alloc] init];
-        customEventMetadata[@"type"] = customEvent.type;
-        customEventMetadata[@"properties"] = [self convertObjectToJson:customEvent.properties defaultValue:@"{}"];
-        
-        [eventRequests addObject:[[EventRequest alloc] initWithMetadata:customEventMetadata eventNameAbbreviation:EVENT_TYPE_CUSTOM_EVENT]];
-        return eventRequests;
-    } else {
-        NSException *e = [NSException
-                exceptionWithName:@"UnknownEventException"
-                reason:[NSString stringWithFormat:@"Unknown Event type: %@", [event class]]
-                userInfo:nil];
-            @throw e;
+  if ([event isKindOfClass:[ATTNPurchaseEvent class]]) {
+    ATTNPurchaseEvent* purchase = (ATTNPurchaseEvent*)event;
+
+    if ([purchase.items count] == 0) {
+      NSLog(@"No items found in the purchase event.");
+      return @[];
     }
+
+    // Create EventRequests for each of the items in the PurchaseEvent
+    NSDecimalNumber* cartTotal = [NSDecimalNumber zero];
+    for (ATTNItem* item in purchase.items) {
+      NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
+      [self addProductDataToDictionary:item dictionary:metadata];
+
+      metadata[@"orderId"] = purchase.order.orderId;
+
+      if (purchase.cart != nil) {
+        [metadata addEntryIfNotNil:@"cartId" value:purchase.cart.cartId];
+        [metadata addEntryIfNotNil:@"cartCoupon" value:purchase.cart.cartCoupon];
+      }
+
+      [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PURCHASE]];
+
+      cartTotal = [cartTotal decimalNumberByAdding:item.price.price];
+    }
+
+    // Add cart total to each Purchase metadata
+    NSString* cartTotalString = [_priceFormatter stringFromNumber:cartTotal];
+    for (EventRequest* eventRequest in eventRequests) {
+      eventRequest.metadata[@"cartTotal"] = cartTotalString;
+    }
+
+    // create another EventRequest for an OrderConfirmed
+    NSMutableDictionary* orderConfirmedMetadata = [[NSMutableDictionary alloc] init];
+    orderConfirmedMetadata[@"orderId"] = purchase.order.orderId;
+    orderConfirmedMetadata[@"cartTotal"] = cartTotalString;
+    orderConfirmedMetadata[@"currency"] = purchase.items[0].price.currency;
+
+    NSMutableArray<NSMutableDictionary*>* products = [[NSMutableArray alloc] init];
+    for (ATTNItem* item in purchase.items) {
+      NSMutableDictionary* product = [[NSMutableDictionary alloc] init];
+      [self addProductDataToDictionary:item dictionary:product];
+      [products addObject:product];
+    }
+    orderConfirmedMetadata[@"products"] = [self convertObjectToJson:products defaultValue:@"[]"];
+    [eventRequests addObject:[[EventRequest alloc] initWithMetadata:orderConfirmedMetadata eventNameAbbreviation:EVENT_TYPE_ORDER_CONFIRMED]];
+
+    return eventRequests;
+  } else if ([event isKindOfClass:[ATTNAddToCartEvent class]]) {
+    ATTNAddToCartEvent* addToCart = (ATTNAddToCartEvent*)event;
+
+    if ([addToCart.items count] == 0) {
+      NSLog(@"No items found in the AddToCart event.");
+      return @[];
+    }
+
+    for (ATTNItem* item in addToCart.items) {
+      NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
+      [self addProductDataToDictionary:item dictionary:metadata];
+
+      [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_ADD_TO_CART]];
+    }
+
+    return eventRequests;
+  } else if ([event isKindOfClass:[ATTNProductViewEvent class]]) {
+    ATTNProductViewEvent* productView = (ATTNProductViewEvent*)event;
+
+    if ([productView.items count] == 0) {
+      NSLog(@"No items found in the ProductView event.");
+      return @[];
+    }
+
+    for (ATTNItem* item in productView.items) {
+      NSMutableDictionary* metadata = [[NSMutableDictionary alloc] init];
+      [self addProductDataToDictionary:item dictionary:metadata];
+
+      [eventRequests addObject:[[EventRequest alloc] initWithMetadata:metadata eventNameAbbreviation:EVENT_TYPE_PRODUCT_VIEW]];
+    }
+
+    return eventRequests;
+  } else if ([event isKindOfClass:[ATTNInfoEvent class]]) {
+    [eventRequests addObject:[[EventRequest alloc] initWithMetadata:[[NSMutableDictionary alloc] init] eventNameAbbreviation:EVENT_TYPE_INFO]];
+    return eventRequests;
+  } else if ([event isKindOfClass:[ATTNCustomEvent class]]) {
+    ATTNCustomEvent* customEvent = (ATTNCustomEvent*)event;
+
+    NSMutableDictionary* customEventMetadata = [[NSMutableDictionary alloc] init];
+    customEventMetadata[@"type"] = customEvent.type;
+    customEventMetadata[@"properties"] = [self convertObjectToJson:customEvent.properties defaultValue:@"{}"];
+
+    [eventRequests addObject:[[EventRequest alloc] initWithMetadata:customEventMetadata eventNameAbbreviation:EVENT_TYPE_CUSTOM_EVENT]];
+    return eventRequests;
+  } else {
+    NSException* e = [NSException
+        exceptionWithName:@"UnknownEventException"
+                   reason:[NSString stringWithFormat:@"Unknown Event type: %@", [event class]]
+                 userInfo:nil];
+    @throw e;
+  }
 }
 
 - (void)addProductDataToDictionary:(ATTNItem*)item dictionary:(NSMutableDictionary*)dictionary {

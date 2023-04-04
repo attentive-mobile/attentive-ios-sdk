@@ -57,11 +57,11 @@
 }
 
 - (IBAction)customEventButtonPressed:(id)sender {
-    ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Added to Wishlist" properties:@{@"wishlistName": @"Gift Ideas"}];
-    
-    [[ATTNEventTracker sharedInstance] recordEvent:customEvent];
-    
-    [self showToast:@"Custom event sent"];
+  ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Added to Wishlist" properties:@{@"wishlistName" : @"Gift Ideas"}];
+
+  [[ATTNEventTracker sharedInstance] recordEvent:customEvent];
+
+  [self showToast:@"Custom event sent"];
 }
 
 

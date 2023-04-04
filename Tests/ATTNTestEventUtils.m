@@ -122,11 +122,11 @@
 }
 
 + (ATTNInfoEvent*)buildInfoEvent {
-    return [[ATTNInfoEvent alloc] init];
+  return [[ATTNInfoEvent alloc] init];
 }
 
 + (ATTNCustomEvent*)buildCustomEvent {
-    return [[ATTNCustomEvent alloc] initWithType:@"Concert Viewed" properties:@{@"band": @"The Beatles"}];
+  return [[ATTNCustomEvent alloc] initWithType:@"Concert Viewed" properties:@{@"band" : @"The Beatles"}];
 }
 
 @end

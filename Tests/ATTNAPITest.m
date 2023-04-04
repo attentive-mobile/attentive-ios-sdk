@@ -369,32 +369,32 @@ static NSString* const TEST_GEO_ADJUSTED_DOMAIN = @"some-domain-ca";
 }
 
 - (void)testSendEvent_validCustomEventWithAllProperties_urlContainsExpectedCustomEventMetadata {
-    // Arrange
-    NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
-    ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
-    ATTNCustomEvent* customEvent = [[ATTNTestEventUtils class] buildCustomEvent];
-    ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
-    
-    // Act
-    [api sendEvent:customEvent userIdentity:userIdentity];
-    
-    // Assert
-    XCTAssertTrue(sessionMock.didCallEventsApi);
-    XCTAssertEqual(2, sessionMock.urlCalls.count);
-    NSURL* customEventUrl = nil;
-    for (NSURL* url in sessionMock.urlCalls) {
-        if ([url.absoluteString containsString:@"t=ce"]){
-            customEventUrl = url;
-        }
+  // Arrange
+  NSURLSessionMock* sessionMock = [[NSURLSessionMock alloc] init];
+  ATTNAPI* api = [[ATTNAPI alloc] initWithDomain:TEST_DOMAIN urlSession:sessionMock];
+  ATTNCustomEvent* customEvent = [[ATTNTestEventUtils class] buildCustomEvent];
+  ATTNUserIdentity* userIdentity = [[ATTNTestEventUtils class] buildUserIdentity];
+
+  // Act
+  [api sendEvent:customEvent userIdentity:userIdentity];
+
+  // Assert
+  XCTAssertTrue(sessionMock.didCallEventsApi);
+  XCTAssertEqual(2, sessionMock.urlCalls.count);
+  NSURL* customEventUrl = nil;
+  for (NSURL* url in sessionMock.urlCalls) {
+    if ([url.absoluteString containsString:@"t=ce"]) {
+      customEventUrl = url;
     }
-    XCTAssertNotNil(customEventUrl);
-    
-    NSDictionary* ceMetadata = [[ATTNTestEventUtils class] getMetadataFromUrl:customEventUrl];
-    NSDictionary* actualProperties = [NSJSONSerialization JSONObjectWithData:[ceMetadata[@"properties"] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-    XCTAssertEqual(1, actualProperties.count);
-    
-    XCTAssertEqualObjects(customEvent.type, ceMetadata[@"type"]);
-    XCTAssertEqualObjects(customEvent.properties, actualProperties);
+  }
+  XCTAssertNotNil(customEventUrl);
+
+  NSDictionary* ceMetadata = [[ATTNTestEventUtils class] getMetadataFromUrl:customEventUrl];
+  NSDictionary* actualProperties = [NSJSONSerialization JSONObjectWithData:[ceMetadata[@"properties"] dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+  XCTAssertEqual(1, actualProperties.count);
+
+  XCTAssertEqualObjects(customEvent.type, ceMetadata[@"type"]);
+  XCTAssertEqualObjects(customEvent.properties, actualProperties);
 }
 
 - (void)testSendEvent_multipleEventsSent_onlyGetsGeoAdjustedDomainOnce {
