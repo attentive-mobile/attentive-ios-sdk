@@ -13,37 +13,37 @@
 
 @implementation ATTNAppInfo
 
-+ (NSString*) getAppBuild {
-    return [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
++ (NSString *)getAppBuild {
+  return [[NSBundle mainBundle] infoDictionary][@"CFBundleVersion"];
 }
-+ (NSString*) getAppVersion {
-    return [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
++ (NSString *)getAppVersion {
+  return [[NSBundle mainBundle] infoDictionary][@"CFBundleShortVersionString"];
 }
-+ (NSString*) getAppName {
-    return [[NSBundle mainBundle] infoDictionary][@"CFBundleName"];
++ (NSString *)getAppName {
+  return [[NSBundle mainBundle] infoDictionary][@"CFBundleName"];
 }
-+ (NSString*) getAppId {
-    return [[NSBundle mainBundle] bundleIdentifier];
-}
-
-+ (NSString*) getDeviceModelName {
-    return [[UIDevice currentDevice] model];
++ (NSString *)getAppId {
+  return [[NSBundle mainBundle] bundleIdentifier];
 }
 
-+ (NSString*) getDevicePlatform {
-    return [[UIDevice currentDevice] systemName];
++ (NSString *)getDeviceModelName {
+  return [[UIDevice currentDevice] model];
 }
 
-+ (NSString*) getDeviceOsVersion {
-    return [[NSProcessInfo processInfo] operatingSystemVersionString];
++ (NSString *)getDevicePlatform {
+  return [[UIDevice currentDevice] systemName];
 }
 
-+ (NSString*) getSdkName {
-    return @"attentive-ios-sdk";
++ (NSString *)getDeviceOsVersion {
+  return [[NSProcessInfo processInfo] operatingSystemVersionString];
 }
 
-+ (NSString*) getSdkVersion {
-    return SDK_VERSION;
++ (NSString *)getSdkName {
+  return @"attentive-ios-sdk";
+}
+
++ (NSString *)getSdkVersion {
+  return SDK_VERSION;
 }
 
 @end
