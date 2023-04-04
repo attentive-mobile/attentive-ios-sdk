@@ -121,9 +121,6 @@
   return [[ATTNInfoEvent alloc] init];
 }
 
-+ (ATTNInfoEvent*)buildInfoEvent {
-  return [[ATTNInfoEvent alloc] init];
-}
 
 + (ATTNCustomEvent*)buildCustomEvent {
   return [[ATTNCustomEvent alloc] initWithType:@"Concert Viewed" properties:@{@"band" : @"The Beatles"}];
