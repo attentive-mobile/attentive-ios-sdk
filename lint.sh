@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if ! command -v clang-format-11 &> /dev/null
+then
+    echo "clang-format-11 could not be found. Install using: brew install clang-format@11"
+    exit
+fi
 
 FILES_TO_LINT=$(find . \( \
   -path "./Vendor/*" -prune -o \
