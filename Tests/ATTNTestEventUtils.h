@@ -18,8 +18,8 @@
 #import "ATTNOrder.h"
 #import "ATTNPrice.h"
 #import "ATTNCart.h"
-#import "ATTNInfoEvent.h"
 #import "ATTNCustomEvent.h"
+#import "ATTNInfoEvent.h"
 
 #ifndef ATTNTestEventUtils_h
 #define ATTNTestEventUtils_h

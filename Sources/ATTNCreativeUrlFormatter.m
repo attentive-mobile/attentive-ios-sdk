@@ -6,7 +6,7 @@
 //
 
 #import "ATTNCreativeUrlFormatter.h"
-#import "ATTNAppInfo.h"
+#import "Internal/ATTNAppInfo.h"
 
 @implementation ATTNCreativeUrlFormatter
 

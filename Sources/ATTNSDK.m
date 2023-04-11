@@ -10,7 +10,7 @@
 #import "ATTNSDK.h"
 #import "ATTNUserIdentity.h"
 #import "ATTNCreativeUrlFormatter.h"
-#import "ATTNInfoEvent.h"
+#import "Internal/ATTNInfoEvent.h"
 
 @implementation ATTNSDK {
   UIView *_parentView;

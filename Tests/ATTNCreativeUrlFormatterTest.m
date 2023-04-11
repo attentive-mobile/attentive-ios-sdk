@@ -7,9 +7,9 @@
 
 #import <XCTest/XCTest.h>
 #import <OCMock/OCMock.h>
-#import "ATTNCreativeUrlFormatter.h"
 #import "ATTNUserIdentity.h"
 #import "ATTNTestEventUtils.h"
+#import "ATTNCreativeUrlFormatter.h"
 #import "ATTNAppInfo.h"
 
 
@@ -91,6 +91,7 @@ static NSString* const TEST_DOMAIN = @"testDomain";
   id appInfoMock = [OCMockObject mockForClass:[ATTNAppInfo class]];
   [[[appInfoMock stub] andReturn:@"fakeSdkName"] getSdkName];
   [[[appInfoMock stub] andReturn:@"fakeSdkVersion"] getSdkVersion];
+  XCTAssertEqualObjects(@"fakeSdkName", [ATTNAppInfo getSdkName]);
 
   NSString* url = [[ATTNCreativeUrlFormatter class]
       buildCompanyCreativeUrlForDomain:TEST_DOMAIN
@@ -99,7 +100,7 @@ static NSString* const TEST_DOMAIN = @"testDomain";
 
   NSString* expectedUrl = [NSString stringWithFormat:@"https://creatives.attn.tv/mobile-apps/index.html?domain=testDomain&vid=%@&sdkVersion=fakeSdkVersion&sdkName=fakeSdkName", userIdentity.visitorId];
 
-  XCTAssertTrue([expectedUrl isEqualToString:url]);
+  XCTAssertEqualObjects(expectedUrl, url);
 
   [appInfoMock stopMocking];
 }

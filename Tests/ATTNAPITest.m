@@ -7,7 +7,6 @@
 
 #import <XCTest/XCTest.h>
 #import <OCMock/OCMock.h>
-#import "ATTNAPI.h"
 #import "ATTNTestEventUtils.h"
 #import "ATTNUserAgentBuilder.h"
 

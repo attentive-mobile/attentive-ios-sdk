@@ -19,9 +19,9 @@
 #import "ATTNPurchaseEvent.h"
 #import "ATTNAddToCartEvent.h"
 #import "ATTNProductViewEvent.h"
-#import "ATTNInfoEvent.h"
 #import "ATTNCustomEvent.h"
-#import "ATTNUserAgentBuilder.h"
+#import "Internal/ATTNUserAgentBuilder.h"
+#import "Internal/ATTNInfoEvent.h"
 
 // A single event can create multiple requests. The EventRequest class represents a single request.
 @interface EventRequest : NSObject

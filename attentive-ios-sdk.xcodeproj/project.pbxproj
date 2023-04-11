@@ -57,6 +57,14 @@
 		58C9CA6329E5EE6700EF036E /* ATTNAppInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CA5A29E5EE6700EF036E /* ATTNAppInfo.m */; };
 		58C9CA6429E5EE6700EF036E /* ATTNUserAgentBuilder.m in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CA5B29E5EE6700EF036E /* ATTNUserAgentBuilder.m */; };
 		58C9CA6529E5EE6700EF036E /* ATTNUserAgentBuilder.m in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CA5B29E5EE6700EF036E /* ATTNUserAgentBuilder.m */; };
+		58C9CA6629E60C7A00EF036E /* ATTNPersistentStorage.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874D29353FEA003F1BEC /* ATTNPersistentStorage.m */; };
+		58C9CA6729E60C7D00EF036E /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874A29353A99003F1BEC /* ATTNVisitorService.m */; };
+		58C9CA6829E60C8000EF036E /* ATTNAPI.m in Sources */ = {isa = PBXBuildFile; fileRef = 58A6EA2429354D59009BE922 /* ATTNAPI.m */; };
+		58C9CA6929E60C8300EF036E /* ATTNParameterValidation.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECF292EC20700B1ECF3 /* ATTNParameterValidation.m */; };
+		58C9CA6A29E60C8700EF036E /* ATTNSDK.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ED0292EC20700B1ECF3 /* ATTNSDK.m */; };
+		58C9CA6B29E60C8E00EF036E /* ATTNUserIdentity.m in Sources */ = {isa = PBXBuildFile; fileRef = 58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */; };
+		58C9CA6C29E60C9000EF036E /* ATTNEventTracker.m in Sources */ = {isa = PBXBuildFile; fileRef = 5862BE452940820C002C1403 /* ATTNEventTracker.m */; };
+		58C9CA6D29E60C9600EF036E /* ATTNCreativeUrlFormatter.m in Sources */ = {isa = PBXBuildFile; fileRef = 69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */; };
 		58D52E1D292EC52B00CF32DE /* attentive_ios_sdk_framework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* attentive_ios_sdk_framework.framework */; };
 		6972874B29353A99003F1BEC /* ATTNVisitorService.h in Headers */ = {isa = PBXBuildFile; fileRef = 6972874929353A99003F1BEC /* ATTNVisitorService.h */; };
 		6972874C29353A99003F1BEC /* ATTNVisitorService.m in Sources */ = {isa = PBXBuildFile; fileRef = 6972874A29353A99003F1BEC /* ATTNVisitorService.m */; };
@@ -238,8 +246,8 @@
 				58332ECD292EC20700B1ECF3 /* ATTNUserIdentity.m */,
 				5862BE3F29407DAC002C1403 /* ATTNEventTracker.h */,
 				5862BE452940820C002C1403 /* ATTNEventTracker.m */,
-				69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */,
 				69BA6D7229BA3B9000CCA573 /* ATTNCreativeUrlFormatter.h */,
+				69BA6D7029BA3B5900CCA573 /* ATTNCreativeUrlFormatter.m */,
 			);
 			name = Sources;
 			sourceTree = "<group>";
@@ -315,12 +323,12 @@
 		58C9CA5429E5EE6700EF036E /* Internal */ = {
 			isa = PBXGroup;
 			children = (
-				58C9CA5529E5EE6700EF036E /* ATTNInfoEvent.h */,
-				58C9CA5629E5EE6700EF036E /* ATTNAppInfo.h */,
-				58C9CA5729E5EE6700EF036E /* ATTNUserAgentBuilder.h */,
 				58C9CA5829E5EE6700EF036E /* ATTNVersion.h */,
+				58C9CA5529E5EE6700EF036E /* ATTNInfoEvent.h */,
 				58C9CA5929E5EE6700EF036E /* ATTNInfoEvent.m */,
+				58C9CA5629E5EE6700EF036E /* ATTNAppInfo.h */,
 				58C9CA5A29E5EE6700EF036E /* ATTNAppInfo.m */,
+				58C9CA5729E5EE6700EF036E /* ATTNUserAgentBuilder.h */,
 				58C9CA5B29E5EE6700EF036E /* ATTNUserAgentBuilder.m */,
 			);
 			name = Internal;
@@ -488,16 +496,24 @@
 				58C9CA6329E5EE6700EF036E /* ATTNAppInfo.m in Sources */,
 				69BA6D5929B7812C00CCA573 /* ATTNAPITestIT.m in Sources */,
 				5809FEAD2937147E00BDE364 /* ATTNUserIdentityTest.m in Sources */,
+				58C9CA6A29E60C8700EF036E /* ATTNSDK.m in Sources */,
+				58C9CA6929E60C8300EF036E /* ATTNParameterValidation.m in Sources */,
+				58C9CA6B29E60C8E00EF036E /* ATTNUserIdentity.m in Sources */,
 				583C29F929C101A300EABBC9 /* ATTNUserAgentBuilderTest.m in Sources */,
 				69BA6D6F29BA3B1700CCA573 /* ATTNCreativeUrlFormatterTest.m in Sources */,
 				5809FEA929370A2600BDE364 /* ATTNParameterValidationTest.m in Sources */,
 				5809FEAF2937C8F100BDE364 /* ATTNVisitorServiceTest.m in Sources */,
+				58C9CA6729E60C7D00EF036E /* ATTNVisitorService.m in Sources */,
 				58A6EA2729359A84009BE922 /* ATTNAPITest.m in Sources */,
+				58C9CA6629E60C7A00EF036E /* ATTNPersistentStorage.m in Sources */,
+				58C9CA6C29E60C9000EF036E /* ATTNEventTracker.m in Sources */,
+				58C9CA6829E60C8000EF036E /* ATTNAPI.m in Sources */,
 				58C9CA6129E5EE6700EF036E /* ATTNInfoEvent.m in Sources */,
 				58B01AAF294CFF8A0001CEBF /* ATTNEventTrackerTest.m in Sources */,
 				69BA6D5B29B782CE00CCA573 /* ATTNTestEventUtils.m in Sources */,
 				58C9CA6529E5EE6700EF036E /* ATTNUserAgentBuilder.m in Sources */,
 				5809FEAB29370E3300BDE364 /* ATTNPersistentStorageTest.m in Sources */,
+				58C9CA6D29E60C9600EF036E /* ATTNCreativeUrlFormatter.m in Sources */,
 				58B01AB3294D3F9C0001CEBF /* TestAssertionHandler.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
