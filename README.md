@@ -53,15 +53,23 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 
 ### Identify information about the current user
 
-Register any identifying information you have about the user with the Attentive SDK. The more identifiers you provide, the better the
-SDK will function. This method can be called any time you have new information to attribute to the user.
+Register any identifying information you have about the user with the Attentive SDK. This method can be called any time you have new information to attribute to the user.
 
 ```objectiveC
 [sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"myAppUserId", IDENTIFIER_TYPE_PHONE: @"+15556667777"}];
 ```
 
-See the [`ATTNUserIdentity`](Sources/ATTNUserIdentity.m#L15) file for all possible identifier types.
+The more identifiers that are passed to `identify`, the better the SDK will function. Here is the list of possible identifiers:
+| Identifier Name    | Type                                  | Description                                                                                                             |
+| ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Client User ID     | NSString*                             | Your unique identifier for the user. This should be consistent across the user's lifetime. For example, a database id.  |
+| Phone              | NSString*                             | The users's phone number in E.164 format                                                                                |
+| Email              | NSString*                             | The users's email                                                                                                       |
+| Shopify ID         | NSString*                             | The users's Shopify ID                                                                                                  |
+| Klaviyo ID         | NSString*                             | The users's Klaviyo ID                                                                                                  | 
+| Custom Identifiers | NSDictionary<NSString *, NSString *>* | Key-value pairs of custom identifier names and values. The values should be unique to this user.                        |
 
+For each identifier type, use the name `IDENTIFIER_TYPE_{IDENTIFIER_NAME}` for the key name in the user identifiers map.
 
 ### Load and render the creative
 
