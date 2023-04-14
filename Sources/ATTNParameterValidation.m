@@ -13,11 +13,21 @@
 
 
 + (bool)isNotNil:(nullable NSObject *)inputValue {
-  return (inputValue != nil && ![inputValue isKindOfClass:[NSNull class]]);
+  return ![ATTNParameterValidation isNil:inputValue];
+}
+
++ (bool)isNil:(nullable NSObject *)inputValue {
+  return inputValue == nil || [inputValue isKindOfClass:[NSNull class]];
 }
 
 + (bool)isStringAndNotEmpty:(nullable NSObject *)inputValue {
   return ([inputValue isKindOfClass:[NSString class]] && [(NSData *)inputValue length] > 0);
+}
+
++ (void)verifyNotNil:(nonnull NSObject *)inputValue inputName:(nonnull const NSString *)inputName {
+  if ([ATTNParameterValidation isNil:inputValue]) {
+    [NSException raise:@"Input Was Nil" format:@"%@ should be non-nil", inputName];
+  }
 }
 
 + (void)verifyStringOrNil:(nullable NSString *)inputValue inputName:(nonnull const NSString *)inputName {

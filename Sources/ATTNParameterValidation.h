@@ -17,6 +17,8 @@
 
 + (bool)isStringAndNotEmpty:(nullable NSObject *) inputValue;
 
++ (void)verifyNotNil:(nonnull NSObject *)inputValue inputName:(nonnull const NSString *)inputName;
+
 + (void)verifyStringOrNil:(nullable NSString *) inputValue inputName:(nonnull const NSString *) inputName;
 
 + (void)verify1DStringDictionaryOrNil:(nullable NSDictionary *) inputValue inputName:(nonnull const NSString *) inputName;
