@@ -55,8 +55,20 @@ ATTNSDK *sdk;
   // cookies if you want to test Creative fatigue and filtering.
   [self clearCookies];
 
-  // Display the creative.
-  [sdk trigger:self.view];
+  // Display the creative, with a callback handler
+  // You can also call [sdk trigger:self.view] without a callback handler
+  [sdk trigger:self.view
+       handler:^(NSString *triggerStatus) {
+         if (triggerStatus == CREATIVE_TRIGGER_STATUS_OPENED) {
+           NSLog(@"Opened the Creative!");
+         } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_OPENED) {
+           NSLog(@"Couldn't open the Creative!");
+         } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_CLOSED) {
+           NSLog(@"Closed the Creative!");
+         } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_CLOSED) {
+           NSLog(@"Couldn't close the Creative!");
+         }
+       }];
 }
 
 - (IBAction)sendIdentifiersButtonPress:(id)sender {

@@ -11,9 +11,19 @@
 @class ATTNUserIdentity;
 
 
-@interface ATTNSDK : NSObject <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
-
 NS_ASSUME_NONNULL_BEGIN
+
+
+extern NSString * const CREATIVE_TRIGGER_STATUS_OPENED;
+extern NSString * const CREATIVE_TRIGGER_STATUS_CLOSED;
+extern NSString * const CREATIVE_TRIGGER_STATUS_NOT_OPENED;
+extern NSString * const CREATIVE_TRIGGER_STATUS_NOT_CLOSED;
+
+typedef void (^ATTNCreativeTriggerCompletionHandler)(NSString * triggerStatus);
+
+
+
+@interface ATTNSDK : NSObject <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
 
 @property (readonly) NSString* domain;
 
@@ -26,6 +36,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)identify:(NSDictionary *)userIdentifiers;
 
 - (void)trigger:(UIView *)theView;
+
+- (void)trigger:(UIView *)theView handler:(_Nullable ATTNCreativeTriggerCompletionHandler)handler;
 
 - (void)clearUser;
 

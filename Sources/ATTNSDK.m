@@ -12,12 +12,27 @@
 #import "ATTNCreativeUrlFormatter.h"
 #import "Internal/ATTNInfoEvent.h"
 
+
+// Status passed to ATTNTriggerCompletionHandler when the creative is opened sucessfully
+NSString *const CREATIVE_TRIGGER_STATUS_OPENED = @"CREATIVE_TRIGGER_STATUS_OPENED";
+// Status passed to ATTNTriggerCompletionHandler when the creative is closed sucessfully
+NSString *const CREATIVE_TRIGGER_STATUS_CLOSED = @"CREATIVE_TRIGGER_STATUS_CLOSED";
+// Status passed to the ATTNTriggerCompletionHandler when the Creative has been triggered but it is not
+// opened successfully. This can happen if there is no available mobile app creative, if the creative
+// is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
+NSString *const CREATIVE_TRIGGER_STATUS_NOT_OPENED = @"CREATIVE_TRIGGER_STATUS_NOT_OPENED";
+// Status passed to the ATTNTriggerCompletionHandler when the Creative is not closed due to an unknown
+// exception
+NSString *const CREATIVE_TRIGGER_STATUS_NOT_CLOSED = @"CREATIVE_TRIGGER_STATUS_NOT_CLOSED";
+
+
 @implementation ATTNSDK {
   UIView *_parentView;
   WKWebView *_webView;
   NSString *_mode;
   ATTNUserIdentity *_userIdentity;
   ATTNAPI *_api;
+  ATTNCreativeTriggerCompletionHandler _triggerHandler;
 }
 
 - (id)initWithDomain:(NSString *)domain {
@@ -51,12 +66,21 @@
 }
 
 - (void)trigger:(UIView *)theView {
+  [self trigger:theView handler:nil];
+}
+
+- (void)trigger:(UIView *)theView handler:(ATTNCreativeTriggerCompletionHandler)handler {
   _parentView = theView;
+  _triggerHandler = handler;
+
   NSLog(@"Called showWebView in creativeSDK with domain: %@", _domain);
   if (@available(iOS 14, *)) {
     NSLog(@"The iOS version is new enough, continuing to show the Attentive creative.");
   } else {
     NSLog(@"Not showing the Attentive creative because the iOS version is too old.");
+    if (self->_triggerHandler != nil) {
+      self->_triggerHandler(CREATIVE_TRIGGER_STATUS_NOT_OPENED);
+    }
     return;
   }
   NSString *creativePageUrl = [[ATTNCreativeUrlFormatter class]
@@ -124,16 +148,28 @@
              completionHandler:^(NSString *status, NSError *error) {
                if (!status) {
                  NSLog(@"No status returned from JS. Not showing WebView.");
+                 if (self->_triggerHandler != nil) {
+                   self->_triggerHandler(CREATIVE_TRIGGER_STATUS_NOT_OPENED);
+                 }
                  return;
                } else if ([status isEqualToString:@"SUCCESS"]) {
                  NSLog(@"Found creative iframe, showing WebView.");
                  if (![self->_mode isEqualToString:@"debug"]) {
                    [self->_parentView addSubview:webView];
                  }
+                 if (self->_triggerHandler != nil) {
+                   self->_triggerHandler(CREATIVE_TRIGGER_STATUS_OPENED);
+                 }
                } else if ([status isEqualToString:@"TIMED OUT"]) {
                  NSLog(@"Creative timed out. Not showing WebView.");
+                 if (self->_triggerHandler != nil) {
+                   self->_triggerHandler(CREATIVE_TRIGGER_STATUS_NOT_OPENED);
+                 }
                } else {
                  NSLog(@"Received unknown status: %@. Not showing WebView", status);
+                 if (self->_triggerHandler != nil) {
+                   self->_triggerHandler(CREATIVE_TRIGGER_STATUS_NOT_OPENED);
+                 }
                }
              }];
 }
@@ -142,7 +178,17 @@
 - (void)userContentController:(WKUserContentController *)userContentController
       didReceiveScriptMessage:(WKScriptMessage *)message {
   if ([message.body isEqualToString:@"CLOSE"]) {
-    [_webView removeFromSuperview];
+    @try {
+      [_webView removeFromSuperview];
+      if (self->_triggerHandler != nil) {
+        self->_triggerHandler(CREATIVE_TRIGGER_STATUS_CLOSED);
+      }
+    } @catch (NSException *e) {
+      NSLog(@"Exception when closing creative: %@", e.reason);
+      if (self->_triggerHandler != nil) {
+        self->_triggerHandler(CREATIVE_TRIGGER_STATUS_NOT_CLOSED);
+      }
+    }
   }
 }
 
