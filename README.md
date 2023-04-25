@@ -74,6 +74,24 @@ For each identifier type, use the name `IDENTIFIER_TYPE_{IDENTIFIER_NAME}` for t
 ### Load and render the creative
 
 ```objectiveC
+// Load the creative with a completion handler.
+[sdk trigger:self.view
+     handler:^(NSString *triggerStatus) {
+       if (triggerStatus == CREATIVE_TRIGGER_STATUS_OPENED) {
+         NSLog(@"Opened the Creative!");
+       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_OPENED) {
+         NSLog(@"Couldn't open the Creative!");
+       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_CLOSED) {
+         NSLog(@"Closed the Creative!");
+       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_CLOSED) {
+         NSLog(@"Couldn't close the Creative!");
+       }
+     }];
+```
+See [ATTNSDK.m](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/Sources/ATTNSDK.m) for a description of all the different trigger statuses.
+
+```objectiveC
+// Alternatively, you can load the creative without a completion handler
 [sdk trigger:self.view];
 ```
 
