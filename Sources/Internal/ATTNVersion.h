@@ -10,6 +10,6 @@
 
 // This should match the Podspec version
 // If there's a way to define the version in one place and use it both here and the Podspec then we should do it - I don't know of a way
-static NSString* const SDK_VERSION = @"0.4.0";
+static NSString* const SDK_VERSION = @"0.4.1";
 
 #endif /* ATTNVersion_h */
