@@ -65,6 +65,8 @@ IOS SDK is used.
 The code snippets and examples below assume you are working in Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
 
+#### Objective-C
+
 ```objectiveC
 #import "attentive_ios_sdk/attentive-ios-sdk-umbrella.h"
 ```
@@ -80,54 +82,118 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 [ATTNEventTracker setupWithSDk:sdk];
 ```
 
+#### Swift
+
+```swift
+import attentive_ios_sdk
+```
+
+```swift
+let sdk = ATTNSDK(domain: "myCompanyDomain")
+
+let sdk = ATTNSDK(domain: "myCompanyDomain", mode: "debug")
+
+ATTNEventTracker.setup(with: sdk)
+```
+
 ### Identify information about the current user
 
 Register any identifying information you have about the user with the Attentive SDK. This method can be called any time you have new information to attribute to the user.
 
+#### Objective-C
+
 ```objectiveC
-[sdk identify:@{ IDENTIFIER_TYPE_CLIENT_USER_ID: @"myAppUserId", IDENTIFIER_TYPE_PHONE: @"+15556667777"}];
+[sdk identify:@{ 
+  IDENTIFIER_TYPE_CLIENT_USER_ID: @"myAppUserId", 
+  IDENTIFIER_TYPE_PHONE: @"+15556667777"
+}];
 ```
 
+#### Swift
+
+```swift
+sdk.identify([
+  IDENTIFIER_TYPE_CLIENT_USER_ID : "myAppUserId",
+  IDENTIFIER_TYPE_PHONE : "+15556667777"
+])
+```
 The more identifiers that are passed to `identify`, the better the SDK will function. Here is the list of possible identifiers:
-| Identifier Name | Type | Description |
-| ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Client User ID | NSString* | Your unique identifier for the user. This should be consistent across the user's lifetime. For example, a database id. |
-| Phone | NSString* | The users's phone number in E.164 format |
-| Email | NSString* | The users's email |
-| Shopify ID | NSString* | The users's Shopify ID |
-| Klaviyo ID | NSString* | The users's Klaviyo ID |
-| Custom Identifiers | NSDictionary<NSString *, NSString _>_ | Key-value pairs of custom identifier names and values. The values should be unique to this user. |
+| Identifier Name | Constant Name | Type | Description |
+| ------------------ | ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Client User ID | `IDENTIFIER_TYPE_CLIENT_USER_ID` | NSString * | Your unique identifier for the user. This should be consistent across the user's lifetime. For example, a database id. |
+| Phone | `IDENTIFIER_TYPE_PHONE` | NSString* | The users's phone number in E.164 format |
+| Email | `IDENTIFIER_TYPE_EMAIL` | NSString* | The users's email |
+| Shopify ID | `IDENTIFIER_TYPE_SHOPIFY_ID` | NSString* | The users's Shopify ID |
+| Klaviyo ID | `IDENTIFIER_TYPE_KLAVIYO_ID` | NSString* | The users's Klaviyo ID |
+| Custom Identifiers | `IDENTIFIER_TYPE_CUSTOM_IDENTIFIERS` | NSDictionary<NSString *, NSString _>_ | Key-value pairs of custom identifier names and values. The values should be unique to this user. |
 
 For each identifier type, use the name `IDENTIFIER_TYPE_{IDENTIFIER_NAME}` for the key name in the user identifiers map.
 
 ### Load and render the creative
 
+#### Objective-C
+
 ```objectiveC
 // Load the creative with a completion handler.
 [sdk trigger:self.view
      handler:^(NSString *triggerStatus) {
-       if (triggerStatus == CREATIVE_TRIGGER_STATUS_OPENED) {
-         NSLog(@"Opened the Creative!");
-       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_OPENED) {
-         NSLog(@"Couldn't open the Creative!");
-       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_CLOSED) {
-         NSLog(@"Closed the Creative!");
-       } else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_CLOSED) {
-         NSLog(@"Couldn't close the Creative!");
-       }
-     }];
+      // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is opened sucessfully
+      if (triggerStatus == CREATIVE_TRIGGER_STATUS_OPENED) {
+        NSLog(@"Opened the Creative!");
+      }
+      // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative has been triggered but it is not opened successfully. 
+      // This can happen if there is no available mobile app creative, if the creative is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
+      else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_OPENED) {
+        NSLog(@"Couldn't open the Creative!");
+      }
+      // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is closed sucessfully
+      else if (triggerStatus == CREATIVE_TRIGGER_STATUS_CLOSED) {
+        NSLog(@"Closed the Creative!");
+      }
+      // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative is not closed due to an unknown exception
+      else if (triggerStatus == CREATIVE_TRIGGER_STATUS_NOT_CLOSED) {
+        NSLog(@"Couldn't close the Creative!");
+      }
+      }];
 ```
 
-See [ATTNSDK.m](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/Sources/ATTNSDK.m) for a description of all the different trigger statuses.
+#### Swift
+
+```swift
+sdk.trigger(view) { status in
+  switch status {
+  case CREATIVE_TRIGGER_STATUS_OPENED:
+    print("Opened the Creative!")
+  case CREATIVE_TRIGGER_STATUS_NOT_OPENED:
+    print("Couldn't open the Creative!")
+  case CREATIVE_TRIGGER_STATUS_CLOSED:
+    print("Closed the Creative!")
+  case CREATIVE_TRIGGER_STATUS_NOT_CLOSED:
+    print("Couldn't close the Creative!")
+  default:
+    break
+  }
+}
+```
+
+#### Objective-C
 
 ```objectiveC
 // Alternatively, you can load the creative without a completion handler
 [sdk trigger:self.view];
 ```
 
+#### Swift
+
+```swift
+sdk.trigger(view)
+```
+
 ### Record user events
 
 The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
+
+#### Objective-C
 
 ```objectiveC
 // Create the Item(s) that was/were purchased
@@ -141,12 +207,34 @@ ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] o
 [[ATTNEventTracker sharedInstance] recordEvent:purchase];
 ```
 
+#### Swift
+
+```swift
+let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
+
+let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
+
+let order = ATTNOrder(orderId: "778899")
+
+let purchase = ATTNPurchaseEvent(items: [item], order: order)
+
+ATTNEventTracker.sharedInstance().record(purchase)
+```
+
 ### Clear the current user
 
 If the user logs out then the current user identifiers should be deleted:
 
+#### Objective-C
+
 ```objectiveC
 [sdk clearUser];
+```
+
+#### Swift
+
+```swift
+sdk.clearUser()
 ```
 
 When/if the user logs back in, `identify` should be called again with the user's identfiers
