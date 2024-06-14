@@ -12,9 +12,9 @@ final class ATTNCreativeUrlProviderSpy: ATTNCreativeUrlProviding {
   private(set) var buildCompanyCreativeUrlWasCalled = false
   private(set) var usedDomain: String?
 
-  func buildCompanyCreativeUrl(forDomain domain: String, mode: String, userIdentity: ATTNSDKFramework.ATTNUserIdentity) -> String {
+  func buildCompanyCreativeUrl(configuration: ATTNSDKFramework.ATTNCreativeUrlConfig) -> String {
     buildCompanyCreativeUrlWasCalled = true
-    usedDomain = domain
+    usedDomain = configuration.domain
     return ""
   }
 }

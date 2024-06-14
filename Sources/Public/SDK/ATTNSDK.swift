@@ -51,6 +51,8 @@ public final class ATTNSDK: NSObject {
   private var mode: ATTNSDKMode
   private var urlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()
 
+  public var skipFatigueOnCreatives: Bool = false
+
   public init(domain: String, mode: ATTNSDKMode) {
     NSLog("init attentive_ios_sdk v%@", ATTNConstants.sdkVersion)
     self.domain = domain
@@ -84,11 +86,52 @@ public final class ATTNSDK: NSObject {
 
   @objc(trigger:)
   public func trigger(_ view: UIView) {
-    trigger(view, handler: nil)
+    launchCreative(parentView: view)
   }
 
   @objc(trigger:handler:)
   public func trigger(_ view: UIView, handler: ATTNCreativeTriggerCompletionHandler?) {
+    launchCreative(parentView: view, handler: handler)
+  }
+
+  @objc(trigger:creativeId:handler:)
+  public func trigger(_ view: UIView, creativeId: String, handler: ATTNCreativeTriggerCompletionHandler?) {
+    launchCreative(parentView: view, creativeId: creativeId, handler: handler)
+  }
+
+  @objc(clearUser)
+  public func clearUser() {
+    userIdentity.clearUser()
+  }
+
+  @objc(updateDomain:)
+  public func update(domain: String) {
+    guard self.domain != domain else { return }
+    self.domain = domain
+    api.update(domain: domain)
+    api.send(userIdentity: userIdentity)
+  }
+}
+
+// MARK: Private Helpers
+fileprivate extension ATTNSDK {
+  func sendInfoEvent() {
+    api.send(event: ATTNInfoEvent(), userIdentity: userIdentity)
+  }
+
+  func closeCreative() {
+    webView?.removeFromSuperview()
+    webView = nil
+    ATTNSDK.isCreativeOpen = false
+    triggerHandler?(ATTNCreativeTriggerStatus.closed)
+    NSLog("Successfully closed creative")
+  }
+
+  func launchCreative(
+    parentView view: UIView,
+    creativeId: String? = nil,
+    handler: ATTNCreativeTriggerCompletionHandler? = nil
+  ) {
     parentView = view
     triggerHandler = handler
 
@@ -107,9 +150,13 @@ public final class ATTNSDK: NSObject {
     NSLog("The iOS version is new enough, continuing to show the Attentive creative.")
 
     let creativePageUrl = urlBuilder.buildCompanyCreativeUrl(
-      forDomain: domain,
-      mode: mode.rawValue,
-      userIdentity: userIdentity
+      configuration: ATTNCreativeUrlConfig(
+        domain: domain,
+        creativeId: creativeId,
+        skipFatigue: skipFatigueOnCreatives,
+        mode: mode.rawValue,
+        userIdentity: userIdentity
+      )
     )
 
     NSLog("Requesting creative page url: %@", creativePageUrl)
@@ -141,34 +188,6 @@ public final class ATTNSDK: NSObject {
       webView.isOpaque = false
       webView.backgroundColor = .clear
     }
-  }
-
-  @objc(clearUser)
-  public func clearUser() {
-    userIdentity.clearUser()
-  }
-
-  @objc(updateDomain:)
-  public func update(domain: String) {
-    guard self.domain != domain else { return }
-    self.domain = domain
-    api.update(domain: domain)
-    api.send(userIdentity: userIdentity)
-  }
-}
-
-// MARK: Private Helpers
-fileprivate extension ATTNSDK {
-  func sendInfoEvent() {
-    api.send(event: ATTNInfoEvent(), userIdentity: userIdentity)
-  }
-
-  func closeCreative() {
-    webView?.removeFromSuperview()
-    webView = nil
-    ATTNSDK.isCreativeOpen = false
-    triggerHandler?(ATTNCreativeTriggerStatus.closed)
-    NSLog("Successfully closed creative")
   }
 }
 

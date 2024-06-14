@@ -8,11 +8,7 @@
 import Foundation
 
 protocol ATTNCreativeUrlProviding {
-  func buildCompanyCreativeUrl(
-    forDomain domain: String,
-    mode: String,
-    userIdentity: ATTNUserIdentity
-  ) -> String
+  func buildCompanyCreativeUrl(configuration: ATTNCreativeUrlConfig) -> String
 }
 
 struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
@@ -28,53 +24,57 @@ struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
     self.appInfo = appInfo
   }
 
-  func buildCompanyCreativeUrl(
-    forDomain domain: String,
-    mode: String,
-    userIdentity: ATTNUserIdentity
-  ) -> String {
+  func buildCompanyCreativeUrl(configuration: ATTNCreativeUrlConfig) -> String {
     var components = URLComponents()
     components.scheme = Constants.scheme
     components.host = Constants.host
     components.path = Constants.path
 
     var queryItems = [
-      URLQueryItem(name: "domain", value: domain)
+      URLQueryItem(name: "domain", value: configuration.domain)
     ]
 
-    if mode == "debug" {
-      queryItems.append(URLQueryItem(name: mode, value: "matter-trip-grass-symbol"))
+    if configuration.mode == "debug" {
+      queryItems.append(URLQueryItem(name: configuration.mode, value: "matter-trip-grass-symbol"))
     }
 
-    queryItems.append(URLQueryItem(name: "vid", value: userIdentity.visitorId))
+    queryItems.append(URLQueryItem(name: "vid", value: configuration.userIdentity.visitorId))
 
-    if let clientUserId = userIdentity.identifiers[ATTNIdentifierType.clientUserId] as? String {
+    if let clientUserId = configuration.userIdentity.identifiers[ATTNIdentifierType.clientUserId] as? String {
       queryItems.append(URLQueryItem(name: "cuid", value: clientUserId))
     }
 
-    if let phone = userIdentity.identifiers[ATTNIdentifierType.phone] as? String {
+    if let phone = configuration.userIdentity.identifiers[ATTNIdentifierType.phone] as? String {
       queryItems.append(URLQueryItem(name: "p", value: phone))
     }
 
-    if let email = userIdentity.identifiers[ATTNIdentifierType.email] as? String {
+    if let email = configuration.userIdentity.identifiers[ATTNIdentifierType.email] as? String {
       queryItems.append(URLQueryItem(name: "e", value: email))
     }
 
-    if let klaviyoId = userIdentity.identifiers[ATTNIdentifierType.klaviyoId] as? String {
+    if let klaviyoId = configuration.userIdentity.identifiers[ATTNIdentifierType.klaviyoId] as? String {
       queryItems.append(URLQueryItem(name: "kid", value: klaviyoId))
     }
 
-    if let shopifyId = userIdentity.identifiers[ATTNIdentifierType.shopifyId] as? String {
+    if let shopifyId = configuration.userIdentity.identifiers[ATTNIdentifierType.shopifyId] as? String {
       queryItems.append(URLQueryItem(name: "sid", value: shopifyId))
     }
 
-    if let customIdentifiersJson = getCustomIdentifiersJson(userIdentity: userIdentity) {
+    if let customIdentifiersJson = getCustomIdentifiersJson(userIdentity: configuration.userIdentity) {
       queryItems.append(URLQueryItem(name: "cstm", value: customIdentifiersJson))
     }
 
     // Add SDK info just for analytics purposes
     queryItems.append(URLQueryItem(name: "sdkVersion", value: appInfo.getSdkVersion()))
     queryItems.append(URLQueryItem(name: "sdkName", value: appInfo.getSdkName()))
+
+    if configuration.skipFatigue {
+      queryItems.append(URLQueryItem(name: "skipFatigue", value: "true"))
+    }
+
+    if let creativeId = configuration.creativeId {
+      queryItems.append(URLQueryItem(name: "attn_creative_id", value: creativeId))
+    }
 
     components.queryItems = queryItems
 
