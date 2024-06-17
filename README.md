@@ -242,6 +242,24 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
 [sdk updateDomain: @"differentDomain"];
 ```
 
+### Skip Fatique on Creative
+
+Determinates if fatigue rules evaluation will be skipped for Creative. Default value is `false`.
+
+#### Swift
+
+```swift
+let sdk = ATTNSDK(domain: "domain")
+sdk.skipFatigueOnCreative = true
+```
+
+#### Objective-C
+
+```objective-c
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
+sdk.skipFatigueOnCreative = YES;
+```
+
 ### Clear the current user
 
 If the user logs out then the current user identifiers should be deleted:

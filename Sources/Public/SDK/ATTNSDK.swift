@@ -51,7 +51,7 @@ public final class ATTNSDK: NSObject {
   private var mode: ATTNSDKMode
   private var urlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()
 
-  /// Determins if fatigue rules are evaluated
+  /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
   @objc public var skipFatigueOnCreative: Bool = false
 
   public init(domain: String, mode: ATTNSDKMode) {
