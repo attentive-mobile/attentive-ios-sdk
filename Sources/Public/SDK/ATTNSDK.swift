@@ -52,7 +52,7 @@ public final class ATTNSDK: NSObject {
   private var urlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()
 
   /// Determins if fatigue rules are evaluated
-  public var skipFatigueOnCreative: Bool = false
+  @objc public var skipFatigueOnCreative: Bool = false
 
   public init(domain: String, mode: ATTNSDKMode) {
     NSLog("init attentive_ios_sdk v%@", ATTNConstants.sdkVersion)
