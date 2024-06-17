@@ -51,7 +51,8 @@ public final class ATTNSDK: NSObject {
   private var mode: ATTNSDKMode
   private var urlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()
 
-  public var skipFatigueOnCreatives: Bool = false
+  /// Determins if fatigue rules are evaluated
+  public var skipFatigueOnCreative: Bool = false
 
   public init(domain: String, mode: ATTNSDKMode) {
     NSLog("init attentive_ios_sdk v%@", ATTNConstants.sdkVersion)
@@ -64,6 +65,7 @@ public final class ATTNSDK: NSObject {
     super.init()
 
     self.sendInfoEvent()
+    self.initializeSkipFatigueOnCreatives()
   }
 
   @objc(initWithDomain:)
@@ -153,7 +155,7 @@ fileprivate extension ATTNSDK {
       configuration: ATTNCreativeUrlConfig(
         domain: domain,
         creativeId: creativeId,
-        skipFatigue: skipFatigueOnCreatives,
+        skipFatigue: skipFatigueOnCreative,
         mode: mode.rawValue,
         userIdentity: userIdentity
       )
@@ -289,10 +291,6 @@ extension ATTNSDK: WKNavigationDelegate {
 
 // MARK: Internal Helpers
 extension ATTNSDK {
-  func send(event: ATTNEvent) {
-    api.send(event: event, userIdentity: userIdentity)
-  }
-
   convenience init(domain: String, mode: ATTNSDKMode, urlBuilder: ATTNCreativeUrlProviding) {
     self.init(domain: domain, mode: mode)
     self.urlBuilder = urlBuilder

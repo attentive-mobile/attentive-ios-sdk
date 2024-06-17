@@ -26,6 +26,8 @@ final class ATTNSDKTests: XCTestCase {
   override func tearDown() {
     ATTNEventTracker.destroy()
 
+    ProcessInfo.restoreOriginalEnvironment()
+
     creativeUrlProviderSpy = nil
     sut = nil
     apiSpy = nil
@@ -84,6 +86,27 @@ final class ATTNSDKTests: XCTestCase {
     let sdk = ATTNEventTracker.sharedInstance()?.getSdk()
 
     XCTAssertEqual(sdk?.getDomain(), newDomain)
+  }
+
+  func testSkipFatigue_whenTrue_willUpdateUrl() {
+    let creativeId = "123456"
+    sut.skipFatigueOnCreative = true
+
+    sut.trigger(UIView(), creativeId: creativeId, handler: nil)
+
+    XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
+    XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
+  }
+
+  func testSkipFatigue_whenEnvValueIsPassed_ShouldBeTrue() {
+    ProcessInfo.swizzleEnvironment()
+    let creativeId = "123456"
+    sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
+
+    sut.trigger(UIView(), creativeId: creativeId, handler: nil)
+
+    XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
+    XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
   }
 }
 

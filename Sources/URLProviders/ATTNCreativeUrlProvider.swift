@@ -69,7 +69,7 @@ struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
     queryItems.append(URLQueryItem(name: "sdkName", value: appInfo.getSdkName()))
 
     if configuration.skipFatigue {
-      queryItems.append(URLQueryItem(name: "skipFatigue", value: "true"))
+      queryItems.append(URLQueryItem(name: "skipFatigue", value: configuration.skipFatigue.stringValue))
     }
 
     if let creativeId = configuration.creativeId {
