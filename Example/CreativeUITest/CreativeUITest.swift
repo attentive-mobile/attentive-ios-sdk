@@ -26,7 +26,9 @@ final class CreativeUITest: XCTestCase, BaseXCTestCase {
   }
 
   func testLoadCreative_clickClose_closesCreative() {
-    launch(with: .production)
+    launch(with: .production, extras: [
+      "SKIP_FATIGUE_ON_CREATIVE": "true"
+    ])
 
     HomePage
       .tapOnPushMeToCreative()

@@ -33,12 +33,21 @@ extension BaseXCTestCase {
   }
 
   func launch(with mode: Mode) {
+    launch(with: mode, extras: [:])
+  }
+
+  func launch(with mode: Mode, extras: [String: String] = [:]) {
     let app = XCUIApplication()
     app.launchEnvironment = [
       "COM_ATTENTIVE_EXAMPLE_DOMAIN" : "mobileapps",
       "COM_ATTENTIVE_EXAMPLE_MODE" : mode.rawValue,
       "COM_ATTENTIVE_EXAMPLE_IS_UI_TEST" : "YES",
     ]
+
+    if !extras.isEmpty {
+      app.launchEnvironment.merge(extras) { _, new in new }
+    }
+
     app.launch()
   }
 
