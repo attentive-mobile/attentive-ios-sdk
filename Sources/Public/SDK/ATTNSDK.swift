@@ -96,6 +96,11 @@ public final class ATTNSDK: NSObject {
     launchCreative(parentView: view, handler: handler)
   }
 
+  @objc(trigger:creativeId:)
+  public func trigger(_ view: UIView, creativeId: String) {
+    launchCreative(parentView: view, creativeId: creativeId, handler: nil)
+  }
+
   @objc(trigger:creativeId:handler:)
   public func trigger(_ view: UIView, creativeId: String, handler: ATTNCreativeTriggerCompletionHandler?) {
     launchCreative(parentView: view, creativeId: creativeId, handler: handler)

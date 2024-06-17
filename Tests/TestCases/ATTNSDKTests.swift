@@ -103,7 +103,7 @@ final class ATTNSDKTests: XCTestCase {
     let creativeId = "123456"
     sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
 
-    sut.trigger(UIView(), creativeId: creativeId, handler: nil)
+    sut.trigger(UIView(), creativeId: creativeId)
 
     XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
     XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
