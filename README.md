@@ -260,6 +260,10 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
 sdk.skipFatigueOnCreative = YES;
 ```
 
+Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
+
+Environment value can be a string with value `"true"` or `"false"`.
+
 ### Clear the current user
 
 If the user logs out then the current user identifiers should be deleted:
