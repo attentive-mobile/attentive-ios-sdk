@@ -242,7 +242,7 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
 [sdk updateDomain: @"differentDomain"];
 ```
 
-### Skip Fatique on Creative
+### Skip Fatigue on Creative
 
 Determinates if fatigue rules evaluation will be skipped for Creative. Default value is `false`.
 
