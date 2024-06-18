@@ -1,7 +1,7 @@
 ## [0.6.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.5.1...0.6.0) (2024-06-13)
 
 ### Breaking Changes
-* `ATTNEventTracker.sharedInstance()` returns now and Optional. Update your codebase accordandly to avoid operating over a nil instance.
+* `ATTNEventTracker.sharedInstance()` returns now and Optional. Update your codebase accordingly to avoid operating over a nil instance.
 * For **SPM**, Objective-C target **ATTNSDKFrameworkObjc** was added due to mixed languages limitations in the **Sources/** folder. Please use `import ATTNSDKFrameworkObjc` to access the following global constants.
 
   | Creative   |
