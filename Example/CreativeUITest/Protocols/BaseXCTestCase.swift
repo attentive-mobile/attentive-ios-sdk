@@ -19,6 +19,8 @@ protocol BaseXCTestCase where Self: XCTestCase {
 
 extension BaseXCTestCase {
   func deleteApp() {
+    guard canLaunchExternalApps else { return }
+    
     let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
     let icon = springboard.icons["Example - Local"]
