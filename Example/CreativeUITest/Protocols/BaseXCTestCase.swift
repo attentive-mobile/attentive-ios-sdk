@@ -57,6 +57,6 @@ extension BaseXCTestCase {
   var canLaunchExternalApps: Bool {
     ProcessInfo
       .processInfo
-      .environment["COM_ATTENTIVE_EXAMPLE_HOST"] == "local"
+      .environment["COM_ATTENTIVE_EXAMPLE_HOST"] != "device_farm"
   }
 }
