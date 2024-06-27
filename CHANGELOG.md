@@ -1,14 +1,3 @@
-## [1.0.0-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.6.0...1.0.0-beta.1) (2024-06-27)
-
-### Breaking Changes
-* Upgraded SDK minimum deployment target from iOS 11 to iOS 14 to support new features from iOS Frameworks.
-
-### Feature
-* Add a log level of verbose/standard/light to the SDK Config ([101](https://github.com/attentive-mobile/attentive-ios-sdk/pull/101)) ([0a40997](https://github.com/attentive-mobile/attentive-ios-sdk/commit/0a40997e62803d83731cc35d3b9c95aa5996893f))
-* Create (or update) test suite ([100](https://github.com/attentive-mobile/attentive-ios-sdk/pull/100)) ([4e562cd](https://github.com/attentive-mobile/attentive-ios-sdk/commit/4e562cd93f4e17f6f7fd3498076895ec5e8e6fa8))
-* Force show creatives on client apps for testing ([97](https://github.com/attentive-mobile/attentive-ios-sdk/pull/97)) ([1a2d81c](https://github.com/attentive-mobile/attentive-ios-sdk/commit/1a2d81cbfbb440638f5c5342225aeb58f11a236e))
-* Mobile App Domain Switching ([95](https://github.com/attentive-mobile/attentive-ios-sdk/pull/95)) ([e12028d](e12028d7892ca5fbd785e26b05dfeda4ab187024))
-
 ## [0.6.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.5.1...0.6.0) (2024-06-13)
 
 ### Breaking Changes
