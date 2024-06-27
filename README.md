@@ -10,7 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '~> 0.6'
+  pod 'ATTNSDKFramework', '1.0.0-beta.1'
 end
 ```
 
@@ -40,7 +40,7 @@ In your applications `Package.swift` file, add the attentive-ios-sdk as a depend
 ```swift
 dependencies: [
     // your other app dependencies
-    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "0.6.0"),
+    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.0.0-beta.1"),
 ],
 ```
 
