@@ -39,6 +39,8 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
   private weak var webViewProvider: ATTNWebViewProviding?
   private var urlBuilder: ATTNCreativeUrlProviding
+  // a serial dispatch queue to synchronize access to webview to prevent race condition
+  private let creativeQueue = DispatchQueue(label: "com.attentive.creativeQueue")
 
   init(webViewProvider: ATTNWebViewProviding, creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()) {
     self.webViewProvider = webViewProvider
@@ -50,72 +52,81 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     creativeId: String? = nil,
     handler: ATTNCreativeTriggerCompletionHandler? = nil
   ) {
-    guard let webViewProvider = webViewProvider else {
-      Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
-      webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-      return
-    }
+    creativeQueue.async { [self] in
+      guard let webViewProvider = webViewProvider else {
+        Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
+        webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        return
+      }
 
-    webViewProvider.parentView = view
-    webViewProvider.triggerHandler = handler
+      webViewProvider.parentView = view
+      webViewProvider.triggerHandler = handler
 
-    Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
+      Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
 
-    guard !isCreativeOpen else {
-      Loggers.creative.debug("Attempted to trigger creative, but creative is currently open. Taking no action")
-      return
-    }
+      guard !isCreativeOpen else {
+        Loggers.creative.debug("Attempted to trigger creative, but creative is currently open. Taking no action")
+        return
+      }
 
-    Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
+      Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
 
-    let creativePageUrl = urlBuilder.buildCompanyCreativeUrl(
-      configuration: ATTNCreativeUrlConfig(
-        domain: domain,
-        creativeId: creativeId,
-        skipFatigue: webViewProvider.skipFatigueOnCreative,
-        mode: mode.rawValue,
-        userIdentity: userIdentity
+      let creativePageUrl = urlBuilder.buildCompanyCreativeUrl(
+        configuration: ATTNCreativeUrlConfig(
+          domain: domain,
+          creativeId: creativeId,
+          skipFatigue: webViewProvider.skipFatigueOnCreative,
+          mode: mode.rawValue,
+          userIdentity: userIdentity
+        )
       )
-    )
 
-    Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
+      Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
 
-    guard let url = URL(string: creativePageUrl) else {
-      Loggers.creative.debug("URL could not be created.")
-      return
-    }
+      guard let url = URL(string: creativePageUrl) else {
+        Loggers.creative.debug("URL could not be created.")
+        return
+      }
 
-    let request = URLRequest(url: url)
+      isCreativeOpen = true  // Set flag early to prevent race condition
+      Loggers.creative.debug("Setting up WebView for creative")
 
-    let configuration = WKWebViewConfiguration()
-    configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
+      DispatchQueue.main.async {
+        let request = URLRequest(url: url)
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-    let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
-    let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
-    configuration.userContentController.addUserScript(userScript)
+        let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
+        let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        configuration.userContentController.addUserScript(userScript)
 
-    webViewProvider.webView = WKWebView(frame: view.frame, configuration: configuration)
+        webViewProvider.webView = WKWebView(frame: view.frame, configuration: configuration)
 
-    guard let webView = webViewProvider.webView else { return }
+        guard let webView = webViewProvider.webView else { return }
 
-    webView.navigationDelegate = self
-    webView.load(request)
+        webView.navigationDelegate = self
+        webView.load(request)
 
-    if mode == .debug {
-      webViewProvider.parentView?.addSubview(webView)
-    } else {
-      webView.isOpaque = false
-      webView.backgroundColor = .clear
+        if self.mode == .debug {
+          webViewProvider.parentView?.addSubview(webView)
+        } else {
+          webView.isOpaque = false
+          webView.backgroundColor = .clear
+        }
+      }
     }
   }
 
   func closeCreative() {
-    webViewProvider?.webView?.removeFromSuperview()
-    webViewProvider?.webView = nil
-
-    isCreativeOpen = false
-    webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-    Loggers.creative.debug("Successfully closed creative")
+    DispatchQueue.main.async {
+      self.webViewProvider?.webView?.removeFromSuperview()
+      self.webViewProvider?.webView = nil
+    }
+    creativeQueue.async { [self] in
+      self.isCreativeOpen = false
+      self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
+      Loggers.creative.debug("Successfully closed creative")
+    }
   }
 }
 
@@ -205,7 +216,6 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
       closeCreative()
     } else if messageBody == "IMPRESSION" {
       Loggers.creative.debug("Creative opened and generated impression event")
-      isCreativeOpen = true
     } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), isCreativeOpen {
       Loggers.creative.debug("Nav away from creative, closing")
       closeCreative()
