@@ -12,16 +12,6 @@ public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
-  static var _isCreativeOpen: Bool = false
-
-  var isCreativeOpen: Bool {
-    get {
-      ATTNSDK._isCreativeOpen
-    }
-    set {
-      ATTNSDK._isCreativeOpen = newValue
-    }
-  }
 
   // MARK: Instance Properties
   var parentView: UIView?
