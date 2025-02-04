@@ -119,9 +119,16 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
   func closeCreative() {
     DispatchQueue.main.async {
-      self.webViewProvider?.webView?.removeFromSuperview()
+      if let webView = self.webViewProvider?.webView {
+        webView.navigationDelegate = nil
+        webView.removeFromSuperview()
+        webView.stopLoading()
+        webView.configuration.userContentController.removeAllUserScripts()
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
+      }
       self.webViewProvider?.webView = nil
     }
+
     creativeQueue.async { [self] in
       self.isCreativeOpen = false
       self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
@@ -217,8 +224,8 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
     } else if messageBody == "IMPRESSION" {
       Loggers.creative.debug("Creative opened and generated impression event")
     } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), isCreativeOpen {
-      Loggers.creative.debug("Nav away from creative, closing")
-      closeCreative()
+      Loggers.creative.debug("WebView hidden, ignoring since we want user to close manually")
+      // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
     }
   }
 }
