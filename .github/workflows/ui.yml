@@ -32,7 +32,7 @@ jobs:
         run: tar -czf ui-test-results.xcresult.tar.gz ui-test-results.xcresult
       - name: Upload UI Test Results
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.0
         with:
           name: ui-test-results
           path: ui-test-results.xcresult.tar.gz
