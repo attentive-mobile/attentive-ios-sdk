@@ -21,6 +21,7 @@ final class ATTNSDKTests: XCTestCase {
     creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
     apiSpy = ATTNAPISpy(domain: testDomain)
     sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
+    ATTNSDK._isCreativeOpen = false
   }
 
   override func tearDown() {
@@ -68,7 +69,11 @@ final class ATTNSDKTests: XCTestCase {
 
     XCTAssertEqual(apiSpy.domain, newDomain)
 
+    let urlBuiltExpectation = expectation(description: "Creative URL should be built")
+    creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
+
     sut.trigger(UIView())
+    wait(for: [urlBuiltExpectation], timeout: 5.0)
 
     XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
     XCTAssertEqual(creativeUrlProviderSpy.usedDomain, newDomain)
@@ -92,7 +97,11 @@ final class ATTNSDKTests: XCTestCase {
     let creativeId = "123456"
     sut.skipFatigueOnCreative = true
 
+    let urlBuiltExpectation = expectation(description: "Creative URL should be built")
+    creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
+
     sut.trigger(UIView(), creativeId: creativeId, handler: nil)
+    wait(for: [urlBuiltExpectation], timeout: 5.0)
 
     XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
     XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
@@ -103,7 +112,11 @@ final class ATTNSDKTests: XCTestCase {
     let creativeId = "123456"
     sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
 
+    let urlBuiltExpectation = expectation(description: "Creative URL should be built")
+    creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
+
     sut.trigger(UIView(), creativeId: creativeId)
+    wait(for: [urlBuiltExpectation], timeout: 5.0)
 
     XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
     XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
@@ -115,11 +128,21 @@ final class ATTNSDKTests: XCTestCase {
     let secondSdk = ATTNSDK(api: apiSpy, urlBuilder: secondCreativeUrlProviderSpy)
 
     XCTAssertFalse(ATTNSDK._isCreativeOpen, "The value should be false")
+
+    let firstCreativeBuiltExpectation = expectation(description: "First creative URL should be built")
+    creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = firstCreativeBuiltExpectation
     sut.trigger(UIView())
+    wait(for: [firstCreativeBuiltExpectation], timeout: 5.0)
     XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled, "Creative url should be built")
 
+    // Use an inverted expectation to assert that its URL building is not called.
+    let secondCreativeNotBuiltExpectation = expectation(description: "Second creative URL should not be built")
+    secondCreativeNotBuiltExpectation.isInverted = true
+    secondCreativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = secondCreativeNotBuiltExpectation
+
     secondSdk.trigger(UIView())
-    XCTAssertTrue(secondCreativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled, "Creative url should not be built")
+    wait(for: [secondCreativeNotBuiltExpectation], timeout: 1.0)
+    XCTAssertFalse(secondCreativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled, "Creative url should not be built")
 
     addTeardownBlock {
       ATTNSDK._isCreativeOpen = false

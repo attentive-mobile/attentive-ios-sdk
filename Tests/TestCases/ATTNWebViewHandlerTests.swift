@@ -219,7 +219,7 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   // Observers to trigger expectations
   var webView: WKWebView? {
     didSet {
-      if let webView = webView {
+      if let _ = webView {
         webViewCreationCount += 1
         print("MockWebViewProvider: WebView created, count: \(webViewCreationCount)")
         DispatchQueue.main.async {
