@@ -21,7 +21,8 @@ final class ATTNSDKTests: XCTestCase {
     creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
     apiSpy = ATTNAPISpy(domain: testDomain)
     sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
-    ATTNSDK._isCreativeOpen = false
+    // Reset the creative state using the shared state manager.
+    ATTNCreativeStateManager.shared.updateState(.closed)
   }
 
   override func tearDown() {
@@ -123,11 +124,11 @@ final class ATTNSDKTests: XCTestCase {
   }
 
   func testIsCreativeOpen_whenThereAreTwoSDKInstancesAndBothTriggersCreative_ShouldNotLaunchASecondCreative() {
-    ATTNSDK._isCreativeOpen = false
+    ATTNCreativeStateManager.shared.updateState(.closed)
     let secondCreativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
     let secondSdk = ATTNSDK(api: apiSpy, urlBuilder: secondCreativeUrlProviderSpy)
 
-    XCTAssertFalse(ATTNSDK._isCreativeOpen, "The value should be false")
+    XCTAssertFalse(ATTNCreativeStateManager.shared.getState() == .open, "The value should be false")
 
     let firstCreativeBuiltExpectation = expectation(description: "First creative URL should be built")
     creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = firstCreativeBuiltExpectation
@@ -145,7 +146,7 @@ final class ATTNSDKTests: XCTestCase {
     XCTAssertFalse(secondCreativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled, "Creative url should not be built")
 
     addTeardownBlock {
-      ATTNSDK._isCreativeOpen = false
+      ATTNCreativeStateManager.shared.updateState(.closed)
     }
   }
 }

@@ -27,7 +27,11 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
     super.setUp()
     mockWebViewProvider = MockWebViewProvider()
     mockUrlProvider = MockCreativeUrlProvider()
-    handler = ATTNWebViewHandler(webViewProvider: mockWebViewProvider, creativeUrlBuilder: mockUrlProvider)
+    handler = ATTNWebViewHandler(
+      webViewProvider: mockWebViewProvider,
+      creativeUrlBuilder: mockUrlProvider,
+      stateManager: ATTNCreativeStateManager()
+    )
   }
 
   override func tearDown() {
@@ -97,27 +101,28 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
     }
 
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {  // Wait to check for unexpected re-creation
-      XCTAssertNil(self.mockWebViewProvider.webView, "WebView should be nil after closing creative")
+      XCTAssertNil(self.mockWebViewProvider?.webView, "WebView should be nil after closing creative")
     }
   }
 
   func testLaunchCreative_ShouldLoadCorrectURL() {
     let parentView = UIView()
     let creativeId = "testCreative"
+    let expectedURL = "https://mockurl.com/creative?id=\(creativeId)"
 
-    print("TEST: Launching creative with ID \(creativeId)...")
+    handler = TestWebViewHandler(
+      webViewProvider: mockWebViewProvider,
+      creativeUrlBuilder: MockCreativeUrlProvider(),
+      stateManager: ATTNCreativeStateManager.shared
+    )
+    mockWebViewProvider.webViewSetupExpectation = expectation(description: "WebView should be set up and load the URL")
+
     handler.launchCreative(parentView: parentView, creativeId: creativeId)
 
-    // Allow some time for URL to be set
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-      print("TEST: Expected URL: https://mockurl.com/creative?id=\(creativeId)")
-      print("TEST: Actual URL: \(self.mockWebViewProvider.loadedURL ?? "nil")")
-
-      XCTAssertEqual(
-        self.mockWebViewProvider.loadedURL,
-        "https://mockurl.com/creative?id=\(creativeId)",
-        "WebView should load the correct URL"
-      )
+    waitForExpectations(timeout: 5.0) { error in
+      XCTAssertNil(error, "WebView did not set up in time")
+      let actualURL = (self.mockWebViewProvider.webView as? MockWKWebView)?.loadedURL
+      XCTAssertEqual(actualURL, expectedURL, "WebView should load the correct URL")
     }
   }
 }
@@ -194,11 +199,20 @@ final class ATTNWebViewHandlerUITests: XCTestCase {
 
 // MARK: Mocks
 
+// A custom WKWebView subclass that records the URL when load(_:) is called.
+class MockWKWebView: WKWebView {
+  var loadedURL: String?
+
+  override func load(_ request: URLRequest) -> WKNavigation? {
+    loadedURL = request.url?.absoluteString
+    return nil
+  }
+}
+
 class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   var parentView: UIView?
   var skipFatigueOnCreative: Bool = false
   var triggerHandler: ATTNCreativeTriggerCompletionHandler?
-  var isCreativeOpen: Bool = false
 
   private(set) var getDomainCallCount = 0
   private(set) var getModeCallCount = 0
@@ -219,14 +233,16 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   // Observers to trigger expectations
   var webView: WKWebView? {
     didSet {
-      if let _ = webView {
+      if let webView = webView {
         webViewCreationCount += 1
-        print("MockWebViewProvider: WebView created, count: \(webViewCreationCount)")
+        // If it's a MockWKWebView, capture its loaded URL.
+        if let mockWebView = webView as? MockWKWebView {
+          self.loadedURL = mockWebView.loadedURL
+        }
         DispatchQueue.main.async {
           self.webViewSetupExpectation?.fulfill()
         }
       } else {
-        print("MockWebViewProvider: WebView removed")
         DispatchQueue.main.async {
           self.webViewRemovalExpectation?.fulfill()
         }
@@ -235,15 +251,18 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   }
 
   func getDomain() -> String {
-    return "mock.domain.com"
+    getDomainCallCount += 1
+    return mockDomain
   }
 
   func getMode() -> ATTNSDKMode {
-    return .debug
+    getModeCallCount += 1
+    return mockMode
   }
 
   func getUserIdentity() -> ATTNUserIdentity {
-    return .init()
+    getUserIdentityCallCount += 1
+    return mockUserIdentity
   }
 }
 
@@ -255,4 +274,9 @@ class MockCreativeUrlProvider: ATTNCreativeUrlProviding {
   }
 }
 
+class TestWebViewHandler: ATTNWebViewHandler {
+  override func makeWebView() -> WKWebView {
+    return MockWKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+  }
+}
 
