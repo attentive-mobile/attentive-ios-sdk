@@ -31,22 +31,4 @@ final class ATTNCreativeStateManager {
       self.state = newState
     }
   }
-
-  /* Atomically compares the current state with an expected value and, if they match, updates to a new state.
-   - Parameters:
-   - expected: The expected current state.
-   - newState: The new state to set if the current state matches `expected`.
-   - Returns: `true` if the state was updated, `false` otherwise.
-   */
-  @discardableResult
-  func compareAndSet(expected: CreativeState, newState: CreativeState) -> Bool {
-    var didUpdate = false
-    queue.sync(flags: .barrier) {
-      if self.state == expected {
-        self.state = newState
-        didUpdate = true
-      }
-    }
-    return didUpdate
-  }
 }
