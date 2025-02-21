@@ -46,3 +46,6 @@ ExampleSwift/.build/*
 # Session
 Session.vim
 Sessionx.vim
+
+# UI tests
+ui-test-results.xcresult/
