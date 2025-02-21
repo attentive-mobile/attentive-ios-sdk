@@ -9,9 +9,9 @@ import XCTest
 import WebKit
 
 final class CreativeUITest: XCTestCase, BaseXCTestCase {
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = false
+  override func setUpWithError() throws {
+    try super.setUpWithError()
+    throw XCTSkip("Skipping all tests in CreativeUITest for now until we get new UI testing strategies implemented for new sample app")
   }
 
   override func tearDown() {
