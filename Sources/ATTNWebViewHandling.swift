@@ -6,14 +6,14 @@
 //
 
 import Foundation
-import WebKit
+@preconcurrency import WebKit
 
 protocol ATTNWebViewHandling {
   func launchCreative(parentView view: UIView, creativeId: String?, handler: ATTNCreativeTriggerCompletionHandler?)
   func closeCreative()
 }
 
-final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
+class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
   private enum Constants {
     static var visibilityEvent: String { "document-visibility:" }
     static var scriptMessageHandlerName: String { "log" }
@@ -39,10 +39,27 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
   private weak var webViewProvider: ATTNWebViewProviding?
   private var urlBuilder: ATTNCreativeUrlProviding
+  // a serial dispatch queue to synchronize access to webview to prevent race condition
+  private let creativeQueue = DispatchQueue(label: "com.attentive.creativeQueue")
+  private let stateManager: ATTNCreativeStateManager
 
-  init(webViewProvider: ATTNWebViewProviding, creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider()) {
+  init(webViewProvider: ATTNWebViewProviding,
+       creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider(),
+       stateManager: ATTNCreativeStateManager = .shared) {
     self.webViewProvider = webViewProvider
     self.urlBuilder = creativeUrlBuilder
+    self.stateManager = stateManager
+  }
+
+  func makeWebView() -> WKWebView {
+    let configuration = WKWebViewConfiguration()
+    configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
+
+    let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
+    let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+    configuration.userContentController.addUserScript(userScript)
+
+    return WKWebView(frame: .zero, configuration: configuration)
   }
 
   func launchCreative(
@@ -50,72 +67,113 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     creativeId: String? = nil,
     handler: ATTNCreativeTriggerCompletionHandler? = nil
   ) {
-    guard let webViewProvider = webViewProvider else {
-      Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
-      webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-      return
-    }
+    creativeQueue.async { [self] in
+      guard let webViewProvider = webViewProvider else {
+        Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
+        webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        return
+      }
 
-    webViewProvider.parentView = view
-    webViewProvider.triggerHandler = handler
+      webViewProvider.parentView = view
+      webViewProvider.triggerHandler = handler
 
-    Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
+      Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
 
-    guard !isCreativeOpen else {
-      Loggers.creative.debug("Attempted to trigger creative, but creative is currently open. Taking no action")
-      return
-    }
+      if stateManager.getState() != .closed {
+        Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
+        return
+      }
+      stateManager.updateState(.launching)
+      // Time out logic in case creative doesn't launch
+      let timeoutInterval: TimeInterval = 5.0
+      creativeQueue.asyncAfter(deadline: .now() + timeoutInterval) { [weak self] in
+        guard let self = self, let webViewProvider = self.webViewProvider else { return }
+        if self.stateManager.getState() == .launching {
+          Loggers.creative.error("Creative launch timed out.")
+          self.stateManager.updateState(.closed)
+          DispatchQueue.main.async {
+            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+          }
+        }
+      }
 
-    Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
 
-    let creativePageUrl = urlBuilder.buildCompanyCreativeUrl(
-      configuration: ATTNCreativeUrlConfig(
-        domain: domain,
-        creativeId: creativeId,
-        skipFatigue: webViewProvider.skipFatigueOnCreative,
-        mode: mode.rawValue,
-        userIdentity: userIdentity
+      Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
+
+      let creativePageUrl = urlBuilder.buildCompanyCreativeUrl(
+        configuration: ATTNCreativeUrlConfig(
+          domain: domain,
+          creativeId: creativeId,
+          skipFatigue: webViewProvider.skipFatigueOnCreative,
+          mode: mode.rawValue,
+          userIdentity: userIdentity
+        )
       )
-    )
 
-    Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
+      Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
 
-    guard let url = URL(string: creativePageUrl) else {
-      Loggers.creative.debug("URL could not be created.")
-      return
-    }
+      guard let url = URL(string: creativePageUrl) else {
+        Loggers.creative.debug("URL could not be created.")
+        stateManager.updateState(.closed)
+        return
+      }
 
-    let request = URLRequest(url: url)
+      Loggers.creative.debug("Setting up WebView for creative")
 
-    let configuration = WKWebViewConfiguration()
-    configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
+      DispatchQueue.main.async {
+        let request = URLRequest(url: url)
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-    let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
-    let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
-    configuration.userContentController.addUserScript(userScript)
+        let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
+        let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        configuration.userContentController.addUserScript(userScript)
 
-    webViewProvider.webView = WKWebView(frame: view.frame, configuration: configuration)
+        webViewProvider.webView = self.makeWebView()
 
-    guard let webView = webViewProvider.webView else { return }
+        guard let webView = webViewProvider.webView else { return }
 
-    webView.navigationDelegate = self
-    webView.load(request)
+        webView.navigationDelegate = self
+        webView.load(request)
 
-    if mode == .debug {
-      webViewProvider.parentView?.addSubview(webView)
-    } else {
-      webView.isOpaque = false
-      webView.backgroundColor = .clear
+        guard let parent = webViewProvider.parentView else { return }
+        parent.addSubview(webView)
+
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+          webView.topAnchor.constraint(equalTo: parent.topAnchor),
+          webView.bottomAnchor.constraint(equalTo: parent.bottomAnchor),
+          webView.leadingAnchor.constraint(equalTo: parent.leadingAnchor),
+          webView.trailingAnchor.constraint(equalTo: parent.trailingAnchor)
+        ])
+
+        if self.mode == .debug {
+          webViewProvider.parentView?.addSubview(webView)
+        } else {
+          webView.isOpaque = false
+          webView.backgroundColor = .clear
+        }
+      }
     }
   }
 
   func closeCreative() {
-    webViewProvider?.webView?.removeFromSuperview()
-    webViewProvider?.webView = nil
+    DispatchQueue.main.async {
+      if let webView = self.webViewProvider?.webView {
+        webView.navigationDelegate = nil
+        webView.removeFromSuperview()
+        webView.stopLoading()
+        webView.configuration.userContentController.removeAllUserScripts()
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
+      }
+      self.webViewProvider?.webView = nil
+    }
 
-    isCreativeOpen = false
-    webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-    Loggers.creative.debug("Successfully closed creative")
+    creativeQueue.async { [self] in
+      stateManager.updateState(.closed)
+      self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
+      Loggers.creative.debug("Successfully closed creative")
+    }
   }
 }
 
@@ -199,16 +257,16 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 extension ATTNWebViewHandler: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
     let messageBody = message.body as? String ?? "'Empty'"
-    Loggers.creative.debug("Web event message: \(messageBody). isCreativeOpen: \(self.isCreativeOpen ? "YES" : "NO")")
+    Loggers.creative.debug("Web event message: \(messageBody). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO")")
 
     if messageBody == "CLOSE" {
       closeCreative()
     } else if messageBody == "IMPRESSION" {
+      stateManager.updateState(.open)
       Loggers.creative.debug("Creative opened and generated impression event")
-      isCreativeOpen = true
-    } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), isCreativeOpen {
-      Loggers.creative.debug("Nav away from creative, closing")
-      closeCreative()
+    } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), stateManager.getState() == .open {
+      Loggers.creative.debug("WebView hidden, ignoring since we want user to close manually")
+      // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
     }
   }
 }
@@ -217,21 +275,13 @@ fileprivate extension ATTNWebViewHandler {
   var domain: String {
     webViewProvider?.getDomain() ?? ""
   }
-
   var mode: ATTNSDKMode {
     webViewProvider?.getMode() ?? .production
   }
-
   var userIdentity: ATTNUserIdentity {
     webViewProvider?.getUserIdentity() ?? .init()
   }
-
   var skipFatigueOnCreative: Bool {
     webViewProvider?.skipFatigueOnCreative ?? false
-  }
-
-  var isCreativeOpen: Bool {
-    get { webViewProvider?.isCreativeOpen ?? false }
-    set { webViewProvider?.isCreativeOpen = newValue }
   }
 }
