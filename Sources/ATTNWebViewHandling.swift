@@ -118,7 +118,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         return
       }
 
-      //stateManager.updateState(.open)// TODO: Move this to impression event when creative actually shows up
       Loggers.creative.debug("Setting up WebView for creative")
 
       DispatchQueue.main.async {
