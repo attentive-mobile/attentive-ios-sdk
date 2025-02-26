@@ -1,3 +1,15 @@
+## [1.0.2-beta.5](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.0.0...1.0.2-beta.5) (2025-03-04)
+
+### Improvements
+* Enhanced thread safety in the web view by synchronizing state changes to prevent race conditions during concurrent operations.
+* Introduced new state management for the creative showing state, ensuring more consistent behaviors.
+
+### Bug Fixes
+* Fixed an issue where the web view would close prematurely upon detecting the `document.hidden` signal.
+
+### Tests
+* Added comprehensive tests to validate the thread safety improvements and new creative state management, helping to prevent future issues.
+
 ## [1.0.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.6.0...1.0.0) (2024-07-17)
 
 This major release marks the transition from beta to general availability (GA) for the Attentive iOS SDK. The 1.0.0 version incorporates feedback and improvements made during the beta phases, ensuring a stable and robust SDK.
