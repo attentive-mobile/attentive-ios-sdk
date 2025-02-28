@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'ATTNSDKFramework'
-  s.version          = '1.0.2-beta.2'
+  s.version          = '1.0.2-beta.4'
   s.summary          = 'Attentive IOS SDK'
 
 # This description is used to generate tags and improve search results.
@@ -33,7 +33,7 @@ The Attentive IOS SDK provides the functionality to render Attentive signup unit
 
   s.source_files = 'Sources/**/*.swift', 'Objc/**/*'
 
-  s.resource_bundles = {'ATTNSDKFramework' => ['Sources/Resources/PrivacyInfo.xcprivacy']}
+  s.resources = ['Sources/Resources/PrivacyInfo.xcprivacy']
 
   # s.public_header_files = 'Pod/Classes/**/*.h'
   # s.frameworks = 'UIKit', 'MapKit'
