@@ -74,6 +74,8 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     ATTNItem(productId: "6", productVariantId: "6A", price: ATTNPrice(price: NSDecimalNumber(string: "39.99"), currency: "USD"))
   ]
 
+  private var itemsInCart: [ATTNItem] = []
+
 
   // MARK: - View Lifecycle
 
@@ -135,7 +137,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
 
   @objc private func cartButtonTapped() {
     let cartVC = CartViewController()
-    cartVC.cartProducts = products //TODO Change
+    cartVC.cartProducts = itemsInCart
     navigationController?.pushViewController(cartVC, animated: true)
   }
 
@@ -150,6 +152,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     cell.backgroundColor = .lightGray // todo change
     let product = products[indexPath.item]
     cell.configure(with: product)
+    cell.delegate = self
     return cell
   }
 
@@ -218,4 +221,11 @@ class ProductViewController2: UIViewController {
     }
     return sdk
   }
+}
+
+// MARK: - ProductCollectionViewCellDelegate
+extension ProductViewController: ProductCollectionViewCellDelegate {
+    func didTapAddToCartButton(product: ATTNItem) {
+        itemsInCart.append(product)
+    }
 }
