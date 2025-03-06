@@ -8,8 +8,14 @@
 import UIKit
 import ATTNSDKFramework
 
+protocol ProductCollectionViewCellDelegate: AnyObject {
+  func didTapAddToCartButton(product: ATTNItem)
+}
+
 class ProductCollectionViewCell: UICollectionViewCell {
-  
+
+  weak var delegate: ProductCollectionViewCellDelegate?
+
   private let verticalStackView: UIStackView = {
     let stackView = UIStackView()
     stackView.axis = .vertical
@@ -19,7 +25,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     stackView.translatesAutoresizingMaskIntoConstraints = false
     return stackView
   }()
-  
+
   private let productImageView: UIImageView = {
     let imageView = UIImageView()
     imageView.contentMode = .scaleAspectFit
@@ -27,7 +33,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     imageView.translatesAutoresizingMaskIntoConstraints = false
     return imageView
   }()
-  
+
   private let productNameLabel: UILabel = {
     let label = UILabel()
     label.font = UIFont.systemFont(ofSize: 14, weight: .bold)
@@ -35,7 +41,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
   }()
-  
+
   private let productPriceLabel: UILabel = {
     let label = UILabel()
     label.font = UIFont.systemFont(ofSize: 14, weight: .medium)
@@ -44,7 +50,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
   }()
-  
+
   private let addToCartButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Add To Cart", for: .normal)
@@ -54,52 +60,57 @@ class ProductCollectionViewCell: UICollectionViewCell {
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
-  
+
+  private var product: ATTNItem?
+
   override init(frame: CGRect) {
     super.init(frame: frame)
     setupUI()
   }
-  
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-  
+
   private func setupUI() {
     contentView.addSubview(verticalStackView)
-    
+
     verticalStackView.addArrangedSubview(productImageView)
     verticalStackView.addArrangedSubview(productNameLabel)
     verticalStackView.addArrangedSubview(productPriceLabel)
     verticalStackView.addArrangedSubview(addToCartButton)
-    
+
     NSLayoutConstraint.activate([
       verticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
       verticalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
       verticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
       verticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10)
     ])
-    
+
     NSLayoutConstraint.activate([
       productImageView.heightAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.7),
       addToCartButton.heightAnchor.constraint(equalToConstant: 30)
     ])
   }
-  
+
   func configure(with product: ATTNItem) {
     productNameLabel.text = product.name ?? "Unknown Product"
     productPriceLabel.text = formatPrice(product.price)
-    
+
     if let imageUrl = product.productImage, let url = URL(string: imageUrl) {
       loadImage(from: url)
     } else {
       productImageView.image = UIImage(systemName: "photo") // Placeholder
     }
+
+    addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
+    self.product = product
   }
-  
+
   private func formatPrice(_ price: ATTNPrice) -> String {
     return "\(price.currency) \(price.price.stringValue)"
   }
-  
+
   private func loadImage(from url: URL) {
     DispatchQueue.global().async {
       if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
@@ -109,4 +120,10 @@ class ProductCollectionViewCell: UICollectionViewCell {
       }
     }
   }
+
+  @objc private func addToCartTapped() {
+    guard let product = product else { return }
+    delegate?.didTapAddToCartButton(product: product)
+  }
+
 }
