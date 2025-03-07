@@ -75,6 +75,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     setupUI()
     setupCollectionView()
     setupButtonActions()
+    setupCartBinding()
   }
   
   // MARK: - UI Setup
@@ -82,16 +83,13 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   private func setupUI() {
     view.addSubview(mainVStackView)
     
-    // Add horizontal stack view with buttons
     settingsHStackView.addArrangedSubview(settingsButton)
     settingsHStackView.addArrangedSubview(cartButton)
     
-    // Add views to main stack view
     mainVStackView.addArrangedSubview(settingsHStackView)
     mainVStackView.addArrangedSubview(productsLabel)
     mainVStackView.addArrangedSubview(productsCollectionView)
     
-    // Constraints for main stack view
     NSLayoutConstraint.activate([
       mainVStackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
       mainVStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -99,13 +97,10 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
       mainVStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
     ])
     
-    // Set height constraint for horizontal stack view
     settingsHStackView.heightAnchor.constraint(equalToConstant: 50).isActive = true
     
-    // Set height constraint for products label
     productsLabel.heightAnchor.constraint(equalToConstant: 30).isActive = true
     
-    // CollectionView constraints (fills remaining space)
     NSLayoutConstraint.activate([
       productsCollectionView.leadingAnchor.constraint(equalTo: mainVStackView.leadingAnchor),
       productsCollectionView.trailingAnchor.constraint(equalTo: mainVStackView.trailingAnchor),
@@ -129,7 +124,22 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     let cartVC = CartViewController(viewModel: viewModel)
     navigationController?.pushViewController(cartVC, animated: true)
   }
-  
+
+  private func setupCartBinding() {
+    // Bind the cartItems change to update the cart button title
+    viewModel.onCartItemsChanged = { [weak self] count in
+      DispatchQueue.main.async {
+        let title = count > 0 ? "Cart (\(count))" : "Cart"
+        self?.cartButton.setTitle(title, for: .normal)
+      }
+    }
+  }
+
+  @objc private func checkoutTapped() {
+      let addressVC = AddressViewController()
+      navigationController?.pushViewController(addressVC, animated: true)
+  }
+
   // MARK: - UICollectionView DataSource
   
   func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -158,41 +168,6 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
     return 10
-  }
-}
-
-
-class ProductViewController2: UIViewController {
-  
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    
-    // Do any additional setup after loading the view.
-  }
-  
-  //  @IBAction func showCreativeButtonPressed(_ sender: Any) {
-  //    self.clearCookies()
-  //    do {
-  //      let sdk = try self.getAttentiveSdk()
-  //      sdk.trigger(self.view, creativeId: "1105292")
-  //    } catch {
-  //      os_log("Error triggering creative: %@", error.localizedDescription)
-  //    }
-  //  }
-  
-  
-  
-  private func clearCookies() {
-    os_log("Clearing cookies!")
-    
-    WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: Date(timeIntervalSince1970: 0), completionHandler: {() -> Void in os_log("Cleared cookies!") })
-  }
-  
-  private func getAttentiveSdk() throws -> ATTNSDK {
-    guard let sdk = (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk else {
-      throw AttentiveSDKError.sdkNotInitialized
-    }
-    return sdk
   }
 }
 

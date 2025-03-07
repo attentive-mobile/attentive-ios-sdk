@@ -71,7 +71,8 @@ class CartViewController: UIViewController {
     ])
   }
   @objc private func checkoutTapped() {
-    // TODO
+    let addressVC = AddressViewController()
+    navigationController?.pushViewController(addressVC, animated: true)
   }
 }
 
@@ -105,16 +106,6 @@ extension CartViewController: UITableViewDataSource, UITableViewDelegate {
     deleteAction.backgroundColor = .systemRed
     return UISwipeActionsConfiguration(actions: [deleteAction])
   }
-//
-//  func removeItem(at index: Int) {
-//    guard index < cartProducts.count else { return }
-//
-//    cartProducts.remove(at: index)
-//
-//    tableView.performBatchUpdates({
-//      tableView.deleteRows(at: [IndexPath(row: index, section: 0)], with: .fade)
-//    }, completion: nil)
-//  }
 }
 
 // MARK: - CartTableViewCellDelegate
