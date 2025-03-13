@@ -20,9 +20,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     let window = UIWindow(windowScene: windowScene)
 
-    let productVC = ProductViewController()
+    let rootVC = LoginViewController()
 
-    let navController = UINavigationController(rootViewController: productVC)
+    let navController = UINavigationController(rootViewController: rootVC)
 
     window.rootViewController = navController
     self.window = window
