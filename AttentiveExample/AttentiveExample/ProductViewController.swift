@@ -61,7 +61,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     layout.scrollDirection = .vertical
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
     collectionView.translatesAutoresizingMaskIntoConstraints = false
-    collectionView.backgroundColor = .green
+    //collectionView.backgroundColor = .green
     return collectionView
   }()
   
@@ -148,7 +148,6 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   
   func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
     let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as! ProductCollectionViewCell
-    cell.backgroundColor = .lightGray // todo change
     let product = viewModel.products[indexPath.item]
     cell.configure(with: product)
     cell.delegate = self
