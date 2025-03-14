@@ -41,8 +41,8 @@ class ProductListViewModel {
 
   private func assignMockDataToProducts() {
     let sampleImages = [
-      "https://via.placeholder.com/150",
-      "https://via.placeholder.com/150/0000FF",
+      "https://via.placeholder.com/150/008000",
+      "https://via.placeholder.com/150/008000",
       "https://via.placeholder.com/150/008000",
       "https://via.placeholder.com/150/FF0000",
       "https://via.placeholder.com/150/800080",
