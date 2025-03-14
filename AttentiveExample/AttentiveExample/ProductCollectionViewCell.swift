@@ -10,6 +10,7 @@ import ATTNSDKFramework
 
 protocol ProductCollectionViewCellDelegate: AnyObject {
   func didTapAddToCartButton(product: ATTNItem)
+  func didTapProductImage(product: ATTNItem)
 }
 
 class ProductCollectionViewCell: UICollectionViewCell {
@@ -31,6 +32,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     imageView.contentMode = .scaleAspectFit
     imageView.clipsToBounds = true
     imageView.translatesAutoresizingMaskIntoConstraints = false
+    imageView.isUserInteractionEnabled = true
     return imageView
   }()
 
@@ -66,6 +68,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
   override init(frame: CGRect) {
     super.init(frame: frame)
     setupUI()
+    addImageTapRecognizer()
   }
 
   required init?(coder: NSCoder) {
@@ -104,6 +107,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     }
 
     addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
+
     self.product = product
   }
 
@@ -120,6 +124,17 @@ class ProductCollectionViewCell: UICollectionViewCell {
       }
     }
   }
+
+  private func addImageTapRecognizer() {
+    let tap = UITapGestureRecognizer(target: self, action: #selector(imageTapped))
+    productImageView.addGestureRecognizer(tap)
+  }
+
+  @objc private func imageTapped() {
+    guard let product = product else { return }
+    delegate?.didTapProductImage(product: product)
+  }
+
 
   @objc private func addToCartTapped() {
     guard let product = product else { return }
