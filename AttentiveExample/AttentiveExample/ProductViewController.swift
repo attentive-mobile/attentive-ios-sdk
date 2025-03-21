@@ -76,6 +76,10 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     setupCollectionView()
     setupButtonActions()
     setupCartBinding()
+
+#if DEBUG
+    navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Debug", style: .plain, target: self, action: #selector(showDebugConsole))
+#endif
   }
 
   // MARK: - UI Setup
@@ -126,13 +130,18 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   }
 
   private func setupCartBinding() {
-    // Bind the cartItems change to update the cart button title
     viewModel.onCartItemsChanged = { [weak self] count in
       DispatchQueue.main.async {
         let title = count > 0 ? "Cart (\(count))" : "Cart"
         self?.cartButton.setTitle(title, for: .normal)
       }
     }
+  }
+
+  @objc private func showDebugConsole() {
+      let debugVC = DebugConsoleViewController()
+      let nav = UINavigationController(rootViewController: debugVC)
+      present(nav, animated: true, completion: nil)
   }
 
   @objc private func checkoutTapped() {
