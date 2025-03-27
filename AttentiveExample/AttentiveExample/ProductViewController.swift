@@ -122,11 +122,17 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
 
   private func setupButtonActions() {
     cartButton.addTarget(self, action: #selector(cartButtonTapped), for: .touchUpInside)
+    settingsButton.addTarget(self, action: #selector(settingsButtonTapped), for: .touchUpInside)
   }
 
   @objc private func cartButtonTapped() {
     let cartVC = CartViewController(viewModel: viewModel)
     navigationController?.pushViewController(cartVC, animated: true)
+  }
+
+  @objc private func settingsButtonTapped() {
+    let settingsVC = SettingsViewController()
+    navigationController?.pushViewController(settingsVC, animated: true)
   }
 
   private func setupCartBinding() {
