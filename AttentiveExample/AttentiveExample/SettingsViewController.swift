@@ -6,6 +6,9 @@
 //
 
 import UIKit
+import ATTNSDKFramework
+import WebKit
+import os.log
 
 class SettingsViewController: UIViewController {
 
@@ -134,6 +137,8 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
+
+    view.layer.backgroundColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1).cgColor
   }
 
   // MARK: - Actions Setup
@@ -150,6 +155,9 @@ class SettingsViewController: UIViewController {
 
   @objc private func switchAccountTapped() {
     // TODO: Implement logic to switch account or log out
+    let alert = UIAlertController(title: nil, message: "hello world", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+    present(alert, animated: true, completion: nil)
   }
 
   @objc private func manageAddressesTapped() {
@@ -157,7 +165,11 @@ class SettingsViewController: UIViewController {
   }
 
   @objc private func showCreativeTapped() {
+    // Clear cookies to avoid Creative filtering during testing. Do not clear
+    // cookies if you want to test Creative fatigue and filtering.
+    self.clearCookies()
     // TODO: Trigger creative for quick debugging
+    self.getAttentiveSdk().trigger(self.view)
   }
 
   @objc private func identifyUserTapped() {
@@ -167,4 +179,15 @@ class SettingsViewController: UIViewController {
   @objc private func clearUserTapped() {
     // TODO: Clear the user
   }
+
+  private func getAttentiveSdk() -> ATTNSDK {
+      return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
+  }
+
+  private func clearCookies() {
+      os_log("Clearing cookies!")
+
+      WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: Date(timeIntervalSince1970: 0), completionHandler: {() -> Void in os_log("Cleared cookies!") })
+  }
+
 }

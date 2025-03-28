@@ -145,9 +145,15 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   }
 
   @objc private func showDebugConsole() {
+    //show creative for quick debug
+    //self.getAttentiveSdk().trigger(self.view)
       let debugVC = DebugConsoleViewController()
       let nav = UINavigationController(rootViewController: debugVC)
       present(nav, animated: true, completion: nil)
+  }
+
+  private func getAttentiveSdk() -> ATTNSDK {
+      return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
   }
 
   @objc private func checkoutTapped() {
