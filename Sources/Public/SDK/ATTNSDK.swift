@@ -12,18 +12,6 @@ public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
-  static var _isCreativeOpen: Bool = false
-
-  var isCreativeOpen: Bool {
-    get {
-      ATTNSDK._isCreativeOpen
-    }
-    set {
-      ATTNSDK._isCreativeOpen = newValue
-    }
-  }
-
-  private var _containerView: UIView?
 
   // MARK: Instance Properties
   var parentView: UIView?
@@ -114,11 +102,6 @@ public final class ATTNSDK: NSObject {
 
 // MARK: ATTNWebViewProviding
 extension ATTNSDK: ATTNWebViewProviding {
-  var containerView: UIView? {
-    get { _containerView }
-    set { _containerView = newValue }
-  }
-
   func getDomain() -> String { domain }
 
   func getMode() -> ATTNSDKMode { mode }
