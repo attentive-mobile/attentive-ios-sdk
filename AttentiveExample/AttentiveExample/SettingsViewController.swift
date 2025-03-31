@@ -113,7 +113,6 @@ class SettingsViewController: UIViewController {
       contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
       contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
       contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-
       contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
     ])
 
@@ -138,6 +137,17 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
 
+    // Adding extra dummy items to force scrolling
+    for i in 1...20 {
+      let extraLabel = UILabel()
+      extraLabel.text = "Extra Item \(i)"
+      extraLabel.font = UIFont.systemFont(ofSize: 14)
+      extraLabel.textColor = .darkGray
+      extraLabel.numberOfLines = 1
+      extraLabel.translatesAutoresizingMaskIntoConstraints = false
+      stackView.addArrangedSubview(extraLabel)
+    }
+
     view.layer.backgroundColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1).cgColor
   }
 
@@ -154,7 +164,6 @@ class SettingsViewController: UIViewController {
   // MARK: - Button Actions
 
   @objc private func switchAccountTapped() {
-    // TODO: Implement logic to switch account or log out
     let alert = UIAlertController(title: nil, message: "hello world", preferredStyle: .alert)
     alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
     present(alert, animated: true, completion: nil)
@@ -165,10 +174,6 @@ class SettingsViewController: UIViewController {
   }
 
   @objc private func showCreativeTapped() {
-    // Clear cookies to avoid Creative filtering during testing. Do not clear
-    // cookies if you want to test Creative fatigue and filtering.
-    //self.clearCookies()
-    // TODO: Trigger creative for quick debugging
     self.getAttentiveSdk().trigger(self.view)
   }
 
@@ -186,8 +191,8 @@ class SettingsViewController: UIViewController {
 
   private func clearCookies() {
       os_log("Clearing cookies!")
-
-      WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: Date(timeIntervalSince1970: 0), completionHandler: {() -> Void in os_log("Cleared cookies!") })
+      WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies],
+                                                modifiedSince: Date(timeIntervalSince1970: 0),
+                                                completionHandler: { os_log("Cleared cookies!") })
   }
-
 }
