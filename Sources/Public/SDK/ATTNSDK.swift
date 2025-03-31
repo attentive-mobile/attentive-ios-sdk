@@ -13,6 +13,8 @@ public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
+  private var _containerView: UIView?
+
   // MARK: Instance Properties
   var parentView: UIView?
   var triggerHandler: ATTNCreativeTriggerCompletionHandler?
@@ -102,6 +104,11 @@ public final class ATTNSDK: NSObject {
 
 // MARK: ATTNWebViewProviding
 extension ATTNSDK: ATTNWebViewProviding {
+  var containerView: UIView? {
+    get { _containerView }
+    set { _containerView = newValue }
+  }
+
   func getDomain() -> String { domain }
 
   func getMode() -> ATTNSDKMode { mode }
