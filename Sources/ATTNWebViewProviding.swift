@@ -14,6 +14,8 @@ protocol ATTNWebViewProviding: NSObjectProtocol {
   var triggerHandler: ATTNCreativeTriggerCompletionHandler? { get set }
   var isCreativeOpen: Bool { get set }
 
+  var containerView: UIView? { get set }
+  
   func getDomain() -> String
   func getMode() -> ATTNSDKMode
   func getUserIdentity() -> ATTNUserIdentity

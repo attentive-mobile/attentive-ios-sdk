@@ -167,7 +167,7 @@ class SettingsViewController: UIViewController {
   @objc private func showCreativeTapped() {
     // Clear cookies to avoid Creative filtering during testing. Do not clear
     // cookies if you want to test Creative fatigue and filtering.
-    self.clearCookies()
+    //self.clearCookies()
     // TODO: Trigger creative for quick debugging
     self.getAttentiveSdk().trigger(self.view)
   }
