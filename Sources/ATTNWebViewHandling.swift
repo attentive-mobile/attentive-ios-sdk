@@ -139,17 +139,17 @@ final class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 //    //webViewProvider.webView = WKWebView(frame: tempFrame, configuration: configuration)
 //
     // Create container view to hold the webview
-    let containerView = UIView()
-    containerView.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(containerView)
-    webViewProvider.containerView = containerView
-
-    NSLayoutConstraint.activate([
-        containerView.topAnchor.constraint(equalTo: view.topAnchor),
-        containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-        containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-        containerView.heightAnchor.constraint(equalTo: view.heightAnchor)
-    ])
+//    let containerView = UIView()
+//    containerView.translatesAutoresizingMaskIntoConstraints = false
+//    view.addSubview(containerView)
+//    webViewProvider.containerView = containerView
+//    containerView.isUserInteractionEnabled = false
+//    NSLayoutConstraint.activate([
+//        containerView.topAnchor.constraint(equalTo: view.topAnchor),
+//        containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+//        containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+//        containerView.heightAnchor.constraint(equalTo: view.heightAnchor)
+//    ])
 //
 //    // Now create and add the webview
 //    let webView = WKWebView(frame: .zero, configuration: configuration)
