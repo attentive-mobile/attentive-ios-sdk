@@ -42,6 +42,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
   // a serial dispatch queue to synchronize access to webview to prevent race condition
   private let creativeQueue = DispatchQueue(label: "com.attentive.creativeQueue")
   private let stateManager: ATTNCreativeStateManager
+  // Minimized creative's frame (when creative is minimized to a bubble instead of full screen)
+  private(set) var minimizedFrame: CGRect?
+  func updateMinimizedFrame(_ frame: CGRect) {
+    minimizedFrame = frame
+  }
 
   init(webViewProvider: ATTNWebViewProviding,
        creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider(),
@@ -58,7 +63,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
     let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     configuration.userContentController.addUserScript(userScript)
-
     return WKWebView(frame: .zero, configuration: configuration)
   }
 
@@ -96,7 +100,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
           }
         }
       }
-
 
       Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
 
@@ -175,6 +178,61 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
       Loggers.creative.debug("Successfully closed creative")
     }
   }
+
+  func checkAndResize(webView: WKWebView, retryCount: Int = 0) {
+    // Skipping if it's debug mode, we want to show debug output and let creative remain full screen.
+    if self.mode == .debug {
+      return
+    }
+    let getSizeJS = """
+    (function() {
+      var creative = document.getElementById('attentive_creative');
+      if (creative) {
+        var rect = creative.getBoundingClientRect();
+        return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+      } else {
+        return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight });
+      }
+    })();
+    """
+
+    webView.evaluateJavaScript(getSizeJS) { [weak self] result, error in
+      guard let self = self,
+            let jsonString = result as? String,
+            let data = jsonString.data(using: .utf8),
+            let frameDict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: CGFloat],
+            let x = frameDict["x"],
+            let y = frameDict["y"],
+            let width = frameDict["width"],
+            let height = frameDict["height"] else {
+        Loggers.creative.error("Failed to parse creative size.")
+        self?.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        return
+      }
+
+      // If the height is still zero and we haven't exceeded a retry limit, try again later.
+      if height == 0 && retryCount < 5 {
+        Loggers.creative.debug("Creative height is 0, retrying... (attempt \(retryCount + 1))")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+          self.checkAndResize(webView: webView, retryCount: retryCount + 1)
+        }
+        return
+      }
+      DispatchQueue.main.async {
+        self.webViewProvider?.parentView?.layoutIfNeeded()
+        webView.removeConstraints(webView.constraints)
+        // Disable Auto Layout for the web view
+        webView.translatesAutoresizingMaskIntoConstraints = true
+        // Set the frame manually with padding
+        webView.frame = CGRect(x: x, y: y, width: width, height: height + 20)
+        // Save the minimized frame for later. If user clicks on x on expanded creative, it shrinks.
+        self.updateMinimizedFrame(webView.frame)
+        webView.superview?.setNeedsLayout()
+        webView.superview?.layoutIfNeeded()
+        Loggers.creative.debug("Set creative frame to: x=\(x), y=\(y), width=\(width), height=\(height)")
+      }
+    }
+  }
 }
 
 extension ATTNWebViewHandler: WKNavigationDelegate {
@@ -216,10 +274,8 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
       switch ScriptStatus.getRawValue(from: statusAny) {
       case .success:
-        Loggers.creative.debug("Found creative iframe, showing WebView.")
-        if self.mode == .production {
-          webViewProvider.parentView?.addSubview(webView)
-        }
+        Loggers.creative.debug("Found creative iframe, resizing and showing WebView.")
+        self.checkAndResize(webView: webView)
         webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
       case .timeout:
         Loggers.creative.error("Creative timed out. Not showing WebView.")
@@ -258,7 +314,34 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
     let messageBody = message.body as? String ?? "'Empty'"
     Loggers.creative.debug("Web event message: \(messageBody). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO")")
-
+    if messageBody == "EXPAND" {
+      Loggers.creative.debug("Creative is expanding")
+      DispatchQueue.main.async {
+        if let webView = self.webViewProvider?.webView, let parentView = webView.superview {
+          self.webViewProvider?.parentView?.layoutIfNeeded()
+          webView.removeConstraints(webView.constraints)
+          // Disable autolayout
+          webView.translatesAutoresizingMaskIntoConstraints = true
+          webView.frame = CGRect(x: parentView.frame.origin.x, y: parentView.frame.origin.y, width: parentView.frame.width, height: parentView.frame.height)
+          webView.superview?.setNeedsLayout()
+          webView.superview?.layoutIfNeeded()
+        }
+      }
+    }
+    if messageBody == "SHRINK" {
+      Loggers.creative.debug("Creative is shrinking")
+      DispatchQueue.main.async {
+        if let webView = self.webViewProvider?.webView, let parentView = webView.superview, let savedMinimizedFrame = self.minimizedFrame {
+          self.webViewProvider?.parentView?.layoutIfNeeded()
+          webView.removeConstraints(webView.constraints)
+          // Disable autolayout
+          webView.translatesAutoresizingMaskIntoConstraints = true
+          webView.frame = savedMinimizedFrame
+          webView.superview?.setNeedsLayout()
+          webView.superview?.layoutIfNeeded()
+        }
+      }
+    }
     if messageBody == "CLOSE" {
       closeCreative()
     } else if messageBody == "IMPRESSION" {
