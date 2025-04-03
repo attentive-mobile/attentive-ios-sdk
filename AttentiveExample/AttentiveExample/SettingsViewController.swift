@@ -83,6 +83,13 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let clearCookiesButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Clear Cookies", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   // MARK: - Lifecycle
 
   override func viewDidLoad() {
@@ -136,6 +143,7 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
+    stackView.addArrangedSubview(clearCookiesButton)
 
     // Adding extra dummy items to force scrolling
     for i in 1...20 {
@@ -159,6 +167,7 @@ class SettingsViewController: UIViewController {
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
+    clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
   }
 
   // MARK: - Button Actions
@@ -185,14 +194,16 @@ class SettingsViewController: UIViewController {
     // TODO: Clear the user
   }
 
+  @objc private func clearCookiesTapped() {
+    os_log("Clearing cookies!")
+    WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies],
+                                            modifiedSince: Date(timeIntervalSince1970: 0),
+                                            completionHandler: { os_log("Cleared cookies!") })
+    showToast(with: "Cookies cleared")
+  }
+
   private func getAttentiveSdk() -> ATTNSDK {
       return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
   }
 
-  private func clearCookies() {
-      os_log("Clearing cookies!")
-      WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeCookies],
-                                                modifiedSince: Date(timeIntervalSince1970: 0),
-                                                completionHandler: { os_log("Cleared cookies!") })
-  }
 }

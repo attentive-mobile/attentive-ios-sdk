@@ -6,6 +6,8 @@
 //
 
 import UIKit
+import ATTNSDKFramework
+import os
 
 class PlaceOrderViewController: UIViewController {
   
@@ -135,5 +137,29 @@ class PlaceOrderViewController: UIViewController {
     // In PlaceOrderViewController, after a successful order:
     let orderConfirmationVC = OrderConfirmationViewController()
     navigationController?.pushViewController(orderConfirmationVC, animated: true)
+    recordPlaceOrderEvent()
+  }
+
+  private func recordPlaceOrderEvent() {
+    let item : ATTNItem = self.buildItem()
+    // Create the Order
+    let order : ATTNOrder = ATTNOrder(orderId: "778899")
+    // Create PurchaseEvent
+    let purchase : ATTNPurchaseEvent = ATTNPurchaseEvent(items: [item], order: order)
+    // Send the PurchaseEvent
+    ATTNEventTracker.sharedInstance()?.record(event: purchase)
+
+    showToast(with: "Purchase Event sent")
+  }
+
+  func buildItem() -> ATTNItem {
+    // Build Item with required fields
+    let item : ATTNItem = ATTNItem(productId: "222", productVariantId: "55555", price: ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD"))
+
+    // Add some optional fields
+    item.name = "T-Shirt"
+    item.category = "Tops"
+
+    return item
   }
 }

@@ -66,6 +66,7 @@ class ProductDetailViewController: UIViewController {
     view.backgroundColor = .white
     setupUI()
     configureProduct()
+    recordProductViewEvent()
   }
 
   // MARK: - Setup UI
@@ -114,8 +115,14 @@ class ProductDetailViewController: UIViewController {
     }
   }
 
+  private func recordProductViewEvent() {
+    let productViewEvent : ATTNProductViewEvent = ATTNProductViewEvent(items: [product])
+    ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+    showToast(with: "Product View event sent")
+  }
+
   // MARK: - Actions
   @objc private func addToCartTapped() {
-          delegate?.productDetailViewController(self, didAddToCart: product)
-      }
+    delegate?.productDetailViewController(self, didAddToCart: product)
+  }
 }
