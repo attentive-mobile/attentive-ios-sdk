@@ -11,11 +11,30 @@ class LoginViewController: UIViewController {
 
   // MARK: - UI Components
 
-  private let titleLabel: UILabel = {
+  private let backgroundImageView: UIImageView = {
+    let imageView = UIImageView()
+    imageView.image = UIImage(named: "LoginBackground")
+    imageView.contentMode = .scaleAspectFill
+    imageView.translatesAutoresizingMaskIntoConstraints = false
+    return imageView
+  }()
+
+  private let greetingLabel: UILabel = {
     let label = UILabel()
-    label.text = "Attentive Mobile Sample App"
+    label.text = "HEY BESTIE!"
+    label.font = UIFont(name: "Degular-Medium", size: 24)
     label.textAlignment = .center
-    label.font = UIFont.boldSystemFont(ofSize: 24)
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
+  }()
+
+  private let welcomeLabel: UILabel = {
+    let label = UILabel()
+    // "Bonny Beauty" will appear on a new line.
+    label.text = "Welcome to\nBonny Beauty!"
+    label.font = UIFont(name: "Degular-Medium", size: 28)
+    label.textAlignment = .center
+    label.numberOfLines = 0
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
   }()
@@ -61,16 +80,33 @@ class LoginViewController: UIViewController {
   // MARK: - UI Setup
 
   private func setupUI() {
-    view.addSubview(titleLabel)
+    // Add background image view first so it sits behind all other views.
+    view.addSubview(backgroundImageView)
     NSLayoutConstraint.activate([
-      titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
-      titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-      titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
+      backgroundImageView.topAnchor.constraint(equalTo: view.topAnchor),
+      backgroundImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+      backgroundImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      backgroundImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
     ])
 
+    // Add and layout the greeting and welcome labels.
+    view.addSubview(greetingLabel)
+    view.addSubview(welcomeLabel)
+    NSLayoutConstraint.activate([
+      // Position greetingLabel approximately one third from the top of the safe area.
+      greetingLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 200),
+      greetingLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+      greetingLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+
+      // Place welcomeLabel directly below greetingLabel with a small gap.
+      welcomeLabel.topAnchor.constraint(equalTo: greetingLabel.bottomAnchor, constant: 8),
+      welcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+      welcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
+    ])
+
+    // Setup bottom stack view with buttons.
     bottomStackView.addArrangedSubview(createAccountButton)
     bottomStackView.addArrangedSubview(continueAsGuestButton)
-
     view.addSubview(bottomStackView)
     NSLayoutConstraint.activate([
       bottomStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
