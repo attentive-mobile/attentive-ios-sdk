@@ -21,8 +21,8 @@ class LoginViewController: UIViewController {
 
   private let greetingLabel: UILabel = {
     let label = UILabel()
-    label.text = "HEY BESTIE!"
-    label.font = UIFont(name: "Degular-Medium", size: 24)
+    label.attributedText = NSMutableAttributedString(string: "HEY BESTIE!", attributes: [NSAttributedString.Key.kern: 1.25])
+    label.font = UIFont(name: "DegularDisplay-Medium", size: 28)
     label.textAlignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
@@ -31,33 +31,60 @@ class LoginViewController: UIViewController {
   private let welcomeLabel: UILabel = {
     let label = UILabel()
     // "Bonny Beauty" will appear on a new line.
-    label.text = "Welcome to\nBonny Beauty!"
-    label.font = UIFont(name: "Degular-Medium", size: 28)
+    label.attributedText = NSMutableAttributedString(string: "Welcome to\nBonni Beauty!", attributes: [NSAttributedString.Key.kern: 1.25])
+    label.font = UIFont(name: "DegularDisplay-Medium", size: 40)
     label.textAlignment = .center
     label.numberOfLines = 0
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
   }()
 
-  private let createAccountButton: UIButton = {
+  // Updated SIGN IN button (previously "Create account")
+  private let signInButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Create account", for: .normal)
-    button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-    button.backgroundColor = UIColor.systemBlue
-    button.setTitleColor(.white, for: .normal)
-    button.layer.cornerRadius = 8
+    // Set background color from Figma design.
+    button.backgroundColor = UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
     button.translatesAutoresizingMaskIntoConstraints = false
+
+    // Create a paragraph style for the button title.
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.lineHeightMultiple = 1.04
+
+    // Build attributed title for "SIGN IN"
+    let attributes: [NSAttributedString.Key: Any] = [
+      .kern: 1,
+      .paragraphStyle: paragraphStyle,
+      .font: UIFont(name: "Degular-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16),
+      .foregroundColor: UIColor.white
+    ]
+    let attributedTitle = NSAttributedString(string: "SIGN IN", attributes: attributes)
+    button.setAttributedTitle(attributedTitle, for: .normal)
+
     return button
   }()
 
+  // Updated CONTINUE AS GUEST button
   private let continueAsGuestButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Continue as guest", for: .normal)
-    button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-    button.backgroundColor = UIColor.systemGreen
-    button.setTitleColor(.white, for: .normal)
-    button.layer.cornerRadius = 8
+    // White background with a 1pt black border.
+    button.backgroundColor = UIColor.white
+    button.layer.borderWidth = 1
+    button.layer.borderColor = UIColor.black.cgColor
     button.translatesAutoresizingMaskIntoConstraints = false
+
+    // Create paragraph style for the button title.
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.lineHeightMultiple = 1.04
+
+    let attributes: [NSAttributedString.Key: Any] = [
+      .kern: 1,
+      .paragraphStyle: paragraphStyle,
+      .font: UIFont(name: "Degular-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16),
+      .foregroundColor: UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
+    ]
+    let attributedTitle = NSAttributedString(string: "CONTINUE AS GUEST", attributes: attributes)
+    button.setAttributedTitle(attributedTitle, for: .normal)
+
     return button
   }()
 
@@ -80,7 +107,7 @@ class LoginViewController: UIViewController {
   // MARK: - UI Setup
 
   private func setupUI() {
-    // Add background image view first so it sits behind all other views.
+    // Add the background image so it sits behind everything.
     view.addSubview(backgroundImageView)
     NSLayoutConstraint.activate([
       backgroundImageView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -89,41 +116,42 @@ class LoginViewController: UIViewController {
       backgroundImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
     ])
 
-    // Add and layout the greeting and welcome labels.
+    // Add and position the greeting and welcome labels.
     view.addSubview(greetingLabel)
     view.addSubview(welcomeLabel)
     NSLayoutConstraint.activate([
-      // Position greetingLabel approximately one third from the top of the safe area.
-      greetingLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 200),
-      greetingLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-      greetingLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+      // Position greetingLabel about one third from the top.
+      greetingLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 100),
+      greetingLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-      // Place welcomeLabel directly below greetingLabel with a small gap.
+      // Place welcomeLabel directly below greetingLabel.
       welcomeLabel.topAnchor.constraint(equalTo: greetingLabel.bottomAnchor, constant: 8),
-      welcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-      welcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
+      welcomeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
     ])
 
-    // Setup bottom stack view with buttons.
-    bottomStackView.addArrangedSubview(createAccountButton)
+    // Set up the bottom stack view with our two buttons.
+    bottomStackView.addArrangedSubview(signInButton)
     bottomStackView.addArrangedSubview(continueAsGuestButton)
     view.addSubview(bottomStackView)
     NSLayoutConstraint.activate([
-      bottomStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-      bottomStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-      bottomStackView.topAnchor.constraint(equalTo: view.centerYAnchor)
+      bottomStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 50),
+      bottomStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -50),
+      bottomStackView.topAnchor.constraint(equalTo: welcomeLabel.bottomAnchor, constant: 80)
     ])
 
-    createAccountButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
-    continueAsGuestButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
+    // Update button heights to match the Figma dimensions.
+    signInButton.heightAnchor.constraint(equalToConstant: 46).isActive = true
+    continueAsGuestButton.heightAnchor.constraint(equalToConstant: 46).isActive = true
 
-    createAccountButton.addTarget(self, action: #selector(createAccountTapped), for: .touchUpInside)
+    // Attach actions to the buttons.
+    signInButton.addTarget(self, action: #selector(signInTapped), for: .touchUpInside)
     continueAsGuestButton.addTarget(self, action: #selector(continueAsGuestTapped), for: .touchUpInside)
   }
 
   // MARK: - Actions
 
-  @objc private func createAccountTapped() {
+  @objc private func signInTapped() {
+    // Handle sign in action. For example, present a sign-in screen.
     let createAccountVC = CreateAccountViewController()
     present(createAccountVC, animated: true)
   }
