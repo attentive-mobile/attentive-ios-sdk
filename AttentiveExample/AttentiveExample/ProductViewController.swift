@@ -10,163 +10,148 @@ import ATTNSDKFramework
 import WebKit
 import os.log
 
-
 class ProductViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-
+  
+  // MARK: - Constants
+  
+  private let kPadding: CGFloat = 24
+  private let kStackSpacing: CGFloat = 16
+  private let kNavColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1)
+  private let kLabelFontSize: CGFloat = 30
+  private let kLabelKerning: CGFloat = 1.25
+  
   // MARK: - UI Components
-
+  
   private let mainVStackView: UIStackView = {
     let stack = UIStackView()
     stack.axis = .vertical
     stack.alignment = .fill
     stack.distribution = .fill
+    stack.spacing = 16  // Will be updated in setupUI()
     stack.translatesAutoresizingMaskIntoConstraints = false
     return stack
   }()
-
-  private let settingsHStackView: UIStackView = {
-    let stack = UIStackView()
-    stack.axis = .horizontal
-    stack.alignment = .fill
-    stack.distribution = .fillEqually
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    return stack
-  }()
-
-  private let settingsButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("Settings", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  private let cartButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("Cart", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  private let productsLabel: UILabel = {
+  
+  private lazy var allProductsLabel: UILabel = {
     let label = UILabel()
-    label.text = "Products"
-    label.font = UIFont.systemFont(ofSize: 16, weight: .bold)
-    label.textAlignment = .center
+    label.textColor = UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
+    label.font = UIFont(name: "Degular-Medium", size: kLabelFontSize)
+    let attributedText = NSMutableAttributedString(string: "All Products", attributes: [
+      .kern: kLabelKerning
+    ])
+    label.attributedText = attributedText
+    label.textAlignment = .left
+    // Ensure the label expands to fill available width.
+    label.setContentHuggingPriority(.defaultLow, for: .horizontal)
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
   }()
-
+  
   private let productsCollectionView: UICollectionView = {
     let layout = UICollectionViewFlowLayout()
     layout.scrollDirection = .vertical
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
     collectionView.translatesAutoresizingMaskIntoConstraints = false
-    //collectionView.backgroundColor = .green
+    // Uncomment for debugging layout:
+    // collectionView.backgroundColor = .green
     return collectionView
   }()
-
+  
   private let viewModel = ProductListViewModel()
-
+  
   // MARK: - View Lifecycle
-
+  
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .white
+    setupNavigationBar()
     setupUI()
     setupCollectionView()
-    setupButtonActions()
-    setupCartBinding()
-
-#if DEBUG
-    navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Debug", style: .plain, target: self, action: #selector(showDebugConsole))
-#endif
   }
-
+  
+  // MARK: - Navigation Bar Setup
+  
+  private func setupNavigationBar() {
+    // Configure navigation bar appearance with desired background color.
+    if #available(iOS 13.0, *) {
+      let navBarAppearance = UINavigationBarAppearance()
+      navBarAppearance.configureWithOpaqueBackground()
+      navBarAppearance.backgroundColor = kNavColor
+      navigationController?.navigationBar.standardAppearance = navBarAppearance
+      navigationController?.navigationBar.scrollEdgeAppearance = navBarAppearance
+    } else {
+      navigationController?.navigationBar.barTintColor = kNavColor
+    }
+    navigationController?.navigationBar.isTranslucent = false
+    
+    // Left bar button: settings using "profile" image.
+    let settingsImage = UIImage(named: "profile")
+    let settingsButtonItem = UIBarButtonItem(image: settingsImage, style: .plain, target: self, action: #selector(settingsButtonTapped))
+    settingsButtonItem.tintColor = .black
+    navigationItem.leftBarButtonItem = settingsButtonItem
+    
+    // Right bar button: cart using "Shopping cart" image.
+    let cartImage = UIImage(named: "Shopping cart")
+    let cartButtonItem = UIBarButtonItem(image: cartImage, style: .plain, target: self, action: #selector(cartButtonTapped))
+    cartButtonItem.tintColor = .black
+    navigationItem.rightBarButtonItem = cartButtonItem
+    
+    // Center the logo in the navigation bar.
+    let logoImageView = UIImageView(image: UIImage(named: "Union.svg"))
+    logoImageView.contentMode = .scaleAspectFit
+    navigationItem.titleView = logoImageView
+  }
+  
   // MARK: - UI Setup
-
+  
   private func setupUI() {
     view.addSubview(mainVStackView)
-
-    settingsHStackView.addArrangedSubview(settingsButton)
-    settingsHStackView.addArrangedSubview(cartButton)
-
-    mainVStackView.addArrangedSubview(settingsHStackView)
-    mainVStackView.addArrangedSubview(productsLabel)
+    mainVStackView.spacing = kStackSpacing
+    
+    // Add arranged subviews.
+    mainVStackView.addArrangedSubview(allProductsLabel)
     mainVStackView.addArrangedSubview(productsCollectionView)
-
+    
+    // Constrain mainVStackView to the view with 24 points padding on all sides.
     NSLayoutConstraint.activate([
-      mainVStackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-      mainVStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      mainVStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      mainVStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-    ])
-
-    settingsHStackView.heightAnchor.constraint(equalToConstant: 50).isActive = true
-
-    productsLabel.heightAnchor.constraint(equalToConstant: 30).isActive = true
-
-    NSLayoutConstraint.activate([
-      productsCollectionView.leadingAnchor.constraint(equalTo: mainVStackView.leadingAnchor),
-      productsCollectionView.trailingAnchor.constraint(equalTo: mainVStackView.trailingAnchor),
-      productsCollectionView.bottomAnchor.constraint(equalTo: mainVStackView.bottomAnchor)
+      mainVStackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: kPadding),
+      mainVStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: kPadding),
+      mainVStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -kPadding),
+      mainVStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -kPadding)
     ])
   }
-
+  
   // MARK: - Collection View Setup
-
+  
   private func setupCollectionView() {
     productsCollectionView.dataSource = self
     productsCollectionView.delegate = self
     productsCollectionView.register(ProductCollectionViewCell.self, forCellWithReuseIdentifier: "ProductCell")
   }
-
-  private func setupButtonActions() {
-    cartButton.addTarget(self, action: #selector(cartButtonTapped), for: .touchUpInside)
-    settingsButton.addTarget(self, action: #selector(settingsButtonTapped), for: .touchUpInside)
-  }
-
+  
+  // MARK: - Button Actions
+  
   @objc private func cartButtonTapped() {
     let cartVC = CartViewController(viewModel: viewModel)
     navigationController?.pushViewController(cartVC, animated: true)
   }
-
+  
   @objc private func settingsButtonTapped() {
     let settingsVC = SettingsViewController()
     navigationController?.pushViewController(settingsVC, animated: true)
   }
-
-  private func setupCartBinding() {
-    viewModel.onCartItemsChanged = { [weak self] count in
-      DispatchQueue.main.async {
-        let title = count > 0 ? "Cart (\(count))" : "Cart"
-        self?.cartButton.setTitle(title, for: .normal)
-      }
-    }
-  }
-
-  @objc private func showDebugConsole() {
-    //show creative for quick debug
-    //self.getAttentiveSdk().trigger(self.view)
-      let debugVC = DebugConsoleViewController()
-      let nav = UINavigationController(rootViewController: debugVC)
-      present(nav, animated: true, completion: nil)
-  }
-
-  private func getAttentiveSdk() -> ATTNSDK {
-      return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
-  }
-
+  
   @objc private func checkoutTapped() {
     let addressVC = AddressViewController()
     navigationController?.pushViewController(addressVC, animated: true)
   }
-
+  
   // MARK: - UICollectionView DataSource
-
+  
   func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
     return viewModel.products.count
   }
-
+  
   func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
     let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as! ProductCollectionViewCell
     let product = viewModel.products[indexPath.item]
@@ -174,18 +159,18 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     cell.delegate = self
     return cell
   }
-
+  
   // MARK: - UICollectionView Delegate Flow Layout
-
+  
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    let width = (collectionView.frame.width - 30) / 2 // 2 columns with spacing
+    let width = (collectionView.frame.width - 30) / 2  // 2 columns with spacing.
     return CGSize(width: width, height: width * 1.5)
   }
-
+  
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
     return 10
   }
-
+  
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
     return 10
   }
@@ -196,11 +181,11 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
 extension ProductViewController: ProductCollectionViewCellDelegate {
   func didTapAddToCartButton(product: ATTNItem) {
     viewModel.addProductToCart(product)
-    let addToCartEvent : ATTNAddToCartEvent = ATTNAddToCartEvent(items: [product])
+    let addToCartEvent = ATTNAddToCartEvent(items: [product])
     ATTNEventTracker.sharedInstance()?.record(event: addToCartEvent)
     showToast(with: "Add To Cart event sent")
   }
-
+  
   func didTapProductImage(product: ATTNItem) {
     let detailVC = ProductDetailViewController(product: product)
     detailVC.delegate = self
@@ -211,10 +196,8 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
 extension ProductViewController: ProductDetailViewControllerDelegate {
   func productDetailViewController(_ controller: ProductDetailViewController, didAddToCart product: ATTNItem) {
     viewModel.addProductToCart(product)
-    let addToCartEvent : ATTNAddToCartEvent = ATTNAddToCartEvent(items: [product])
+    let addToCartEvent = ATTNAddToCartEvent(items: [product])
     ATTNEventTracker.sharedInstance()?.record(event: addToCartEvent)
     showToast(with: "Add To Cart event sent")
   }
-
-  
 }

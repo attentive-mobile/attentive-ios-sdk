@@ -39,7 +39,6 @@ class LoginViewController: UIViewController {
     return label
   }()
 
-  // Updated SIGN IN button (previously "Create account")
   private let signInButton: UIButton = {
     let button = UIButton(type: .system)
     // Set background color from Figma design.
@@ -88,6 +87,26 @@ class LoginViewController: UIViewController {
     return button
   }()
 
+  private let createAccountButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.backgroundColor = .clear
+    button.translatesAutoresizingMaskIntoConstraints = false
+
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.lineHeightMultiple = 1.04
+
+    let attributes: [NSAttributedString.Key: Any] = [
+      .underlineStyle: NSUnderlineStyle.single.rawValue,
+      .kern: 1,
+      .paragraphStyle: paragraphStyle,
+      .font: UIFont(name: "Degular-Regular", size: 16) ?? UIFont.systemFont(ofSize: 16),
+      .foregroundColor: UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
+    ]
+    let attributedTitle = NSAttributedString(string: "Create Account", attributes: attributes)
+    button.setAttributedTitle(attributedTitle, for: .normal)
+    return button
+  }()
+
   private let bottomStackView: UIStackView = {
     let stackView = UIStackView()
     stackView.axis = .vertical
@@ -132,6 +151,7 @@ class LoginViewController: UIViewController {
     // Set up the bottom stack view with our two buttons.
     bottomStackView.addArrangedSubview(signInButton)
     bottomStackView.addArrangedSubview(continueAsGuestButton)
+    bottomStackView.addArrangedSubview(createAccountButton)
     view.addSubview(bottomStackView)
     NSLayoutConstraint.activate([
       bottomStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 50),
@@ -139,13 +159,13 @@ class LoginViewController: UIViewController {
       bottomStackView.topAnchor.constraint(equalTo: welcomeLabel.bottomAnchor, constant: 80)
     ])
 
-    // Update button heights to match the Figma dimensions.
-    signInButton.heightAnchor.constraint(equalToConstant: 46).isActive = true
-    continueAsGuestButton.heightAnchor.constraint(equalToConstant: 46).isActive = true
+    signInButton.heightAnchor.constraint(equalToConstant: 56).isActive = true
+    continueAsGuestButton.heightAnchor.constraint(equalToConstant: 56).isActive = true
+    createAccountButton.heightAnchor.constraint(equalToConstant: 40).isActive = true
 
-    // Attach actions to the buttons.
     signInButton.addTarget(self, action: #selector(signInTapped), for: .touchUpInside)
     continueAsGuestButton.addTarget(self, action: #selector(continueAsGuestTapped), for: .touchUpInside)
+    createAccountButton.addTarget(self, action: #selector(createAccountTapped), for: .touchUpInside)
   }
 
   // MARK: - Actions
@@ -161,5 +181,11 @@ class LoginViewController: UIViewController {
     let navController = UINavigationController(rootViewController: productVC)
     navController.modalPresentationStyle = .fullScreen
     present(navController, animated: true, completion: nil)
+  }
+
+  @objc private func createAccountTapped() {
+    // Handle sign in action. For example, present a sign-in screen.
+    let createAccountVC = CreateAccountViewController()
+    present(createAccountVC, animated: true)
   }
 }
