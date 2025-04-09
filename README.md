@@ -1,8 +1,8 @@
-# Attentive IOS SDK
+# Attentive SDK
 
-The Attentive IOS SDK provides the functionality to render Attentive creative units and collect Attentive events in IOS mobile applications.
+The Attentive mobile SDK provides identity, data collection, and creative rendering functionality for your app. This enables cross-platform journeys, enhanced reporting, and a great experience for your mobile users.
 
-## Installation
+## iOS - Prerequisites
 
 ### Cocoapods
 
@@ -64,13 +64,14 @@ IOS SDK is used.
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
 
+## Step 1 - SDK initialization
+
 ### Initialize the SDK
 
 The code snippets and examples below assume you are working in Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
 
 #### Swift
-
 ```swift
 import ATTNSDKFramework
 ```
@@ -87,7 +88,6 @@ ATTNEventTracker.setup(with: sdk)
 ```
 
 #### Objective-C
-
 ```objective-c
 #import "ATTNSDKFramework-Swift.h"
 #import "ATTNSDKFramework-umbrella.h"
@@ -102,29 +102,12 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 [ATTNEventTracker setupWithSDk:sdk];
 ```
 
-### Identify information about the current user
+## Step 2 - Identify the current user
 
-Register any identifying information you have about the user with the Attentive SDK. This method can be called any time you have new information to attribute to the user.
+When you have information about the current user (user ID, email, phone, etc), you can pass it to Attentive for identification purposes via the `identify` function. You can call identify every time you have additional information about the user during your app's flows.
 
-#### Swift
+Here is the list of possible identifiers available in `ATTNIdentifierType`:
 
-```swift
-sdk.identify([
-  ATTNIdentifierType.clientUserId : "myAppUserId",
-  ATTNIdentifierType.phone : "+15556667777"
-])
-```
-
-#### Objective-C
-
-```objective-c
-[sdk identify:@{
-  ATTNIdentifierType.clientUserId: @"myAppUserId",
-  ATTNIdentifierType.phone: @"+15556667777"
-}];
-```
-
-The more identifiers that are passed to `identify`, the better the SDK will function. Here is the list of possible identifiers available in `ATTNIdentifierType`:
 | Identifier Name | Constant Name | Type | Description |
 | ------------------ | ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Client User ID | `clientUserId` | `String` | Your unique identifier for the user. This should be consistent across the user's lifetime. For example, a database id. |
@@ -134,7 +117,114 @@ The more identifiers that are passed to `identify`, the better the SDK will func
 | Klaviyo ID | `klaviyoId` | `String` | The users's Klaviyo ID |
 | Custom Identifiers | `customIdentifiers` | `[String: String]` | Key-value pairs of custom identifier names and values. The values should be unique to this user. |
 
-### Load and render the creative
+#### Swift
+```swift
+sdk.identify([
+  ATTNIdentifierType.clientUserId : "myAppUserId",
+  ATTNIdentifierType.phone : "+15556667777"
+])
+```
+
+#### Objective-C
+```objective-c
+[sdk identify:@{
+  ATTNIdentifierType.clientUserId: @"myAppUserId",
+  ATTNIdentifierType.phone: @"+15556667777"
+}];
+```
+### Clearing user data
+
+If the user "logs out" of your application, you can call `clearUser` to remove all current identifiers.
+
+#### Swift
+```swift
+sdk.clearUser()
+```
+
+#### Objective-C
+```objective-c
+[sdk clearUser];
+```
+
+## Step 3 - Record user events
+
+Next, call Attentive's event functions when each important event happens in your app, so that Attentive can understand user behavior. These events allow Attentive to trigger journeys, attribute revenue, and more. 
+
+The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
+
+#### Swift
+```swift
+let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
+
+// Create the Item(s) that was/were purchased
+let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
+
+// Create the Order
+let order = ATTNOrder(orderId: "778899")
+
+// Create PurchaseEvent
+let purchase = ATTNPurchaseEvent(items: [item], order: order)
+
+// Finally, record the event!
+ATTNEventTracker.sharedInstance().record(event: purchase)
+```
+
+#### Objective-C
+```objective-c
+ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+
+ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
+
+ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
+
+[[ATTNEventTracker sharedInstance] recordEvent:purchase];
+```
+---
+For `ATTNProductViewEvent` and `ATTNAddToCartEvent,` you can include a `deeplink` in the init method or the property to incentivize the user to complete a specific flow.
+
+#### Swift
+```swift
+// Init method
+let addToCart = ATTNAddToCartEvent(items: items, deeplink: "https://mydeeplink.com/products/32432423")
+ATTNEventTracker.sharedInstance()?.record(event: addToCart)
+
+// Property
+let productView = ATTNProductViewEvent(items: items)
+productView.deeplink = "https://mydeeplink.com/products/32432423"
+ATTNEventTracker.sharedInstance()?.record(event: productView)
+```
+
+#### Objective-C
+```objective-c
+// Init Method
+ATTNAddToCartEvent* addToCart = [[ATTNAddToCartEvent alloc] initWithItems:items deeplink:@"https://mydeeplink.com/products/32432423"];
+  [[ATTNEventTracker sharedInstance] recordEvent:addToCart];
+
+// Property
+ATTNProductViewEvent* productView = [[ATTNProductViewEvent alloc] initWithItems:items];
+productView.deeplink = @"https://mydeeplink.com/products/32432423";
+[[ATTNEventTracker sharedInstance] recordEvent:productView];
+```
+---
+
+You can also implement `CustomEvent` to send application-specific event schemas. These are simply key/value pairs which will be transmitted and stores in Attentive's systems for later use. Please discuss with your CSM to understand how and where these events can be use in orchestration.
+
+Custom event implementation example:
+
+#### Swift
+```swift
+// ☝️ Init can return nil if there are issues with the provided data in properties
+guard let customEvent = ATTNCustomEvent(type: "Concert Viewed", properties: ["band": "Myrath"]) else { return }
+ATTNEventTracker.sharedInstance()?.record(event: customEvent)
+```
+
+#### Objective-C
+```objective-c
+ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert Viewed" properties:@{@"band" : @"Myrath"}];
+[[ATTNEventTracker sharedInstance] recordEvent:customEvent];
+```
+
+## Step 4 (optional) - Show Creatives
 
 #### Swift
 
@@ -190,106 +280,9 @@ sdk.trigger(view)
 [sdk trigger:self.view];
 ```
 
-### Record user events
-
-The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
-
-#### Swift
-
-```swift
-let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
-
-// Create the Item(s) that was/were purchased
-let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
-
-// Create the Order
-let order = ATTNOrder(orderId: "778899")
-
-// Create PurchaseEvent
-let purchase = ATTNPurchaseEvent(items: [item], order: order)
-
-// Finally, record the event!
-ATTNEventTracker.sharedInstance().record(event: purchase)
-```
-
-#### Objective-C
-
-```objective-c
-ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
-
-ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
-
-ATTNPurchaseEvent* purchase = [[ATTNPurchaseEvent alloc] initWithItems:@[item] order:order];
-
-[[ATTNEventTracker sharedInstance] recordEvent:purchase];
-```
----
-For `ATTNProductViewEvent` and `ATTNAddToCartEvent,` you can include a `deeplink` in the init method or the property to incentivize the user to complete a specific flow.
-
-#### Swift
-
-```swift
-// Init method
-let addToCart = ATTNAddToCartEvent(items: items, deeplink: "https://mydeeplink.com/products/32432423")
-ATTNEventTracker.sharedInstance()?.record(event: addToCart)
-
-// Property
-let productView = ATTNProductViewEvent(items: items)
-productView.deeplink = "https://mydeeplink.com/products/32432423"
-ATTNEventTracker.sharedInstance()?.record(event: productView)
-```
-
-#### Objective-C
-```objective-c
-// Init Method
-ATTNAddToCartEvent* addToCart = [[ATTNAddToCartEvent alloc] initWithItems:items deeplink:@"https://mydeeplink.com/products/32432423"];
-  [[ATTNEventTracker sharedInstance] recordEvent:addToCart];
-
-// Property
-ATTNProductViewEvent* productView = [[ATTNProductViewEvent alloc] initWithItems:items];
-productView.deeplink = @"https://mydeeplink.com/products/32432423";
-[[ATTNEventTracker sharedInstance] recordEvent:productView];
-```
----
-
-The SDK allows custom events to be sent using `ATTNCustomEvent,` where type is the event name and the properties is a dictionary(`[String: String]`) with the information to populate dynamic content in the message to subscribers.
-
-#### Swift
-
-```swift
-// ☝️ Init can return nil if there are issues with the provided data in properties
-guard let customEvent = ATTNCustomEvent(type: "Concert Viewed", properties: ["band": "Myrath"]) else { return }
-ATTNEventTracker.sharedInstance()?.record(event: customEvent)
-```
-
-#### Objective-C
-
-```objective-c
-ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert Viewed" properties:@{@"band" : @"Myrath"}];
-[[ATTNEventTracker sharedInstance] recordEvent:customEvent];
-```
-
-### Switch to another domain
-
-Reinitialize the SDK with a different domain.
-
-#### Swift
-
-```swift
-let sdk = ATTNSDK(domain: "domain")
-sdk.update(domain: "differentDomain")
-```
-
-#### Objective-C
-
-```objective-c
-ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
-[sdk updateDomain: @"differentDomain"];
-```
-
 ### Skip Fatigue on Creative
 
-Determinates if fatigue rules evaluation will be skipped for Creative. Default value is `false`.
+For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
 
 #### Swift
 
@@ -309,23 +302,27 @@ Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value i
 
 Environment value can be a string with value `"true"` or `"false"`.
 
-### Clear the current user
 
-If the user logs out then the current user identifiers should be deleted:
+## Other functionality
+
+### Switch to another domain
+
+Reinitialize the SDK with a different domain. Please contact your CSM for this use case.
 
 #### Swift
 
 ```swift
-sdk.clearUser()
+let sdk = ATTNSDK(domain: "domain")
+sdk.update(domain: "differentDomain")
 ```
 
 #### Objective-C
 
 ```objective-c
-[sdk clearUser];
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
+[sdk updateDomain: @"differentDomain"];
 ```
 
-When/if the user logs back in, `identify` should be called again with the user's identfiers
 
 ## Changelog
 
