@@ -178,61 +178,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
       Loggers.creative.debug("Successfully closed creative")
     }
   }
-
-  func checkAndResize(webView: WKWebView, retryCount: Int = 0) {
-    // Skipping if it's debug mode, we want to show debug output and let creative remain full screen.
-    if self.mode == .debug {
-      return
-    }
-    let getSizeJS = """
-    (function() {
-      var creative = document.getElementById('attentive_creative');
-      if (creative) {
-        var rect = creative.getBoundingClientRect();
-        return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-      } else {
-        return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight });
-      }
-    })();
-    """
-
-    webView.evaluateJavaScript(getSizeJS) { [weak self] result, error in
-      guard let self = self,
-            let jsonString = result as? String,
-            let data = jsonString.data(using: .utf8),
-            let frameDict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: CGFloat],
-            let x = frameDict["x"],
-            let y = frameDict["y"],
-            let width = frameDict["width"],
-            let height = frameDict["height"] else {
-        Loggers.creative.error("Failed to parse creative size.")
-        self?.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-        return
-      }
-
-      // If the height is still zero and we haven't exceeded a retry limit, try again later.
-      if height == 0 && retryCount < 5 {
-        Loggers.creative.debug("Creative height is 0, retrying... (attempt \(retryCount + 1))")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-          //self.checkAndResize(webView: webView, retryCount: retryCount + 1)
-        }
-        return
-      }
-      DispatchQueue.main.async {
-        self.webViewProvider?.parentView?.layoutIfNeeded()
-        webView.removeConstraints(webView.constraints)
-        // Disable Auto Layout for the web view
-        webView.translatesAutoresizingMaskIntoConstraints = true
-        // Set the frame manually with padding
-        webView.frame = CGRect(x: x, y: y, width: width, height: height + 20)
-        // Save the minimized frame for later. If user clicks on x on expanded creative, it shrinks.
-        self.updateMinimizedFrame(webView.frame)
-        webView.superview?.setNeedsLayout()
-        webView.superview?.layoutIfNeeded()
-        Loggers.creative.debug("Set creative frame to: x=\(x), y=\(y), width=\(width), height=\(height)")
-      }
-    }
-  }
 }
 
 extension ATTNWebViewHandler: WKNavigationDelegate {
@@ -275,39 +220,6 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
       switch ScriptStatus.getRawValue(from: statusAny) {
       case .success:
         Loggers.creative.debug("Found creative iframe, showing WebView.")
-        //        if let customWebView = webView as? CustomWebView {
-        //          let getSizeJS = """
-        //                    (function() {
-        //                      var creative = document.getElementById('attentive_creative');
-        //                      if (creative) {
-        //                        var rect = creative.getBoundingClientRect();
-        //                        return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-        //                      } else {
-        //                        return JSON.stringify({ width: document.body.scrollWidth, height: document.body.scrollHeight });
-        //                      }
-        //                    })();
-        //                    """
-        //
-        //          customWebView.evaluateJavaScript(getSizeJS) { (result, error) in
-        //            guard error == nil,
-        //                  let jsonString = result as? String,
-        //                  let data = jsonString.data(using: .utf8),
-        //                  let rectDict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: CGFloat],
-        //                  let x = rectDict["x"],
-        //                  let y = rectDict["y"],
-        //                  let width = rectDict["width"],
-        //                  let height = rectDict["height"] else {
-        //              Loggers.creative.error("Failed to determine creative size.")
-        //              return
-        //            }
-        //            // TODO: height is always 0, fix this...
-        //            //let newInteractiveArea = CGRect(x: x, y: y - 200, width: width, height: 200)
-        //            //customWebView.updateInteractiveHitArea(newInteractiveArea)
-        //            Loggers.creative.debug("Updated interactive hit area where x: \(x), y: \(y), width: \(width), height: \(height)")
-        //
-        //          }
-        //        }
-        //self.checkAndResize(webView: webView)
         webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
       case .timeout:
         Loggers.creative.error("Creative timed out. Not showing WebView.")
@@ -350,17 +262,18 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
       Loggers.creative.debug("Resizing creative")
       DispatchQueue.main.async {
         if let customWebView = self.webViewProvider?.webView as? CustomWebView {
-          let getSizeJS = """
-                                  (function() {
-                                    var creative = document.getElementById('attentive_creative');
-                                    if (creative) {
-                                      var rect = creative.getBoundingClientRect();
-                                      return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-                                    } else {
-                                      return JSON.stringify({ x: 0, y: 0, width: document.body.scrollWidth, height: document.body.scrollHeight });
-                                    }
-                                  })();
-                                  """
+          let getSizeJS =
+            """
+            (function() {
+              var creative = document.getElementById('attentive_creative');
+              if (creative) {
+                var rect = creative.getBoundingClientRect();
+                return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+              } else {
+                return JSON.stringify({ x: 0, y: 0, width: document.body.scrollWidth, height: document.body.scrollHeight });
+              }
+            })();
+            """
           customWebView.evaluateJavaScript(getSizeJS) { result, error in
             guard error == nil,
                   let jsonString = result as? String,
@@ -375,27 +288,27 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             }
 
             var newArea: CGRect
-            //if creative is a banner, scale creative frame to fit current screen coordinate system
+            guard let parent = self.webViewProvider?.parentView else { return }
+            let parentWidth = parent.bounds.width
+            let parentHeight = parent.bounds.height
+            //Check height to see if creative is a bubble, if so, scale creative frame to fit current screen coordinate system
             if height < 100 {
-              guard let parent = self.webViewProvider?.parentView else { return }
-              let parentWidth = parent.bounds.width
-              let parentHeight = parent.bounds.height
+              // Converts the JavaScript-reported creative frame (in web coordinate space) into a native iOS hit area for CustomWebView, applying fixed calibration values for consistent behavior across different screen sizes.
+              // This calibrated transformation yields an interactive area that's identical to creative's frame on screen. Then, if user taps inside the interactive area, the touch is handled by the creative; if user taps outside the interactive area, the touch is handled by rest of the app. This allows user to interact with the rest of the app while creative bubble remains on screen.
 
               // Use fixed horizontal calibration (works well on both large and small screens)
               let deltaX: CGFloat = 7.33
-
-              // For vertical calibration, use a smaller offset on a smaller parent.
+              // For vertical calibration, use a smaller offset on a smaller parent
               let deltaY: CGFloat = parentHeight < 800 ? 70 : 108.33
-
-              // For width and height reductions, we keep the same values.
+              // For width and height reductions, we keep the same values
               let reductionW: CGFloat = 14.83
               let reductionH: CGFloat = 15.0
 
-              // Margins to slightly expand the hit area.
+              // Margins to slightly expand the hit area
               let marginX: CGFloat = 2.0
               let marginY: CGFloat = 2.0
 
-              // Compute the converted (screen) values:
+              // Compute the converted values for iOS screen sizes:
               let screenX = x + deltaX - marginX
               let screenY = y + deltaY - marginY
               let screenWidth = width - reductionW + (marginX * 2)
@@ -404,11 +317,11 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
               let newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
               newArea = newFrame
             } else {
-              newArea = CGRect(x: x, y: y, width: width, height: height)
+              newArea = parent.frame
             }
 
             customWebView.updateInteractiveHitArea(newArea)
-            Loggers.creative.debug("Creative interactive area updated to: x: \(x), y: \(y), width: \(width), height: \(height)")
+            Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
           }
         }
       }
@@ -439,13 +352,11 @@ fileprivate extension ATTNWebViewHandler {
     webViewProvider?.skipFatigueOnCreative ?? false
   }
 }
-
+/// Web view with custom hit area where only touches inside the interactive area are handled. This allows users to interact with rest of the app when creative is minimized to a bubble
 class CustomWebView: WKWebView {
-  /// The region in the view (in its own coordinate system) that is opaque/interactive.
-  /// Taps outside this region will be passed through.
+
   var interactiveHitArea: CGRect = .zero {
     didSet {
-
       self.setNeedsLayout()
       self.layoutIfNeeded()
     }
@@ -455,19 +366,15 @@ class CustomWebView: WKWebView {
     interactiveHitArea = newArea
   }
 
-  // Override hit testing so that only touches inside the interactive area are handled.
-  override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
 
+  override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
     return interactiveHitArea.contains(point)
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-
     if interactiveHitArea.contains(point) {
-      Loggers.creative.debug("Inside hit area! user touch point x is \(point.x) and y is \(point.y)")
       return super.hitTest(point, with: event)
     }
-    Loggers.creative.debug("Outside hit area. user touch point x is \(point.x) and y is \(point.y)")
     return nil
   }
 }
