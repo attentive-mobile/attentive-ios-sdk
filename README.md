@@ -1,8 +1,8 @@
-# Attentive SDK
+# Attentive iOS SDK
 
-The Attentive mobile SDK provides identity, data collection, and creative rendering functionality for your app. This enables cross-platform journeys, enhanced reporting, and a great experience for your mobile users.
+The Attentive mobile SDK provides functionalities like gathering user identity, collecting event data, and rendering creatives for your app. This enables cross-platform journeys, enhanced reporting, and revenue attributions.
 
-## iOS - Prerequisites
+## Prerequisites
 
 ### Cocoapods
 
@@ -104,7 +104,7 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 
 ## Step 2 - Identify the current user
 
-When you have information about the current user (user ID, email, phone, etc), you can pass it to Attentive for identification purposes via the `identify` function. You can call identify every time you have additional information about the user during your app's flows.
+When you gather information about the current user (user ID, email, phone, etc), you can pass it to Attentive for identification purposes via the `identify` function. You can call identify every time to add any additional information about the user.
 
 Here is the list of possible identifiers available in `ATTNIdentifierType`:
 
@@ -148,7 +148,7 @@ sdk.clearUser()
 
 ## Step 3 - Record user events
 
-Next, call Attentive's event functions when each important event happens in your app, so that Attentive can understand user behavior. These events allow Attentive to trigger journeys, attribute revenue, and more. 
+Call Attentive's event functions whenever important events happens in your app, so that Attentive can better understand user behaviors, trigger journeys, and attribute revenue accurately.
 
 The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
 
@@ -208,8 +208,6 @@ productView.deeplink = @"https://mydeeplink.com/products/32432423";
 ---
 
 You can also implement `CustomEvent` to send application-specific event schemas. These are simply key/value pairs which will be transmitted and stores in Attentive's systems for later use. Please discuss with your CSM to understand how and where these events can be use in orchestration.
-
-Custom event implementation example:
 
 #### Swift
 ```swift
@@ -326,4 +324,4 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
 
 ## Changelog
 
-Click [here](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/CHANGELOG.md) for a complete change log of every released version
+Click [here](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/CHANGELOG.md) for a complete change log of every released version.
