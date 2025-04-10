@@ -283,7 +283,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
                   let y = rectDict["y"],
                   let width = rectDict["width"],
                   let height = rectDict["height"] else {
-              Loggers.creative.error("Failed to determine creative size on SHRINK: \(error?.localizedDescription ?? "unknown error")")
+              Loggers.creative.error("Failed to determine creative size: \(error?.localizedDescription ?? "unknown error")")
               return
             }
 
@@ -314,7 +314,24 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
               let screenWidth = width - reductionW + (marginX * 2)
               let screenHeight = height - reductionH + (marginY * 2)
 
-              let newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
+//              // Determine a vertical shift using the window's safe area inset.
+//              let verticalShift: CGFloat = {
+//                  if let window = parent.window {
+//                      return window.safeAreaInsets.top
+//                  }
+//                  return 0
+//              }()
+//
+//              let adjustedY = screenY - verticalShift * 2
+              //If screen is modal, apply the offset below (need to test with iphone SE)
+              //otherwise, do default.
+              let newFrame = CGRect(x: screenX,
+                                      y: screenY - screenHeight * 2,
+                                      width: screenWidth,
+                                      height: screenHeight * 4)
+
+              //
+              //let newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
               newArea = newFrame
             } else {
               newArea = parent.frame
@@ -332,8 +349,8 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
       stateManager.updateState(.open)
       Loggers.creative.debug("Creative opened and generated impression event")
     } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), stateManager.getState() == .open {
-      Loggers.creative.debug("WebView hidden, ignoring since we want user to close manually")
-      // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
+      Loggers.creative.debug("WebView hidden, closing WebView")
+      closeCreative()
     }
   }
 }
@@ -373,9 +390,41 @@ class CustomWebView: WKWebView {
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
     if interactiveHitArea.contains(point) {
+      Loggers.creative.debug("inside area! point x is \(point.x) and y is \(point.y) TODO DELETE")
       return super.hitTest(point, with: event)
     }
+    Loggers.creative.debug("outside area. point x is \(point.x) and y is \(point.y) TODO DELETE")
     return nil
   }
+}
+
+extension UIViewController {
+  /// Returns true if the view controller is presented modally.
+  var isModal: Bool {
+    // If there's a presenting view controller, then we're modal…
+    if self.presentingViewController != nil {
+      return true
+    }
+    // Or if we're embedded in a navigation controller that itself was presented modally:
+    if let nav = self.navigationController, nav.presentingViewController?.presentedViewController == nav {
+      return true
+    }
+    // Or if we're embedded in a tab bar controller that was presented modally:
+    if let tab = self.tabBarController, tab.presentingViewController is UITabBarController {
+      return true
+    }
+    return false
+  }
+
+  var parentViewController: UIViewController? {
+          var responder: UIResponder? = self
+          while responder != nil {
+              responder = responder?.next
+              if let viewController = responder as? UIViewController {
+                  return viewController
+              }
+          }
+          return nil
+      }
 }
 
