@@ -63,7 +63,14 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
     let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     configuration.userContentController.addUserScript(userScript)
-    return CustomWebView(frame: .zero, configuration: configuration)
+    let webView = CustomWebView(frame: .zero, configuration: configuration)
+    webView.onRemovedFromWindow = { [weak self] in
+      // Only close if the creative is currently open.
+      if let strongSelf = self, strongSelf.stateManager.getState() == .open {
+        strongSelf.closeCreative()
+      }
+    }
+    return webView
   }
 
   func launchCreative(
@@ -291,10 +298,10 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             guard let parent = self.webViewProvider?.parentView else { return }
             let parentWidth = parent.bounds.width
             let parentHeight = parent.bounds.height
-            //Check height to see if creative is a bubble, if so, scale creative frame to fit current screen coordinate system
+            //Check height to see if creative is a bubble. If so, scale creative frame to fit current screen coordinate system
             if height < 100 {
-              // Converts the JavaScript-reported creative frame (in web coordinate space) into a native iOS hit area for CustomWebView, applying fixed calibration values for consistent behavior across different screen sizes.
-              // This calibrated transformation yields an interactive area that's identical to creative's frame on screen. Then, if user taps inside the interactive area, the touch is handled by the creative; if user taps outside the interactive area, the touch is handled by rest of the app. This allows user to interact with the rest of the app while creative bubble remains on screen.
+              /// Converts the JavaScript-reported creative frame (in web coordinate space) into a native iOS hit area for CustomWebView, applying fixed calibration values for consistent behavior across different screen sizes.
+              /// This calibrated transformation yields an interactive area that's identical to creative's frame on screen. Then, if user taps inside the interactive area, the touch is handled by the creative; if user taps outside the interactive area, the touch is handled by rest of the app. This allows user to interact with the rest of the app while creative bubble remains on screen.
 
               // Use fixed horizontal calibration (works well on both large and small screens)
               let deltaX: CGFloat = 7.33
@@ -314,26 +321,19 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
               let screenWidth = width - reductionW + (marginX * 2)
               let screenHeight = height - reductionH + (marginY * 2)
 
-//              // Determine a vertical shift using the window's safe area inset.
-//              let verticalShift: CGFloat = {
-//                  if let window = parent.window {
-//                      return window.safeAreaInsets.top
-//                  }
-//                  return 0
-//              }()
-//
-//              let adjustedY = screenY - verticalShift * 2
+              var newFrame: CGRect
               //If screen is modal, apply the offset below (need to test with iphone SE)
-              //otherwise, do default.
-              let newFrame = CGRect(x: screenX,
-                                      y: screenY - screenHeight * 2,
+              if let parentVC = parent.parentViewController, parentVC.isModal {
+                newFrame = CGRect(x: screenX,
+                                  y: screenY - screenHeight * 2.5,
                                       width: screenWidth,
-                                      height: screenHeight * 4)
-
-              //
-              //let newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
+                                  height: screenHeight * 2.5)
+              } else {
+                newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
+              }
               newArea = newFrame
             } else {
+              // If creative is a full screen web view, set interactive area to parent view's frame
               newArea = parent.frame
             }
 
@@ -349,8 +349,8 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
       stateManager.updateState(.open)
       Loggers.creative.debug("Creative opened and generated impression event")
     } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), stateManager.getState() == .open {
-      Loggers.creative.debug("WebView hidden, closing WebView")
-      closeCreative()
+      Loggers.creative.debug("document-visibility: true, Web View will be closed if the window containing it is no longer in view hierarchy")
+      // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
     }
   }
 }
@@ -369,7 +369,7 @@ fileprivate extension ATTNWebViewHandler {
     webViewProvider?.skipFatigueOnCreative ?? false
   }
 }
-/// Web view with custom hit area where only touches inside the interactive area are handled. This allows users to interact with rest of the app when creative is minimized to a bubble
+/// Web view with custom hit area where only touches inside the interactive area are handled. This allows users to interact with rest of the app when creative is minimized to a bubble; also calls a closure when it is removed from its window to detect when it's no longer on screen.
 class CustomWebView: WKWebView {
 
   var interactiveHitArea: CGRect = .zero {
@@ -378,6 +378,8 @@ class CustomWebView: WKWebView {
       self.layoutIfNeeded()
     }
   }
+
+  var onRemovedFromWindow: (() -> Void)?
 
   func updateInteractiveHitArea(_ newArea: CGRect) {
     interactiveHitArea = newArea
@@ -390,11 +392,17 @@ class CustomWebView: WKWebView {
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
     if interactiveHitArea.contains(point) {
-      Loggers.creative.debug("inside area! point x is \(point.x) and y is \(point.y) TODO DELETE")
       return super.hitTest(point, with: event)
     }
-    Loggers.creative.debug("outside area. point x is \(point.x) and y is \(point.y) TODO DELETE")
     return nil
+  }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // If the web view's window becomes nil, it's no longer on screen.
+    if self.window == nil {
+      onRemovedFromWindow?()
+    }
   }
 }
 
@@ -415,16 +423,18 @@ extension UIViewController {
     }
     return false
   }
+}
 
+extension UIView {
   var parentViewController: UIViewController? {
-          var responder: UIResponder? = self
-          while responder != nil {
-              responder = responder?.next
-              if let viewController = responder as? UIViewController {
-                  return viewController
-              }
-          }
-          return nil
+    var responder: UIResponder? = self
+    while responder != nil {
+      responder = responder?.next
+      if let viewController = responder as? UIViewController {
+        return viewController
       }
+    }
+    return nil
+  }
 }
 
