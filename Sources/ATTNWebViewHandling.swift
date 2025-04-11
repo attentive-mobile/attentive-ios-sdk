@@ -296,44 +296,14 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
 
             var newArea: CGRect
             guard let parent = self.webViewProvider?.parentView else { return }
-            let parentWidth = parent.bounds.width
-            let parentHeight = parent.bounds.height
-            //Check height to see if creative is a bubble. If so, scale creative frame to fit current screen coordinate system
+
+            // If the creative is a bubble (height < 100), adjust its hit area.
             if height < 100 {
-              /// Converts the JavaScript-reported creative frame (in web coordinate space) into a native iOS hit area for CustomWebView, applying fixed calibration values for consistent behavior across different screen sizes.
-              /// This calibrated transformation yields an interactive area that's identical to creative's frame on screen. Then, if user taps inside the interactive area, the touch is handled by the creative; if user taps outside the interactive area, the touch is handled by rest of the app. This allows user to interact with the rest of the app while creative bubble remains on screen.
-
-              // Use fixed horizontal calibration (works well on both large and small screens)
-              let deltaX: CGFloat = 7.33
-              // For vertical calibration, use a smaller offset on a smaller parent
-              let deltaY: CGFloat = parentHeight < 800 ? 70 : 108.33
-              // For width and height reductions, we keep the same values
-              let reductionW: CGFloat = 14.83
-              let reductionH: CGFloat = 15.0
-
-              // Margins to slightly expand the hit area
-              let marginX: CGFloat = 2.0
-              let marginY: CGFloat = 2.0
-
-              // Compute the converted values for iOS screen sizes:
-              let screenX = x + deltaX - marginX
-              let screenY = y + deltaY - marginY
-              let screenWidth = width - reductionW + (marginX * 2)
-              let screenHeight = height - reductionH + (marginY * 2)
-
-              var newFrame: CGRect
-              //If screen is modal, apply the offset below (need to test with iphone SE)
-              if let parentVC = parent.parentViewController, parentVC.isModal {
-                newFrame = CGRect(x: screenX,
-                                  y: screenY - screenHeight * 2.5,
-                                      width: screenWidth,
-                                  height: screenHeight * 2.5)
-              } else {
-                newFrame = CGRect(x: screenX, y: screenY, width: screenWidth, height: screenHeight)
-              }
-              newArea = newFrame
+              let jsFrame = CGRect(x: x, y: y, width: width, height: height)
+              let isModal = parent.parentViewController?.isModal ?? false
+              newArea = self.calculateInteractiveArea(jsFrame: jsFrame, parentFrame: parent.frame, isModal: isModal)
             } else {
-              // If creative is a full screen web view, set interactive area to parent view's frame
+              // For full screen creatives, simply use the parent's frame.
               newArea = parent.frame
             }
 
@@ -351,6 +321,40 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
     } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), stateManager.getState() == .open {
       Loggers.creative.debug("document-visibility: true, Web View will be closed if the window containing it is no longer in view hierarchy")
       // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
+    }
+  }
+
+  /**
+   Converts a JS-reported creative frame (in web coordinate space) into the native iOS interactive hit area based on calibration constants. If the creative is a bubble (height < 100) and the parent view controller is modal, additional vertical scaling is applied to allow consistent ux across all screen sizes.
+   */
+  private func calculateInteractiveArea(jsFrame: CGRect, parentFrame: CGRect, isModal: Bool) -> CGRect {
+    // Calibration constants (derived and adjusted based on various screen sizes)
+    let deltaX: CGFloat = 7.33
+    // Use a smaller vertical offset if the parent's height is less than 800 (such as for iPhone SE)
+    let deltaY: CGFloat = parentFrame.height < 800 ? 70 : 108.33
+    let reductionW: CGFloat = 14.83
+    let reductionH: CGFloat = 15.0
+    // Margins to slightly expand the area to make it easier to tap on creatives
+    let marginX: CGFloat = 2.0
+    let marginY: CGFloat = 2.0
+
+    // Compute the intermediate (calibrated) interactive area values
+    let screenX = jsFrame.origin.x + deltaX - marginX
+    let screenY = jsFrame.origin.y + deltaY - marginY
+    let screenWidth = jsFrame.size.width - reductionW + (marginX * 2)
+    let screenHeight = jsFrame.size.height - reductionH + (marginY * 2)
+
+    // If the view is modal, we apply extra vertical expansion.
+    if isModal {
+      return CGRect(x: screenX,
+                    y: screenY - screenHeight * 2.5, // Shift upward extra
+                    width: screenWidth,
+                    height: screenHeight * 2.5)       // Expand height
+    } else {
+      return CGRect(x: screenX,
+                    y: screenY,
+                    width: screenWidth,
+                    height: screenHeight)
     }
   }
 }
