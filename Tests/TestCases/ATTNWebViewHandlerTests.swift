@@ -7,7 +7,6 @@
 
 // MARK: Integration tests
 
-
 import Foundation
 import UIKit
 import WebKit
@@ -110,17 +109,25 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
     let creativeId = "testCreative"
     let expectedURL = "https://mockurl.com/creative?id=\(creativeId)"
 
-    handler = TestWebViewHandler(
+    let loadExpectation = self.expectation(description: "WebView load is triggered")
+
+    let testHandler = TestWebViewHandler(
       webViewProvider: mockWebViewProvider,
       creativeUrlBuilder: MockCreativeUrlProvider(),
       stateManager: ATTNCreativeStateManager.shared
     )
+    testHandler.onMakeWebView = { mockWebView in
+      mockWebView.onLoad = {
+        loadExpectation.fulfill()
+      }
+    }
+    handler = testHandler
     mockWebViewProvider.webViewSetupExpectation = expectation(description: "WebView should be set up and load the URL")
 
     handler.launchCreative(parentView: parentView, creativeId: creativeId)
 
     waitForExpectations(timeout: 5.0) { error in
-      XCTAssertNil(error, "WebView did not set up in time")
+      XCTAssertNil(error, "WebView did not set up and load URL in time")
       let actualURL = (self.mockWebViewProvider.webView as? MockWKWebView)?.loadedURL
       XCTAssertEqual(actualURL, expectedURL, "WebView should load the correct URL")
     }
@@ -129,12 +136,14 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
 // MARK: Mocks
 
-// A custom WKWebView subclass that records the URL when load(_:) is called.
-class MockWKWebView: WKWebView {
+/// A custom WKWebView subclass that records the URL when load(_:) is called.
+class MockWKWebView: CustomWebView {
   var loadedURL: String?
+  var onLoad: (() -> Void)?
 
   override func load(_ request: URLRequest) -> WKNavigation? {
     loadedURL = request.url?.absoluteString
+    onLoad?()
     return nil
   }
 }
@@ -152,7 +161,6 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   var mockMode: ATTNSDKMode = .debug
   var mockUserIdentity: ATTNUserIdentity = .init()
 
-  // XCTestExpectations for async behavior
   var webViewSetupExpectation: XCTestExpectation?
   var webViewRemovalExpectation: XCTestExpectation?
 
@@ -160,12 +168,10 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
   var webViewCreationCount = 0
   var loadedURL: String?
 
-  // Observers to trigger expectations
   var webView: WKWebView? {
     didSet {
       if let webView = webView {
         webViewCreationCount += 1
-        // If it's a MockWKWebView, capture its loaded URL.
         if let mockWebView = webView as? MockWKWebView {
           self.loadedURL = mockWebView.loadedURL
         }
@@ -205,8 +211,10 @@ class MockCreativeUrlProvider: ATTNCreativeUrlProviding {
 }
 
 class TestWebViewHandler: ATTNWebViewHandler {
+  var onMakeWebView: ((MockWKWebView) -> Void)?
   override func makeWebView() -> WKWebView {
-    return MockWKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+    let webView = MockWKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+    onMakeWebView?(webView)
+    return webView
   }
 }
-
