@@ -303,8 +303,8 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
               let isModal = parent.parentViewController?.isModal ?? false
               newArea = self.calculateInteractiveArea(jsFrame: jsFrame, parentFrame: parent.frame, isModal: isModal)
             } else {
-              // For full screen creatives, simply use the parent's frame.
-              newArea = parent.frame
+              // For full screen creatives, use the screen's bounds to make sure user can interact with the full screen webview
+              newArea = UIScreen.main.bounds
             }
 
             customWebView.updateInteractiveHitArea(newArea)
