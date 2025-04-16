@@ -162,11 +162,20 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
   
   // MARK: - UICollectionView Delegate Flow Layout
   
-  func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    let width = (collectionView.frame.width - 30) / 2  // 2 columns with spacing.
-    return CGSize(width: width, height: width * 1.5)
+  func collectionView(_ collectionView: UICollectionView,
+                      layout collectionViewLayout: UICollectionViewLayout,
+                      sizeForItemAt indexPath: IndexPath) -> CGSize {
+      let numberOfColumns: CGFloat = 2
+      let interItemSpacing: CGFloat = 10  // This should match your minimumInteritemSpacing
+      let totalSpacing = interItemSpacing * (numberOfColumns - 1)
+
+      let cellWidth = (collectionView.frame.width - totalSpacing) / numberOfColumns
+      let aspectRatio: CGFloat = 245 / 165  // height = width * (245/165)
+      let cellHeight = cellWidth * aspectRatio + 40
+
+      return CGSize(width: cellWidth, height: cellHeight)
   }
-  
+
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
     return 10
   }

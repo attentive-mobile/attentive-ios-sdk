@@ -9,7 +9,7 @@ import Foundation
 import ATTNSDKFramework
 
 class ProductListViewModel {
-  
+
   // MARK: - Properties
 
   private(set) var products: [ATTNItem] = []
@@ -40,18 +40,26 @@ class ProductListViewModel {
   }
 
   private func assignMockDataToProducts() {
-    let sampleImages = [
-      "https://via.placeholder.com/150/008000",
-      "https://via.placeholder.com/150/008000",
-      "https://via.placeholder.com/150/008000",
-      "https://via.placeholder.com/150/FF0000",
-      "https://via.placeholder.com/150/800080",
-      "https://via.placeholder.com/150/FFA500"
+    let sampleImageNames = [
+            "product1",
+            "product2",
+            "product3",
+            "product4",
+            "product5",
+            "product6"
+      ]
+    let sampleProductNames = [
+            "Protective Superscreen",
+            "Mango Mask",
+            "Coconut Balm",
+            "Mango Balm",
+            "Honeydew Balm",
+            "The Stick"
     ]
 
     for (index, product) in products.enumerated() {
-      product.name = "Product \(index + 1)"
-      product.productImage = sampleImages[index % sampleImages.count]
+      product.name = sampleProductNames[index]
+      product.productImage = sampleImageNames[index % sampleImageNames.count]
     }
   }
 
