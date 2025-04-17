@@ -61,6 +61,7 @@ class CartTableViewCell: UITableViewCell {
     btn.setTitle("–", for: .normal)
     btn.tintColor = .black
     btn.backgroundColor = .lightGray
+    btn.alpha = 0.5
     btn.layer.cornerRadius = 8
     btn.translatesAutoresizingMaskIntoConstraints = false
     return btn
@@ -80,6 +81,7 @@ class CartTableViewCell: UITableViewCell {
     btn.setTitle("+", for: .normal)
     btn.tintColor = .black
     btn.backgroundColor = .lightGray
+    btn.alpha = 0.5
     btn.layer.cornerRadius = 8
     btn.translatesAutoresizingMaskIntoConstraints = false
     return btn

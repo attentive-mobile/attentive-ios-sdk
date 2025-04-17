@@ -12,7 +12,15 @@ class CartViewController: UIViewController {
   
   private let tableView = UITableView()
   private let viewModel: ProductListViewModel
-  
+  private let summaryView = UIView()
+  private let subtotalLabel = UILabel()
+  private let subtotalValueLabel = UILabel()
+  private let taxLabel = UILabel()
+  private let taxValueLabel = UILabel()
+  private let separator = UIView()
+  private let totalLabel = UILabel()
+  private let totalValueLabel = UILabel()
+
   init(viewModel: ProductListViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
@@ -29,7 +37,7 @@ class CartViewController: UIViewController {
     
     title = "My Cart"
     view.backgroundColor = .white
-    
+    setupSummaryView()
     setupTableView()
     setupCheckoutButton()
     
@@ -49,12 +57,111 @@ class CartViewController: UIViewController {
     
     NSLayoutConstraint.activate([
       tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -60) // Leaves space for checkout button
+      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+      tableView.bottomAnchor.constraint(equalTo: summaryView.topAnchor, constant: -8)
+
+    ])
+
+    let footerHeight: CGFloat = 80
+        let footerView = UIView(frame: CGRect(x: 0,
+                                              y: 0,
+                                              width: view.bounds.width - 16, // match your tableView width
+                                              height: footerHeight))
+
+    let couponButton = UIButton(type: .system)
+    couponButton.setTitle("Apply Coupon", for: .normal)
+    couponButton.tintColor = .black
+    couponButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+    couponButton.layer.borderColor = UIColor.black.cgColor
+    couponButton.layer.borderWidth = 1
+    couponButton.translatesAutoresizingMaskIntoConstraints = false
+
+    footerView.addSubview(couponButton)
+    NSLayoutConstraint.activate([
+      couponButton.topAnchor.constraint(equalTo: footerView.topAnchor, constant: 16),
+        couponButton.leadingAnchor.constraint(equalTo: footerView.leadingAnchor, constant: 8),
+        couponButton.trailingAnchor.constraint(equalTo: footerView.trailingAnchor, constant: -8),
+        couponButton.centerYAnchor.constraint(equalTo: footerView.centerYAnchor),
+        couponButton.heightAnchor.constraint(equalToConstant: 56)
+    ])
+    tableView.tableFooterView = footerView
+  }
+
+  private func setupSummaryView() {
+    // calculate
+    let subtotal = viewModel.cartItems
+        .reduce(NSDecimalNumber.zero) { $0.adding($1.product.price.price) }
+    let tax = subtotal.multiplying(by: .init(value: 0.05))
+    let total = subtotal.adding(tax)
+
+    // style labels
+    [subtotalLabel, subtotalValueLabel,
+     taxLabel,      taxValueLabel,
+     separator,
+     totalLabel,    totalValueLabel
+    ].forEach {
+      $0.translatesAutoresizingMaskIntoConstraints = false
+      summaryView.addSubview($0)
+    }
+
+    subtotalLabel.text = "Subtotal"
+    subtotalValueLabel.text = "$\(subtotal)"
+    taxLabel.text = "Estimated Tax"
+    taxValueLabel.text = "$\(tax)"
+    totalLabel.text = "Total"
+    totalValueLabel.text = "$\(total)"
+
+    // fonts & colors
+    let regularFont = UIFont(name: "DegularDisplay-Regular", size: 16)!
+    let mediumFont  = UIFont(name: "DegularDisplay-Medium",  size: 16)!
+    subtotalLabel.font = regularFont
+    subtotalValueLabel.font = regularFont; subtotalValueLabel.textAlignment = .right
+    taxLabel.font      = regularFont
+    taxValueLabel.font = regularFont;      taxValueLabel.textAlignment = .right
+    totalLabel.font    = mediumFont
+    totalValueLabel.font = mediumFont;     totalValueLabel.textAlignment = .right
+
+    separator.backgroundColor = .black
+
+    // add summaryView
+    view.addSubview(summaryView)
+    summaryView.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      summaryView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+      summaryView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+      summaryView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
+      summaryView.heightAnchor.constraint(equalToConstant: 120)
+    ])
+
+    // layout inside summaryView
+    NSLayoutConstraint.activate([
+      // Subtotal row
+      subtotalLabel.topAnchor.constraint(equalTo: summaryView.topAnchor, constant: 8),
+      subtotalLabel.leadingAnchor.constraint(equalTo: summaryView.leadingAnchor),
+      subtotalValueLabel.centerYAnchor.constraint(equalTo: subtotalLabel.centerYAnchor),
+      subtotalValueLabel.trailingAnchor.constraint(equalTo: summaryView.trailingAnchor),
+
+      // Tax row
+      taxLabel.topAnchor.constraint(equalTo: subtotalLabel.bottomAnchor, constant: 8),
+      taxLabel.leadingAnchor.constraint(equalTo: subtotalLabel.leadingAnchor),
+      taxValueLabel.centerYAnchor.constraint(equalTo: taxLabel.centerYAnchor),
+      taxValueLabel.trailingAnchor.constraint(equalTo: subtotalValueLabel.trailingAnchor),
+
+      // Separator
+      separator.topAnchor.constraint(equalTo: taxLabel.bottomAnchor, constant: 8),
+      separator.leadingAnchor.constraint(equalTo: summaryView.leadingAnchor),
+      separator.trailingAnchor.constraint(equalTo: summaryView.trailingAnchor),
+      separator.heightAnchor.constraint(equalToConstant: 1),
+
+      // Total row
+      totalLabel.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 8),
+      totalLabel.leadingAnchor.constraint(equalTo: subtotalLabel.leadingAnchor),
+      totalValueLabel.centerYAnchor.constraint(equalTo: totalLabel.centerYAnchor),
+      totalValueLabel.trailingAnchor.constraint(equalTo: subtotalValueLabel.trailingAnchor),
     ])
   }
-  
+
   private func setupCheckoutButton() {
     let checkoutButton = UIButton(type: .system)
     checkoutButton.setTitle("Check Out", for: .normal)
