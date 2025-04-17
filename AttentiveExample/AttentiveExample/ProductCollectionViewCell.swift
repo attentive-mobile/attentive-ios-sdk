@@ -76,16 +76,16 @@ class ProductCollectionViewCell: UICollectionViewCell {
 
   /// Add-to-cart button overlay on image with white circular background
   private let addToCartButton: UIButton = {
-      let button = UIButton(type: .system)
-      let cartImage = UIImage(named: "Shopping cart")?
-          .withRenderingMode(.alwaysTemplate)
-      button.setImage(cartImage, for: .normal)
-      button.tintColor = .black
-      button.backgroundColor = .white
-      button.layer.cornerRadius = 15  // half of 30 to stay perfectly round
-      button.layer.masksToBounds = true
-      button.translatesAutoresizingMaskIntoConstraints = false
-      return button
+    let button = UIButton(type: .system)
+    let cartImage = UIImage(named: "Shopping cart")?
+      .withRenderingMode(.alwaysTemplate)
+    button.setImage(cartImage, for: .normal)
+    button.tintColor = .black
+    button.backgroundColor = .white
+    button.layer.cornerRadius = 15  // half of 30 to stay perfectly round
+    button.layer.masksToBounds = true
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
   // MARK: - Init
 
@@ -141,7 +141,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     productNameLabel.text = product.name ?? "Unknown Product"
     productPriceLabel.text = {
       let price = product.price
-      return "$\(price.price.stringValue)"
+      return "\(price.currency) \(price.price.stringValue)"
     }()
 
     productImageView.image = UIImage(named: product.name ?? "Protective Superscreen")

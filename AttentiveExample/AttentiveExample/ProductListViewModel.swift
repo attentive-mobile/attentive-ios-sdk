@@ -8,25 +8,28 @@
 import Foundation
 import ATTNSDKFramework
 
+struct CartItem {
+  let product: ATTNItem
+  var quantity: Int
+}
+
 class ProductListViewModel {
-
+  
   // MARK: - Properties
-
+  
   private(set) var products: [ATTNItem] = []
-  private(set) var cartItems: [ATTNItem] = [] {
-    didSet {
-      onCartItemsChanged?(cartItems.count)
-    }
+  private(set) var cartItems: [CartItem] = [] {
+    didSet { onCartItemsChanged?(cartItems.count) }
   }
-
+  
   var onCartItemsChanged: ((Int) -> Void)?
-
+  
   // MARK: - Initialization
-
+  
   init() {
     setupProducts()
   }
-
+  
   private func setupProducts() {
     products = [
       ATTNItem(productId: "1", productVariantId: "1A", price: ATTNPrice(price: NSDecimalNumber(string: "19.99"), currency: "USD")),
@@ -38,39 +41,46 @@ class ProductListViewModel {
     ]
     assignMockDataToProducts()
   }
-
+  
   private func assignMockDataToProducts() {
     let sampleImageNames = [
-            "product1",
-            "product2",
-            "product3",
-            "product4",
-            "product5",
-            "product6"
-      ]
-    let sampleProductNames = [
-            "Protective Superscreen",
-            "Mango Mask",
-            "Coconut Balm",
-            "Mango Balm",
-            "Honeydew Balm",
-            "The Stick"
+      "product1",
+      "product2",
+      "product3",
+      "product4",
+      "product5",
+      "product6"
     ]
-
+    let sampleProductNames = [
+      "Protective Superscreen",
+      "Mango Mask",
+      "Coconut Balm",
+      "Mango Balm",
+      "Honeydew Balm",
+      "The Stick"
+    ]
+    
     for (index, product) in products.enumerated() {
       product.name = sampleProductNames[index]
       product.productImage = sampleImageNames[index % sampleImageNames.count]
     }
   }
-
+  
   // MARK: - Cart Operations
-
-  func addProductToCart(_ product: ATTNItem) {
-    cartItems.append(product)
+  
+  func addProductToCart(_ item: ATTNItem) {
+    if let idx = cartItems.firstIndex(where: { $0.product.productId == item.productId }) {
+      cartItems[idx].quantity += 1
+    } else {
+      cartItems.append(CartItem(product: item, quantity: 1))
+    }
   }
-
-  func removeProductFromCart(at index: Int) {
-    guard index < cartItems.count else { return }
-    cartItems.remove(at: index)
+  
+  func decreaseQuantity(of item: ATTNItem) {
+    guard let idx = cartItems.firstIndex(where: { $0.product.productId == item.productId }) else { return }
+    cartItems[idx].quantity -= 1
+    if cartItems[idx].quantity <= 0 {
+      cartItems.remove(at: idx)
+    }
   }
 }
