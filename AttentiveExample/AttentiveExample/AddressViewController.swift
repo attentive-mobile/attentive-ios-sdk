@@ -1,139 +1,203 @@
-//
-//  AddressViewController.swift
-//  AttentiveExample
-//
-//  Created by Adela Gao on 3/6/25.
-//
-
 import UIKit
 
 class AddressViewController: UIViewController {
 
-  // MARK: - UI Components
-
-  private let scrollView: UIScrollView = {
-    let sv = UIScrollView()
-    sv.translatesAutoresizingMaskIntoConstraints = false
-    return sv
-  }()
-
-  private let contentView: UIView = {
-    let view = UIView()
-    view.translatesAutoresizingMaskIntoConstraints = false
-    return view
-  }()
-
-  private let shippingTitleLabel: UILabel = {
-    let label = UILabel()
-    label.text = "Shipping Address"
-    label.font = UIFont.boldSystemFont(ofSize: 18)
-    return label
-  }()
-  private let shippingFullNameTextField = AddressViewController.makeTextField(withPlaceholder: "Full Name")
-  private let shippingStreetTextField = AddressViewController.makeTextField(withPlaceholder: "Street Address")
-  private let shippingCityTextField = AddressViewController.makeTextField(withPlaceholder: "City")
-  private let shippingStateTextField = AddressViewController.makeTextField(withPlaceholder: "State")
-  private let shippingZipTextField = AddressViewController.makeTextField(withPlaceholder: "Zip Code")
-
-  private let billingTitleLabel: UILabel = {
-    let label = UILabel()
-    label.text = "Billing Address"
-    label.font = UIFont.boldSystemFont(ofSize: 18)
-    return label
-  }()
-  private let billingFullNameTextField = AddressViewController.makeTextField(withPlaceholder: "Full Name")
-  private let billingStreetTextField = AddressViewController.makeTextField(withPlaceholder: "Street Address")
-  private let billingCityTextField = AddressViewController.makeTextField(withPlaceholder: "City")
-  private let billingStateTextField = AddressViewController.makeTextField(withPlaceholder: "State")
-  private let billingZipTextField = AddressViewController.makeTextField(withPlaceholder: "Zip Code")
-
-  private let continueButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("Continue", for: .normal)
-    button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-    button.backgroundColor = .systemBlue
-    button.setTitleColor(.white, for: .normal)
-    button.layer.cornerRadius = 8
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  // MARK: - View Lifecycle
+  private let tableView = UITableView(frame: .zero, style: .grouped)
+  private var orderTotal: NSDecimalNumber {
+    // compute your subtotal here; using a placeholder
+    return NSDecimalNumber(string: "123.45")
+  }
+  // Country picker data
+  private let countryPicker = UIPickerView()
+  private let countryList: [String] = Locale.isoRegionCodes
+    .compactMap { Locale.current.localizedString(forRegionCode: $0) }
+    .sorted()
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    view.backgroundColor = .white
     title = "Shipping & Billing"
-    setupUI()
+    view.backgroundColor = .white
+    setupTableView()
+
+    countryPicker.dataSource = self
+    countryPicker.delegate   = self
   }
 
-  // MARK: - UI Setup
+  private func setupTableView() {
+    tableView.translatesAutoresizingMaskIntoConstraints = false
+    tableView.dataSource = self
+    tableView.delegate   = self
 
-  private func setupUI() {
-    view.addSubview(scrollView)
-    scrollView.addSubview(contentView)
+    // Register our custom cells
+    tableView.register(SummaryTableViewCell.self,     forCellReuseIdentifier: SummaryTableViewCell.reuseID)
+    tableView.register(TextfieldTableViewCell.self,   forCellReuseIdentifier: TextfieldTableViewCell.reuseID)
+    tableView.register(UITableViewCell.self,
+                       forCellReuseIdentifier: "PlaceOrderCell")
+
+    view.addSubview(tableView)
     NSLayoutConstraint.activate([
-      scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-      scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-      contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-      contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-      contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-      contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-      // Set contentView width equal to scrollView width
-      contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+      tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
     ])
+  }
+}
 
-    let stackView = UIStackView(arrangedSubviews: [
-      shippingTitleLabel,
-      shippingFullNameTextField,
-      shippingStreetTextField,
-      shippingCityTextField,
-      shippingStateTextField,
-      shippingZipTextField,
-      billingTitleLabel,
-      billingFullNameTextField,
-      billingStreetTextField,
-      billingCityTextField,
-      billingStateTextField,
-      billingZipTextField,
-      continueButton
-    ])
-    stackView.axis = .vertical
-    stackView.spacing = 16
-    stackView.translatesAutoresizingMaskIntoConstraints = false
+// MARK: - UITableViewDataSource
 
-    contentView.addSubview(stackView)
-    NSLayoutConstraint.activate([
-      stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-      stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-      stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-      stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
-    ])
-
-    continueButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
-
-    continueButton.addTarget(self, action: #selector(continueTapped), for: .touchUpInside)
+extension AddressViewController: UITableViewDataSource {
+  func numberOfSections(in tableView: UITableView) -> Int {
+    return 5
   }
 
-  private static func makeTextField(withPlaceholder placeholder: String) -> UITextField {
-    let tf = UITextField()
-    tf.placeholder = placeholder
-    tf.borderStyle = .roundedRect
-    tf.translatesAutoresizingMaskIntoConstraints = false
-    return tf
+  func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    switch section {
+    case 0: return nil
+    case 1: return "Contact"
+    case 2: return "Delivery"
+    case 3: return "Payment"
+    default: return nil
+    }
   }
 
-  // MARK: - Actions
-
-  @objc private func continueTapped() {
-    // TODO Validate the entered data
-    let placeOrderVC = PlaceOrderViewController()
-    navigationController?.pushViewController(placeOrderVC, animated: true)
+  func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    switch section {
+    case 0, 1: return 1
+    case 2: return 9
+    case 3: return 4
+    case 4: return 1
+    default: return 0
+    }
   }
-  
 
+  func tableView(_ tableView: UITableView,
+                 cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    switch indexPath.section {
 
+    case 0:
+      let cell = tableView.dequeueReusableCell(
+        withIdentifier: SummaryTableViewCell.reuseID,
+        for: indexPath) as! SummaryTableViewCell
+      cell.configure(title: "Order Summary",
+                     value: "$\(orderTotal.stringValue)")
+      return cell
+
+    case 1:
+      let cell = tableView.dequeueReusableCell(
+        withIdentifier: TextfieldTableViewCell.reuseID,
+        for: indexPath) as! TextfieldTableViewCell
+      cell.configure(placeholder: "Email address")
+      return cell
+    case 2:
+      let cell = tableView.dequeueReusableCell(
+        withIdentifier: TextfieldTableViewCell.reuseID,
+        for: indexPath) as! TextfieldTableViewCell
+
+      let tf = cell.textField  // exposed property
+
+      // Wire in the country picker for row 0
+      if indexPath.row == 0 {
+        cell.configure(placeholder: "Country")
+        tf.inputView = countryPicker
+      } else {
+        // map row → placeholder
+        let placeholders = [
+          "First Name",       // 1
+          "Last Name",        // 2
+          "Address Line 1",   // 3
+          "Address Line 2",   // 4
+          "City",             // 5
+          "State",            // 6
+          "Zip Code",         // 7
+          "Phone Number"      // 8
+        ]
+        let idx = indexPath.row - 1
+        cell.configure(placeholder: placeholders[idx])
+        // keyboard types
+        if idx == 7 { tf.keyboardType = .numberPad }
+        if idx == 8 { tf.keyboardType = .phonePad }
+      }
+
+      return cell
+    case 3:
+      let cell = tableView.dequeueReusableCell(
+        withIdentifier: TextfieldTableViewCell.reuseID,
+        for: indexPath
+      ) as! TextfieldTableViewCell
+      let textfield = cell.textField
+      let paymentPlaceholders = [
+        "Card Number",
+        "Name on Card",
+        "Expiration Date",
+        "CVV"
+      ]
+      cell.configure(placeholder: paymentPlaceholders[indexPath.row])
+      // use numeric keyboard for card number & CVV
+      if indexPath.row == 0 || indexPath.row == 3 {
+        textfield.keyboardType = .numberPad
+      }
+      return cell
+    case 4:
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: "PlaceOrderCell",
+            for: indexPath
+        )
+        // remove any old subviews (if cells get reused)
+        cell.contentView.subviews.forEach { $0.removeFromSuperview() }
+
+        let placeOrderButton = UIButton(type: .system)
+        placeOrderButton.setTitle("Place Order", for: .normal)
+        placeOrderButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        placeOrderButton.tintColor = .black
+        placeOrderButton.backgroundColor = .black
+        placeOrderButton.setTitleColor(.white, for: .normal)
+        placeOrderButton.translatesAutoresizingMaskIntoConstraints = false
+        placeOrderButton.addTarget(self, action: #selector(placeOrderTapped), for: .touchUpInside)
+
+        cell.contentView.addSubview(placeOrderButton)
+        NSLayoutConstraint.activate([
+          placeOrderButton.leadingAnchor.constraint(equalTo: cell.contentView.leadingAnchor, constant: 20),
+          placeOrderButton.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -20),
+          placeOrderButton.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 10),
+          placeOrderButton.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -10),
+          placeOrderButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+
+        cell.selectionStyle = .none
+        return cell
+    default:
+      fatalError("Unexpected section")
+    }
+  }
+  @objc private func placeOrderTapped() {
+    navigationController?.pushViewController(OrderConfirmationViewController(), animated: true)
+  }
+}
+
+// MARK: - UITableViewDelegate
+
+extension AddressViewController: UITableViewDelegate {
+  // (You can implement heightForRowAt or let automaticDimension handle it.)
+}
+
+extension AddressViewController: UIPickerViewDataSource, UIPickerViewDelegate {
+  func numberOfComponents(in _: UIPickerView) -> Int { 1 }
+  func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent _: Int) -> Int {
+    countryList.count
+  }
+  func pickerView(_ pickerView: UIPickerView,
+                  titleForRow row: Int,
+                  forComponent _: Int) -> String? {
+    countryList[row]
+  }
+  func pickerView(_ pickerView: UIPickerView,
+                  didSelectRow row: Int,
+                  inComponent _: Int) {
+    // Update the country text field when picking
+    let ip = IndexPath(row: 0, section: 2)
+    if let cell = tableView.cellForRow(at: ip) as? TextfieldTableViewCell {
+      cell.textField.text = countryList[row]
+    }
+  }
 }

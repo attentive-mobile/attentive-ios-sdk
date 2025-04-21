@@ -37,6 +37,7 @@ class CartViewController: UIViewController {
     
     title = "My Cart"
     view.backgroundColor = .white
+    navigationController?.navigationBar.tintColor = .black
     setupSummaryView()
     setupTableView()
     setupCheckoutButton()
@@ -105,12 +106,22 @@ class CartViewController: UIViewController {
       summaryView.addSubview($0)
     }
 
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+
+    let subString = formatter.string(from: subtotal) ?? "0.00"
+    let taxString = formatter.string(from: tax)      ?? "0.00"
+    let totString = formatter.string(from: total)    ?? "0.00"
+
+    subtotalValueLabel.text = "$\(subString)"
+    taxValueLabel.text      = "$\(taxString)"
+    totalValueLabel.text    = "$\(totString)"
+
     subtotalLabel.text = "Subtotal"
-    subtotalValueLabel.text = "$\(subtotal)"
     taxLabel.text = "Estimated Tax"
-    taxValueLabel.text = "$\(tax)"
     totalLabel.text = "Total"
-    totalValueLabel.text = "$\(total)"
 
     // fonts & colors
     let regularFont = UIFont(name: "DegularDisplay-Regular", size: 16)!
@@ -164,11 +175,13 @@ class CartViewController: UIViewController {
 
   private func setupCheckoutButton() {
     let checkoutButton = UIButton(type: .system)
-    checkoutButton.setTitle("Check Out", for: .normal)
-    checkoutButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-    checkoutButton.backgroundColor = .systemBlue
+    checkoutButton.setTitle("CHECK OUT", for: .normal)
+    checkoutButton.tintColor = .black
+
+    checkoutButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+    checkoutButton.backgroundColor = .black
     checkoutButton.setTitleColor(.white, for: .normal)
-    checkoutButton.layer.cornerRadius = 10
+    //checkoutButton.layer.cornerRadius = 10
     checkoutButton.addTarget(self, action: #selector(checkoutTapped), for: .touchUpInside)
     
     checkoutButton.translatesAutoresizingMaskIntoConstraints = false
