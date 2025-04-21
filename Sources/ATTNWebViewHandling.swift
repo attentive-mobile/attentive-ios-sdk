@@ -301,7 +301,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             if height < 100 {
               let jsFrame = CGRect(x: x, y: y, width: width, height: height)
               let isModal = parent.parentViewController?.isModal ?? false
-              newArea = self.calculateInteractiveArea(jsFrame: jsFrame, parentFrame: parent.frame, isModal: isModal)
+              newArea = self.calculateInteractiveArea(parentFrame: parent.frame)
             } else {
               // For full screen creatives, use the screen's bounds to make sure user can interact with the full screen webview
               newArea = UIScreen.main.bounds
@@ -325,37 +325,21 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
   }
 
   /**
-   Converts a JS-reported creative frame (in web coordinate space) into the native iOS interactive hit area based on calibration constants. If the creative is a bubble (height < 100) and the parent view controller is modal, additional vertical scaling is applied to allow consistent ux across all screen sizes.
+   Calculate interactive area for bubble creative as a rectangular space at lower left corner of the screen. This ensures that when creative is a bubble, users can tap the creative, while being able to interact with the rest of the app.
    */
-  private func calculateInteractiveArea(jsFrame: CGRect, parentFrame: CGRect, isModal: Bool) -> CGRect {
-    // Calibration constants (derived and adjusted based on various screen sizes)
-    let deltaX: CGFloat = 7.33
-    // Use a smaller vertical offset if the parent's height is less than 800 (such as for iPhone SE)
-    let deltaY: CGFloat = parentFrame.height < 800 ? 70 : 108.33
-    let reductionW: CGFloat = 14.83
-    let reductionH: CGFloat = 15.0
-    // Margins to slightly expand the area to make it easier to tap on creatives
-    let marginX: CGFloat = 2.0
-    let marginY: CGFloat = 2.0
+  private func calculateInteractiveArea(parentFrame: CGRect) -> CGRect {
+    // Always 60% of width, 25% of height, to accommodate for different creative bubble sizes and positions
+    let rectWidth  = parentFrame.width  * 0.6
+    let rectHeight = parentFrame.height * 0.25
 
-    // Compute the intermediate (calibrated) interactive area values
-    let screenX = jsFrame.origin.x + deltaX - marginX
-    let screenY = jsFrame.origin.y + deltaY - marginY
-    let screenWidth = jsFrame.size.width - reductionW + (marginX * 2)
-    let screenHeight = jsFrame.size.height - reductionH + (marginY * 2)
+    // Lower‑left corner
+    let originX = CGFloat(0)
+    let originY = parentFrame.height - rectHeight
 
-    // If the view is modal, we apply extra vertical expansion.
-    if isModal {
-      return CGRect(x: screenX,
-                    y: screenY - screenHeight * 2.5, // Shift upward extra
-                    width: screenWidth,
-                    height: screenHeight * 2.5)       // Expand height
-    } else {
-      return CGRect(x: screenX,
-                    y: screenY,
-                    width: screenWidth,
-                    height: screenHeight)
-    }
+    return CGRect(x: originX,
+                  y: originY,
+                  width: rectWidth,
+                  height: rectHeight)
   }
 }
 
