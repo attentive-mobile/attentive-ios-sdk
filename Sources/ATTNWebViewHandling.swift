@@ -301,7 +301,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             if height < 100 {
               let jsFrame = CGRect(x: x, y: y, width: width, height: height)
               let isModal = parent.parentViewController?.isModal ?? false
-              newArea = self.calculateInteractiveArea(parentFrame: parent.frame)
+              newArea = self.calculateInteractiveArea(parentFrame: parent.frame, originInPixels: CGPoint(x: x, y: y))
             } else {
               // For full screen creatives, use the screen's bounds to make sure user can interact with the full screen webview
               newArea = UIScreen.main.bounds
@@ -325,22 +325,16 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
   }
 
   /**
-   Calculate interactive area for bubble creative as a rectangular space at lower left corner of the screen. This ensures that when creative is a bubble, users can tap the creative, while being able to interact with the rest of the app.
+   Calculate interactive area for bubble creative.
    */
-  private func calculateInteractiveArea(parentFrame: CGRect) -> CGRect {
-    // Always 60% of width, 25% of height, to accommodate for different creative bubble sizes and positions
-    let rectWidth  = parentFrame.width  * 0.6
-    let rectHeight = parentFrame.height * 0.25
-
-    // Lower‑left corner
-    let originX = CGFloat(0)
-    let originY = parentFrame.height - rectHeight
-
-    return CGRect(x: originX,
-                  y: originY,
-                  width: rectWidth,
-                  height: rectHeight)
-  }
+  private func calculateInteractiveArea(parentFrame: CGRect, originInPixels: CGPoint) -> CGRect {
+      let rectWidth: CGFloat = 180
+      let rectHeight: CGFloat = 60
+      return CGRect(x: originInPixels.x,
+                    y: originInPixels.y,
+                    width: rectWidth,
+                    height: rectHeight)
+    }
 }
 
 fileprivate extension ATTNWebViewHandler {
