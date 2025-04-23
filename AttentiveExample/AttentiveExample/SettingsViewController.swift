@@ -146,15 +146,20 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(clearCookiesButton)
 
     // Adding extra dummy items to force scrolling
-    for i in 1...20 {
-      let extraLabel = UILabel()
-      extraLabel.text = "Extra Item \(i)"
-      extraLabel.font = UIFont.systemFont(ofSize: 14)
-      extraLabel.textColor = .darkGray
-      extraLabel.numberOfLines = 1
-      extraLabel.translatesAutoresizingMaskIntoConstraints = false
-      stackView.addArrangedSubview(extraLabel)
-    }
+    let devicetokenLabel = UILabel()
+    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
+    devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
+    devicetokenLabel.font = UIFont.systemFont(ofSize: 10)
+    devicetokenLabel.textColor = .darkGray
+    devicetokenLabel.numberOfLines = 0
+    stackView.addArrangedSubview(devicetokenLabel)
+
+    // copy device token button
+    let copyButton = UIButton(type: .system)
+    copyButton.setTitle("Copy Device Token", for: .normal)
+    copyButton.titleLabel?.font = .systemFont(ofSize: 14)
+    copyButton.addTarget(self, action: #selector(copyDeviceTokenTapped), for: .touchUpInside)
+    stackView.addArrangedSubview(copyButton)
 
     view.layer.backgroundColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1).cgColor
   }
@@ -202,8 +207,19 @@ class SettingsViewController: UIViewController {
     showToast(with: "Cookies cleared")
   }
 
+  @objc private func copyDeviceTokenTapped() {
+    guard let token = UserDefaults.standard.string(forKey: "deviceToken"),
+          !token.isEmpty else {
+      showToast(with: "No device token found")
+      return
+    }
+    UIPasteboard.general.string = token
+
+    showToast(with: "Device token copied")
+  }
+
   private func getAttentiveSdk() -> ATTNSDK {
-      return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
+    return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
   }
 
 }
