@@ -1,0 +1,15 @@
+{
+  "originHash" : "62dc5f9606142e259275d938027b59c944959560f934dd2210d0e0cc4420a08d",
+  "pins" : [
+    {
+      "identity" : "attentive-ios-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/attentive-mobile/attentive-ios-sdk",
+      "state" : {
+        "revision" : "6f6d281e63eee0e7a894524d5d461a74ab8837f0",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
