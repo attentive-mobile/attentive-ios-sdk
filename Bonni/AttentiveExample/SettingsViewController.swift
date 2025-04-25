@@ -219,7 +219,11 @@ class SettingsViewController: UIViewController {
   }
 
   private func getAttentiveSdk() -> ATTNSDK {
-    return (UIApplication.shared.delegate as! AppDelegate).attentiveSdk!
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
+          let sdk = appDelegate.attentiveSdk else {
+      fatalError("Could not retrieve attentiveSdk from AppDelegate")
+    }
+    return sdk
   }
 
 }

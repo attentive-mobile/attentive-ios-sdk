@@ -152,14 +152,19 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     return viewModel.products.count
   }
   
-  func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath) as! ProductCollectionViewCell
+  func collectionView(_ collectionView: UICollectionView,
+                      cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    guard let cell = collectionView
+      .dequeueReusableCell(withReuseIdentifier: "ProductCell", for: indexPath)
+            as? ProductCollectionViewCell else {
+      fatalError("Could not dequeue ProductCollectionViewCell with identifier 'ProductCell'")
+    }
     let product = viewModel.products[indexPath.item]
     cell.configure(with: product)
     cell.delegate = self
     return cell
   }
-  
+
   // MARK: - UICollectionView Delegate Flow Layout
   
   func collectionView(_ collectionView: UICollectionView,
