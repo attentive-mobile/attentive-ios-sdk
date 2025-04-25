@@ -14,22 +14,22 @@ struct CartItem {
 }
 
 class ProductListViewModel {
-  
+
   // MARK: - Properties
-  
+
   private(set) var products: [ATTNItem] = []
   private(set) var cartItems: [CartItem] = [] {
     didSet { onCartItemsChanged?(cartItems.count) }
   }
-  
+
   var onCartItemsChanged: ((Int) -> Void)?
-  
+
   // MARK: - Initialization
-  
+
   init() {
     setupProducts()
   }
-  
+
   private func setupProducts() {
     products = [
       ATTNItem(productId: "1", productVariantId: "1A", price: ATTNPrice(price: NSDecimalNumber(string: "19.99"), currency: "USD")),
@@ -41,7 +41,7 @@ class ProductListViewModel {
     ]
     assignMockDataToProducts()
   }
-  
+
   private func assignMockDataToProducts() {
     let sampleImageNames = [
       "product1",
@@ -59,15 +59,15 @@ class ProductListViewModel {
       "Honeydew Balm",
       "The Stick"
     ]
-    
+
     for (index, product) in products.enumerated() {
       product.name = sampleProductNames[index]
       product.productImage = sampleImageNames[index % sampleImageNames.count]
     }
   }
-  
+
   // MARK: - Cart Operations
-  
+
   func addProductToCart(_ item: ATTNItem) {
     if let idx = cartItems.firstIndex(where: { $0.product.productId == item.productId }) {
       cartItems[idx].quantity += 1
@@ -75,7 +75,7 @@ class ProductListViewModel {
       cartItems.append(CartItem(product: item, quantity: 1))
     }
   }
-  
+
   func decreaseQuantity(of item: ATTNItem) {
     guard let idx = cartItems.firstIndex(where: { $0.product.productId == item.productId }) else { return }
     cartItems[idx].quantity -= 1

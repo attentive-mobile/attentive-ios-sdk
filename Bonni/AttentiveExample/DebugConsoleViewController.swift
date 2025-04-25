@@ -40,7 +40,7 @@ class DebugConsoleViewController: UIViewController {
     // Sample log text.
     textView.text = """
         Debug Log:
-        - Init ATTNSDKFramework v1.0.2, Mode: debug, Domain: games
+        - Init ATTNSDKFramework v1.0.2, Mode: debug
         - Obtained existing visitor id: 4212D563311F4CDFA3669A9CF6D4C32C
         - Created User Agent: AttentiveExample/1.0.2 (iPhone; iOS Version 18.2 ...)
         - ... (more log output)
