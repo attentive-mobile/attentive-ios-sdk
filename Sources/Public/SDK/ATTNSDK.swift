@@ -100,6 +100,82 @@ public final class ATTNSDK: NSObject {
     api.send(userIdentity: userIdentity)
     Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
   }
+
+  // Ask the user for push‐notification permission and register with APNs if granted.
+  @objc(registerForPush)
+  public func registerForPush() {
+    Loggers.event.debug("Requesting push‐notification authorization…")
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
+      if let error = error {
+        Loggers.event.error("Push authorization error: \(error.localizedDescription)")
+      }
+      if !granted {
+        Loggers.event.debug("""
+                        Push notifications permission was denied.
+                        To enable push, guide your user to go to Settings → Notifications → Your app.
+                        """)
+      }
+      Loggers.event.debug("Push permission granted: \(granted)")
+      guard granted else { return }
+      self?.registerWithAPNsIfAuthorized()
+    }
+  }
+
+  @objc(registerDeviceToken:)
+  public func registerDeviceToken(_ deviceToken: Data) {
+    // Convert token to string
+    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    Loggers.event.debug("APNs device‐token: \(tokenString)")
+
+    //api.send(deviceToken: tokenString)
+  }
+
+  @objc(registerForPushFailed:)
+  public func registerForPushFailed(_ error: Error) {
+    Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription)")
+  }
+
+  // MARK: - Private Helpers
+
+  private func registerWithAPNsIfAuthorized() {
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      Loggers.event.debug("Notification settings: \(settings.authorizationStatus.rawValue)")
+      switch settings.authorizationStatus {
+      case .authorized:
+        DispatchQueue.main.async {
+          Loggers.event.debug("Authorized—registering for remote notifications with APNs")
+          UIApplication.shared.registerForRemoteNotifications()
+        }
+
+      case .provisional:
+        Loggers.event.debug("Provisional push permission granted; registering with APNs")
+        DispatchQueue.main.async {
+          UIApplication.shared.registerForRemoteNotifications()
+        }
+
+      case .ephemeral:
+        Loggers.event.debug("Ephemeral push permission granted; registering with APNs")
+        DispatchQueue.main.async {
+          UIApplication.shared.registerForRemoteNotifications()
+        }
+
+      case .notDetermined:
+        // Shouldn’t happen, logging it in case
+        Loggers.event.debug("Push notifications permission not determined yet.")
+
+      @unknown default:
+        // Future-proofing in case Apple adds new cases
+        Loggers.event.error("Unknown UNAuthorizationStatus: \(settings.authorizationStatus.rawValue)")
+      }
+    }
+    
+    DispatchQueue.main.async {
+      Loggers.event.debug("Registering for remote notifications with APNs")
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+  }
+
+
 }
 
 // MARK: ATTNWebViewProviding
