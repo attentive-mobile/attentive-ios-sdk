@@ -102,8 +102,8 @@ public final class ATTNSDK: NSObject {
   }
 
   // Ask the user for push‐notification permission and register with APNs if granted.
-  @objc(registerForPush)
-  public func registerForPush() {
+  @objc(registerForPushNotifications)
+  public func registerForPushNotifications() {
     Loggers.event.debug("Requesting push‐notification authorization…")
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
       if let error = error {
@@ -123,16 +123,42 @@ public final class ATTNSDK: NSObject {
 
   @objc(registerDeviceToken:)
   public func registerDeviceToken(_ deviceToken: Data) {
-    // Convert token to string
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
-
+    // TODO:
     //api.send(deviceToken: tokenString)
+    //api.send(notificationStatus: notificationStatus)
+    //api.send(appEvent: appEvent)
   }
 
   @objc(registerForPushFailed:)
-  public func registerForPushFailed(_ error: Error) {
+  public func failedToRegisterForPush(_ error: Error) {
     Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription)")
+  }
+
+  /// Call this from AppDelegate’s `userNotificationCenter(_:willPresent:withCompletionHandler:)`
+  @objc(handleForegroundNotification:completionHandler:)
+  public func handleForegroundNotification(
+    _ userInfo: [AnyHashable: Any],
+    completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    Loggers.event.debug("Foreground Notification received: \(userInfo)")
+    //api.send(pushNotificationEvent: userInfo)
+
+    let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
+    Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
+    completionHandler(presentationOptions)
+  }
+
+  /// Call this from AppDelegate’s `userNotificationCenter(_:didReceive:withCompletionHandler:)`
+  @objc(handleBackgroundNotification:completionHandler:)
+  public func handleBackgroundNotification(
+    _ userInfo: [AnyHashable: Any],
+    completionHandler: @escaping () -> Void
+  ) {
+    Loggers.event.debug("Background Notification received: \(userInfo)")
+    //api.send(pushNotificationEvent: userInfo)
+    completionHandler()
   }
 
   // MARK: - Private Helpers
@@ -143,7 +169,7 @@ public final class ATTNSDK: NSObject {
       switch settings.authorizationStatus {
       case .authorized:
         DispatchQueue.main.async {
-          Loggers.event.debug("Authorized—registering for remote notifications with APNs")
+          Loggers.event.debug("Push permission authorized. Registering for remote notifications with APNs")
           UIApplication.shared.registerForRemoteNotifications()
         }
 
@@ -168,7 +194,7 @@ public final class ATTNSDK: NSObject {
         Loggers.event.error("Unknown UNAuthorizationStatus: \(settings.authorizationStatus.rawValue)")
       }
     }
-    
+
     DispatchQueue.main.async {
       Loggers.event.debug("Registering for remote notifications with APNs")
       UIApplication.shared.registerForRemoteNotifications()

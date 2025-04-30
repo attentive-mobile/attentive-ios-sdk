@@ -69,6 +69,13 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let showPushPermissionButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Show Push Permission", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   private let identifyUserButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Identify User", for: .normal)
@@ -90,6 +97,16 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let devicetokenLabel: UILabel = {
+    let devicetokenLabel = UILabel()
+    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
+    devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
+    devicetokenLabel.font = UIFont.systemFont(ofSize: 10)
+    devicetokenLabel.textColor = .darkGray
+    devicetokenLabel.numberOfLines = 0
+    return devicetokenLabel
+  }()
+
   // MARK: - Lifecycle
 
   override func viewDidLoad() {
@@ -99,6 +116,7 @@ class SettingsViewController: UIViewController {
 
     setupUI()
     setupActions()
+    setupObservers()
   }
 
   // MARK: - UI Setup
@@ -141,17 +159,10 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(divider)
 
     stackView.addArrangedSubview(showCreativeButton)
-    stackView.addArrangedSubview(identifyUserButton)
+    stackView.addArrangedSubview(showPushPermissionButton)
+    // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
-
-    // Adding extra dummy items to force scrolling
-    let devicetokenLabel = UILabel()
-    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
-    devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
-    devicetokenLabel.font = UIFont.systemFont(ofSize: 10)
-    devicetokenLabel.textColor = .darkGray
-    devicetokenLabel.numberOfLines = 0
     stackView.addArrangedSubview(devicetokenLabel)
 
     // copy device token button
@@ -170,9 +181,19 @@ class SettingsViewController: UIViewController {
     switchAccountButton.addTarget(self, action: #selector(switchAccountTapped), for: .touchUpInside)
     manageAddressesButton.addTarget(self, action: #selector(manageAddressesTapped), for: .touchUpInside)
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
+    showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
+  }
+
+  private func setupObservers() {
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(deviceTokenUpdated),
+      name: NSNotification.Name("DeviceTokenUpdated"),
+      object: nil
+    )
   }
 
   // MARK: - Button Actions
@@ -189,6 +210,10 @@ class SettingsViewController: UIViewController {
 
   @objc private func showCreativeTapped() {
     self.getAttentiveSdk().trigger(self.view)
+  }
+
+  @objc private func showPushPermissionTapped() {
+    self.getAttentiveSdk().registerForPushNotifications()
   }
 
   @objc private func identifyUserTapped() {
@@ -224,6 +249,15 @@ class SettingsViewController: UIViewController {
       fatalError("Could not retrieve attentiveSdk from AppDelegate")
     }
     return sdk
+  }
+
+  @objc private func deviceTokenUpdated() {
+    updateDeviceTokenLabel()
+  }
+
+  private func updateDeviceTokenLabel() {
+    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken") ?? "Not saved"
+    devicetokenLabel.text = "Device Token: \(savedDeviceToken)"
   }
 
 }
