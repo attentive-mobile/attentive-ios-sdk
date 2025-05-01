@@ -54,4 +54,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     domain = newDomain
     updateDomainWasCalled = true
   }
+
+  func sendPushToken(_ pushToken: String, for userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
+    sendPushTokenWasCalled = true
+  }
+
 }
