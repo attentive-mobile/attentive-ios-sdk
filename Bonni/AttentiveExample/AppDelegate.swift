@@ -26,7 +26,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       // Intialize the Attentive SDK. Replace with your Attentive domain to test
       // with your Attentive account.
       // This only has to be done once per application lifecycle
-    let sdk = ATTNSDK(domain: "YOUR_ATTENTIVE_DOMAIN", mode: .production)
+    let sdk = ATTNSDK(domain: "games", mode: .production)
       attentiveSdk = sdk
 
       // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.
@@ -39,11 +39,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
     attentiveSdk?.registerDeviceToken(deviceToken)
-
+    // Store device token as string for display on settings screen
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     UserDefaults.standard.set(tokenString, forKey: "deviceToken")
     NotificationCenter.default.post(name: NSNotification.Name("DeviceTokenUpdated"), object: nil)
-    UserDefaults.standard.synchronize()
+
+    //store deviceToken as data type for sample app testing on settings screen
+    UserDefaults.standard.set(deviceToken, forKey: "deviceTokenData")
   }
 
   func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {

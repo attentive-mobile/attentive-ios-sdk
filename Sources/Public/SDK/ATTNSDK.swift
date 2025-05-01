@@ -125,6 +125,27 @@ public final class ATTNSDK: NSObject {
   public func registerDeviceToken(_ deviceToken: Data) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
+    let callback: ATTNAPICallback = { data, url, response, error in
+      print("----- Push-Token Request Result -----")
+
+      if let url = url {
+        print("Request URL: \(url.absoluteString)")
+      }
+
+      if let httpResponse = response as? HTTPURLResponse {
+        print("Status Code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+      }
+
+      if let data = data, let body = String(data: data, encoding: .utf8) {
+        print("Response Body:\n\(body)")
+      }
+
+      if let error = error {
+        print("Error:\n\(error.localizedDescription)")
+      }
+    }
+    api.sendPushToken(tokenString, for: userIdentity, callback: callback)
     // TODO:
     //api.send(deviceToken: tokenString)
     //api.send(notificationStatus: notificationStatus)
@@ -143,7 +164,7 @@ public final class ATTNSDK: NSObject {
     completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     Loggers.event.debug("Foreground Notification received: \(userInfo)")
-    //api.send(pushNotificationEvent: userInfo)
+    //TODO: api.send(pushNotificationEvent: userInfo)
 
     let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
     Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")

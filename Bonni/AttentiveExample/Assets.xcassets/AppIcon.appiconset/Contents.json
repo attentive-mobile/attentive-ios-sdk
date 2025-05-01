@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "Bonni-app-icon.png",
+      "filename" : "bonni-2.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Bonni-app-icon 1.png",
+      "filename" : "bonni-2 1.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "Bonni-app-icon 2.png",
+      "filename" : "bonni-2 2.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

@@ -10,6 +10,7 @@ import Foundation
 protocol ATTNEventURLProviding {
   func buildUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL?
   func buildUrl(for eventRequest: ATTNEventRequest, userIdentity: ATTNUserIdentity, domain: String) -> URL?
+  func buildPushTokenUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL?
 }
 
 struct ATTNEventURLProvider: ATTNEventURLProviding {
@@ -17,6 +18,10 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
     static var scheme: String { "https" }
     static var host: String { "events.attentivemobile.com" }
     static var path: String { "/e" }
+
+    static var pushHost: String { "mobile.attentivemobile.com" }
+    static var pushPath: String { "/token" }
+    static var pushPort: Int { 443 }
   }
 
   func buildUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL? {
@@ -46,6 +51,15 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
     urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
     return urlComponents.url
   }
+
+  func buildPushTokenUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL? {
+    var components = getUrlComponent(
+      host: Constants.pushHost,
+      path: Constants.pushPath,
+      port: Constants.pushPort
+    )
+    return components.url
+  }
 }
 
 extension ATTNEventURLProvider {
@@ -55,5 +69,14 @@ extension ATTNEventURLProvider {
     urlComponent.host = Constants.host
     urlComponent.path = Constants.path
     return urlComponent
+  }
+
+  private func getUrlComponent(host: String, path: String, port: Int?) -> URLComponents {
+    var c = URLComponents()
+    c.scheme = Constants.scheme
+    c.host   = host
+    c.path   = path
+    c.port   = port
+    return c
   }
 }

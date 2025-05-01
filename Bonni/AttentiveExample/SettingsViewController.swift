@@ -76,6 +76,13 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let sendPushTokenButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Send Push Token", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   private let identifyUserButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Identify User", for: .normal)
@@ -160,6 +167,7 @@ class SettingsViewController: UIViewController {
 
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
+    stackView.addArrangedSubview(sendPushTokenButton)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
@@ -182,6 +190,8 @@ class SettingsViewController: UIViewController {
     manageAddressesButton.addTarget(self, action: #selector(manageAddressesTapped), for: .touchUpInside)
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
+    sendPushTokenButton.addTarget(self, action: #selector(didTapSendPushTokenButton), for: .touchUpInside
+      )
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
@@ -214,6 +224,14 @@ class SettingsViewController: UIViewController {
 
   @objc private func showPushPermissionTapped() {
     self.getAttentiveSdk().registerForPushNotifications()
+  }
+
+  @objc private func didTapSendPushTokenButton() {
+    guard let tokenData = UserDefaults.standard.data(forKey: "deviceTokenData") else {
+      showToast(with: "No device token found")
+      return
+    }
+    self.getAttentiveSdk().registerDeviceToken(tokenData)
   }
 
   @objc private func identifyUserTapped() {
