@@ -255,68 +255,71 @@ class SettingsViewController: UIViewController {
       showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
       return
     }
-
-    getAttentiveSdk().registerDeviceToken(tokenData) { data, url, response, error in
-      DispatchQueue.main.async {
-        var lines: [String] = []
-        if let url = url {
-          lines.append("URL: \(url.absoluteString)")
-        }
-        if let http = response as? HTTPURLResponse {
-          lines.append("Status: \(http.statusCode)")
-          // Clean up headers
-          let headerLines = http.allHeaderFields.compactMap { (key, value) -> String? in
-            guard let keyString = key as? String else { return nil }
-            return "\(keyString): \(value)"
+    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+      guard let self = self else { return }
+      let authorizationStatus = settings.authorizationStatus
+      getAttentiveSdk().registerDeviceToken(tokenData, authorizationStatus: authorizationStatus) { [weak self] data, url, response, error in
+        guard let self = self else { return }
+        DispatchQueue.main.async {
+          var lines: [String] = []
+          if let url = url {
+            lines.append("URL: \(url.absoluteString)")
           }
-          if !headerLines.isEmpty {
-            lines.append("Headers:\n" + headerLines.joined(separator: "\n"))
+          if let http = response as? HTTPURLResponse {
+            lines.append("Status: \(http.statusCode)")
+            // Clean up headers to remove "AnyHashable" type name etc for readability
+            let headerLines = http.allHeaderFields.compactMap { (key, value) -> String? in
+              guard let keyString = key as? String else { return nil }
+              return "\(keyString): \(value)"
+            }
+            if !headerLines.isEmpty {
+              lines.append("Headers:\n" + headerLines.joined(separator: "\n"))
+            }
           }
+          if let d = data, let body = String(data: d, encoding: .utf8), !body.isEmpty {
+            lines.append("Body:\n\(body)")
+          }
+          if let err = error {
+            lines.append("Error: \(err.localizedDescription)")
+          }
+          let message = lines.joined(separator: "\n\n")
+
+          let resultVC = UIViewController()
+          resultVC.view.backgroundColor = .systemBackground
+          resultVC.preferredContentSize = CGSize(width: 300, height: 400)
+
+          let textView = UITextView()
+          textView.text = message
+          textView.textAlignment = .left
+          textView.isEditable = false
+          textView.translatesAutoresizingMaskIntoConstraints = false
+          if let customFont = UIFont(name: "DegularDisplay-Regular", size: 16) {
+            textView.font = customFont
+          }
+          resultVC.view.addSubview(textView)
+          NSLayoutConstraint.activate([
+            textView.topAnchor.constraint(equalTo: resultVC.view.topAnchor, constant: 16),
+            textView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 16),
+            textView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -16),
+            textView.bottomAnchor.constraint(equalTo: resultVC.view.bottomAnchor, constant: -16)
+          ])
+
+          let nav = UINavigationController(rootViewController: resultVC)
+          resultVC.navigationItem.title = "Push Token Result"
+          resultVC.navigationItem.rightBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .action,
+            target: self,
+            action: #selector(self.shareResult)
+          )
+
+          objc_setAssociatedObject(nav, &AssociatedKeys.resultMessage, message, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+          nav.modalPresentationStyle = .formSheet
+          self.present(nav, animated: true)
         }
-        if let d = data, let body = String(data: d, encoding: .utf8), !body.isEmpty {
-          lines.append("Body:\n\(body)")
-        }
-        if let err = error {
-          lines.append("Error: \(err.localizedDescription)")
-        }
-        let message = lines.joined(separator: "\n\n")
-
-        let resultVC = UIViewController()
-        resultVC.view.backgroundColor = .systemBackground
-        resultVC.preferredContentSize = CGSize(width: 300, height: 400)
-
-        let textView = UITextView()
-        textView.text = message
-        textView.textAlignment = .left
-        textView.isEditable = false
-        textView.translatesAutoresizingMaskIntoConstraints = false
-        if let customFont = UIFont(name: "DegularDisplay-Regular", size: 16) {
-          textView.font = customFont
-        }
-        resultVC.view.addSubview(textView)
-        NSLayoutConstraint.activate([
-          textView.topAnchor.constraint(equalTo: resultVC.view.topAnchor, constant: 16),
-          textView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 16),
-          textView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -16),
-          textView.bottomAnchor.constraint(equalTo: resultVC.view.bottomAnchor, constant: -16)
-        ])
-
-        let nav = UINavigationController(rootViewController: resultVC)
-        resultVC.navigationItem.title = "Push Token Result"
-        resultVC.navigationItem.rightBarButtonItem = UIBarButtonItem(
-          barButtonSystemItem: .action,
-          target: self,
-          action: #selector(self.shareResult)
-        )
-
-        // 5. Store the message so share can pick it up
-        objc_setAssociatedObject(nav, &AssociatedKeys.resultMessage, message, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-
-        // 6. Present as form sheet
-        nav.modalPresentationStyle = .formSheet
-        self.present(nav, animated: true)
       }
     }
+
   }
 
   @objc private func identifyUserTapped() {

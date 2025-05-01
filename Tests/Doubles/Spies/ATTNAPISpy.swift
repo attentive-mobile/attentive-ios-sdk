@@ -16,6 +16,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
   private(set) var updateDomainWasCalled = false
   private(set) var domainWasSetted = false
   private(set) var cachedGeoAdjustedDomainWasSetted = false
+  private(set) var sendPushTokenWasCalled = false
 
   var domain: String {
     didSet {

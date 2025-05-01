@@ -121,13 +121,13 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  @objc(registerDeviceToken:callback:)
-  public func registerDeviceToken(_ deviceToken: Data, callback: ATTNAPICallback? = nil
+  @objc(registerDeviceToken:authorizationStatus:callback:)
+  public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
 
-    api.sendPushToken(tokenString, for: userIdentity) { data, url, response, error in
+    api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
       Loggers.event.debug("----- Push-Token Request Result -----")
       if let url = url {
         Loggers.event.debug("Request URL: \(url.absoluteString)")

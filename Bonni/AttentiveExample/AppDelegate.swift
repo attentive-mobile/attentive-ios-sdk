@@ -38,13 +38,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    attentiveSdk?.registerDeviceToken(deviceToken)
+    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+      guard let self = self else { return }
+      let authStatus = settings.authorizationStatus
+      self.attentiveSdk?.registerDeviceToken(deviceToken,
+                                             authorizationStatus: authStatus)
+    }
+
     // Store device token as string for display on settings screen
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     UserDefaults.standard.set(tokenString, forKey: "deviceToken")
     NotificationCenter.default.post(name: NSNotification.Name("DeviceTokenUpdated"), object: nil)
 
-    //store deviceToken as data type for sample app testing on settings screen
+    //store deviceToken as data type for sample app testing on settings screen that needs a data type to manually send push tokens
     UserDefaults.standard.set(deviceToken, forKey: "deviceTokenData")
   }
 
