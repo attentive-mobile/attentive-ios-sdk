@@ -40,7 +40,7 @@ class SettingsViewController: UIViewController {
   private let accountInfoLabel: UILabel = {
     let label = UILabel()
     label.text = "Login Info: Guest"  // Update this based on your current login info.
-    label.font = UIFont.systemFont(ofSize: 16)
+    label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
     label.numberOfLines = 0
     label.translatesAutoresizingMaskIntoConstraints = false
     return label
@@ -104,11 +104,18 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let copyDeviceTokenButton: UIButton = {
+    let copyButton = UIButton(type: .system)
+    copyButton.setTitle("Copy Device Token", for: .normal)
+    copyButton.addTarget(self, action: #selector(copyDeviceTokenTapped), for: .touchUpInside)
+    return copyButton
+  }()
+
   private let devicetokenLabel: UILabel = {
     let devicetokenLabel = UILabel()
     let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
     devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
-    devicetokenLabel.font = UIFont.systemFont(ofSize: 10)
+    devicetokenLabel.font = UIFont(name: "DegularDisplay-Regular", size: 16)
     devicetokenLabel.textColor = .darkGray
     devicetokenLabel.numberOfLines = 0
     return devicetokenLabel
@@ -120,6 +127,13 @@ class SettingsViewController: UIViewController {
     super.viewDidLoad()
     title = "Settings"
     view.backgroundColor = .white
+    scrollView.backgroundColor = .white
+    contentView.backgroundColor = .white
+    if let navBar = navigationController?.navigationBar {
+      navBar.barTintColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1)
+      navBar.isTranslucent = false
+      // navBar.titleTextAttributes = [.foregroundColor: UIColor.white] // if you want white title text
+    }
 
     setupUI()
     setupActions()
@@ -172,15 +186,25 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
     stackView.addArrangedSubview(devicetokenLabel)
+    stackView.addArrangedSubview(copyDeviceTokenButton)
 
-    // copy device token button
-    let copyButton = UIButton(type: .system)
-    copyButton.setTitle("Copy Device Token", for: .normal)
-    copyButton.titleLabel?.font = .systemFont(ofSize: 14)
-    copyButton.addTarget(self, action: #selector(copyDeviceTokenTapped), for: .touchUpInside)
-    stackView.addArrangedSubview(copyButton)
-
-    view.layer.backgroundColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1).cgColor
+    if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
+      let allButtons: [UIButton] = [
+        switchAccountButton,
+        manageAddressesButton,
+        showCreativeButton,
+        showPushPermissionButton,
+        sendPushTokenButton,
+        identifyUserButton,
+        clearUserButton,
+        clearCookiesButton,
+        copyDeviceTokenButton
+      ]
+      allButtons.forEach {
+        $0.titleLabel?.font = degular
+        $0.titleLabel?.tintColor = .black
+      }
+    }
   }
 
   // MARK: - Actions Setup
@@ -228,10 +252,71 @@ class SettingsViewController: UIViewController {
 
   @objc private func didTapSendPushTokenButton() {
     guard let tokenData = UserDefaults.standard.data(forKey: "deviceTokenData") else {
-      showToast(with: "No device token found")
+      showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
       return
     }
-    self.getAttentiveSdk().registerDeviceToken(tokenData)
+
+    getAttentiveSdk().registerDeviceToken(tokenData) { data, url, response, error in
+      DispatchQueue.main.async {
+        var lines: [String] = []
+        if let url = url {
+          lines.append("URL: \(url.absoluteString)")
+        }
+        if let http = response as? HTTPURLResponse {
+          lines.append("Status: \(http.statusCode)")
+          // Clean up headers
+          let headerLines = http.allHeaderFields.compactMap { (key, value) -> String? in
+            guard let keyString = key as? String else { return nil }
+            return "\(keyString): \(value)"
+          }
+          if !headerLines.isEmpty {
+            lines.append("Headers:\n" + headerLines.joined(separator: "\n"))
+          }
+        }
+        if let d = data, let body = String(data: d, encoding: .utf8), !body.isEmpty {
+          lines.append("Body:\n\(body)")
+        }
+        if let err = error {
+          lines.append("Error: \(err.localizedDescription)")
+        }
+        let message = lines.joined(separator: "\n\n")
+
+        let resultVC = UIViewController()
+        resultVC.view.backgroundColor = .systemBackground
+        resultVC.preferredContentSize = CGSize(width: 300, height: 400)
+
+        let textView = UITextView()
+        textView.text = message
+        textView.textAlignment = .left
+        textView.isEditable = false
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        if let customFont = UIFont(name: "DegularDisplay-Regular", size: 16) {
+          textView.font = customFont
+        }
+        resultVC.view.addSubview(textView)
+        NSLayoutConstraint.activate([
+          textView.topAnchor.constraint(equalTo: resultVC.view.topAnchor, constant: 16),
+          textView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 16),
+          textView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -16),
+          textView.bottomAnchor.constraint(equalTo: resultVC.view.bottomAnchor, constant: -16)
+        ])
+
+        let nav = UINavigationController(rootViewController: resultVC)
+        resultVC.navigationItem.title = "Push Token Result"
+        resultVC.navigationItem.rightBarButtonItem = UIBarButtonItem(
+          barButtonSystemItem: .action,
+          target: self,
+          action: #selector(self.shareResult)
+        )
+
+        // 5. Store the message so share can pick it up
+        objc_setAssociatedObject(nav, &AssociatedKeys.resultMessage, message, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+        // 6. Present as form sheet
+        nav.modalPresentationStyle = .formSheet
+        self.present(nav, animated: true)
+      }
+    }
   }
 
   @objc private func identifyUserTapped() {
@@ -253,7 +338,7 @@ class SettingsViewController: UIViewController {
   @objc private func copyDeviceTokenTapped() {
     guard let token = UserDefaults.standard.string(forKey: "deviceToken"),
           !token.isEmpty else {
-      showToast(with: "No device token found")
+      showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
       return
     }
     UIPasteboard.general.string = token
@@ -276,6 +361,24 @@ class SettingsViewController: UIViewController {
   private func updateDeviceTokenLabel() {
     let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken") ?? "Not saved"
     devicetokenLabel.text = "Device Token: \(savedDeviceToken)"
+  }
+
+  // MARK: – Share action
+
+  private struct AssociatedKeys {
+    static var resultMessage = "resultMessage"
+  }
+
+  @objc private func shareResult(_ sender: UIBarButtonItem) {
+    guard
+      let nav = presentedViewController as? UINavigationController,
+      let message = objc_getAssociatedObject(nav, &AssociatedKeys.resultMessage) as? String
+    else { return }
+
+    let activity = UIActivityViewController(activityItems: [message], applicationActivities: nil)
+    // For iPad / formSheet compatibility
+    activity.popoverPresentationController?.barButtonItem = sender
+    nav.present(activity, animated: true)
   }
 
 }

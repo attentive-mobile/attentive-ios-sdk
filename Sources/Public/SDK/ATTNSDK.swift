@@ -121,35 +121,30 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  @objc(registerDeviceToken:)
-  public func registerDeviceToken(_ deviceToken: Data) {
+  @objc(registerDeviceToken:callback:)
+  public func registerDeviceToken(_ deviceToken: Data, callback: ATTNAPICallback? = nil
+  ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
-    let callback: ATTNAPICallback = { data, url, response, error in
-      print("----- Push-Token Request Result -----")
 
+    api.sendPushToken(tokenString, for: userIdentity) { data, url, response, error in
+      Loggers.event.debug("----- Push-Token Request Result -----")
       if let url = url {
-        print("Request URL: \(url.absoluteString)")
+        Loggers.event.debug("Request URL: \(url.absoluteString)")
+      }
+      if let http = response as? HTTPURLResponse {
+        Loggers.event.debug("Status Code: \(http.statusCode)")
+        Loggers.event.debug("Headers: \(http.allHeaderFields)")
+      }
+      if let d = data, let body = String(data: d, encoding: .utf8) {
+        Loggers.event.debug("Response Body:\n\(body)")
+      }
+      if let err = error {
+        Loggers.event.error("Error:\n\(err.localizedDescription)")
       }
 
-      if let httpResponse = response as? HTTPURLResponse {
-        print("Status Code: \(httpResponse.statusCode)")
-        print("Headers: \(httpResponse.allHeaderFields)")
-      }
-
-      if let data = data, let body = String(data: data, encoding: .utf8) {
-        print("Response Body:\n\(body)")
-      }
-
-      if let error = error {
-        print("Error:\n\(error.localizedDescription)")
-      }
+      callback?(data, url, response, error)
     }
-    api.sendPushToken(tokenString, for: userIdentity, callback: callback)
-    // TODO:
-    //api.send(deviceToken: tokenString)
-    //api.send(notificationStatus: notificationStatus)
-    //api.send(appEvent: appEvent)
   }
 
   @objc(registerForPushFailed:)
