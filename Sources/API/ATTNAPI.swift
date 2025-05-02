@@ -74,7 +74,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     domain = newDomain
     cachedGeoAdjustedDomain = nil
   }
-  
+
   func sendPushToken(_ pushToken: String,
                      userIdentity: ATTNUserIdentity,
                      authorizationStatus: UNAuthorizationStatus,
@@ -86,21 +86,21 @@ final class ATTNAPI: ATTNAPIProtocol {
         return
       }
       guard let geoDomain = geoDomain else { return }
-      
+
       guard let url = self.eventUrlProvider.buildPushTokenUrl(
         for: userIdentity,
         domain: geoDomain) else {
         Loggers.network.error("Invalid push token URL")
         return
       }
-      
+
       let evsJson     = userIdentity.buildExternalVendorIdsJson()
       let evsArray    = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8)))
       as? [[String:String]] ?? []
       let metadataJson = userIdentity.buildMetadataJson()
       let metadata    = (try? JSONSerialization.jsonObject(with: Data(metadataJson.utf8)))
       as? [String:String] ?? [:]
-      
+
       let authorizationStatusString: String = {
         switch authorizationStatus {
         case .notDetermined: return "notDetermined"
@@ -111,7 +111,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         @unknown default:    return "unknown"
         }
       }()
-      
+
       let payload: [String:Any] = [
         "c": geoDomain,
         "v": "mobile-app",
@@ -122,15 +122,15 @@ final class ATTNAPI: ATTNAPIProtocol {
         "st": authorizationStatusString,
         "tp": "fcm:"
       ]
-      
+
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
       request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
       request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-      
+
       Loggers.network.debug("POST /token payload: \(payload)")
-      
+
       let task = self.urlSession.dataTask(with: request) { data, response, error in
         if let error = error {
           Loggers.network.error("Error sending push token: \(error.localizedDescription)")

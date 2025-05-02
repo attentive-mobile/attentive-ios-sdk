@@ -47,6 +47,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // Store device token as string for display on settings screen
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+
     UserDefaults.standard.set(tokenString, forKey: "deviceToken")
     NotificationCenter.default.post(name: NSNotification.Name("DeviceTokenUpdated"), object: nil)
 
