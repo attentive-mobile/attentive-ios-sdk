@@ -7,6 +7,7 @@
 
 import Foundation
 @testable import ATTNSDKFramework
+import UserNotifications
 
 final class ATTNAPISpy: ATTNAPIProtocol {
   private(set) var sendUserIdentityWasCalled = false
@@ -56,7 +57,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     updateDomainWasCalled = true
   }
 
-  func sendPushToken(_ pushToken: String, for userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
+  func sendPushToken(_ pushToken: String,
+                     userIdentity: ATTNUserIdentity,
+                     authorizationStatus: UNAuthorizationStatus,
+                     callback: ATTNAPICallback?) {
     sendPushTokenWasCalled = true
   }
 
