@@ -120,7 +120,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         "m": metadata,
         "pt": pushToken,
         "st": authorizationStatusString,
-        "tp": "fcm:"
+        "tp": "apns"
       ]
 
       var request = URLRequest(url: url)

@@ -265,6 +265,7 @@ class SettingsViewController: UIViewController {
           if let url = url {
             lines.append("URL: \(url.absoluteString)")
           }
+          lines.append("Domain: games")
           if let http = response as? HTTPURLResponse {
             lines.append("Status: \(http.statusCode)")
             // Clean up headers to remove "AnyHashable" type name etc for readability
