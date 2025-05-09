@@ -172,8 +172,8 @@ class LoginViewController: UIViewController {
 
   @objc private func signInTapped() {
     // Handle sign in action. For example, present a sign-in screen.
-    let createAccountVC = CreateAccountViewController()
-    present(createAccountVC, animated: true)
+    // TODO:
+    showToast(with: "Hang tight—-Sign In is coming soon.")
   }
 
   @objc private func continueAsGuestTapped() {

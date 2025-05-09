@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 public typealias ATTNAPICallback = (Data?, URL?, URLResponse?, Error?) -> Void
 
@@ -72,6 +73,76 @@ final class ATTNAPI: ATTNAPIProtocol {
   func update(domain newDomain: String) {
     domain = newDomain
     cachedGeoAdjustedDomain = nil
+  }
+
+  func sendPushToken(_ pushToken: String,
+                     userIdentity: ATTNUserIdentity,
+                     authorizationStatus: UNAuthorizationStatus,
+                     callback: ATTNAPICallback?) {
+    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
+      guard let self = self else { return }
+      if let error = error {
+        Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription)")
+        return
+      }
+      guard let geoDomain = geoDomain else { return }
+
+      guard let url = self.eventUrlProvider.buildPushTokenUrl(
+        for: userIdentity,
+        domain: geoDomain) else {
+        Loggers.network.error("Invalid push token URL")
+        return
+      }
+
+      let evsJson     = userIdentity.buildExternalVendorIdsJson()
+      let evsArray    = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8)))
+      as? [[String:String]] ?? []
+      let metadataJson = userIdentity.buildMetadataJson()
+      let metadata    = (try? JSONSerialization.jsonObject(with: Data(metadataJson.utf8)))
+      as? [String:String] ?? [:]
+
+      let authorizationStatusString: String = {
+        switch authorizationStatus {
+        case .notDetermined: return "notDetermined"
+        case .denied:        return "denied"
+        case .authorized:    return "authorized"
+        case .provisional:   return "provisional"
+        case .ephemeral:     return "ephemeral"
+        @unknown default:    return "unknown"
+        }
+      }()
+
+      let payload: [String:Any] = [
+        "c": geoDomain,
+        "v": "mobile-app",
+        "u": userIdentity.visitorId,
+        "evs": evsArray,
+        "m": metadata,
+        "pt": pushToken,
+        "st": authorizationStatusString,
+        "tp": "apns"
+      ]
+
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+      request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+      Loggers.network.debug("POST /token payload: \(payload)")
+
+      let task = self.urlSession.dataTask(with: request) { data, response, error in
+        if let error = error {
+          Loggers.network.error("Error sending push token: \(error.localizedDescription)")
+        } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+          Loggers.network.error("Push-token API returned status \(http.statusCode)")
+        } else {
+          Loggers.network.debug("Successfully sent push token")
+        }
+        callback?(data, url, response, error)
+      }
+      task.resume()
+    }
   }
 }
 
@@ -166,6 +237,7 @@ fileprivate extension ATTNAPI {
       return nil
     }
   }
+
 }
 
 extension ATTNAPI {

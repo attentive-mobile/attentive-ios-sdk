@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 protocol ATTNAPIProtocol {
   var domain: String { get set }
@@ -16,4 +17,8 @@ protocol ATTNAPIProtocol {
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func update(domain newDomain: String)
+  func sendPushToken(_ pushToken: String,
+                     userIdentity: ATTNUserIdentity,
+                     authorizationStatus: UNAuthorizationStatus,
+                     callback: ATTNAPICallback?)
 }
