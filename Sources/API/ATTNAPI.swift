@@ -144,6 +144,55 @@ final class ATTNAPI: ATTNAPIProtocol {
       task.resume()
     }
   }
+
+  func sendAppEvents(
+      pushToken: String,
+      subscriptionStatus: String,
+      transport: String,
+      events: [[String: Any]],
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    ) {
+      let sdkVersion = "1.0.0"  // TODO: change this with each SDK release
+      let deviceInfo: [String: Any] = [
+        "c": domain,
+        "v": sdkVersion,
+        "u": userIdentity.visitorId,
+        "pd": "https://example.com/page/todo",
+        "m": userIdentity.buildBaseMetadata(),  // [phone, email, source]
+        "pt": pushToken,
+        "st": subscriptionStatus,
+        "tp": transport
+      ]
+      let payload: [String: Any] = [
+        "device": deviceInfo,
+        "events": events
+      ]
+
+      guard let url = URL(string: "https://mobile.attentivemobile.com/mtctrl") else {
+        Loggers.network.error("Invalid AppEvents URL")
+        return
+      }
+
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+      Loggers.network.debug("POST app open events payload: \(payload)")
+
+      let task = urlSession.dataTask(with: request) { data, response, error in
+        if let error = error {
+          Loggers.network.error("Error sending app events: \(error.localizedDescription)")
+        } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+          Loggers.network.error("AppEvents API returned status \(http.statusCode)")
+        } else {
+          Loggers.network.debug("Successfully sent app events")
+        }
+        callback?(data, url, response, error)
+      }
+      task.resume()
+    }
 }
 
 fileprivate extension ATTNAPI {

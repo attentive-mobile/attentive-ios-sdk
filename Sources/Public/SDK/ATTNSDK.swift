@@ -14,6 +14,7 @@ public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 public final class ATTNSDK: NSObject {
 
   private var _containerView: UIView?
+  private var latestPushToken: String?
 
   // MARK: Instance Properties
   var parentView: UIView?
@@ -41,8 +42,17 @@ public final class ATTNSDK: NSObject {
 
     super.init()
 
+    // Detect app launch and register push token and app events
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
+
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
     self.sendInfoEvent()
+    self.sendAppLaunchEvent() //TODO: Send tokens too.
     self.initializeSkipFatigueOnCreatives()
   }
 
@@ -121,11 +131,41 @@ public final class ATTNSDK: NSObject {
     }
   }
 
+  // Send app open events on startup.
+  @objc(registerAppEvents:pushToken:subscriptionStatus:transport:callback:)
+  public func registerAppEvents(
+    _ events: [[String: Any]],
+    pushToken: String,
+    subscriptionStatus: String = "subscribed",
+    transport: String = "apns",
+    callback: ATTNAPICallback? = nil
+  ) {
+    api.sendAppEvents(pushToken: pushToken, subscriptionStatus: subscriptionStatus, transport: transport, events: events, userIdentity: userIdentity) { data, url, response, error in
+      Loggers.event.debug("----- App Open Events Request Result -----")
+      if let url = url {
+        Loggers.event.debug("Request URL: \(url.absoluteString)")
+      }
+      if let http = response as? HTTPURLResponse {
+        Loggers.event.debug("Status Code: \(http.statusCode)")
+        Loggers.event.debug("Headers: \(http.allHeaderFields)")
+      }
+      if let d = data, let body = String(data: d, encoding: .utf8) {
+        Loggers.event.debug("Response Body:\n\(body)")
+      }
+      if let error = error {
+        Loggers.event.error("Error:\n\(error.localizedDescription)")
+      }
+
+      callback?(data, url, response, error)
+    }
+  }
+
   @objc(registerDeviceToken:authorizationStatus:callback:)
   public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
+    self.latestPushToken = tokenString
 
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
       Loggers.event.debug("----- Push-Token Request Result -----")
@@ -139,8 +179,8 @@ public final class ATTNSDK: NSObject {
       if let d = data, let body = String(data: d, encoding: .utf8) {
         Loggers.event.debug("Response Body:\n\(body)")
       }
-      if let err = error {
-        Loggers.event.error("Error:\n\(err.localizedDescription)")
+      if let error = error {
+        Loggers.event.error("Error:\n\(error.localizedDescription)")
       }
 
       callback?(data, url, response, error)
@@ -217,6 +257,27 @@ public final class ATTNSDK: NSObject {
     }
   }
 
+  private func sendAppLaunchEvent() {
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
+  }
+  @objc private func appDidBecomeActive() {
+    guard let token = latestPushToken else {
+      Loggers.event.debug("No push token available. Skipping registering app events")
+      return
+    }
+    var appLaunchEvents: [[String:Any]] = [
+        [
+          "ist": "al",
+          "data": ["message_id": "0"]
+        ]
+      ]
+    registerAppEvents(appLaunchEvents, pushToken: token)
+  }
 
 }
 

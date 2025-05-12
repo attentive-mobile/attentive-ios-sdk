@@ -83,6 +83,13 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let sendAppOpenEventsButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Send App Open Events", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   private let identifyUserButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Identify User", for: .normal)
@@ -182,6 +189,7 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
     stackView.addArrangedSubview(sendPushTokenButton)
+    stackView.addArrangedSubview(sendAppOpenEventsButton)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
@@ -216,6 +224,7 @@ class SettingsViewController: UIViewController {
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
     sendPushTokenButton.addTarget(self, action: #selector(didTapSendPushTokenButton), for: .touchUpInside
       )
+    sendAppOpenEventsButton.addTarget(self, action: #selector(sendAppOpenEventsTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
@@ -321,6 +330,20 @@ class SettingsViewController: UIViewController {
       }
     }
 
+  }
+
+  @objc private func sendAppOpenEventsTapped() {
+    guard let token = UserDefaults.standard.string(forKey: "deviceToken") else {
+      showToast(with: "No push token available. Skipping registering app events")
+      return
+    }
+    let appLaunchEvents: [[String:Any]] = [
+      [
+        "ist": "al",
+        "data": ["message_id": "0"]
+      ]
+    ]
+    getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: "apns:\(token)")
   }
 
   @objc private func identifyUserTapped() {
