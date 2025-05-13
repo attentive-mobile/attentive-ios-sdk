@@ -273,7 +273,13 @@ public final class ATTNSDK: NSObject {
     var appLaunchEvents: [[String:Any]] = [
         [
           "ist": "al",
-          "data": ["message_id": "0"]
+          "data": ["message_id": "0",
+                   "send_id": "1",
+                   "destination_token": "0",
+                   "company_id": "1",
+                   "user_id": "0",
+                   "message_type": "app_open",
+                   "message_subtype": "0"]
         ]
       ]
     registerAppEvents(appLaunchEvents, pushToken: token)
