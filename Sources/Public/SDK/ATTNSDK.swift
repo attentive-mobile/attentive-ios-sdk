@@ -219,14 +219,14 @@ public final class ATTNSDK: NSObject {
     Loggers.event.debug("Background Notification received: \(userInfo)")
 
     let messageId = userInfo["message_id"] as? String ?? "5"
-    let oEvent: [String: Any] = [
+    let directOpenEvent: [String: Any] = [
       "ist": "o",
       "data": ["message_id": messageId]
     ]
     if let token = latestPushToken {
-      registerAppEvents([oEvent], pushToken: token)
+      registerAppEvents([directOpenEvent], pushToken: token)
     } else {
-      registerAppEvents([oEvent], pushToken: "")
+      registerAppEvents([directOpenEvent], pushToken: "")
     }
     completionHandler()
   }
@@ -279,11 +279,10 @@ public final class ATTNSDK: NSObject {
       object: nil
     )
   }
+
+  // this is always fired whenever an app is opened, either from a push, deeplink, or tapping on app icon
   @objc private func appDidBecomeActive() {
-    guard let token = latestPushToken else {
-      Loggers.event.debug("No push token available. Skipping registering app events")
-      return
-    }
+    let pushToken = latestPushToken ?? ""
     var appLaunchEvents: [[String:Any]] = [
         [
           "ist": "al",
@@ -296,7 +295,7 @@ public final class ATTNSDK: NSObject {
                    "message_subtype": "0"]
         ]
       ]
-    registerAppEvents(appLaunchEvents, pushToken: token)
+    registerAppEvents(appLaunchEvents, pushToken: pushToken)
   }
 
 }

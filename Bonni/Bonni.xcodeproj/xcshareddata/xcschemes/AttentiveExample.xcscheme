@@ -45,7 +45,7 @@
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
                title = "Run Script"
-               scriptText = "# Type a script or drag a script file from your workspace to insert its path.&#10;# only uninstall when running in Simulator&#10;if [ &quot;${PLATFORM_NAME}&quot; = &quot;iphonesimulator&quot; ]; then&#10;  # booted will target whichever device you last ran on&#10;  xcrun simctl uninstall booted com.attentive.bonniexample&#10;fi&#10;">
+               scriptText = "# Type a script or drag a script file from your workspace to insert its path.&#10;# only uninstall when running in Simulator&#10;#if [ &quot;${PLATFORM_NAME}&quot; = &quot;iphonesimulator&quot; ]; then&#10;  # booted will target whichever device you last ran on&#10;#  xcrun simctl uninstall booted com.attentive.bonniexample&#10;#fi&#10;">
                <EnvironmentBuildable>
                   <BuildableReference
                      BuildableIdentifier = "primary"
