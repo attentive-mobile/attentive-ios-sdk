@@ -41,6 +41,10 @@ public final class ATTNSDK: NSObject {
     self.api = ATTNAPI(domain: domain)
 
     super.init()
+    // Immediately register for remote notifications in order to get device token before actually showing push permission prompt
+    DispatchQueue.main.async {
+      UIApplication.shared.registerForRemoteNotifications()
+    }
 
     // Detect app launch and register push token and app events
     NotificationCenter.default.addObserver(
@@ -213,7 +217,17 @@ public final class ATTNSDK: NSObject {
     completionHandler: @escaping () -> Void
   ) {
     Loggers.event.debug("Background Notification received: \(userInfo)")
-    //api.send(pushNotificationEvent: userInfo)
+
+    let messageId = userInfo["message_id"] as? String ?? "5"
+    let oEvent: [String: Any] = [
+      "ist": "o",
+      "data": ["message_id": messageId]
+    ]
+    if let token = latestPushToken {
+      registerAppEvents([oEvent], pushToken: token)
+    } else {
+      registerAppEvents([oEvent], pushToken: "")
+    }
     completionHandler()
   }
 

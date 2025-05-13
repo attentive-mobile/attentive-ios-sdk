@@ -350,6 +350,9 @@ class SettingsViewController: UIViewController {
       ]
     ]
     getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
+    getAttentiveSdk().handleBackgroundNotification(["testUserInfo" : "testId"]) {
+      self.showToast(with: "App open events sent!")
+    }
   }
 
   @objc private func identifyUserTapped() {

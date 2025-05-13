@@ -159,7 +159,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         "v": sdkVersion,
         "u": userIdentity.visitorId,
         "pd": "https://example.com/page/todo",
-        "m": userIdentity.buildBaseMetadata(),  // [phone, email, source]
+        "m": userIdentity.buildBaseMetadata(),
         "pt": pushToken,
         "st": subscriptionStatus,
         "tp": transport
