@@ -10,6 +10,10 @@ import WebKit
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
+extension Notification.Name {
+  static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
+}
+
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
@@ -49,8 +53,15 @@ public final class ATTNSDK: NSObject {
     // Detect app launch and register push token and app events
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(appDidBecomeActive),
+      selector: #selector(handleRegularOpen),
       name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
+    // Detect app launch directly from push notifications
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handlePushOpen(userInfo:)),
+      name: .didReceivePushOpen,
       object: nil
     )
 
@@ -203,30 +214,54 @@ public final class ATTNSDK: NSObject {
   ) {
     Loggers.event.debug("Foreground Notification received with userInfo: \(userInfo)")
 
-    let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
-    Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
-    completionHandler(presentationOptions)
-  }
 
-  /// Call this from AppDelegate’s `userNotificationCenter(_:didReceive:withCompletionHandler:)`
-  @objc(handleBackgroundNotification:completionHandler:)
-  public func handleBackgroundNotification(
-    _ userInfo: [AnyHashable: Any],
-    completionHandler: @escaping () -> Void
-  ) {
-    Loggers.event.debug("Background Notification received: \(userInfo)")
-
+    let token = latestPushToken ?? ""
     let messageId = userInfo["message_id"] as? String ?? "5"
     let directOpenEvent: [String: Any] = [
       "ist": "o",
       "data": ["message_id": messageId]
     ]
-    if let token = latestPushToken {
-      registerAppEvents([directOpenEvent], pushToken: token)
-    } else {
-      registerAppEvents([directOpenEvent], pushToken: "")
-    }
-    completionHandler()
+    //registerAppEvents([directOpenEvent], pushToken: token)
+
+    let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
+    Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
+    completionHandler(presentationOptions)
+  }
+
+  @objc public func handleRegularOpen() {
+    let token = latestPushToken ?? ""
+    let alEvent: [String:Any] = [
+      "ist":"al",
+      "data":["message_id":"0"]
+    ]
+    registerAppEvents([alEvent], pushToken: token)
+  }
+
+  @objc public func handleForegroundPush(userInfo: [AnyHashable: Any]) {
+    let messageId = userInfo["message_id"] as? String ?? ""
+    let token = latestPushToken ?? ""
+    // app open from push event
+    let oEvent: [String:Any] = [
+      "ist":"o",
+      "data":["message_id":messageId]
+    ]
+    registerAppEvents([oEvent], pushToken: token)
+  }
+
+  @objc public func handlePushOpen(userInfo: [AnyHashable: Any]) {
+    let messageId = userInfo["message_id"] as? String ?? ""
+    let token = latestPushToken ?? ""
+    // app launch event
+    let alEvent: [String:Any] = [
+      "ist":"al",
+      "data":["message_id":"0"]
+    ]
+    // app open from push event
+    let oEvent: [String:Any] = [
+      "ist":"o",
+      "data":["message_id":messageId]
+    ]
+    registerAppEvents([alEvent,oEvent], pushToken: token)
   }
 
   // MARK: - Private Helpers
@@ -267,24 +302,6 @@ public final class ATTNSDK: NSObject {
       Loggers.event.debug("Registering for remote notifications with APNs")
       UIApplication.shared.registerForRemoteNotifications()
     }
-  }
-
-  // this is always fired whenever an app is opened, either from a push, deeplink, or tapping on app icon
-  @objc private func appDidBecomeActive() {
-    let pushToken = latestPushToken ?? ""
-    var appLaunchEvents: [[String:Any]] = [
-        [
-          "ist": "al",
-          "data": ["message_id": "0",
-                   "send_id": "1",
-                   "destination_token": "0",
-                   "company_id": "1",
-                   "user_id": "0",
-                   "message_type": "app_open",
-                   "message_subtype": "0"]
-        ]
-      ]
-    registerAppEvents(appLaunchEvents, pushToken: pushToken)
   }
 
 }

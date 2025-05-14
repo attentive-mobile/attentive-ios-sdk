@@ -18,24 +18,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
     initializeAttentiveSdk()
+
+    if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+      attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo)
+    }
+
     UNUserNotificationCenter.current().delegate = self
     attentiveSdk?.registerForPushNotifications()
     return true
   }
 
+  func applicationDidBecomeActive(_ application: UIApplication) {
+    attentiveSdk?.handleRegularOpen()
+  }
+
   private func initializeAttentiveSdk() {
-      // Intialize the Attentive SDK. Replace with your Attentive domain to test
-      // with your Attentive account.
-      // This only has to be done once per application lifecycle
+    // Intialize the Attentive SDK. Replace with your Attentive domain to test
+    // with your Attentive account.
+    // This only has to be done once per application lifecycle
     let sdk = ATTNSDK(domain: "games", mode: .production)
-      attentiveSdk = sdk
+    attentiveSdk = sdk
 
-      // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.
-      ATTNEventTracker.setup(with: sdk)
+    // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.
+    ATTNEventTracker.setup(with: sdk)
 
-      // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
-      // Every time any identifiers are added/changed, call the SDK's "identify" method
-      sdk.identify(AppDelegate.createUserIdentifiers())
+    // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
+    // Every time any identifiers are added/changed, call the SDK's "identify" method
+    sdk.identify(AppDelegate.createUserIdentifiers())
   }
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -61,14 +70,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   public static func createUserIdentifiers() -> [String: Any] {
-      [
-          ATTNIdentifierType.phone: "+15671230987",
-          ATTNIdentifierType.email: "someemail@email.com",
-          ATTNIdentifierType.clientUserId: "APP_USER_ID",
-          ATTNIdentifierType.shopifyId: "207119551",
-          ATTNIdentifierType.klaviyoId: "555555",
-          ATTNIdentifierType.customIdentifiers: ["customId": "customIdValue"]
-      ]
+    [
+      ATTNIdentifierType.phone: "+15671230987",
+      ATTNIdentifierType.email: "someemail@email.com",
+      ATTNIdentifierType.clientUserId: "APP_USER_ID",
+      ATTNIdentifierType.shopifyId: "207119551",
+      ATTNIdentifierType.klaviyoId: "555555",
+      ATTNIdentifierType.customIdentifiers: ["customId": "customIdValue"]
+    ]
   }
 }
 
@@ -79,7 +88,21 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
   }
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
     let userInfo = response.notification.request.content.userInfo
-    attentiveSdk?.handleBackgroundNotification(userInfo, completionHandler: completionHandler)
+
+    switch UIApplication.shared.applicationState {
+    case .active:
+      // App was open when push was tapped
+      attentiveSdk?.handleForegroundPush(userInfo: userInfo)
+
+    case .background, .inactive:
+      // App was backgrounded or cold-launched
+      attentiveSdk?.handlePushOpen(userInfo: userInfo)
+
+    @unknown default:
+      attentiveSdk?.handlePushOpen(userInfo: userInfo)
+    }
+    
+    completionHandler()
   }
 }
 

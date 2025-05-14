@@ -362,13 +362,11 @@ class SettingsViewController: UIViewController {
       ]
     ]
     getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
-    getAttentiveSdk().handleBackgroundNotification(["testUserInfo" : "testId"]) {
-      self.showToast(with: "App open events sent!")
-    }
+    showToast(with: "App launch event sent!")
   }
 
   @objc private func sendLocalPushNotificationTapped() {
-    showToast(with: "Push shows up in 3 seconds. Minimize app now.")
+    showToast(with: "Push shows up in 5 seconds. Minimize app now.")
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
 
     let content = UNMutableNotificationContent()
@@ -376,7 +374,7 @@ class SettingsViewController: UIViewController {
     content.body  = "Local push notification test"
     content.sound = .default
 
-    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
 
     let req = UNNotificationRequest(identifier: "local_test", content: content, trigger: trigger)
     UNUserNotificationCenter.current().add(req) { error in
