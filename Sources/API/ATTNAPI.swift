@@ -158,7 +158,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         "c": domain,
         "v": sdkVersion,
         "u": userIdentity.visitorId,
-        "pd": "https://example.com/page/todo",
+        "pd": "https://example.com/page/todo/when/there/is/a/deep/link",
         "m": userIdentity.buildBaseMetadata(),
         "pt": pushToken,
         "st": subscriptionStatus,

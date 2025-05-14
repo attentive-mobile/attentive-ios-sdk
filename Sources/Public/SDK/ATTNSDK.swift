@@ -56,7 +56,6 @@ public final class ATTNSDK: NSObject {
 
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
     self.sendInfoEvent()
-    self.sendAppLaunchEvent() //TODO: Send tokens too.
     self.initializeSkipFatigueOnCreatives()
   }
 
@@ -202,8 +201,7 @@ public final class ATTNSDK: NSObject {
     _ userInfo: [AnyHashable: Any],
     completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    Loggers.event.debug("Foreground Notification received: \(userInfo)")
-    //TODO: api.send(pushNotificationEvent: userInfo)
+    Loggers.event.debug("Foreground Notification received with userInfo: \(userInfo)")
 
     let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
     Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
@@ -269,15 +267,6 @@ public final class ATTNSDK: NSObject {
       Loggers.event.debug("Registering for remote notifications with APNs")
       UIApplication.shared.registerForRemoteNotifications()
     }
-  }
-
-  private func sendAppLaunchEvent() {
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(appDidBecomeActive),
-      name: UIApplication.didBecomeActiveNotification,
-      object: nil
-    )
   }
 
   // this is always fired whenever an app is opened, either from a push, deeplink, or tapping on app icon
