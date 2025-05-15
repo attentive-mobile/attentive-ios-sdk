@@ -21,4 +21,13 @@ protocol ATTNAPIProtocol {
                      userIdentity: ATTNUserIdentity,
                      authorizationStatus: UNAuthorizationStatus,
                      callback: ATTNAPICallback?)
+
+  func sendAppEvents(
+    pushToken: String,
+    subscriptionStatus: String,
+    transport: String,
+    events: [[String: Any]],
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
 }
