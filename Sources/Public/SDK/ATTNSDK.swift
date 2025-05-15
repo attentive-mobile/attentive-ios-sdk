@@ -228,6 +228,12 @@ public final class ATTNSDK: NSObject {
   }
 
   @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
+    //checks and resets push launch flag
+    guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
+        Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
+        return
+      }
+
     let token = latestPushToken ?? ""
     let alEvent: [String:Any] = [
       "ist":"al",
@@ -269,6 +275,7 @@ public final class ATTNSDK: NSObject {
   }
 
   @objc public func handlePushOpen(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+    ATTNLaunchManager.shared.launchedFromPush = true
     let messageId = userInfo["message_id"] as? String ?? ""
     let token = latestPushToken ?? ""
     // app launch event
