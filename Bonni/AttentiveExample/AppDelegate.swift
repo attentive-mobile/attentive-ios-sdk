@@ -19,8 +19,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
     initializeAttentiveSdk()
 
-    if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-      attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo)
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+        self.attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo, authorizationStatus: authStatus)
+    }
+
     }
 
     UNUserNotificationCenter.current().delegate = self
@@ -29,7 +33,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   func applicationDidBecomeActive(_ application: UIApplication) {
-    attentiveSdk?.handleRegularOpen()
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+    }
+
   }
 
   private func initializeAttentiveSdk() {
@@ -89,18 +97,26 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
     let userInfo = response.notification.request.content.userInfo
 
-    switch UIApplication.shared.applicationState {
-    case .active:
-      // App was open when push was tapped
-      attentiveSdk?.handleForegroundPush(userInfo: userInfo)
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      DispatchQueue.main.async {
+        switch UIApplication.shared.applicationState {
+        case .active:
+          // App was open when push was tapped
+          self.attentiveSdk?.handleForegroundPush(userInfo: userInfo, authorizationStatus: authStatus)
 
-    case .background, .inactive:
-      // App was backgrounded or cold-launched
-      attentiveSdk?.handlePushOpen(userInfo: userInfo)
+        case .background, .inactive:
+          // App was backgrounded or cold-launched
+          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
 
-    @unknown default:
-      attentiveSdk?.handlePushOpen(userInfo: userInfo)
+        @unknown default:
+          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+        }
+      }
+
+
     }
+
     
     completionHandler()
   }

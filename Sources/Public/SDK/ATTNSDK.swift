@@ -60,7 +60,7 @@ public final class ATTNSDK: NSObject {
     // Detect app launch directly from push notifications
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(handlePushOpen(userInfo:)),
+      selector: #selector(handlePushOpen(userInfo:authorizationStatus:)),
       name: .didReceivePushOpen,
       object: nil
     )
@@ -150,7 +150,7 @@ public final class ATTNSDK: NSObject {
   public func registerAppEvents(
     _ events: [[String: Any]],
     pushToken: String,
-    subscriptionStatus: String = "subscribed",
+    subscriptionStatus: String,
     transport: String = "apns",
     callback: ATTNAPICallback? = nil
   ) {
@@ -221,23 +221,32 @@ public final class ATTNSDK: NSObject {
       "ist": "o",
       "data": ["message_id": messageId]
     ]
-    //registerAppEvents([directOpenEvent], pushToken: token)
 
     let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
     Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
     completionHandler(presentationOptions)
   }
 
-  @objc public func handleRegularOpen() {
+  @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
     let token = latestPushToken ?? ""
     let alEvent: [String:Any] = [
       "ist":"al",
       "data":["message_id":"0"]
     ]
-    registerAppEvents([alEvent], pushToken: token)
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+    registerAppEvents([alEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handleForegroundPush(userInfo: [AnyHashable: Any]) {
+  @objc public func handleForegroundPush(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
     let messageId = userInfo["message_id"] as? String ?? ""
     let token = latestPushToken ?? ""
     // app open from push event
@@ -245,10 +254,21 @@ public final class ATTNSDK: NSObject {
       "ist":"o",
       "data":["message_id":messageId]
     ]
-    registerAppEvents([oEvent], pushToken: token)
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+
+    registerAppEvents([oEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handlePushOpen(userInfo: [AnyHashable: Any]) {
+  @objc public func handlePushOpen(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
     let messageId = userInfo["message_id"] as? String ?? ""
     let token = latestPushToken ?? ""
     // app launch event
@@ -261,7 +281,17 @@ public final class ATTNSDK: NSObject {
       "ist":"o",
       "data":["message_id":messageId]
     ]
-    registerAppEvents([alEvent,oEvent], pushToken: token)
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+    registerAppEvents([alEvent,oEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
   }
 
   // MARK: - Private Helpers

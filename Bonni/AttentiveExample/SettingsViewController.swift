@@ -361,8 +361,8 @@ class SettingsViewController: UIViewController {
                  "message_subtype": "0"]
       ]
     ]
-    getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
-    showToast(with: "App launch event sent!")
+    //getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
+    //showToast(with: "App launch event sent!")
   }
 
   @objc private func sendLocalPushNotificationTapped() {
