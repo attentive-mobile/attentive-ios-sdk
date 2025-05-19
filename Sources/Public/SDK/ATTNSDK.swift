@@ -20,6 +20,14 @@ public final class ATTNSDK: NSObject {
   private var _containerView: UIView?
   private var latestPushToken: String?
 
+  // Always prefer the in‐memory token, but fall back to the last‐saved UserDefaults value
+  private var currentPushToken: String {
+    if let token = latestPushToken, !token.isEmpty {
+      return token
+    }
+    return UserDefaults.standard.string(forKey: "deviceToken") ?? ""
+  }
+
   // MARK: Instance Properties
   var parentView: UIView?
   var triggerHandler: ATTNCreativeTriggerCompletionHandler?
@@ -50,13 +58,6 @@ public final class ATTNSDK: NSObject {
       UIApplication.shared.registerForRemoteNotifications()
     }
 
-//    // Detect app launch and register push token and app events
-//    NotificationCenter.default.addObserver(
-//      self,
-//      selector: #selector(handleRegularOpen),
-//      name: UIApplication.didBecomeActiveNotification,
-//      object: nil
-//    )
     // Detect app launch directly from push notifications
     NotificationCenter.default.addObserver(
       self,
@@ -179,6 +180,7 @@ public final class ATTNSDK: NSObject {
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
+    UserDefaults.standard.set(tokenString, forKey: "deviceToken")
     self.latestPushToken = tokenString
     //this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -226,13 +228,12 @@ public final class ATTNSDK: NSObject {
         return
       }
 
-    let token = latestPushToken ?? ""
     let alEvent: [String: Any] = [
       "ist": "al",
       "data": [
         "message_id": "0",
         "send_id": "",
-        "destination_token": token,
+        "destination_token": currentPushToken,
         "company_id": "",
         "user_id": "",
         "message_type": "",
@@ -249,19 +250,18 @@ public final class ATTNSDK: NSObject {
       @unknown default:    return "unknown"
       }
     }()
-    registerAppEvents([alEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
+    registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
   @objc public func handleForegroundPush(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
     let messageId = userInfo["message_id"] as? String ?? ""
-    let token = latestPushToken ?? ""
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
       "data": [
         "message_id": messageId,
         "send_id": "",
-        "destination_token": token,
+        "destination_token": currentPushToken,
         "company_id": "",
         "user_id": "",
         "message_type": "",
@@ -279,20 +279,19 @@ public final class ATTNSDK: NSObject {
       }
     }()
 
-    registerAppEvents([oEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
+    registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
   @objc public func handlePushOpen(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let messageId = userInfo["message_id"] as? String ?? ""
-    let token = latestPushToken ?? ""
     // app launch event
     let alEvent: [String: Any] = [
       "ist": "al",
       "data": [
         "message_id": "0",
         "send_id": "",
-        "destination_token": token,
+        "destination_token": currentPushToken,
         "company_id": "",
         "user_id": "",
         "message_type": "",
@@ -305,7 +304,7 @@ public final class ATTNSDK: NSObject {
       "data": [
         "message_id": messageId,
         "send_id": "",
-        "destination_token": token,
+        "destination_token": currentPushToken,
         "company_id": "",
         "user_id": "",
         "message_type": "",
@@ -322,7 +321,7 @@ public final class ATTNSDK: NSObject {
       @unknown default:    return "unknown"
       }
     }()
-    registerAppEvents([alEvent,oEvent], pushToken: token, subscriptionStatus: authorizationStatusString)
+    registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
   // MARK: - Private Helpers

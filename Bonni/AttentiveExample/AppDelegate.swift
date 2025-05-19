@@ -32,14 +32,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     return true
   }
 
-//  func applicationDidBecomeActive(_ application: UIApplication) {
-//    UNUserNotificationCenter.current().getNotificationSettings { settings in
-//      let authStatus = settings.authorizationStatus
-//      self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
-//    }
-//
-//  }
-
   private func initializeAttentiveSdk() {
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
     // with your Attentive account.
@@ -70,10 +62,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                                              //authorizationStatus: authStatus)
     }
 
-    // Store device token as string for display on settings screen
+    // Store device token as string for display on settings screen. NOT Needed for client apps.
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
 
-    UserDefaults.standard.set(tokenString, forKey: "deviceToken")
+    UserDefaults.standard.set(tokenString, forKey: "deviceTokenForDisplay")
     NotificationCenter.default.post(name: NSNotification.Name("DeviceTokenUpdated"), object: nil)
 
     //store deviceToken as data type for sample app testing on settings screen that needs a data type to manually send push tokens

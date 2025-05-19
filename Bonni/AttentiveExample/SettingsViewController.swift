@@ -128,7 +128,7 @@ class SettingsViewController: UIViewController {
 
   private let devicetokenLabel: UILabel = {
     let devicetokenLabel = UILabel()
-    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
+    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceTokenForDisplay")
     devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
     devicetokenLabel.font = UIFont(name: "DegularDisplay-Regular", size: 16)
     devicetokenLabel.textColor = .darkGray
