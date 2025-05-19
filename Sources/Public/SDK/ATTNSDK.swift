@@ -50,13 +50,13 @@ public final class ATTNSDK: NSObject {
       UIApplication.shared.registerForRemoteNotifications()
     }
 
-    // Detect app launch and register push token and app events
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleRegularOpen),
-      name: UIApplication.didBecomeActiveNotification,
-      object: nil
-    )
+//    // Detect app launch and register push token and app events
+//    NotificationCenter.default.addObserver(
+//      self,
+//      selector: #selector(handleRegularOpen),
+//      name: UIApplication.didBecomeActiveNotification,
+//      object: nil
+//    )
     // Detect app launch directly from push notifications
     NotificationCenter.default.addObserver(
       self,
@@ -180,7 +180,7 @@ public final class ATTNSDK: NSObject {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
     self.latestPushToken = tokenString
-
+    //this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
       Loggers.event.debug("----- Push-Token Request Result -----")
       if let url = url {
@@ -214,14 +214,6 @@ public final class ATTNSDK: NSObject {
   ) {
     Loggers.event.debug("Foreground Notification received with userInfo: \(userInfo)")
 
-
-    let token = latestPushToken ?? ""
-    let messageId = userInfo["message_id"] as? String ?? "5"
-    let directOpenEvent: [String: Any] = [
-      "ist": "o",
-      "data": ["message_id": messageId]
-    ]
-
     let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
     Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
     completionHandler(presentationOptions)
@@ -235,9 +227,17 @@ public final class ATTNSDK: NSObject {
       }
 
     let token = latestPushToken ?? ""
-    let alEvent: [String:Any] = [
-      "ist":"al",
-      "data":["message_id":"0"]
+    let alEvent: [String: Any] = [
+      "ist": "al",
+      "data": [
+        "message_id": "0",
+        "send_id": "",
+        "destination_token": token,
+        "company_id": "",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -256,9 +256,17 @@ public final class ATTNSDK: NSObject {
     let messageId = userInfo["message_id"] as? String ?? ""
     let token = latestPushToken ?? ""
     // app open from push event
-    let oEvent: [String:Any] = [
-      "ist":"o",
-      "data":["message_id":messageId]
+    let oEvent: [String: Any] = [
+      "ist": "o",
+      "data": [
+        "message_id": messageId,
+        "send_id": "",
+        "destination_token": token,
+        "company_id": "",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -279,14 +287,30 @@ public final class ATTNSDK: NSObject {
     let messageId = userInfo["message_id"] as? String ?? ""
     let token = latestPushToken ?? ""
     // app launch event
-    let alEvent: [String:Any] = [
-      "ist":"al",
-      "data":["message_id":"0"]
+    let alEvent: [String: Any] = [
+      "ist": "al",
+      "data": [
+        "message_id": "0",
+        "send_id": "",
+        "destination_token": token,
+        "company_id": "",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
     ]
     // app open from push event
-    let oEvent: [String:Any] = [
-      "ist":"o",
-      "data":["message_id":messageId]
+    let oEvent: [String: Any] = [
+      "ist": "o",
+      "data": [
+        "message_id": messageId,
+        "send_id": "",
+        "destination_token": token,
+        "company_id": "",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {

@@ -32,13 +32,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     return true
   }
 
-  func applicationDidBecomeActive(_ application: UIApplication) {
-    UNUserNotificationCenter.current().getNotificationSettings { settings in
-      let authStatus = settings.authorizationStatus
-      self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
-    }
-
-  }
+//  func applicationDidBecomeActive(_ application: UIApplication) {
+//    UNUserNotificationCenter.current().getNotificationSettings { settings in
+//      let authStatus = settings.authorizationStatus
+//      self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+//    }
+//
+//  }
 
   private func initializeAttentiveSdk() {
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
@@ -59,8 +59,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
       guard let self = self else { return }
       let authStatus = settings.authorizationStatus
-      self.attentiveSdk?.registerDeviceToken(deviceToken,
-                                             authorizationStatus: authStatus)
+      attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
+
+        DispatchQueue.main.async {
+          self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+        }
+      })
+
+      //self.attentiveSdk?.registerDeviceToken(deviceToken,
+                                             //authorizationStatus: authStatus)
     }
 
     // Store device token as string for display on settings screen
