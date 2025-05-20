@@ -53,18 +53,10 @@ public final class ATTNSDK: NSObject {
     self.api = ATTNAPI(domain: domain)
 
     super.init()
-    // Immediately register for remote notifications in order to get device token before actually showing push permission prompt
+    // Immediately register for remote notifications in order to get device token before showing push permission prompt
     DispatchQueue.main.async {
       UIApplication.shared.registerForRemoteNotifications()
     }
-
-    // Detect app launch directly from push notifications
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handlePushOpen(callbackData:authorizationStatus:)),
-      name: .didReceivePushOpen,
-      object: nil
-    )
 
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
     self.sendInfoEvent()
@@ -239,12 +231,13 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handleForegroundPush(callbackData: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
-    let messageId = callbackData["message_id"] as? String ?? ""
+  @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
+    let userInfo = response.notification.request.content.userInfo
+    let data = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": callbackData
+      "data": data
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -260,18 +253,19 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handlePushOpen(callbackData: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+  @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
-    let messageId = callbackData["message_id"] as? String ?? ""
+    let userInfo = response.notification.request.content.userInfo
+    let data = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
       "ist": "al",
-      "data": callbackData
+      "data": data
     ]
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": callbackData
+      "data": data
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {

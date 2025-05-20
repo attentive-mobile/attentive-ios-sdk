@@ -84,20 +84,18 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
   }
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
 
-    let userInfo = response.notification.request.content.userInfo
-    let callbackData = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       let authStatus = settings.authorizationStatus
       DispatchQueue.main.async {
         switch UIApplication.shared.applicationState {
         case .active:
-          self.attentiveSdk?.handleForegroundPush(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handleForegroundPush(response: response, authorizationStatus: authStatus)
 
         case .background, .inactive:
-          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
 
         @unknown default:
-          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
         }
       }
 
