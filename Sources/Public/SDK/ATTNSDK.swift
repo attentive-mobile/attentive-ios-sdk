@@ -10,10 +10,23 @@ import WebKit
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
+extension Notification.Name {
+  static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
+}
+
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
   private var _containerView: UIView?
+  private var latestPushToken: String?
+
+  // Always prefer the in‐memory token, but fall back to the last‐saved UserDefaults value
+  private var currentPushToken: String {
+    if let token = latestPushToken, !token.isEmpty {
+      return token
+    }
+    return UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? ""
+  }
 
   // MARK: Instance Properties
   var parentView: UIView?
@@ -40,6 +53,18 @@ public final class ATTNSDK: NSObject {
     self.api = ATTNAPI(domain: domain)
 
     super.init()
+    // Immediately register for remote notifications in order to get device token before actually showing push permission prompt
+    DispatchQueue.main.async {
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    // Detect app launch directly from push notifications
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handlePushOpen(userInfo:authorizationStatus:)),
+      name: .didReceivePushOpen,
+      object: nil
+    )
 
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
     self.sendInfoEvent()
@@ -121,12 +146,43 @@ public final class ATTNSDK: NSObject {
     }
   }
 
+  // Send app open events on startup.
+  @objc(registerAppEvents:pushToken:subscriptionStatus:transport:callback:)
+  public func registerAppEvents(
+    _ events: [[String: Any]],
+    pushToken: String,
+    subscriptionStatus: String,
+    transport: String = "apns",
+    callback: ATTNAPICallback? = nil
+  ) {
+    api.sendAppEvents(pushToken: pushToken, subscriptionStatus: subscriptionStatus, transport: transport, events: events, userIdentity: userIdentity) { data, url, response, error in
+      Loggers.event.debug("----- App Open Events Request Result -----")
+      if let url = url {
+        Loggers.event.debug("Request URL: \(url.absoluteString)")
+      }
+      if let http = response as? HTTPURLResponse {
+        Loggers.event.debug("Status Code: \(http.statusCode)")
+        Loggers.event.debug("Headers: \(http.allHeaderFields)")
+      }
+      if let d = data, let body = String(data: d, encoding: .utf8) {
+        Loggers.event.debug("Response Body:\n\(body)")
+      }
+      if let error = error {
+        Loggers.event.error("Error:\n\(error.localizedDescription)")
+      }
+
+      callback?(data, url, response, error)
+    }
+  }
+
   @objc(registerDeviceToken:authorizationStatus:callback:)
   public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
-
+    UserDefaults.standard.set(tokenString, forKey: "attentiveDeviceToken")
+    self.latestPushToken = tokenString
+    //this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
       Loggers.event.debug("----- Push-Token Request Result -----")
       if let url = url {
@@ -139,8 +195,8 @@ public final class ATTNSDK: NSObject {
       if let d = data, let body = String(data: d, encoding: .utf8) {
         Loggers.event.debug("Response Body:\n\(body)")
       }
-      if let err = error {
-        Loggers.event.error("Error:\n\(err.localizedDescription)")
+      if let error = error {
+        Loggers.event.error("Error:\n\(error.localizedDescription)")
       }
 
       callback?(data, url, response, error)
@@ -158,23 +214,114 @@ public final class ATTNSDK: NSObject {
     _ userInfo: [AnyHashable: Any],
     completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    Loggers.event.debug("Foreground Notification received: \(userInfo)")
-    //TODO: api.send(pushNotificationEvent: userInfo)
+    Loggers.event.debug("Foreground Notification received with userInfo: \(userInfo)")
 
     let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
     Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
     completionHandler(presentationOptions)
   }
 
-  /// Call this from AppDelegate’s `userNotificationCenter(_:didReceive:withCompletionHandler:)`
-  @objc(handleBackgroundNotification:completionHandler:)
-  public func handleBackgroundNotification(
-    _ userInfo: [AnyHashable: Any],
-    completionHandler: @escaping () -> Void
-  ) {
-    Loggers.event.debug("Background Notification received: \(userInfo)")
-    //api.send(pushNotificationEvent: userInfo)
-    completionHandler()
+  @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
+    //checks and resets push launch flag
+    guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
+        Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
+        return
+      }
+
+    let alEvent: [String: Any] = [
+      "ist": "al",
+      "data": [
+        "message_id": "0",
+        "send_id": "",
+        "destination_token": currentPushToken,
+        "company_id": "71330",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
+    ]
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+    registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+  }
+
+  @objc public func handleForegroundPush(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+    let messageId = userInfo["message_id"] as? String ?? ""
+    // app open from push event
+    let oEvent: [String: Any] = [
+      "ist": "o",
+      "data": [
+        "message_id": messageId,
+        "send_id": "",
+        "destination_token": currentPushToken,
+        "company_id": "71330",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
+    ]
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+
+    registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+  }
+
+  @objc public func handlePushOpen(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+    ATTNLaunchManager.shared.launchedFromPush = true
+    let messageId = userInfo["message_id"] as? String ?? ""
+    // app launch event
+    let alEvent: [String: Any] = [
+      "ist": "al",
+      "data": [
+        "message_id": "0",
+        "send_id": "",
+        "destination_token": currentPushToken,
+        "company_id": "71330",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
+    ]
+    // app open from push event
+    let oEvent: [String: Any] = [
+      "ist": "o",
+      "data": [
+        "message_id": messageId,
+        "send_id": "",
+        "destination_token": currentPushToken,
+        "company_id": "71330",
+        "user_id": "",
+        "message_type": "",
+        "message_subtype": ""
+      ]
+    ]
+    let authorizationStatusString: String = {
+      switch authorizationStatus {
+      case .notDetermined: return "notDetermined"
+      case .denied:        return "denied"
+      case .authorized:    return "authorized"
+      case .provisional:   return "provisional"
+      case .ephemeral:     return "ephemeral"
+      @unknown default:    return "unknown"
+      }
+    }()
+    registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
   // MARK: - Private Helpers
@@ -216,7 +363,6 @@ public final class ATTNSDK: NSObject {
       UIApplication.shared.registerForRemoteNotifications()
     }
   }
-
 
 }
 

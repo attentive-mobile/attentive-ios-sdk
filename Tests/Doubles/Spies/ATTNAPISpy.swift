@@ -18,6 +18,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
   private(set) var domainWasSetted = false
   private(set) var cachedGeoAdjustedDomainWasSetted = false
   private(set) var sendPushTokenWasCalled = false
+  private(set) var sendAppEventsWasCalled = false
 
   var domain: String {
     didSet {
@@ -62,6 +63,17 @@ final class ATTNAPISpy: ATTNAPIProtocol {
                      authorizationStatus: UNAuthorizationStatus,
                      callback: ATTNAPICallback?) {
     sendPushTokenWasCalled = true
+  }
+  
+  func sendAppEvents(
+    pushToken: String,
+    subscriptionStatus: String,
+    transport: String,
+    events: [[String: Any]],
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  ) {
+    sendAppEventsWasCalled = true
   }
 
 }

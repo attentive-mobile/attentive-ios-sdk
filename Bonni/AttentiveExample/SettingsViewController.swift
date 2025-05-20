@@ -9,6 +9,7 @@ import UIKit
 import ATTNSDKFramework
 import WebKit
 import os.log
+import UserNotifications
 
 class SettingsViewController: UIViewController {
 
@@ -83,6 +84,20 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let sendAppOpenEventsButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("📲 Send App Open Events", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let sendLocalPushNotification: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("🔔 Send Local Push Notification", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   private let identifyUserButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Identify User", for: .normal)
@@ -113,7 +128,7 @@ class SettingsViewController: UIViewController {
 
   private let devicetokenLabel: UILabel = {
     let devicetokenLabel = UILabel()
-    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceToken")
+    let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceTokenForDisplay")
     devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
     devicetokenLabel.font = UIFont(name: "DegularDisplay-Regular", size: 16)
     devicetokenLabel.textColor = .darkGray
@@ -182,6 +197,8 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
     stackView.addArrangedSubview(sendPushTokenButton)
+    stackView.addArrangedSubview(sendAppOpenEventsButton)
+    stackView.addArrangedSubview(sendLocalPushNotification)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
@@ -194,6 +211,8 @@ class SettingsViewController: UIViewController {
         manageAddressesButton,
         showCreativeButton,
         showPushPermissionButton,
+        sendAppOpenEventsButton,
+        sendLocalPushNotification,
         sendPushTokenButton,
         identifyUserButton,
         clearUserButton,
@@ -216,6 +235,8 @@ class SettingsViewController: UIViewController {
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
     sendPushTokenButton.addTarget(self, action: #selector(didTapSendPushTokenButton), for: .touchUpInside
       )
+    sendAppOpenEventsButton.addTarget(self, action: #selector(sendAppOpenEventsTapped), for: .touchUpInside)
+    sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
@@ -321,6 +342,46 @@ class SettingsViewController: UIViewController {
       }
     }
 
+  }
+
+  @objc private func sendAppOpenEventsTapped() {
+    guard let token = UserDefaults.standard.string(forKey: "deviceToken") else {
+      showToast(with: "No push token available. Skipping registering app events")
+      return
+    }
+    let appLaunchEvents: [[String:Any]] = [
+      [
+        "ist": "al",
+        "data": ["message_id": "0",
+                 "send_id": "1",
+                 "destination_token": "0",
+                 "company_id": "1",
+                 "user_id": "0",
+                 "message_type": "app_open",
+                 "message_subtype": "0"]
+      ]
+    ]
+    //getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
+    //showToast(with: "App launch event sent!")
+  }
+
+  @objc private func sendLocalPushNotificationTapped() {
+    showToast(with: "Push shows up in 5 seconds. Minimize app now.")
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
+
+    let content = UNMutableNotificationContent()
+    content.title = "🔔"
+    content.body  = "Local push notification test"
+    content.sound = .default
+
+    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+
+    let req = UNNotificationRequest(identifier: "local_test", content: content, trigger: trigger)
+    UNUserNotificationCenter.current().add(req) { error in
+      if let err = error {
+        print("Scheduling error:", err)
+      }
+    }
   }
 
   @objc private func identifyUserTapped() {
