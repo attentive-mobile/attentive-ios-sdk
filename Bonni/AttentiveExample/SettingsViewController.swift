@@ -77,20 +77,6 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
-  private let sendPushTokenButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("Send Push Token", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  private let sendAppOpenEventsButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("📲 Send App Open Events", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
   private let sendLocalPushNotification: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("🔔 Send Local Push Notification", for: .normal)
@@ -196,8 +182,6 @@ class SettingsViewController: UIViewController {
 
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
-    stackView.addArrangedSubview(sendPushTokenButton)
-    stackView.addArrangedSubview(sendAppOpenEventsButton)
     stackView.addArrangedSubview(sendLocalPushNotification)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
@@ -211,9 +195,7 @@ class SettingsViewController: UIViewController {
         manageAddressesButton,
         showCreativeButton,
         showPushPermissionButton,
-        sendAppOpenEventsButton,
         sendLocalPushNotification,
-        sendPushTokenButton,
         identifyUserButton,
         clearUserButton,
         clearCookiesButton,
@@ -233,9 +215,6 @@ class SettingsViewController: UIViewController {
     manageAddressesButton.addTarget(self, action: #selector(manageAddressesTapped), for: .touchUpInside)
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
-    sendPushTokenButton.addTarget(self, action: #selector(didTapSendPushTokenButton), for: .touchUpInside
-      )
-    sendAppOpenEventsButton.addTarget(self, action: #selector(sendAppOpenEventsTapped), for: .touchUpInside)
     sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
@@ -269,100 +248,6 @@ class SettingsViewController: UIViewController {
 
   @objc private func showPushPermissionTapped() {
     self.getAttentiveSdk().registerForPushNotifications()
-  }
-
-  @objc private func didTapSendPushTokenButton() {
-    guard let tokenData = UserDefaults.standard.data(forKey: "deviceTokenData") else {
-      showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
-      return
-    }
-    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
-      guard let self = self else { return }
-      let authorizationStatus = settings.authorizationStatus
-      getAttentiveSdk().registerDeviceToken(tokenData, authorizationStatus: authorizationStatus) { [weak self] data, url, response, error in
-        guard let self = self else { return }
-        DispatchQueue.main.async {
-          var lines: [String] = []
-          if let url = url {
-            lines.append("URL: \(url.absoluteString)")
-          }
-          lines.append("Domain: games")
-          if let http = response as? HTTPURLResponse {
-            lines.append("Status: \(http.statusCode)")
-            // Clean up headers to remove "AnyHashable" type name etc for readability
-            let headerLines = http.allHeaderFields.compactMap { (key, value) -> String? in
-              guard let keyString = key as? String else { return nil }
-              return "\(keyString): \(value)"
-            }
-            if !headerLines.isEmpty {
-              lines.append("Headers:\n" + headerLines.joined(separator: "\n"))
-            }
-          }
-          if let d = data, let body = String(data: d, encoding: .utf8), !body.isEmpty {
-            lines.append("Body:\n\(body)")
-          }
-          if let err = error {
-            lines.append("Error: \(err.localizedDescription)")
-          }
-          let message = lines.joined(separator: "\n\n")
-
-          let resultVC = UIViewController()
-          resultVC.view.backgroundColor = .systemBackground
-          resultVC.preferredContentSize = CGSize(width: 300, height: 400)
-
-          let textView = UITextView()
-          textView.text = message
-          textView.textAlignment = .left
-          textView.isEditable = false
-          textView.translatesAutoresizingMaskIntoConstraints = false
-          if let customFont = UIFont(name: "DegularDisplay-Regular", size: 16) {
-            textView.font = customFont
-          }
-          resultVC.view.addSubview(textView)
-          NSLayoutConstraint.activate([
-            textView.topAnchor.constraint(equalTo: resultVC.view.topAnchor, constant: 16),
-            textView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 16),
-            textView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -16),
-            textView.bottomAnchor.constraint(equalTo: resultVC.view.bottomAnchor, constant: -16)
-          ])
-
-          let nav = UINavigationController(rootViewController: resultVC)
-          resultVC.navigationItem.title = "Push Token Result"
-          resultVC.navigationItem.rightBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .action,
-            target: self,
-            action: #selector(self.shareResult)
-          )
-
-          objc_setAssociatedObject(nav, &AssociatedKeys.resultMessage, message, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-
-          nav.modalPresentationStyle = .formSheet
-          self.present(nav, animated: true)
-        }
-      }
-    }
-
-  }
-
-  @objc private func sendAppOpenEventsTapped() {
-    guard let token = UserDefaults.standard.string(forKey: "deviceToken") else {
-      showToast(with: "No push token available. Skipping registering app events")
-      return
-    }
-    let appLaunchEvents: [[String:Any]] = [
-      [
-        "ist": "al",
-        "data": ["message_id": "0",
-                 "send_id": "1",
-                 "destination_token": "0",
-                 "company_id": "1",
-                 "user_id": "0",
-                 "message_type": "app_open",
-                 "message_subtype": "0"]
-      ]
-    ]
-    //getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
-    //showToast(with: "App launch event sent!")
   }
 
   @objc private func sendLocalPushNotificationTapped() {

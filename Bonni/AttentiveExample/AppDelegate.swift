@@ -18,16 +18,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
     initializeAttentiveSdk()
-
-    UNUserNotificationCenter.current().getNotificationSettings { settings in
-      let authStatus = settings.authorizationStatus
-      if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-        self.attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo, authorizationStatus: authStatus)
-    }
-
-    }
-
     UNUserNotificationCenter.current().delegate = self
+    // Show push permission prompt
     attentiveSdk?.registerForPushNotifications()
     return true
   }
@@ -52,17 +44,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       guard let self = self else { return }
       let authStatus = settings.authorizationStatus
       attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
-
         DispatchQueue.main.async {
           self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
         }
       })
-
-      //self.attentiveSdk?.registerDeviceToken(deviceToken,
-                                             //authorizationStatus: authStatus)
     }
 
-    // Store device token as string for display on settings screen. NOT Needed for client apps.
+    // Please disregard below. These are for internal debugging purposes only.
+    // Store device token as string for display on settings screen.
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
 
     UserDefaults.standard.set(tokenString, forKey: "deviceTokenForDisplay")
@@ -90,26 +79,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
   func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-    let userInfo = notification.request.content.userInfo
-    attentiveSdk?.handleForegroundNotification(userInfo, completionHandler: completionHandler)
+    let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
+    completionHandler(presentationOptions)
   }
   func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-    let userInfo = response.notification.request.content.userInfo
 
+    let userInfo = response.notification.request.content.userInfo
+    let callbackData = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       let authStatus = settings.authorizationStatus
       DispatchQueue.main.async {
         switch UIApplication.shared.applicationState {
         case .active:
-          // App was open when push was tapped
-          self.attentiveSdk?.handleForegroundPush(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handleForegroundPush(callbackData: callbackData, authorizationStatus: authStatus)
 
         case .background, .inactive:
-          // App was backgrounded or cold-launched
-          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
 
         @unknown default:
-          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
         }
       }
 

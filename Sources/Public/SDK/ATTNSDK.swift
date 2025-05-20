@@ -61,7 +61,7 @@ public final class ATTNSDK: NSObject {
     // Detect app launch directly from push notifications
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(handlePushOpen(userInfo:authorizationStatus:)),
+      selector: #selector(handlePushOpen(callbackData:authorizationStatus:)),
       name: .didReceivePushOpen,
       object: nil
     )
@@ -146,7 +146,6 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  // Send app open events on startup.
   @objc(registerAppEvents:pushToken:subscriptionStatus:transport:callback:)
   public func registerAppEvents(
     _ events: [[String: Any]],
@@ -208,19 +207,6 @@ public final class ATTNSDK: NSObject {
     Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription)")
   }
 
-  /// Call this from AppDelegate’s `userNotificationCenter(_:willPresent:withCompletionHandler:)`
-  @objc(handleForegroundNotification:completionHandler:)
-  public func handleForegroundNotification(
-    _ userInfo: [AnyHashable: Any],
-    completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-  ) {
-    Loggers.event.debug("Foreground Notification received with userInfo: \(userInfo)")
-
-    let presentationOptions: UNNotificationPresentationOptions = [.alert, .sound, .badge]
-    Loggers.event.debug("Presenting notification with options: \(presentationOptions.rawValue)")
-    completionHandler(presentationOptions)
-  }
-
   @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
     //checks and resets push launch flag
     guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
@@ -231,10 +217,10 @@ public final class ATTNSDK: NSObject {
     let alEvent: [String: Any] = [
       "ist": "al",
       "data": [
-        "message_id": "0",
+        "message_id": "",
         "send_id": "",
         "destination_token": currentPushToken,
-        "company_id": "71330",
+        "company_id": "",
         "user_id": "",
         "message_type": "",
         "message_subtype": ""
@@ -253,20 +239,12 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handleForegroundPush(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
-    let messageId = userInfo["message_id"] as? String ?? ""
+  @objc public func handleForegroundPush(callbackData: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+    let messageId = callbackData["message_id"] as? String ?? ""
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": [
-        "message_id": messageId,
-        "send_id": "",
-        "destination_token": currentPushToken,
-        "company_id": "71330",
-        "user_id": "",
-        "message_type": "",
-        "message_subtype": ""
-      ]
+      "data": callbackData
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -282,34 +260,18 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
-  @objc public func handlePushOpen(userInfo: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
+  @objc public func handlePushOpen(callbackData: [AnyHashable: Any], authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
-    let messageId = userInfo["message_id"] as? String ?? ""
+    let messageId = callbackData["message_id"] as? String ?? ""
     // app launch event
     let alEvent: [String: Any] = [
       "ist": "al",
-      "data": [
-        "message_id": "0",
-        "send_id": "",
-        "destination_token": currentPushToken,
-        "company_id": "71330",
-        "user_id": "",
-        "message_type": "",
-        "message_subtype": ""
-      ]
+      "data": callbackData
     ]
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": [
-        "message_id": messageId,
-        "send_id": "",
-        "destination_token": currentPushToken,
-        "company_id": "71330",
-        "user_id": "",
-        "message_type": "",
-        "message_subtype": ""
-      ]
+      "data": callbackData
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
