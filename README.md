@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods
+### Cocoapods for 2.0.0-beta.1
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '1.0.0'
+  pod 'attentive-ios-sdk', '2.0.0-beta.1'
 end
 ```
 
@@ -20,46 +20,20 @@ And then make sure to run:
 pod install
 ```
 
-Check for new versions of the SDK using this command:
-
-```ruby
-pod update ATTNSDKFramework
-```
-
-You can then update the version in your pod file and run `pod install` again to pull the changes.
-
-> [!IMPORTANT]
-> `attentive-ios-sdk` was deprecated in favor of `ATTNSDKFramework`. Please update your Podfile with the newest name for the SDK.
 
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
 
-In your applications `Package.swift` file, add the attentive-ios-sdk as a dependency:
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.0-beta.1
 
-```swift
-dependencies: [
-    // your other app dependencies
-    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.0.0"),
-],
-```
-
-This will allow your package to update patch releases with `swift package update`, but won't auto-upgrade any minor or major versions.
-
-Then, from a command line, run:
-
-```
-swift package resolve
-```
-
-To update your local package, run `swift package update`.
-
-To check for new major and minor versions of this SDK, navigate to the [releases](https://github.com/attentive-mobile/attentive-ios-sdk/releases) tab of the project. You can then manually update the version in your `Package.swift` file and run `swift package resolve` to complete the update.
 
 ## Usage
 
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 IOS SDK is used.
+
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.0-beta.1/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -222,83 +196,64 @@ ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert V
 [[ATTNEventTracker sharedInstance] recordEvent:customEvent];
 ```
 
-## Step 4 (optional) - Show Creatives
-
+## Step 4 - Integrate With Push
 #### Swift
+In your AppDelegate.swift, handle when user launches app from a push notification:
 
-```swift
-sdk.trigger(view) { status in
-  switch status {
-  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is opened sucessfully
-  case ATTNCreativeTriggerStatus.opened:
-    print("Opened the Creative!")
-  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative has been triggered but it is not opened successfully. 
-  // This can happen if there is no available mobile app creative, if the creative is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
-  case ATTNCreativeTriggerStatus.notOpened:
-    print("Couldn't open the Creative!")
-  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is closed sucessfully
-  case ATTNCreativeTriggerStatus.closed:
-    print("Closed the Creative!")
-  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative is not closed due to an unknown exception
-  case ATTNCreativeTriggerStatus.notClosed:
-    print("Couldn't close the Creative!")
-  default:
-    break
-  }
+```
+public var attentiveSdk : ATTNSDK?
+
+func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    initializeAttentiveSdk()
+
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+        self.attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo, authorizationStatus: authStatus)
+      }
+
+    }
+    return true
+}
+  ```
+
+Show push permission prompt:
+```
+attentiveSdk?.registerForPushNotifications()
+```
+
+Handle when push registration fails:
+```
+func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+    attentiveSdk?.failedToRegisterForPush(error)
 }
 ```
 
-#### Objective-C
+Handle push:
+```
+func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    let userInfo = response.notification.request.content.userInfo
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      DispatchQueue.main.async {
+        switch UIApplication.shared.applicationState {
+        case .active:
+          // App was open when push was tapped
+          self.attentiveSdk?.handleForegroundPush(userInfo: userInfo, authorizationStatus: authStatus)
 
-```objective-c
-// Load the creative with a completion handler.
-[sdk trigger:self.view
-     handler:^(NSString *triggerStatus) {
-      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
-        NSLog(@"Opened the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
-        NSLog(@"Couldn't open the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
-        NSLog(@"Closed the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
-        NSLog(@"Couldn't close the Creative!");
+        case .background, .inactive:
+          // App was backgrounded or cold-launched
+          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+
+        @unknown default:
+          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+        }
       }
-    }];
-```
-#### Swift
-
-```swift
-// Alternatively, you can load the creative without a completion handler
-sdk.trigger(view)
+    }
+    completionHandler()
+}
 ```
 
-#### Objective-C
-
-```objective-c
-[sdk trigger:self.view];
-```
-
-### Skip Fatigue on Creative
-
-For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
-
-#### Swift
-
-```swift
-let sdk = ATTNSDK(domain: "domain")
-sdk.skipFatigueOnCreative = true
-```
-
-#### Objective-C
-
-```objective-c
-ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
-sdk.skipFatigueOnCreative = YES;
-```
-
-Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
-
-Environment value can be a string with value `"true"` or `"false"`.
 
 
 ## Other functionality
