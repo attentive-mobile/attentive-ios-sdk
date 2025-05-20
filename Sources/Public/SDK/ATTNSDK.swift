@@ -234,7 +234,7 @@ public final class ATTNSDK: NSObject {
         "message_id": "0",
         "send_id": "",
         "destination_token": currentPushToken,
-        "company_id": "",
+        "company_id": "71330",
         "user_id": "",
         "message_type": "",
         "message_subtype": ""
@@ -262,7 +262,7 @@ public final class ATTNSDK: NSObject {
         "message_id": messageId,
         "send_id": "",
         "destination_token": currentPushToken,
-        "company_id": "",
+        "company_id": "71330",
         "user_id": "",
         "message_type": "",
         "message_subtype": ""
@@ -292,7 +292,7 @@ public final class ATTNSDK: NSObject {
         "message_id": "0",
         "send_id": "",
         "destination_token": currentPushToken,
-        "company_id": "",
+        "company_id": "71330",
         "user_id": "",
         "message_type": "",
         "message_subtype": ""
@@ -305,7 +305,7 @@ public final class ATTNSDK: NSObject {
         "message_id": messageId,
         "send_id": "",
         "destination_token": currentPushToken,
-        "company_id": "",
+        "company_id": "71330",
         "user_id": "",
         "message_type": "",
         "message_subtype": ""
