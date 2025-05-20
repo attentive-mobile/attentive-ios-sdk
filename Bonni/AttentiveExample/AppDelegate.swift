@@ -98,11 +98,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
           self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
         }
       }
-
-
     }
-
-    
     completionHandler()
   }
 }
