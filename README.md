@@ -31,7 +31,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 ## Usage
 
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
-IOS SDK is used.
+iOS SDK is used.
 
 See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.0-beta.1/Bonni) for a sample of how the push integration works.
 
@@ -42,7 +42,7 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/b
 
 ### Initialize the SDK
 
-The code snippets and examples below assume you are working in Objective C. To make the SDK available, you need to import the header
+The code snippets and examples below assume you are working in Swift or Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
 
 #### Swift
@@ -198,24 +198,6 @@ ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert V
 
 ## Step 4 - Integrate With Push
 #### Swift
-In your AppDelegate.swift, handle when user launches app from a push notification:
-
-```
-public var attentiveSdk : ATTNSDK?
-
-func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-    initializeAttentiveSdk()
-
-    UNUserNotificationCenter.current().getNotificationSettings { settings in
-      let authStatus = settings.authorizationStatus
-      if let remoteUserInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
-        self.attentiveSdk?.handlePushOpen(userInfo: remoteUserInfo, authorizationStatus: authStatus)
-      }
-
-    }
-    return true
-}
-  ```
 
 Show push permission prompt:
 ```
@@ -229,24 +211,24 @@ func application(_ application: UIApplication, didFailToRegisterForRemoteNotific
 }
 ```
 
-Handle push:
+Handle incoming push:
 ```
 func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+
     let userInfo = response.notification.request.content.userInfo
+    let callbackData = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       let authStatus = settings.authorizationStatus
       DispatchQueue.main.async {
         switch UIApplication.shared.applicationState {
         case .active:
-          // App was open when push was tapped
-          self.attentiveSdk?.handleForegroundPush(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handleForegroundPush(callbackData: callbackData, authorizationStatus: authStatus)
 
         case .background, .inactive:
-          // App was backgrounded or cold-launched
-          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
 
         @unknown default:
-          self.attentiveSdk?.handlePushOpen(userInfo: userInfo, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
         }
       }
     }
@@ -254,6 +236,69 @@ func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive respo
 }
 ```
 
+#### Objective-C
+
+Show push permission prompt:
+```
+[self.attentiveSdk registerForPushNotifications];
+```
+
+Handle when push registration fails:
+```
+[self.attentiveSdk registerForPushFailed:error];
+```
+
+Handle incoming push: 
+```
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+ didReceiveNotificationResponse:(UNNotificationResponse *)response
+         withCompletionHandler:(void (^)(void))completionHandler
+{
+    // 1) Extract the raw payload
+    NSDictionary<id,id> *userInfo = response.notification.request.content.userInfo;
+    
+    // 2) Safely unwrap callbackData or default to empty dict
+    id raw = userInfo[@"callbackData"];
+    NSDictionary<NSString *, id> *callbackData;
+    if ([raw isKindOfClass:[NSDictionary class]]) {
+        callbackData = raw;
+    } else {
+        callbackData = @{};
+    }
+
+    // 3) Fetch current push‐permission status
+    [[UNUserNotificationCenter currentNotificationCenter]
+        getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+            UNAuthorizationStatus authStatus = settings.authorizationStatus;
+            
+            // 4) Back to main queue for UI/SDK calls
+            dispatch_async(dispatch_get_main_queue(), ^{
+                UIApplicationState state = [UIApplication sharedApplication].applicationState;
+                
+                switch (state) {
+                    case UIApplicationStateActive:
+                        // App was in foreground when tapped
+                        [self.attentiveSdk
+                            handleForegroundPushWithCallbackData:callbackData
+                                              authorizationStatus:authStatus];
+                        break;
+                        
+                    case UIApplicationStateBackground:
+                    case UIApplicationStateInactive:
+                    default:
+                        // App was backgrounded or cold‐launched
+                        [self.attentiveSdk
+                            handlePushOpenWithCallbackData:callbackData
+                                          authorizationStatus:authStatus];
+                        break;
+                }
+            });
+        }];
+
+    // 5) Tell the system you're done
+    completionHandler();
+}
+```
 
 
 ## Other functionality
