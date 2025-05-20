@@ -25,7 +25,7 @@ public final class ATTNSDK: NSObject {
     if let token = latestPushToken, !token.isEmpty {
       return token
     }
-    return UserDefaults.standard.string(forKey: "deviceToken") ?? ""
+    return UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? ""
   }
 
   // MARK: Instance Properties
@@ -180,7 +180,7 @@ public final class ATTNSDK: NSObject {
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
-    UserDefaults.standard.set(tokenString, forKey: "deviceToken")
+    UserDefaults.standard.set(tokenString, forKey: "attentiveDeviceToken")
     self.latestPushToken = tokenString
     //this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
