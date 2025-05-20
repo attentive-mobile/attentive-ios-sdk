@@ -215,20 +215,18 @@ Handle incoming push:
 ```
 func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
 
-    let userInfo = response.notification.request.content.userInfo
-    let callbackData = (userInfo["callbackData"] as? [String: Any]) ?? [:]
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       let authStatus = settings.authorizationStatus
       DispatchQueue.main.async {
         switch UIApplication.shared.applicationState {
         case .active:
-          self.attentiveSdk?.handleForegroundPush(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handleForegroundPush(response: response, authorizationStatus: authStatus)
 
         case .background, .inactive:
-          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
 
         @unknown default:
-          self.attentiveSdk?.handlePushOpen(callbackData: callbackData, authorizationStatus: authStatus)
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
         }
       }
     }
@@ -251,51 +249,38 @@ Handle when push registration fails:
 Handle incoming push: 
 ```
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
- didReceiveNotificationResponse:(UNNotificationResponse *)response
+didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void (^)(void))completionHandler
 {
-    // 1) Extract the raw payload
-    NSDictionary<id,id> *userInfo = response.notification.request.content.userInfo;
-    
-    // 2) Safely unwrap callbackData or default to empty dict
-    id raw = userInfo[@"callbackData"];
-    NSDictionary<NSString *, id> *callbackData;
-    if ([raw isKindOfClass:[NSDictionary class]]) {
-        callbackData = raw;
-    } else {
-        callbackData = @{};
-    }
-
-    // 3) Fetch current push‐permission status
     [[UNUserNotificationCenter currentNotificationCenter]
-        getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
-            UNAuthorizationStatus authStatus = settings.authorizationStatus;
-            
-            // 4) Back to main queue for UI/SDK calls
-            dispatch_async(dispatch_get_main_queue(), ^{
-                UIApplicationState state = [UIApplication sharedApplication].applicationState;
-                
-                switch (state) {
-                    case UIApplicationStateActive:
-                        // App was in foreground when tapped
-                        [self.attentiveSdk
-                            handleForegroundPushWithCallbackData:callbackData
-                                              authorizationStatus:authStatus];
-                        break;
-                        
-                    case UIApplicationStateBackground:
-                    case UIApplicationStateInactive:
-                    default:
-                        // App was backgrounded or cold‐launched
-                        [self.attentiveSdk
-                            handlePushOpenWithCallbackData:callbackData
-                                          authorizationStatus:authStatus];
-                        break;
-                }
-            });
-        }];
+      getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
 
-    // 5) Tell the system you're done
+        UNAuthorizationStatus authStatus = settings.authorizationStatus;
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIApplicationState state = [UIApplication sharedApplication].applicationState;
+            switch (state) {
+                case UIApplicationStateActive:
+                    [self.attentiveSdk
+                        handleForegroundPushWithResponse:response
+                                 authorizationStatus:authStatus];
+                    break;
+
+                case UIApplicationStateBackground:
+                case UIApplicationStateInactive:
+                    [self.attentiveSdk
+                        handlePushOpenWithResponse:response
+                            authorizationStatus:authStatus];
+                    break;
+
+                default:
+                    [self.attentiveSdk
+                        handlePushOpenWithResponse:response
+                            authorizationStatus:authStatus];
+                    break;
+            }
+        });
+    }];
     completionHandler();
 }
 ```
