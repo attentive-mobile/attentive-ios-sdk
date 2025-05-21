@@ -203,6 +203,21 @@ Show push permission prompt:
 ```
 attentiveSdk?.registerForPushNotifications()
 ```
+Register device token (sdk will send the token to Attentive):
+```
+func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+      guard let self = self else { return }
+      let authStatus = settings.authorizationStatus
+      attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
+        DispatchQueue.main.async {
+          self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+        }
+      })
+    }
+}
+
+```
 
 Handle when push registration fails:
 ```
