@@ -328,13 +328,18 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
    Calculate interactive area for bubble creative.
    */
   private func calculateInteractiveArea(parentFrame: CGRect, originInPixels: CGPoint) -> CGRect {
-      let rectWidth: CGFloat = 180
-      let rectHeight: CGFloat = 60
-      return CGRect(x: originInPixels.x,
-                    y: originInPixels.y,
-                    width: rectWidth,
-                    height: rectHeight)
-    }
+    let safeTop = webViewProvider?.parentView?.safeAreaInsets.top ?? 0
+
+    // 2) Add that inset back into your Y coordinate
+    let adjustedY = originInPixels.y + safeTop
+
+    let rectWidth: CGFloat = 180
+    let rectHeight: CGFloat = 60
+    return CGRect(x: originInPixels.x,
+                  y: adjustedY,
+                  width: rectWidth,
+                  height: rectHeight)
+  }
 }
 
 fileprivate extension ATTNWebViewHandler {
