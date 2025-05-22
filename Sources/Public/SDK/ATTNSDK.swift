@@ -233,7 +233,7 @@ public final class ATTNSDK: NSObject {
 
   @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     let userInfo = response.notification.request.content.userInfo
-    let data = (userInfo["callbackData"] as? [String: Any]) ?? [:]
+    let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
@@ -256,7 +256,7 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
-    let data = (userInfo["callbackData"] as? [String: Any]) ?? [:]
+    let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
       "ist": "al",
