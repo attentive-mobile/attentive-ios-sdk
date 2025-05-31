@@ -53,7 +53,7 @@ public final class ATTNSDK: NSObject {
     self.api = ATTNAPI(domain: domain)
 
     super.init()
-    // Immediately register for remote notifications in order to get device token before showing push permission prompt
+    // Immediately register for remote notifications in order to get device token at app launch
     DispatchQueue.main.async {
       UIApplication.shared.registerForRemoteNotifications()
     }

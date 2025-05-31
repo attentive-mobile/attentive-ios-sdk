@@ -286,7 +286,7 @@ class SettingsViewController: UIViewController {
   }
 
   @objc private func copyDeviceTokenTapped() {
-    guard let token = UserDefaults.standard.string(forKey: "deviceToken"),
+    guard let token = UserDefaults.standard.string(forKey: "attentiveDeviceToken"),
           !token.isEmpty else {
       showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
       return
