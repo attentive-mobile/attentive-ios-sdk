@@ -21,6 +21,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
   private(set) var urlSession: URLSession
 
+  private let retryClient: ATTNRetryingNetworkClient
+
+
   // MARK: ATTNAPIProtocol Properties
   var cachedGeoAdjustedDomain: String?
   var domain: String
@@ -29,12 +32,14 @@ final class ATTNAPI: ATTNAPIProtocol {
     self.urlSession = URLSession.build(withUserAgent: userAgentBuilder.buildUserAgent())
     self.domain = domain
     self.cachedGeoAdjustedDomain = nil
+    self.retryClient = ATTNRetryingNetworkClient(session: self.urlSession)
   }
 
   init(domain: String, urlSession: URLSession) {
     self.urlSession = urlSession
     self.domain = domain
     self.cachedGeoAdjustedDomain = nil
+    self.retryClient = ATTNRetryingNetworkClient(session: self.urlSession)
   }
 
   func send(userIdentity: ATTNUserIdentity) {
@@ -131,7 +136,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       Loggers.network.debug("POST /token payload: \(payload)")
 
-      let task = self.urlSession.dataTask(with: request) { data, response, error in
+      retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
         if let error = error {
           Loggers.network.error("Error sending push token: \(error.localizedDescription)")
         } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -141,7 +146,6 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         callback?(data, url, response, error)
       }
-      task.resume()
     }
   }
 
@@ -181,7 +185,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       Loggers.network.debug("POST app open events payload: \(payload)")
 
-      let task = urlSession.dataTask(with: request) { data, response, error in
+      retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
         if let error = error {
           Loggers.network.error("Error sending app events: \(error.localizedDescription)")
         } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -191,7 +195,6 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         callback?(data, url, response, error)
       }
-      task.resume()
     }
 }
 
