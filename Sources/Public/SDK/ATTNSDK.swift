@@ -251,6 +251,12 @@ public final class ATTNSDK: NSObject {
     }()
 
     registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+
+    if var linkString = data["attentive_open_action_url"] as? String {
+      handleDeepLink(with: linkString)
+    } else {
+      Loggers.network.debug("No deep link URL in push notification")
+    }
   }
 
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
@@ -278,6 +284,13 @@ public final class ATTNSDK: NSObject {
       }
     }()
     registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+
+    if var linkString = data["attentive_open_action_url"] as? String {
+      handleDeepLink(with: linkString)
+    } else {
+      Loggers.network.debug("No deep link URL in push notification")
+    }
+
   }
 
   // MARK: - Private Helpers
@@ -320,6 +333,32 @@ public final class ATTNSDK: NSObject {
     }
   }
 
+  private func handleDeepLink(with urlString: String) {
+
+    // Trim whitespace just in case
+    let trimmedURLstring = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    // Attempt to build a URL. If it doesn’t parse, try prefixing "https://"
+    var url: URL? = URL(string: trimmedURLstring)
+    if url == nil {
+      // If the string didn’t already have a scheme, prepend “https://”
+      let linkStringWithHTTPprefix = "https://\(trimmedURLstring)"
+      url = URL(string: linkStringWithHTTPprefix)
+    }
+
+    if let validURL = url {
+      DispatchQueue.main.async {
+        if UIApplication.shared.canOpenURL(validURL) {
+          UIApplication.shared.open(validURL, options: [:], completionHandler: nil)
+        } else {
+          Loggers.network.log("Deep link URL seems valid but the mobile device cannot open it: \(validURL)")
+        }
+      }
+    } else {
+      Loggers.network.error("Unable to form URL from string: \(trimmedURLstring)")
+    }
+
+  }
 }
 
 // MARK: ATTNWebViewProviding
