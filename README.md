@@ -287,7 +287,29 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 ### Deep Link Support
 
-Our SDK now recognizes deep links in push payloads and will attempt to open it if the app is logged in and able to navigate. If the app is launching, loading, or the user is logged out, the link will be ignored for now.
+Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g., store if the user is logged out, or navigate immediately).
+```
+// Option 1: Observe the SDKDeepLinkReceived notification
+        NotificationCenter.default.addObserver(
+          self,
+          selector: #selector(didReceiveSDKDeepLink(_:)),
+          name: .SDKDeepLinkReceived,
+          object: nil
+        )
+
+        @objc private func didReceiveSDKDeepLink(_ notification: Notification) {
+        guard let url = notification.userInfo?["attentiveDeeplinkUrl"] as? URL else { return }
+        // handle url in your app
+    }
+// Option 2: Consume deep link when your app is ready to navigate. This will consume and delete the deep link stored in SDK
+
+        let sdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+        attentiveSdk = sdk
+
+        if let url = attentiveSdk.consumeDeepLink() {
+            YourApp.navigate(to: url)
+        }
+```
 
 ## Other functionality
 

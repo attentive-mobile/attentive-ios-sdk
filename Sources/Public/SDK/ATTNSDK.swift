@@ -19,6 +19,8 @@ public final class ATTNSDK: NSObject {
 
   private var _containerView: UIView?
   private var latestPushToken: String?
+  /// Holds exactly one pending deep-link URL (new taps overwrite old).
+  private var pendingURL: URL?
 
   // Always prefer the in‐memory token, but fall back to the last‐saved UserDefaults value
   private var currentPushToken: String {
@@ -285,12 +287,19 @@ public final class ATTNSDK: NSObject {
     }()
     registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
-    if var linkString = data["attentive_open_action_url"] as? String {
-      handleDeepLink(with: linkString)
-    } else {
-      Loggers.network.debug("No deep link URL in push notification")
+    guard let linkString = data["attentive_open_action_url"] as? String else {
+      Loggers.network.debug("SDK: No deep link URL in push notification")
+      return
     }
+    normalizeAndBroadcast(linkString)
 
+  }
+
+  /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
+  /// call this to retrieve (and clear) the pending URL.
+  public func consumeDeepLink() -> URL? {
+    defer { pendingURL = nil }
+    return pendingURL
   }
 
   // MARK: - Private Helpers
@@ -358,6 +367,43 @@ public final class ATTNSDK: NSObject {
       Loggers.network.error("Unable to form URL from string: \(trimmedURLstring)")
     }
 
+  }
+
+  /// Normalize a raw string into a URL, stash it, and immediately post a notification.
+  private func normalizeAndBroadcast(_ rawString: String) {
+    let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+    var candidateURL: URL?
+
+    // 1) If `trimmed` already parses to a URL with a scheme, use it.
+    if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
+      candidateURL = trimmedURL
+    }
+    // 2) Otherwise, try “https://” + trimmed.
+    else if let u = URL(string: "https://\(trimmed)"), u.scheme == "https" {
+      candidateURL = u
+    }
+    // 3) Attempt percent-encoding if needed.
+    else if
+      let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+      let u = URL(string: encoded)
+    {
+      candidateURL = u
+    }
+
+    guard let validURL = candidateURL else {
+      Loggers.network.error("SDK: Unable to form URL from string: '\(trimmed)'")
+      return
+    }
+
+    // 4) Store it (overwriting any existing pending URL)
+    pendingURL = validURL
+
+    // 5) Broadcast to NotificationCenter
+    NotificationCenter.default.post(
+      name: .SDKDeepLinkReceived,
+      object: nil,
+      userInfo: ["attentiveDeeplinkUrl": validURL]
+    )
   }
 }
 

@@ -16,6 +16,7 @@
 		F939F2462D64DF75002CC012 /* ATTNCreativeStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */; };
 		F96E25382DD69244005AE2E3 /* ATTNLaunchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96E25372DD69244005AE2E3 /* ATTNLaunchManager.swift */; };
 		F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CED4642DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift */; };
+		F9CED4B42DF263E600780536 /* Notification+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CED4B32DF263E600780536 /* Notification+Extension.swift */; };
 		F9D1FE2F2DEB68B7005D569F /* ATTNRetryingNetworkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1FE2E2DEB68B7005D569F /* ATTNRetryingNetworkClient.swift */; };
 		FB080C712C1C755A00834BAA /* ATTNAPISpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65536D2C1B7747008DB3B1 /* ATTNAPISpy.swift */; };
 		FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB080C6F2C1C752E00834BAA /* ATTNCreativeUrlProviderSpy.swift */; };
@@ -128,6 +129,7 @@
 		F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeStateManager.swift; sourceTree = "<group>"; };
 		F96E25372DD69244005AE2E3 /* ATTNLaunchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNLaunchManager.swift; sourceTree = "<group>"; };
 		F9CED4642DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNRetryingNetworkClientTests.swift; sourceTree = "<group>"; };
+		F9CED4B32DF263E600780536 /* Notification+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Notification+Extension.swift"; sourceTree = "<group>"; };
 		F9D1FE2E2DEB68B7005D569F /* ATTNRetryingNetworkClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNRetryingNetworkClient.swift; sourceTree = "<group>"; };
 		FB080C6F2C1C752E00834BAA /* ATTNCreativeUrlProviderSpy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeUrlProviderSpy.swift; sourceTree = "<group>"; };
 		FB080C7E2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeUrlConfig.swift; sourceTree = "<group>"; };
@@ -432,6 +434,7 @@
 			isa = PBXGroup;
 			children = (
 				FB56D4DD2C208DC100AF7530 /* String+Extension.swift */,
+				F9CED4B32DF263E600780536 /* Notification+Extension.swift */,
 				FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */,
 				FBA9F9E72C0A77AB00C65024 /* Dictionary+Extension.swift */,
 				FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */,
@@ -707,6 +710,7 @@
 				FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */,
 				FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */,
 				FBA9FA0A2C0A77AB00C65024 /* ATTNCreativeUrlProvider.swift in Sources */,
+				F9CED4B42DF263E600780536 /* Notification+Extension.swift in Sources */,
 				FB65536C2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift in Sources */,
 				FB84E3032C3F30FF0011936B /* ATTNDeeplinkHandling.swift in Sources */,
 				FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */,
