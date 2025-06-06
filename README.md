@@ -291,27 +291,27 @@ Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid
 
 #### Option 1: Observe the ATTNSDKDeepLinkReceived notification
 ```
-        NotificationCenter.default.addObserver(
-          self,
-          selector: #selector(didReceiveDeepLink(_:)),
-          name: .ATTNSDKDeepLinkReceived,
-          object: nil
-        )
+NotificationCenter.default.addObserver(
+ self,
+ selector: #selector(didReceiveDeepLink(_:)),
+ name: .ATTNSDKDeepLinkReceived,
+ object: nil
+)
 
-        @objc private func didReceiveDeepLink(_ notification: Notification) {
-        guard let url = notification.userInfo?["attentivePushDeeplinkUrl"] as? URL else { return }
-        // handle deep link in your app
-    }
+@objc private func didReceiveDeepLink(_ notification: Notification) {
+  guard let url = notification.userInfo?["attentivePushDeeplinkUrl"] as? URL else { return }
+  // handle navigating to the link in your app
+}
 ```
 
 #### Option 2: Consume deep link when your app is ready to navigate. This will consume and delete the deep link stored in SDK
 ```
-        let sdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
-        attentiveSdk = sdk
+let sdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+attentiveSdk = sdk
 
-        if let url = attentiveSdk.consumeDeepLink() {
-            YourApp.navigate(to: url)
-        }
+if let url = attentiveSdk.consumeDeepLink() {
+  // handle navigating to the link in your app
+}
 ```
 
 ## Other functionality
