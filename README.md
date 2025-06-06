@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods for 2.0.1-beta.1
+### Cocoapods for 2.0.1-beta.2
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.1-beta.1'
+  pod 'attentive-ios-sdk', '2.0.1-beta.2'
 end
 ```
 
@@ -25,7 +25,7 @@ pod install
 
 We also support adding the dependency via Swift Package Manager.
 
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.1-beta.1
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.1-beta.2
 
 
 ## Usage
@@ -33,7 +33,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 iOS SDK is used.
 
-See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.1-beta.1/Bonni) for a sample of how the push integration works.
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.1-beta.2/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -287,22 +287,25 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 ### Deep Link Support
 
-Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g., store if the user is logged out, or navigate immediately).
+Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
+
+#### Option 1: Observe the ATTNSDKDeepLinkReceived notification
 ```
-// Option 1: Observe the SDKDeepLinkReceived notification
         NotificationCenter.default.addObserver(
           self,
-          selector: #selector(didReceiveSDKDeepLink(_:)),
-          name: .SDKDeepLinkReceived,
+          selector: #selector(didReceiveDeepLink(_:)),
+          name: .ATTNSDKDeepLinkReceived,
           object: nil
         )
 
-        @objc private func didReceiveSDKDeepLink(_ notification: Notification) {
-        guard let url = notification.userInfo?["attentiveDeeplinkUrl"] as? URL else { return }
-        // handle url in your app
+        @objc private func didReceiveDeepLink(_ notification: Notification) {
+        guard let url = notification.userInfo?["attentivePushDeeplinkUrl"] as? URL else { return }
+        // handle deep link in your app
     }
-// Option 2: Consume deep link when your app is ready to navigate. This will consume and delete the deep link stored in SDK
+```
 
+#### Option 2: Consume deep link when your app is ready to navigate. This will consume and delete the deep link stored in SDK
+```
         let sdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
         attentiveSdk = sdk
 

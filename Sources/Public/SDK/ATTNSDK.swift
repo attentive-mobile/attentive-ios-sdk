@@ -254,11 +254,11 @@ public final class ATTNSDK: NSObject {
 
     registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
-    if var linkString = data["attentive_open_action_url"] as? String {
-      handleDeepLink(with: linkString)
-    } else {
-      Loggers.network.debug("No deep link URL in push notification")
+    guard let linkString = data["attentive_open_action_url"] as? String else {
+      Loggers.network.debug("No deep link URL found in push notification")
+      return
     }
+    normalizeAndBroadcast(linkString)
   }
 
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
@@ -288,7 +288,7 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
     guard let linkString = data["attentive_open_action_url"] as? String else {
-      Loggers.network.debug("SDK: No deep link URL in push notification")
+      Loggers.network.debug("No deep link URL found in push notification")
       return
     }
     normalizeAndBroadcast(linkString)
@@ -342,33 +342,6 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  private func handleDeepLink(with urlString: String) {
-
-    // Trim whitespace just in case
-    let trimmedURLstring = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-
-    // Attempt to build a URL. If it doesn’t parse, try prefixing "https://"
-    var url: URL? = URL(string: trimmedURLstring)
-    if url == nil {
-      // If the string didn’t already have a scheme, prepend “https://”
-      let linkStringWithHTTPprefix = "https://\(trimmedURLstring)"
-      url = URL(string: linkStringWithHTTPprefix)
-    }
-
-    if let validURL = url {
-      DispatchQueue.main.async {
-        if UIApplication.shared.canOpenURL(validURL) {
-          UIApplication.shared.open(validURL, options: [:], completionHandler: nil)
-        } else {
-          Loggers.network.log("Deep link URL seems valid but the mobile device cannot open it: \(validURL)")
-        }
-      }
-    } else {
-      Loggers.network.error("Unable to form URL from string: \(trimmedURLstring)")
-    }
-
-  }
-
   /// Normalize a raw string into a URL, stash it, and immediately post a notification.
   private func normalizeAndBroadcast(_ rawString: String) {
     let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -379,15 +352,15 @@ public final class ATTNSDK: NSObject {
       candidateURL = trimmedURL
     }
     // 2) Otherwise, try “https://” + trimmed.
-    else if let u = URL(string: "https://\(trimmed)"), u.scheme == "https" {
-      candidateURL = u
+    else if let url = URL(string: "https://\(trimmed)"), url.scheme == "https" {
+      candidateURL = url
     }
     // 3) Attempt percent-encoding if needed.
     else if
       let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-      let u = URL(string: encoded)
+      let url = URL(string: encoded)
     {
-      candidateURL = u
+      candidateURL = url
     }
 
     guard let validURL = candidateURL else {
@@ -400,9 +373,9 @@ public final class ATTNSDK: NSObject {
 
     // 5) Broadcast to NotificationCenter
     NotificationCenter.default.post(
-      name: .SDKDeepLinkReceived,
+      name: .ATTNSDKDeepLinkReceived,
       object: nil,
-      userInfo: ["attentiveDeeplinkUrl": validURL]
+      userInfo: ["attentivePushDeeplinkUrl": validURL]
     )
   }
 }
