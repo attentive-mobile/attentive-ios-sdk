@@ -22,7 +22,7 @@ final class ATTNAPI: ATTNAPIProtocol {
   private(set) var urlSession: URLSession
 
   private let retryClient: ATTNRetryingNetworkClient
-
+  private var lastPushTokenSendTime: Date?
 
   // MARK: ATTNAPIProtocol Properties
   var cachedGeoAdjustedDomain: String?
@@ -84,6 +84,14 @@ final class ATTNAPI: ATTNAPIProtocol {
                      userIdentity: ATTNUserIdentity,
                      authorizationStatus: UNAuthorizationStatus,
                      callback: ATTNAPICallback?) {
+    //debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
+    let now = Date()
+    if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+      Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
+      return
+    }
+    lastPushTokenSendTime = now
+
     getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
       guard let self = self else { return }
       if let error = error {
@@ -119,7 +127,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       let payload: [String:Any] = [
         "c": geoDomain,
-        "v": "mobile-app",
+        "v": "mobile-app-\(ATTNConstants.sdkVersion)",
         "u": userIdentity.visitorId,
         "evs": evsArray,
         "m": metadata,
@@ -157,10 +165,9 @@ final class ATTNAPI: ATTNAPIProtocol {
       userIdentity: ATTNUserIdentity,
       callback: ATTNAPICallback?
     ) {
-      let sdkVersion = "2.0.1-beta.2"  // TODO: change this with each SDK release
       let deviceInfo: [String: Any] = [
         "c": domain,
-        "v": sdkVersion,
+        "v": "mobile-app-\(ATTNConstants.sdkVersion)",
         "u": userIdentity.visitorId,
         "pd": "",
         "m": userIdentity.buildBaseMetadata(),

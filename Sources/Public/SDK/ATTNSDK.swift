@@ -21,6 +21,8 @@ public final class ATTNSDK: NSObject {
   private var latestPushToken: String?
   /// Holds exactly one pending deep-link URL (new taps overwrite old).
   private var pendingURL: URL?
+  // Debounce mechanism to prevent duplicate events
+  private var lastRegularOpenTime: Date?
 
   // Always prefer the in‐memory token, but fall back to the last‐saved UserDefaults value
   private var currentPushToken: String {
@@ -55,10 +57,17 @@ public final class ATTNSDK: NSObject {
     self.api = ATTNAPI(domain: domain)
 
     super.init()
-    // Immediately register for remote notifications in order to get device token at app launch
-    DispatchQueue.main.async {
-      UIApplication.shared.registerForRemoteNotifications()
-    }
+
+    // Proactively send app open events for cold launch
+    handleAppDidBecomeActive()
+
+    // Register app open events for when app is foregrounded
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleAppDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
 
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
     self.sendInfoEvent()
@@ -207,6 +216,13 @@ public final class ATTNSDK: NSObject {
         Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
         return
       }
+    //debounce to remove duplicate events; only allow app events tracking once every 2 seconds
+    let now = Date()
+    if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+      Loggers.event.debug("Skipping duplicate handleRegularOpen due to debounce.")
+      return
+    }
+    lastRegularOpenTime = now
 
     let alEvent: [String: Any] = [
       "ist": "al",
@@ -339,6 +355,15 @@ public final class ATTNSDK: NSObject {
     DispatchQueue.main.async {
       Loggers.event.debug("Registering for remote notifications with APNs")
       UIApplication.shared.registerForRemoteNotifications()
+    }
+  }
+
+  @objc private func handleAppDidBecomeActive() {
+    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+      guard let self = self else { return }
+      DispatchQueue.main.async {
+        self.handleRegularOpen(authorizationStatus: settings.authorizationStatus)
+      }
     }
   }
 
