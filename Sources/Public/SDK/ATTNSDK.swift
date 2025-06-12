@@ -307,6 +307,7 @@ public final class ATTNSDK: NSObject {
       Loggers.network.debug("No deep link URL found in push notification")
       return
     }
+    Loggers.network.debug("Broadcasting deep link URL found in push notification: \(linkString)")
     normalizeAndBroadcast(linkString)
 
   }
@@ -315,6 +316,8 @@ public final class ATTNSDK: NSObject {
   /// call this to retrieve (and clear) the pending URL.
   public func consumeDeepLink() -> URL? {
     defer { pendingURL = nil }
+    let urlString = pendingURL?.absoluteString ?? ""
+    Loggers.network.debug("Consuming pending deep link: \(urlString)")
     return pendingURL
   }
 
@@ -372,20 +375,8 @@ public final class ATTNSDK: NSObject {
     let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
     var candidateURL: URL?
 
-    // 1) If `trimmed` already parses to a URL with a scheme, use it.
     if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
       candidateURL = trimmedURL
-    }
-    // 2) Otherwise, try “https://” + trimmed.
-    else if let url = URL(string: "https://\(trimmed)"), url.scheme == "https" {
-      candidateURL = url
-    }
-    // 3) Attempt percent-encoding if needed.
-    else if
-      let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-      let url = URL(string: encoded)
-    {
-      candidateURL = url
     }
 
     guard let validURL = candidateURL else {
@@ -393,10 +384,8 @@ public final class ATTNSDK: NSObject {
       return
     }
 
-    // 4) Store it (overwriting any existing pending URL)
     pendingURL = validURL
-
-    // 5) Broadcast to NotificationCenter
+    Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL)")
     NotificationCenter.default.post(
       name: .ATTNSDKDeepLinkReceived,
       object: nil,
