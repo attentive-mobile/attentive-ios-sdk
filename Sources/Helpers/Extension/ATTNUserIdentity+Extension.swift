@@ -72,3 +72,21 @@ extension ATTNUserIdentity {
     return queryParams
   }
 }
+
+extension URLQueryItem {
+    func percentEncoded() -> URLQueryItem {
+        guard let value = self.value else { return self }
+
+        let encodedValue = value
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)?
+            .replacingOccurrences(of: "+", with: "%2B")
+
+        return URLQueryItem(name: self.name, value: encodedValue)
+    }
+}
+
+extension Array where Element == URLQueryItem {
+    func percentEncoded() -> [URLQueryItem] {
+        self.map { $0.percentEncoded() }
+    }
+}

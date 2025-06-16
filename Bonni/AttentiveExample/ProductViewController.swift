@@ -67,6 +67,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     setupNavigationBar()
     setupUI()
     setupCollectionView()
+
   }
   
   // MARK: - Navigation Bar Setup

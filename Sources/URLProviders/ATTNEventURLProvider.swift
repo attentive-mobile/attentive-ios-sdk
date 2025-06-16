@@ -31,7 +31,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
     queryParams["m"] = userIdentity.buildMetadataJson()
     queryParams["t"] = ATTNEventTypes.userIdentifierCollected
 
-    urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+    urlComponents.percentEncodedQueryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }.percentEncoded()
     return urlComponents.url
   }
 
@@ -48,7 +48,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
       queryParams["pd"] = deeplink
     }
 
-    urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+    urlComponents.percentEncodedQueryItems = queryParams.map { URLQueryItem(name: $0.key, value: $0.value) }.percentEncoded()
     return urlComponents.url
   }
 
