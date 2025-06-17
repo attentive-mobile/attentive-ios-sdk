@@ -58,9 +58,6 @@ public final class ATTNSDK: NSObject {
 
     super.init()
 
-    // Proactively send app open events for cold launch
-    handleAppDidBecomeActive()
-
     // Register app open events for when app is foregrounded
     NotificationCenter.default.addObserver(
       self,

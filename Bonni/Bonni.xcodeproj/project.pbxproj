@@ -10,8 +10,19 @@
 		F92DE7182DB01CB6005693CD /* ATTNSDKFramework in Frameworks */ = {isa = PBXBuildFile; productRef = F92DE7172DB01CB6005693CD /* ATTNSDKFramework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		F9CED5592E01C10300780536 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F915FE2C2D77BF3100012489 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F915FE332D77BF3100012489;
+			remoteInfo = AttentiveExample;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		F915FE342D77BF3100012489 /* AttentiveExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AttentiveExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F9CED5532E01C10300780536 /* BonniUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BonniUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -33,6 +44,11 @@
 			path = AttentiveExample;
 			sourceTree = "<group>";
 		};
+		F9CED5542E01C10300780536 /* BonniUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BonniUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +60,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F9CED5502E01C10300780536 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -51,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				F915FE362D77BF3100012489 /* AttentiveExample */,
+				F9CED5542E01C10300780536 /* BonniUITests */,
 				F915FE352D77BF3100012489 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				F915FE342D77BF3100012489 /* AttentiveExample.app */,
+				F9CED5532E01C10300780536 /* BonniUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,6 +114,29 @@
 			productReference = F915FE342D77BF3100012489 /* AttentiveExample.app */;
 			productType = "com.apple.product-type.application";
 		};
+		F9CED5522E01C10300780536 /* BonniUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F9CED55D2E01C10300780536 /* Build configuration list for PBXNativeTarget "BonniUITests" */;
+			buildPhases = (
+				F9CED54F2E01C10300780536 /* Sources */,
+				F9CED5502E01C10300780536 /* Frameworks */,
+				F9CED5512E01C10300780536 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F9CED55A2E01C10300780536 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F9CED5542E01C10300780536 /* BonniUITests */,
+			);
+			name = BonniUITests;
+			packageProductDependencies = (
+			);
+			productName = BonniUITests;
+			productReference = F9CED5532E01C10300780536 /* BonniUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -101,6 +149,10 @@
 				TargetAttributes = {
 					F915FE332D77BF3100012489 = {
 						CreatedOnToolsVersion = 16.2;
+					};
+					F9CED5522E01C10300780536 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = F915FE332D77BF3100012489;
 					};
 				};
 			};
@@ -122,12 +174,20 @@
 			projectRoot = "";
 			targets = (
 				F915FE332D77BF3100012489 /* AttentiveExample */,
+				F9CED5522E01C10300780536 /* BonniUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		F915FE322D77BF3100012489 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F9CED5512E01C10300780536 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -144,7 +204,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F9CED54F2E01C10300780536 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F9CED55A2E01C10300780536 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F915FE332D77BF3100012489 /* AttentiveExample */;
+			targetProxy = F9CED5592E01C10300780536 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F915FE482D77BF3200012489 /* Debug */ = {
@@ -328,6 +403,40 @@
 			};
 			name = Release;
 		};
+		F9CED55B2E01C10300780536 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SP5WN9647Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.attentive.BonniUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AttentiveExample;
+			};
+			name = Debug;
+		};
+		F9CED55C2E01C10300780536 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SP5WN9647Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.attentive.BonniUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AttentiveExample;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -345,6 +454,15 @@
 			buildConfigurations = (
 				F915FE482D77BF3200012489 /* Debug */,
 				F915FE492D77BF3200012489 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F9CED55D2E01C10300780536 /* Build configuration list for PBXNativeTarget "BonniUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F9CED55B2E01C10300780536 /* Debug */,
+				F9CED55C2E01C10300780536 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
