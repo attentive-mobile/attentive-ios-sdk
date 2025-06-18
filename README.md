@@ -76,8 +76,8 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 [ATTNEventTracker setupWithSDk:sdk];
 ```
 
-### Additional SDK Setup (Optimized for performance)
-After initializing the SDK, call the following method as early as possible, ideally just after didFinishLaunchingWithOptions finishes, to complete SDK setup:
+### Additional SDK Setup (Required)
+After initializing the SDK, please call the following method as early as possible, ideally just after `didFinishLaunchingWithOptions` finishes, to complete SDK setup without affecting app launch performance:
 
 ```
 // Finish SDK setup
