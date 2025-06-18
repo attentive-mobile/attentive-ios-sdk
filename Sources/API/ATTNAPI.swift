@@ -86,7 +86,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                      callback: ATTNAPICallback?) {
     //debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
     let now = Date()
-    if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+    if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 3 {
       Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
       return
     }

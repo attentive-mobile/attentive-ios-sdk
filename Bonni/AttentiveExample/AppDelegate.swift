@@ -19,8 +19,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
     initializeAttentiveSdk()
     UNUserNotificationCenter.current().delegate = self
-    // Show push permission prompt
-    attentiveSdk?.registerForPushNotifications()
     return true
   }
 
@@ -37,6 +35,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
     // Every time any identifiers are added/changed, call the SDK's "identify" method
     sdk.identify(AppDelegate.createUserIdentifiers())
+
+    // Finish the rest of SDK setup wherever convenient to minimize cold launch delays
+    DispatchQueue.main.async {
+      sdk.asyncSetup()
+    }
   }
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

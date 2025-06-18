@@ -52,23 +52,45 @@ public final class ATTNSDK: NSObject {
 
     self.domain = domain
     self.mode = mode
-
     self.userIdentity = .init()
     self.api = ATTNAPI(domain: domain)
 
     super.init()
 
-    // Register app open events for when app is foregrounded
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleAppDidBecomeActive),
-      name: UIApplication.didBecomeActiveNotification,
-      object: nil
-    )
 
-    self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
-    self.sendInfoEvent()
-    self.initializeSkipFatigueOnCreatives()
+  }
+
+  public func asyncSetup() {
+    // Register for provisional auth first in order to receive device token
+    UNUserNotificationCenter.current().requestAuthorization(
+      options: [.provisional, .badge, .sound, .alert]
+    ) { granted, error in
+      if granted {
+        DispatchQueue.main.async {
+          UIApplication.shared.registerForRemoteNotifications()
+        }
+      }
+    }
+
+    if UIApplication.shared.applicationState == .active {
+      self.handleAppDidBecomeActive()
+    }
+
+    // Register for observer with a delay, to cover the scenario of foregrounding app if app is already running in background
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(self.handleAppDidBecomeActive),
+        name: UIApplication.didBecomeActiveNotification,
+        object: nil
+      )
+    }
+
+    DispatchQueue.global(qos: .userInitiated).async {
+      self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
+      self.sendInfoEvent()
+      self.initializeSkipFatigueOnCreatives()
+    }
   }
 
   @objc(initWithDomain:)
@@ -215,7 +237,7 @@ public final class ATTNSDK: NSObject {
       }
     //debounce to remove duplicate events; only allow app events tracking once every 2 seconds
     let now = Date()
-    if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+    if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 3 {
       Loggers.event.debug("Skipping duplicate handleRegularOpen due to debounce.")
       return
     }
