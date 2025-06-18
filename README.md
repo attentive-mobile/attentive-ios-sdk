@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods for 2.0.1-beta.5
+### Cocoapods for 2.0.1-beta.6
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.1-beta.5'
+  pod 'attentive-ios-sdk', '2.0.1-beta.6'
 end
 ```
 
@@ -25,7 +25,7 @@ pod install
 
 We also support adding the dependency via Swift Package Manager.
 
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.1-beta.5
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.1-beta.6
 
 
 ## Usage
@@ -33,7 +33,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 iOS SDK is used.
 
-See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.1-beta.5/Bonni) for a sample of how the push integration works.
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.1-beta.6/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -74,6 +74,16 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain"];
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"];
 
 [ATTNEventTracker setupWithSDk:sdk];
+```
+
+### Additional SDK Setup (Optimized for performance)
+After initializing the SDK, call the following method as early as possible, ideally just after didFinishLaunchingWithOptions finishes, to complete SDK setup:
+
+```
+// Finish SDK setup
+DispatchQueue.main.async {
+  sdk.asyncSetup()
+}
 ```
 
 ## Step 2 - Identify the current user
