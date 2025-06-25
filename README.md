@@ -78,13 +78,20 @@ import ATTNSDKFramework
 
 ```swift
 // Initialize the SDK with your attentive domain, in production mode
-let sdk = ATTNSDK(domain: "myCompanyDomain")
 
-// Alternatively, initialize the SDK in debug mode for more information about your creative and filtering rules
-let sdk = ATTNSDK(domain: "myCompanyDomain", mode: .debug)
+  ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production) { result in
+    switch result {
+    case .success(let sdk):
+      self.attentiveSdk = sdk
 
-// Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
-ATTNEventTracker.setup(with: sdk)
+      // Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
+      ATTNEventTracker.setup(with: sdk)
+
+    case .failure(let error):
+      // Handle init failure
+      print("Attentive SDK failed to initialize: \(error)")
+    }
+  }
 ```
 
 #### Objective-C

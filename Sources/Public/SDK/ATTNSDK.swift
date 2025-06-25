@@ -14,6 +14,10 @@ extension Notification.Name {
   static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
 }
 
+public enum ATTNSDKError: Error {
+  case initializationFailed
+}
+
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
@@ -81,6 +85,23 @@ public final class ATTNSDK: NSObject {
   public convenience init(domain: String, mode: String) {
     self.init(domain: domain, mode: ATTNSDKMode(rawValue: mode) ?? .production)
   }
+
+  public static func initialize(
+      domain: String,
+      mode: ATTNSDKMode = .production,
+      completion: @escaping (Result<ATTNSDK, Error>) -> Void) {
+        let sdk = ATTNSDK(domain: domain, mode: mode)
+        DispatchQueue.global(qos: .userInitiated).async {
+          let setupSucceeded = sdk.webViewHandler != nil
+          DispatchQueue.main.async {
+            if setupSucceeded {
+              completion(.success(sdk))
+            } else {
+              completion(.failure(ATTNSDKError.initializationFailed))
+            }
+          }
+        }
+      }
 
   // MARK: Public API
   @objc(identify:)
