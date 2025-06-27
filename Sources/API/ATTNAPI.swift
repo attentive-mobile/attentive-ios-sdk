@@ -153,7 +153,7 @@ final class ATTNAPI: ATTNAPIProtocol {
       userIdentity: ATTNUserIdentity,
       callback: ATTNAPICallback?
     ) {
-      let sdkVersion = "1.0.0"  // TODO: change this with each SDK release
+      let sdkVersion = "1.1.0"  // TODO: change this with each SDK release
       let deviceInfo: [String: Any] = [
         "c": domain,
         "v": sdkVersion,

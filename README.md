@@ -10,7 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '1.0.0'
+  pod 'ATTNSDKFramework', '1.1.0'
 end
 ```
 
@@ -40,7 +40,7 @@ In your applications `Package.swift` file, add the attentive-ios-sdk as a depend
 ```swift
 dependencies: [
     // your other app dependencies
-    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.0.0"),
+    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.1.0"),
 ],
 ```
 
@@ -78,13 +78,20 @@ import ATTNSDKFramework
 
 ```swift
 // Initialize the SDK with your attentive domain, in production mode
-let sdk = ATTNSDK(domain: "myCompanyDomain")
 
-// Alternatively, initialize the SDK in debug mode for more information about your creative and filtering rules
-let sdk = ATTNSDK(domain: "myCompanyDomain", mode: .debug)
+  ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production) { result in
+    switch result {
+    case .success(let sdk):
+      self.attentiveSdk = sdk
 
-// Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
-ATTNEventTracker.setup(with: sdk)
+      // Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
+      ATTNEventTracker.setup(with: sdk)
+
+    case .failure(let error):
+      // Handle init failure
+      print("Attentive SDK failed to initialize: \(error)")
+    }
+  }
 ```
 
 #### Objective-C
