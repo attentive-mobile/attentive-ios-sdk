@@ -8,10 +8,36 @@
 
 /* Begin PBXBuildFile section */
 		F92DE7182DB01CB6005693CD /* ATTNSDKFramework in Frameworks */ = {isa = PBXBuildFile; productRef = F92DE7172DB01CB6005693CD /* ATTNSDKFramework */; };
+		F9D9F6062E1C8EC80072DF25 /* ATTNNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F9D9F5FF2E1C8EC80072DF25 /* ATTNNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F9D9F6042E1C8EC80072DF25 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F915FE2C2D77BF3100012489 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F9D9F5FE2E1C8EC80072DF25;
+			remoteInfo = ATTNNotificationService;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F9D9F6072E1C8EC80072DF25 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F9D9F6062E1C8EC80072DF25 /* ATTNNotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F915FE342D77BF3100012489 /* AttentiveExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AttentiveExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F9D9F5FF2E1C8EC80072DF25 /* ATTNNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ATTNNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -22,6 +48,13 @@
 			);
 			target = F915FE332D77BF3100012489 /* AttentiveExample */;
 		};
+		F9D9F60B2E1C8EC80072DF25 /* Exceptions for "ATTNNotificationService" folder in "ATTNNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F9D9F5FE2E1C8EC80072DF25 /* ATTNNotificationService */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +64,14 @@
 				F915FE462D77BF3200012489 /* Exceptions for "AttentiveExample" folder in "AttentiveExample" target */,
 			);
 			path = AttentiveExample;
+			sourceTree = "<group>";
+		};
+		F9D9F6002E1C8EC80072DF25 /* ATTNNotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F9D9F60B2E1C8EC80072DF25 /* Exceptions for "ATTNNotificationService" folder in "ATTNNotificationService" target */,
+			);
+			path = ATTNNotificationService;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +85,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F9D9F5FC2E1C8EC80072DF25 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -51,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				F915FE362D77BF3100012489 /* AttentiveExample */,
+				F9D9F6002E1C8EC80072DF25 /* ATTNNotificationService */,
 				F915FE352D77BF3100012489 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				F915FE342D77BF3100012489 /* AttentiveExample.app */,
+				F9D9F5FF2E1C8EC80072DF25 /* ATTNNotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,10 +123,12 @@
 				F915FE302D77BF3100012489 /* Sources */,
 				F915FE312D77BF3100012489 /* Frameworks */,
 				F915FE322D77BF3100012489 /* Resources */,
+				F9D9F6072E1C8EC80072DF25 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F9D9F6052E1C8EC80072DF25 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				F915FE362D77BF3100012489 /* AttentiveExample */,
@@ -89,6 +141,28 @@
 			productReference = F915FE342D77BF3100012489 /* AttentiveExample.app */;
 			productType = "com.apple.product-type.application";
 		};
+		F9D9F5FE2E1C8EC80072DF25 /* ATTNNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F9D9F60A2E1C8EC80072DF25 /* Build configuration list for PBXNativeTarget "ATTNNotificationService" */;
+			buildPhases = (
+				F9D9F5FB2E1C8EC80072DF25 /* Sources */,
+				F9D9F5FC2E1C8EC80072DF25 /* Frameworks */,
+				F9D9F5FD2E1C8EC80072DF25 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F9D9F6002E1C8EC80072DF25 /* ATTNNotificationService */,
+			);
+			name = ATTNNotificationService;
+			packageProductDependencies = (
+			);
+			productName = ATTNNotificationService;
+			productReference = F9D9F5FF2E1C8EC80072DF25 /* ATTNNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -100,6 +174,9 @@
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					F915FE332D77BF3100012489 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					F9D9F5FE2E1C8EC80072DF25 = {
 						CreatedOnToolsVersion = 16.2;
 					};
 				};
@@ -122,12 +199,20 @@
 			projectRoot = "";
 			targets = (
 				F915FE332D77BF3100012489 /* AttentiveExample */,
+				F9D9F5FE2E1C8EC80072DF25 /* ATTNNotificationService */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		F915FE322D77BF3100012489 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F9D9F5FD2E1C8EC80072DF25 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -144,7 +229,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F9D9F5FB2E1C8EC80072DF25 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F9D9F6052E1C8EC80072DF25 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F9D9F5FE2E1C8EC80072DF25 /* ATTNNotificationService */;
+			targetProxy = F9D9F6042E1C8EC80072DF25 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F915FE482D77BF3200012489 /* Debug */ = {
@@ -328,6 +428,58 @@
 			};
 			name = Release;
 		};
+		F9D9F6082E1C8EC80072DF25 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SP5WN9647Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ATTNNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ATTNNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.attentive.bonniexample.ATTNNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F9D9F6092E1C8EC80072DF25 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SP5WN9647Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ATTNNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ATTNNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.attentive.bonniexample.ATTNNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -345,6 +497,15 @@
 			buildConfigurations = (
 				F915FE482D77BF3200012489 /* Debug */,
 				F915FE492D77BF3200012489 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F9D9F60A2E1C8EC80072DF25 /* Build configuration list for PBXNativeTarget "ATTNNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F9D9F6082E1C8EC80072DF25 /* Debug */,
+				F9D9F6092E1C8EC80072DF25 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
