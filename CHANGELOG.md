@@ -1,3 +1,8 @@
+## [1.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.0...1.1.1) (2025-07-10)
+
+### Bug Fixes
+Improved interactive area detection for creative rendering to better align with user intent and fix layout edge cases. Enhanced UX when interacting with bubble and full-screen creatives.
+
 ## [1.1.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.0.0...1.1.0) (2025-06-27)
 
 This minor release focuses on bug fixes, internal optimizations, and performance improvements across the SDK. These changes improve SDK stability, reduce startup time, and enhance developer experience without introducing any breaking changes.
