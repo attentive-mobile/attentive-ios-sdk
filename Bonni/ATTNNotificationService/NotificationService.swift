@@ -19,8 +19,11 @@ class NotificationService: UNNotificationServiceExtension {
         return
     }
     self.bestAttemptContent = bestAttemptContent
-    guard let imageURLString = bestAttemptContent.userInfo["attentive_image_url"] as? String,
-          let imageURL = URL(string: imageURLString) else {
+    guard
+        let callbackData = bestAttemptContent.userInfo["attentiveCallbackData"] as? [String: Any],
+        let imageURLString = callbackData["attentive_image_url"] as? String,
+        let imageURL = URL(string: imageURLString)
+    else {
         contentHandler(bestAttemptContent)
         return
     }

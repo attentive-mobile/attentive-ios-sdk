@@ -280,6 +280,7 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
+    print("entire payload: \(response)")
     let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
