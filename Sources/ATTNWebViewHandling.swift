@@ -355,7 +355,6 @@ class CustomWebView: WKWebView {
     interactiveHitArea = newArea
   }
 
-
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
     return interactiveHitArea.contains(point)
   }
@@ -369,10 +368,28 @@ class CustomWebView: WKWebView {
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
+    // Ensure gesture state remains consistent across navigation stack transitions
+    updateScrollBehavior()
+
     // If the web view's window becomes nil, it's no longer on screen.
     if self.window == nil {
       onRemovedFromWindow?()
     }
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    updateScrollBehavior()
+  }
+
+  private func updateScrollBehavior() {
+    let shouldReceiveTouches = !interactiveHitArea.isEmpty && bounds.intersects(interactiveHitArea)
+
+    scrollView.isScrollEnabled = shouldReceiveTouches
+    scrollView.isUserInteractionEnabled = shouldReceiveTouches
+
+    // Disable/enable gesture recognizers based on current active area
+    scrollView.gestureRecognizers?.forEach { $0.isEnabled = shouldReceiveTouches }
   }
 }
 
