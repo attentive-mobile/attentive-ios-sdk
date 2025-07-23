@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.1...1.1.2) (2025-07-23)
+
+### Bug Fixes
+- Fixed an issue where `CustomWebView` incorrectly intercepted user touches outside the defined `interactiveHitArea`, blocking interaction with underlying views.
+- Ensured touch passthrough behavior remains consistent across screen transitions and dynamic content resizing.
+
 ## [1.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.0...1.1.1) (2025-07-10)
 
 ### Bug Fixes
