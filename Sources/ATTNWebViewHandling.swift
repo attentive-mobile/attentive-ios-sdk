@@ -66,7 +66,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     let webView = CustomWebView(frame: .zero, configuration: configuration)
     webView.onRemovedFromWindow = { [weak self] in
       // Only close if the creative is currently open.
-      if let strongSelf = self, strongSelf.stateManager.getState() == .open {
+      if let strongSelf = self, strongSelf.stateManager.getState() != .closed {
         strongSelf.closeCreative()
       }
     }
@@ -78,6 +78,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     creativeId: String? = nil,
     handler: ATTNCreativeTriggerCompletionHandler? = nil
   ) {
+    if stateManager.getState() != .closed {
+      Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
+      return
+    }
+
     creativeQueue.async { [self] in
       guard let webViewProvider = webViewProvider else {
         Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
@@ -90,10 +95,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
       Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
 
-      if stateManager.getState() != .closed {
-        Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
-        return
-      }
       stateManager.updateState(.launching)
       // Time out logic in case creative doesn't launch
       let timeoutInterval: TimeInterval = 5.0
@@ -138,7 +139,14 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
         let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         configuration.userContentController.addUserScript(userScript)
-
+        // Prevent dupes
+        if let existingWebView = webViewProvider.webView {
+            DispatchQueue.main.async {
+                existingWebView.removeFromSuperview()
+                existingWebView.stopLoading()
+            }
+            webViewProvider.webView = nil
+        }
         webViewProvider.webView = self.makeWebView()
 
         guard let webView = webViewProvider.webView as? CustomWebView else { return }
