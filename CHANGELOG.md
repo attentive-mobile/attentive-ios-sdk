@@ -1,3 +1,9 @@
+## [1.1.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.2...1.1.3) (2025-07-23)
+
+### Bug Fixes
+- Fixed an issue where the screen could become unresponsive if the user navigated away before the creative finished loading and returned later.
+- Improved lifecycle handling of creative web view to ensure proper cleanup and consistent touch passthrough behavior.
+
 ## [1.1.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.1...1.1.2) (2025-07-23)
 
 ### Bug Fixes
