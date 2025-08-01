@@ -141,11 +141,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         configuration.userContentController.addUserScript(userScript)
         // Prevent dupes
         if let existingWebView = webViewProvider.webView {
-            DispatchQueue.main.async {
-                existingWebView.removeFromSuperview()
-                existingWebView.stopLoading()
-            }
-            webViewProvider.webView = nil
+          DispatchQueue.main.async {
+            existingWebView.removeFromSuperview()
+            existingWebView.stopLoading()
+          }
+          webViewProvider.webView = nil
         }
         webViewProvider.webView = self.makeWebView()
 
@@ -272,62 +272,79 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 extension ATTNWebViewHandler: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
     let messageBody = message.body as? String ?? "Empty"
-
     Loggers.creative.debug("Web event message: \(messageBody). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO")")
-    guard let parent = self.webViewProvider?.parentView else { return }
-    var newArea: CGRect = UIScreen.main.bounds
-    DispatchQueue.main.async {
-      if let customWebView = self.webViewProvider?.webView as? CustomWebView {
-        customWebView.updateInteractiveHitArea(newArea)
-        Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
-      }
 
+    if messageBody == "CLOSE" {
+      closeCreative()
+      return
     }
-    if let body = message.body as? [String: Any],
-       let style = body["style"] as? [String: Any],
-       let widthStr = style["width"] as? String,
-       let heightStr = style["height"] as? String,
-       let leftStr = style["left"] as? String,
-       let bottomStr = style["bottom"] as? String,
-       let width = Double(widthStr.replacingOccurrences(of: "px", with: "")),
-       let height = Double(heightStr.replacingOccurrences(of: "px", with: "")),
-       let originX = Double(leftStr.replacingOccurrences(of: "px", with: "")),
-       let originY = Double(bottomStr.replacingOccurrences(of: "px", with: "")) {
-      let safeFrame = parent.safeAreaLayoutGuide.layoutFrame
-      let flippedY = safeFrame.maxY - CGFloat(originY) - CGFloat(height)
-      let originX = safeFrame.minX + CGFloat(originX)
 
-      if height < 100 {
-        newArea = CGRect(x: CGFloat(originX), y: CGFloat(flippedY), width: CGFloat(width), height: CGFloat(height))
-      } else {
-        newArea = UIScreen.main.bounds
-        Loggers.creative.debug("Fullscreen creative detected. Using UIScreen bounds.")
+    guard let parent = self.webViewProvider?.parentView else { return }
+
+    guard let body = message.body as? [String: Any],
+          let action = body["action"] as? String else {
+      return
+    }
+
+    switch action {
+    case "CLOSE":
+      closeCreative()
+
+    case "IMPRESSION":
+      stateManager.updateState(.open)
+      Loggers.creative.debug("Creative opened and generated impression event")
+
+    case String(format: "%@ true", Constants.visibilityEvent)
+      where stateManager.getState() == .open:
+      Loggers.creative.debug("document-visibility: true — suppressing premature closure")
+
+    case "RESIZE_FRAME":
+      guard let style = body["style"] as? [String: Any] else {
+        Loggers.creative.debug("RESIZE_FRAME received but style missing.")
+        return
       }
-      Loggers.creative.debug("Resizing creative")
+
+      func parsePx(_ value: String?) -> CGFloat? {
+        guard let str = value?.trimmingCharacters(in: .whitespaces),
+              str.hasSuffix("px"),
+              let doubleValue = Double(str.replacingOccurrences(of: "px", with: "")) else {
+          return nil
+        }
+        return CGFloat(doubleValue)
+      }
+
+      guard let width = parsePx(style["width"] as? String),
+            let height = parsePx(style["height"] as? String),
+            let left = parsePx(style["left"] as? String),
+            let bottom = parsePx(style["bottom"] as? String) else {
+        Loggers.creative.debug("RESIZE_FRAME style has non-px or missing values. Defaulting to fullscreen.")
+        let fallbackArea = UIScreen.main.bounds
+        DispatchQueue.main.async {
+          if let customWebView = self.webViewProvider?.webView as? CustomWebView {
+            customWebView.updateInteractiveHitArea(fallbackArea)
+            Loggers.creative.debug("Creative interactive area updated to fullscreen fallback: \(fallbackArea.width)x\(fallbackArea.height)")
+          }
+        }
+        return
+      }
+
+      let safeFrame = parent.safeAreaLayoutGuide.layoutFrame
+      let flippedY = safeFrame.maxY - bottom - height
+      let adjustedX = safeFrame.minX + left
+      let newArea = CGRect(x: adjustedX, y: flippedY, width: width, height: height)
+
+      let isFullscreen = height >= 100
+      Loggers.creative.debug("Resizing creative to \(isFullscreen ? "fullscreen" : "bubble")")
+
       DispatchQueue.main.async {
         if let customWebView = self.webViewProvider?.webView as? CustomWebView {
           customWebView.updateInteractiveHitArea(newArea)
           Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
         }
       }
-    }
-    if messageBody == "CLOSE" {
-      closeCreative()
-    } else if let messageBodyDict = message.body as? [String: Any],
-              let action = messageBodyDict["action"] as? String {
-      if action == "CLOSE" {
-        closeCreative()
 
-      } else if action == "IMPRESSION" {
-        stateManager.updateState(.open)
-        Loggers.creative.debug("Creative opened and generated impression event")
-
-      } else if action == String(format: "%@ true", Constants.visibilityEvent),
-                stateManager.getState() == .open {
-
-        Loggers.creative.debug("document-visibility: true, Web View will be closed if the window containing it is no longer in view hierarchy")
-        // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
-      }
+    default:
+      break
     }
   }
 
@@ -358,9 +375,38 @@ class CustomWebView: WKWebView {
   }
 
   var onRemovedFromWindow: (() -> Void)?
+  var lastKnownHitArea: CGRect = .zero
+
+  override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+    super.init(frame: frame, configuration: configuration)
+    setupLifecycleObserver()
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  private func setupLifecycleObserver() {
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
+      object: nil
+    )
+  }
+
+  @objc private func handleDidBecomeActive() {
+    updateScrollBehavior()
+    Loggers.creative.debug("handleDidBecomeActive: lastKnownHitArea width and height: \(self.lastKnownHitArea.width)x\(self.lastKnownHitArea.height)")
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
 
   func updateInteractiveHitArea(_ newArea: CGRect) {
     interactiveHitArea = newArea
+    lastKnownHitArea = newArea
   }
 
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
