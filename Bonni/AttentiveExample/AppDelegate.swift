@@ -67,7 +67,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   public static func createUserIdentifiers() -> [String: Any] {
     [
-      ATTNIdentifierType.phone: "+15671230987",
+      ATTNIdentifierType.phone: "",
       ATTNIdentifierType.email: "someemail@email.com",
       ATTNIdentifierType.clientUserId: "APP_USER_ID",
       ATTNIdentifierType.shopifyId: "207119551",
