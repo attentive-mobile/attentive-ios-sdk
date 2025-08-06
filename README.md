@@ -314,6 +314,107 @@ if let url = attentiveSdk.consumeDeepLink() {
 }
 ```
 
+## Step 5 - Add Image Support for Push Notifications
+
+To display images in push notifications sent via Attentive, you’ll need to create a Notification Service Extension (NSE) in your app if you haven’t already. This is a standard iOS feature for customizing push content and you can refer to Apple’s documentation or online tutorials for setup. Once the extension is in place, update your **Notification Service Extension** to handle `attentive_image_url` as below.
+
+You can reference `Bonni/ATTNNotificationService/NotificationService.swift` and the Bonni app `Bonni/Bonni.xcodeproj` for a complete example of how the Notification Service Extension is set up in Swift.
+
+### Update `NotificationService.swift`
+
+In your extension target, update the `didReceive` method:
+
+#### Swift
+```
+guard
+  let callbackData = bestAttemptContent.userInfo["attentiveCallbackData"] as? [String: Any],
+  let imageURLString = callbackData["attentive_image_url"] as? String,
+  let imageURL = URL(string: imageURLString)
+else {
+  // Error handling
+}
+
+downloadImageAttachment(from: imageURL) { attachment in
+  if let attachment = attachment {
+    bestAttemptContent.attachments = [attachment]
+  }
+  contentHandler(bestAttemptContent)
+}
+```
+Also add the downloadImageAttachment helper:
+```
+private func downloadImageAttachment(from url: URL, completion: @escaping (UNNotificationAttachment?) -> Void) {
+  URLSession.shared.downloadTask(with: url) { downloadedUrl, _, _ in
+    guard let downloadedUrl else {
+      completion(nil)
+      return
+    }
+
+    let fileExtension = url.pathExtension.isEmpty ? "tmp" : url.pathExtension
+    let tmpURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + "." + fileExtension)
+
+    do {
+      try FileManager.default.moveItem(at: downloadedUrl, to: tmpURL)
+      let attachment = try UNNotificationAttachment(identifier: "image", url: tmpURL, options: nil)
+      completion(attachment)
+    } catch {
+      completion(nil)
+    }
+  }.resume()
+}
+```
+
+#### Objective-C
+```
+NSDictionary *callbackData = request.content.userInfo[@"attentiveCallbackData"];
+NSString *imageURLString = callbackData[@"attentive_image_url"];
+NSURL *imageURL = [NSURL URLWithString:imageURLString];
+
+if (imageURL) {
+    [self downloadImageAttachmentFromURL:imageURL completion:^(UNNotificationAttachment *attachment) {
+        if (attachment) {
+            bestAttemptContent.attachments = @[attachment];
+        }
+        contentHandler(bestAttemptContent);
+    }];
+} else {
+    contentHandler(bestAttemptContent);
+}
+
+// Helper method:
+- (void)downloadImageAttachmentFromURL:(NSURL *)url
+                            completion:(void (^)(UNNotificationAttachment *attachment))completion {
+    NSURLSessionDownloadTask *task = [[NSURLSession sharedSession] downloadTaskWithURL:url
+        completionHandler:^(NSURL *downloadedURL, NSURLResponse *response, NSError *error) {
+            if (!downloadedURL) {
+                completion(nil);
+                return;
+            }
+
+            NSString *fileExtension = url.pathExtension.length > 0 ? url.pathExtension : @"tmp";
+            NSString *uniqueName = [NSString stringWithFormat:@"%@.%@", [NSUUID UUID].UUIDString, fileExtension];
+            NSURL *tmpDirectory = [NSURL fileURLWithPath:NSTemporaryDirectory()];
+            NSURL *tmpFileURL = [tmpDirectory URLByAppendingPathComponent:uniqueName];
+
+            NSError *fileError = nil;
+            [[NSFileManager defaultManager] moveItemAtURL:downloadedURL toURL:tmpFileURL error:&fileError];
+
+            if (fileError) {
+                completion(nil);
+                return;
+            }
+
+            UNNotificationAttachment *attachment = [UNNotificationAttachment attachmentWithIdentifier:@"image"
+                                                                                                   URL:tmpFileURL
+                                                                                               options:nil
+                                                                                                 error:nil];
+            completion(attachment);
+        }];
+    [task resume];
+}
+```
+
+
 ## Other functionality
 
 ### Switch to another domain
