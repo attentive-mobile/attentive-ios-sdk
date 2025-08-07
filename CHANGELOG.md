@@ -1,3 +1,8 @@
+## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
+
+### Feature
+Add completion handler to `registerForPushNotifications` for async success/error handling
+
 ## [2.0.2-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.1-beta.4...2.0.2-beta.1) (2025-08-05)
 
 ### Feature
