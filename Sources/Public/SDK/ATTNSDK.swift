@@ -127,27 +127,24 @@ public final class ATTNSDK: NSObject {
   }
 
   // Ask the user for push‐notification permission and register with APNs if granted.
-  @objc(registerForPushNotifications)
-  public func registerForPushNotifications() {
-    Loggers.event.debug("Requesting push‐notification authorization…")
-    // Skip UNUserNotificationCenter usage in unit tests
-    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
-      return
-    }
+  @objc(registerForPushNotificationsWithCompletion:)
+  public func registerForPushNotifications(completion: ((Bool, Error?) -> Void)? = nil) {
+    Loggers.event.debug("Requesting push-notification authorization…")
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
       if let error = error {
         Loggers.event.error("Push authorization error: \(error.localizedDescription)")
       }
       if !granted {
         Loggers.event.debug("""
-                        Push notifications permission was denied.
-                        To enable push, guide your user to go to Settings → Notifications → Your app.
-                        """)
+            Push notifications permission was denied.
+            To enable push, guide your user to go to Settings → Notifications → Your app.
+            """)
       }
       Loggers.event.debug("Push permission granted: \(granted)")
-      guard granted else { return }
-      self?.registerWithAPNsIfAuthorized()
+      if granted {
+        self?.registerWithAPNsIfAuthorized()
+      }
+      completion?(granted, error)
     }
   }
 
