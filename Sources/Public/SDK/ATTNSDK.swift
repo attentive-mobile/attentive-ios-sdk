@@ -127,27 +127,24 @@ public final class ATTNSDK: NSObject {
   }
 
   // Ask the user for push‐notification permission and register with APNs if granted.
-  @objc(registerForPushNotifications)
-  public func registerForPushNotifications() {
-    Loggers.event.debug("Requesting push‐notification authorization…")
-    // Skip UNUserNotificationCenter usage in unit tests
-    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
-      return
-    }
+  @objc(registerForPushNotificationsWithCompletion:)
+  public func registerForPushNotifications(completion: ((Bool, Error?) -> Void)? = nil) {
+    Loggers.event.debug("Requesting push-notification authorization…")
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
       if let error = error {
         Loggers.event.error("Push authorization error: \(error.localizedDescription)")
       }
       if !granted {
         Loggers.event.debug("""
-                        Push notifications permission was denied.
-                        To enable push, guide your user to go to Settings → Notifications → Your app.
-                        """)
+          Push notifications permission was denied.
+          To enable push, guide your user to go to Settings → Notifications → Your app.
+          """)
       }
       Loggers.event.debug("Push permission granted: \(granted)")
-      guard granted else { return }
-      self?.registerWithAPNsIfAuthorized()
+      if granted {
+        self?.registerWithAPNsIfAuthorized()
+      }
+      completion?(granted, error)
     }
   }
 
@@ -282,7 +279,6 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
-    print("entire payload: \(response)")
     let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
@@ -327,11 +323,6 @@ public final class ATTNSDK: NSObject {
   // MARK: - Private Helpers
 
   private func registerWithAPNsIfAuthorized() {
-    // Skip UNUserNotificationCenter usage in unit tests
-    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
-      return
-    }
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       Loggers.event.debug("Notification settings: \(settings.authorizationStatus.rawValue)")
       switch settings.authorizationStatus {
@@ -370,11 +361,6 @@ public final class ATTNSDK: NSObject {
   }
 
   @objc private func handleAppDidBecomeActive() {
-    // Skip UNUserNotificationCenter usage in unit tests
-    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
-      return
-    }
     UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
       guard let self = self else { return }
       DispatchQueue.main.async {
