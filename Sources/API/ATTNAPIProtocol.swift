@@ -30,4 +30,12 @@ protocol ATTNAPIProtocol {
     userIdentity: ATTNUserIdentity,
     callback: ATTNAPICallback?
   )
+
+  func sendOptInMarketingSubscription(
+    pushToken: String,
+    email: String,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
+
 }

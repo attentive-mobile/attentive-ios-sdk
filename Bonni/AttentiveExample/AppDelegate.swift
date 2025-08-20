@@ -36,7 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
     // with your Attentive account.
     // This only has to be done once per application lifecycle
-    ATTNSDK.initialize(domain: "YOUR_ATTENTIVE_DOMAIN", mode: .production) { result in
+    ATTNSDK.initialize(domain: "games", mode: .production) { result in
       switch result {
       case .success(let sdk):
         self.attentiveSdk = sdk
@@ -45,6 +45,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
         // Every time any identifiers are added/changed, call the SDK's "identify" method
         sdk.identify(AppDelegate.createUserIdentifiers())
+        // TODO DELETE
+        sdk.optInMarketingSubscription(email: "opt-in-test@testingsdk.com")
       case .failure(let error):
         // Handle init failure
         print("Attentive SDK failed to initialize: \(error)")

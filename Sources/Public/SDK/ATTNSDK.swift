@@ -345,6 +345,29 @@ public final class ATTNSDK: NSObject {
     registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
   }
 
+  @objc(optInMarketingSubscriptionWithEmail:callback:)
+  public func optInMarketingSubscription(
+    email: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    guard !email.isEmpty else {
+      Loggers.event.error("Opt-in subscription: missing email")
+      // TODO callback?(nil, nil, nil, )
+      return
+    }
+
+    let pushToken = self.latestPushToken
+      ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+      ?? ""
+
+    api.sendOptInMarketingSubscription(
+      pushToken: pushToken,
+      email: email,
+      userIdentity: userIdentity,
+      callback: callback
+    )
+  }
+
   // MARK: - Private Helpers
 
   private func registerWithAPNsIfAuthorized() {
