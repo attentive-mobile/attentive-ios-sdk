@@ -75,143 +75,24 @@ final class ATTNAPI: ATTNAPIProtocol {
     cachedGeoAdjustedDomain = nil
   }
 
-  func sendPushToken(_ pushToken: String,
-                     userIdentity: ATTNUserIdentity,
-                     authorizationStatus: UNAuthorizationStatus,
-                     callback: ATTNAPICallback?) {
-    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
-      guard let self = self else { return }
-      if let error = error {
-        Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription)")
-        return
-      }
-      guard let geoDomain = geoDomain else { return }
-
-      guard let url = self.eventUrlProvider.buildPushTokenUrl(
-        for: userIdentity,
-        domain: geoDomain) else {
-        Loggers.network.error("Invalid push token URL")
-        return
-      }
-
-      let evsJson     = userIdentity.buildExternalVendorIdsJson()
-      let evsArray    = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8)))
-      as? [[String:String]] ?? []
-      let metadataJson = userIdentity.buildMetadataJson()
-      let metadata    = (try? JSONSerialization.jsonObject(with: Data(metadataJson.utf8)))
-      as? [String:String] ?? [:]
-
-      let authorizationStatusString: String = {
-        switch authorizationStatus {
-        case .notDetermined: return "notDetermined"
-        case .denied:        return "denied"
-        case .authorized:    return "authorized"
-        case .provisional:   return "provisional"
-        case .ephemeral:     return "ephemeral"
-        @unknown default:    return "unknown"
-        }
-      }()
-
-      let payload: [String:Any] = [
-        "c": geoDomain,
-        "v": "mobile-app",
-        "u": userIdentity.visitorId,
-        "evs": evsArray,
-        "m": metadata,
-        "pt": pushToken,
-        "st": authorizationStatusString,
-        "tp": "apns"
-      ]
-
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-      request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-
-      Loggers.network.debug("POST /token payload: \(payload)")
-
-      let task = self.urlSession.dataTask(with: request) { data, response, error in
-        if let error = error {
-          Loggers.network.error("Error sending push token: \(error.localizedDescription)")
-        } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-          Loggers.network.error("Push-token API returned status \(http.statusCode)")
-        } else {
-          Loggers.network.debug("Successfully sent push token")
-        }
-        callback?(data, url, response, error)
-      }
-      task.resume()
-    }
-  }
-
-  func sendAppEvents(
-      pushToken: String,
-      subscriptionStatus: String,
-      transport: String,
-      events: [[String: Any]],
-      userIdentity: ATTNUserIdentity,
-      callback: ATTNAPICallback?
-    ) {
-      let sdkVersion = "1.1.0"  // TODO: change this with each SDK release
-      let deviceInfo: [String: Any] = [
-        "c": domain,
-        "v": sdkVersion,
-        "u": userIdentity.visitorId,
-        "pd": "",
-        "m": userIdentity.buildBaseMetadata(),
-        "pt": pushToken,
-        "st": subscriptionStatus,
-        "tp": transport
-      ]
-      let payload: [String: Any] = [
-        "device": deviceInfo,
-        "events": events
-      ]
-
-      guard let url = URL(string: "https://mobile.attentivemobile.com/mtctrl") else {
-        Loggers.network.error("Invalid AppEvents URL")
-        return
-      }
-
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-
-      Loggers.network.debug("POST app open events payload: \(payload)")
-
-      let task = urlSession.dataTask(with: request) { data, response, error in
-        if let error = error {
-          Loggers.network.error("Error sending app events: \(error.localizedDescription)")
-        } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-          Loggers.network.error("AppEvents API returned status \(http.statusCode)")
-        } else {
-          Loggers.network.debug("Successfully sent app events")
-        }
-        callback?(data, url, response, error)
-      }
-      task.resume()
-    }
-
   func sendOptInMarketingSubscription(
     pushToken: String,
-    email: String,
+    email: String?,
+    phone: String?,
     userIdentity: ATTNUserIdentity,
     callback: ATTNAPICallback?
   ) {
-    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
+    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
       guard let self = self else { return }
 
-      if let error = error {
-        Loggers.network.error("Opt-in geo domain error: \(error.localizedDescription)")
-        callback?(nil, nil, nil, error)
+      if let geoError = geoError {
+        Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription)")
+        callback?(nil, nil, nil, geoError)
         return
       }
       guard let geoDomain = geoDomain else {
         Loggers.network.error("Opt-in: geo domain missing")
-        // TODO
-        //callback?(nil, nil, nil, err)
+        callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
         return
       }
 
@@ -220,20 +101,19 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       var payload: [String: Any] = [
         "c": geoDomain,
-        "v": "mobile-app",
+        "v": "mobile-app-\(ATTNConstants.sdkVersion)",
         "u": userIdentity.visitorId,
         "evs": evsArray,
         "tp": "apns",
-        "email": email,
         "type": "MARKETING"
       ]
+      if let email = email { payload["email"] = email }
+      if let phone = phone { payload["phone"] = phone }
       if !pushToken.isEmpty { payload["pt"] = pushToken }
 
       guard let url = URL(string: "https://mobile.attentivemobile.com/opt-in-subscriptions") else {
-        let err = NSError(domain: "Attentive", code: -3,
-                          userInfo: [NSLocalizedDescriptionKey: "Bad URL"])
         Loggers.network.error("Invalid opt-in subscriptions URL")
-        callback?(nil, nil, nil, err)
+        callback?(nil, nil, nil, ATTNError.badURL)
         return
       }
 
