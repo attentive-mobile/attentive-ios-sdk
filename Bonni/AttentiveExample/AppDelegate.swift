@@ -34,9 +34,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
         // Every time any identifiers are added/changed, call the SDK's "identify" method
-        sdk.identify(AppDelegate.createUserIdentifiers())
-        // TODO DELETE
-        sdk.optInMarketingSubscription(email: "opt-in-test@testingsdk.com")
+        // sdk.identify(AppDelegate.createUserIdentifiers())
       case .failure(let error):
         // Handle init failure
         print("Attentive SDK failed to initialize: \(error)")
@@ -44,14 +42,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
   }
 
-  public static func createUserIdentifiers() -> [String: Any] {
-    [
-      ATTNIdentifierType.phone: "+15671230987",
-      ATTNIdentifierType.email: "someemail@email.com",
-      ATTNIdentifierType.clientUserId: "APP_USER_ID",
-      ATTNIdentifierType.shopifyId: "207119551",
-      ATTNIdentifierType.klaviyoId: "555555",
-      ATTNIdentifierType.customIdentifiers: ["customId": "customIdValue"]
-    ]
-  }
+//  Uncomment this if needed
+//  public static func createUserIdentifiers() -> [String: Any] {
+//    [
+//      ATTNIdentifierType.phone: "+15671230987",
+//      ATTNIdentifierType.email: "someemail@email.com",
+//      ATTNIdentifierType.clientUserId: "APP_USER_ID",
+//      ATTNIdentifierType.shopifyId: "207119551",
+//      ATTNIdentifierType.klaviyoId: "555555",
+//      ATTNIdentifierType.customIdentifiers: ["customId": "customIdValue"]
+//    ]
+//  }
 }

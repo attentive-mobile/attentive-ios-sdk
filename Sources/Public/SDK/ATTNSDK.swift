@@ -163,8 +163,6 @@ public final class ATTNSDK: NSObject {
     )
   }
 
-  // Convenience overloads (clear call sites / Obj‑C selectors)
-
   @objc(optInMarketingSubscriptionWithEmail:callback:)
   public func optInMarketingSubscription(
     email: String,
@@ -181,13 +179,56 @@ public final class ATTNSDK: NSObject {
     optInMarketingSubscription(email: nil, phone: phone, callback: callback)
   }
 
-  // MARK: - Small helpers
+  @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
+  public func optOutMarketingSubscription(
+    email: String? = nil,
+    phone: String? = nil,
+    callback: ATTNAPICallback? = nil
+  ) {
+    let email = normalize(email)
+    let phone = normalize(phone)
+
+    guard email != nil || phone != nil else {
+      Loggers.event.error("Opt-out: missing email/phone")
+      callback?(nil, nil, nil, ATTNError.missingContactInfo)
+      return
+    }
+
+    let pushToken = self.latestPushToken
+      ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+      ?? ""
+
+    api.sendOptOutMarketingSubscription(
+      pushToken: pushToken,
+      email: email,
+      phone: phone,
+      userIdentity: userIdentity,
+      callback: callback
+    )
+  }
+
+  @objc(optOutMarketingSubscriptionWithEmail:callback:)
+  public func optOutMarketingSubscription(
+    email: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optOutMarketingSubscription(email: email, phone: nil, callback: callback)
+  }
+
+  @objc(optOutMarketingSubscriptionWithPhone:callback:)
+  public func optOutMarketingSubscription(
+    phone: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
+  }
+
+  // MARK: - Private Helpers
+
   private func normalize(_ value: String?) -> String? {
     let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
     return (trimmed?.isEmpty == false) ? trimmed : nil
   }
-
-  // MARK: - Private Helpers
 
   private func registerWithAPNsIfAuthorized() {
     UNUserNotificationCenter.current().getNotificationSettings { settings in

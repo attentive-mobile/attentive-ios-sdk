@@ -26,4 +26,12 @@ protocol ATTNAPIProtocol {
     callback: ATTNAPICallback?
   )
 
+  func sendOptOutMarketingSubscription(
+    pushToken: String,
+    email: String?,
+    phone: String?,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
+
 }
