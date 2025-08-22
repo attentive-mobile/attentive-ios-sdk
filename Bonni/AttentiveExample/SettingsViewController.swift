@@ -322,30 +322,6 @@ class SettingsViewController: UIViewController {
     present(alert, animated: true)
   }
 
-  @objc private func optInEmailTapped() {
-    guard let email = currentEmail, !email.isEmpty else {
-      showToast(with: "Add an email first"); return
-    }
-    getAttentiveSdk().optInMarketingSubscription(email: email) { _,_,response,error in
-      let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-      DispatchQueue.main.async {
-        self.showToast(with: error == nil ? "Email opt-in successful" : "Email opt-in failed")
-      }
-    }
-  }
-
-  @objc private func optOutEmailTapped() {
-    guard let email = currentEmail, !email.isEmpty else {
-      showToast(with: "Add an email first"); return
-    }
-    getAttentiveSdk().optOutMarketingSubscription(email: email) { _,_,response,error in
-      let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-      DispatchQueue.main.async {
-        self.showToast(with: error == nil ? "Email opt-out successful" : "Email opt-out failed")
-      }
-    }
-  }
-
   @objc private func addPhoneTapped() {
     let alert = UIAlertController(title: "Add Phone", message: nil, preferredStyle: .alert)
     alert.addTextField { tf in
@@ -362,12 +338,37 @@ class SettingsViewController: UIViewController {
     present(alert, animated: true)
   }
 
+  @objc private func optInEmailTapped() {
+    guard let email = currentEmail, !email.isEmpty else {
+      showToast(with: "Add an email first"); return
+    }
+    getAttentiveSdk().optInMarketingSubscription(email: email) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Email opt-in successful" : "Email opt-in failed")
+      }
+    }
+  }
+
+  @objc private func optOutEmailTapped() {
+    guard let email = currentEmail, !email.isEmpty else {
+      showToast(with: "Add an email first"); return
+    }
+    getAttentiveSdk().optOutMarketingSubscription(email: email) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Email opt-out successful" : "Email opt-out failed")
+      }
+    }
+  }
+
+
   @objc private func optInPhoneTapped() {
     guard let phone = currentPhone, !phone.isEmpty else {
       showToast(with: "Add a phone first"); return
     }
     getAttentiveSdk().optInMarketingSubscription(phone: phone) { _,_,response,error in
-      let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
       DispatchQueue.main.async {
         self.showToast(with: error == nil ? "Phone opt-in successful" : "Phone opt-in failed")
       }
@@ -379,7 +380,7 @@ class SettingsViewController: UIViewController {
       showToast(with: "Add a phone first"); return
     }
     getAttentiveSdk().optOutMarketingSubscription(phone: phone) { _,_,response,error in
-      let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
       DispatchQueue.main.async {
         self.showToast(with: error == nil ? "Phone opt-out successful" : "Phone opt-out failed")
       }
