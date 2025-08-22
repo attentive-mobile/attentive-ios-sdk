@@ -28,7 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Intialize the Attentive SDK. Replace with your Attentive domain to test
     // with your Attentive account.
     // This only has to be done once per application lifecycle
-    let sdk = ATTNSDK(domain: "YOUR_ATTENTIVE_DOMAIN", mode: .production)
+    let sdk = ATTNSDK(domain: "games", mode: .production)
     attentiveSdk = sdk
 
     // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.
@@ -36,7 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
     // Every time any identifiers are added/changed, call the SDK's "identify" method
-    sdk.identify(AppDelegate.createUserIdentifiers())
+    // sdk.identify(AppDelegate.createUserIdentifiers())
   }
 
   func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -102,4 +102,3 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     completionHandler()
   }
 }
-

@@ -1,3 +1,8 @@
+## [2.0.2-beta.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.2...2.0.2-beta.3) (2025-08-22)
+
+### Feature
+Add support for email & sms subscription opt in & opt out.
+
 ## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
 
 ### Feature

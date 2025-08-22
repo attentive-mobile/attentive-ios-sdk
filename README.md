@@ -10,7 +10,11 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
+<<<<<<< HEAD
   pod 'attentive-ios-sdk', '2.0.2-beta.2'
+=======
+  pod 'ATTNSDKFramework', '1.1.0'
+>>>>>>> feature/NATV-71-Non-push-sub
 end
 ```
 
@@ -26,6 +30,29 @@ pod install
 We also support adding the dependency via Swift Package Manager.
 SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.2
 
+<<<<<<< HEAD
+=======
+In your applications `Package.swift` file, add the attentive-ios-sdk as a dependency:
+
+```swift
+dependencies: [
+    // your other app dependencies
+    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.1.0"),
+],
+```
+
+This will allow your package to update patch releases with `swift package update`, but won't auto-upgrade any minor or major versions.
+
+Then, from a command line, run:
+
+```
+swift package resolve
+```
+
+To update your local package, run `swift package update`.
+
+To check for new major and minor versions of this SDK, navigate to the [releases](https://github.com/attentive-mobile/attentive-ios-sdk/releases) tab of the project. You can then manually update the version in your `Package.swift` file and run `swift package resolve` to complete the update.
+>>>>>>> feature/NATV-71-Non-push-sub
 
 ## Usage
 
@@ -51,13 +78,20 @@ import ATTNSDKFramework
 
 ```swift
 // Initialize the SDK with your attentive domain, in production mode
-let sdk = ATTNSDK(domain: "myCompanyDomain")
 
-// Alternatively, initialize the SDK in debug mode for more information about your creative and filtering rules
-let sdk = ATTNSDK(domain: "myCompanyDomain", mode: .debug)
+  ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production) { result in
+    switch result {
+    case .success(let sdk):
+      self.attentiveSdk = sdk
 
-// Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
-ATTNEventTracker.setup(with: sdk)
+      // Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
+      ATTNEventTracker.setup(with: sdk)
+
+    case .failure(let error):
+      // Handle init failure
+      print("Attentive SDK failed to initialize: \(error)")
+    }
+  }
 ```
 
 #### Objective-C
@@ -321,6 +355,10 @@ if let url = attentiveSdk.consumeDeepLink() {
   // handle navigating to the link in your app
 }
 ```
+
+## Step 5 - Email & SMS Subscription Support
+
+
 
 ## Other functionality
 
