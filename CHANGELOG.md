@@ -2,8 +2,8 @@
 
 ### Feature
 Added Marketing Subscription Management helpers:
-Opt In: Enroll users into marketing subscriptions using email, phone (SMS), or both.
-Opt Out: Remove users from marketing subscriptions using email, phone (SMS), or both.
+Opt In: Create subscriptions using email, phone (SMS), or both.
+Opt Out: Remove subscriptions using email, phone (SMS), or both.
 
 ## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
 

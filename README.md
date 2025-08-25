@@ -10,11 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-<<<<<<< HEAD
-  pod 'attentive-ios-sdk', '2.0.2-beta.2'
-=======
-  pod 'ATTNSDKFramework', '1.1.0'
->>>>>>> feature/NATV-71-Non-push-sub
+  pod 'attentive-ios-sdk', '2.0.2-beta.3'
 end
 ```
 
@@ -28,31 +24,8 @@ pod install
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.2
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.3
 
-<<<<<<< HEAD
-=======
-In your applications `Package.swift` file, add the attentive-ios-sdk as a dependency:
-
-```swift
-dependencies: [
-    // your other app dependencies
-    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.1.0"),
-],
-```
-
-This will allow your package to update patch releases with `swift package update`, but won't auto-upgrade any minor or major versions.
-
-Then, from a command line, run:
-
-```
-swift package resolve
-```
-
-To update your local package, run `swift package update`.
-
-To check for new major and minor versions of this SDK, navigate to the [releases](https://github.com/attentive-mobile/attentive-ios-sdk/releases) tab of the project. You can then manually update the version in your `Package.swift` file and run `swift package resolve` to complete the update.
->>>>>>> feature/NATV-71-Non-push-sub
 
 ## Usage
 
@@ -358,8 +331,8 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 ## Step 5 - Email & SMS Subscription Support
 
-Create a subscription for email, phone, or both, with these methods:
-###Opt in:
+Create or remove a subscription for email, phone, or both, with these methods:
+
 #### Swift
 ```
 let attentiveSdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
@@ -409,7 +382,7 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
 ```
 
 
-## Other functionality
+## Other functionalities
 
 ### Switch to another domain
 
