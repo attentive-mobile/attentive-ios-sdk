@@ -358,6 +358,55 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 ## Step 5 - Email & SMS Subscription Support
 
+Create a subscription for email, phone, or both, with these methods:
+###Opt in:
+#### Swift
+```
+let attentiveSdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+
+// Opt in with email
+attentiveSdk.optInMarketingSubscription(email: "user@example.com") { _,_,response,error in
+    if error == nil {
+        // print("Email opt-in successful")
+    } else {
+        // print("Email opt-in failed: \(error!)")
+    }
+}
+
+// Opt out with phone
+attentiveSdk.optOutMarketingSubscription(phone: "+15551234567") { _,_,response,error in
+    if error == nil {
+        // print("Phone opt-out successful")
+    } else {
+        // print("Phone opt-out failed: \(error!)")
+    }
+}
+```
+
+#### Objective-C
+```
+ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
+                                                   mode:ATTNSDKModeProduction];
+// Opt in with email
+[attentiveSdk optInMarketingSubscriptionWithEmail:@"user@example.com"
+                                         callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Email opt-in successful");
+    } else {
+        // NSLog(@"Email opt-in failed: %@", error);
+    }
+}];
+
+// Opt out with phone
+[attentiveSdk optOutMarketingSubscriptionWithPhone:@"+15551234567"
+                                          callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Phone opt-out successful");
+    } else {
+        // NSLog(@"Phone opt-out failed: %@", error);
+    }
+}];
+```
 
 
 ## Other functionality

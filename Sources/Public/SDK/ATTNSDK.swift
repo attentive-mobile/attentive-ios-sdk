@@ -347,7 +347,7 @@ public final class ATTNSDK: NSObject {
     return pendingURL
   }
 
-  // MARK: Marketing Subscriptions (from feature branch)
+  // MARK: Marketing Subscriptions
 
   @objc(optInMarketingSubscriptionWithEmail:phone:callback:)
   public func optInMarketingSubscription(
