@@ -48,4 +48,12 @@ protocol ATTNAPIProtocol {
     callback: ATTNAPICallback?
   )
 
+  func updateUser(
+    pushToken: String,
+    userIdentity: ATTNUserIdentity,
+    email: String?,
+    phone: String?,
+    callback: ATTNAPICallback?
+  )
+
 }

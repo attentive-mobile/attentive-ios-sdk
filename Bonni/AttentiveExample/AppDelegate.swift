@@ -34,6 +34,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.
     ATTNEventTracker.setup(with: sdk)
 
+
     // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
     // Every time any identifiers are added/changed, call the SDK's "identify" method
     // sdk.identify(AppDelegate.createUserIdentifiers())

@@ -437,6 +437,23 @@ public final class ATTNSDK: NSObject {
     optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
   }
 
+  @objc(updateUserWithEmail:phone:callback:)
+  public func updateUser(email: String? = nil,
+                         phone: String? = nil,
+                         callback: ATTNAPICallback? = nil) {
+    let pushToken = self.latestPushToken
+      ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+      ?? ""
+
+    api.updateUser(
+      pushToken: pushToken,
+      userIdentity: userIdentity,
+      email: email,
+      phone: phone,
+      callback: callback
+    )
+  }
+
   // MARK: - Private Helpers
 
   private func normalize(_ value: String?) -> String? {
