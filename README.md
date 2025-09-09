@@ -41,6 +41,8 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/b
 
 ### Initialize the SDK
 
+**Note** the SDK must be initialized as soon as possible after application startup. This is required for us to properly track metrics and to ensure the SDK functions properly.
+
 The code snippets and examples below assume you are working in Swift or Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
 
@@ -331,7 +333,11 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 ## Step 5 - Email & SMS Subscription Support
 
-Create or remove a subscription for email, phone, or both, with these methods:
+### Manage subscriptions for email and phone numbers
+
+Our SDK allows you to directly manage marketing subscriptions for emails and phone numbers. Your app is solely responsible for displaying any required legal information. To opt users in or out, you must provide at least one of either an email address or a phone number. Phone numbers must be in E.164 format.
+
+Create or remove a subscription:
 
 #### Swift
 ```
