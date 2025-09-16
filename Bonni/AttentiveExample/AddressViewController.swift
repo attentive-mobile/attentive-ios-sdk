@@ -137,10 +137,12 @@ extension AddressViewController: UITableViewDataSource {
       return cell
 
     case 4:
-      let cell = tableView.dequeueReusableCell(
+      guard let cell = tableView.dequeueReusableCell(
         withIdentifier: ContinueToBillingCell.reuseID,
         for: indexPath
-      ) as! ContinueToBillingCell
+      ) as? ContinueToBillingCell else {
+        fatalError("Could not dequeue ContinueToBillingCell")
+      }
       cell.delegate = self
       return cell
 
