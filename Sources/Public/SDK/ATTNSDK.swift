@@ -560,7 +560,7 @@ extension ATTNSDK {
     self.init(domain: domain, mode: mode)
     self.webViewHandler = ATTNWebViewHandler(webViewProvider: self, creativeUrlBuilder: urlBuilder)
   }
-  
+
   convenience init(api: ATTNAPIProtocol, urlBuilder: ATTNCreativeUrlProviding? = nil) {
     self.init(domain: api.domain)
     self.api = api
