@@ -19,18 +19,18 @@ protocol ATTNAPIProtocol {
   func update(domain newDomain: String)
 
   func sendPushToken(_ pushToken: String,
-                       userIdentity: ATTNUserIdentity,
-                       authorizationStatus: UNAuthorizationStatus,
-                       callback: ATTNAPICallback?)
+                     userIdentity: ATTNUserIdentity,
+                     authorizationStatus: UNAuthorizationStatus,
+                     callback: ATTNAPICallback?)
 
-    func sendAppEvents(
-      pushToken: String,
-      subscriptionStatus: String,
-      transport: String,
-      events: [[String: Any]],
-      userIdentity: ATTNUserIdentity,
-      callback: ATTNAPICallback?
-    )
+  func sendAppEvents(
+    pushToken: String,
+    subscriptionStatus: String,
+    transport: String,
+    events: [[String: Any]],
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
 
   func sendOptInMarketingSubscription(
     pushToken: String,
@@ -45,6 +45,14 @@ protocol ATTNAPIProtocol {
     email: String?,
     phone: String?,
     userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
+  
+  func updateUser(
+    pushToken: String,
+    userIdentity: ATTNUserIdentity,
+    email: String?,
+    phone: String?,
     callback: ATTNAPICallback?
   )
 

@@ -53,7 +53,7 @@ class SettingsViewController: UIViewController {
 
   private let switchAccountButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Switch Account / Log Out", for: .normal)
+    button.setTitle("Switch User", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
@@ -331,9 +331,47 @@ class SettingsViewController: UIViewController {
   // MARK: - Button Actions
 
   @objc private func switchAccountTapped() {
-    let alert = UIAlertController(title: nil, message: "hello world", preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-    present(alert, animated: true, completion: nil)
+    let alert = UIAlertController(title: "Update User", message: nil, preferredStyle: .alert)
+
+    alert.addTextField { textfield in
+      textfield.placeholder = "name@example.com"
+      textfield.keyboardType = .emailAddress
+      textfield.autocapitalizationType = .none
+    }
+
+    // Phone field needs E.164 format
+    alert.addTextField { tf in
+      tf.placeholder = "+15551234567"
+      tf.keyboardType = .phonePad
+    }
+
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let email = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let phone = alert.textFields?.last?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      self.currentEmail = (email?.isEmpty == false) ? email : nil
+      self.currentPhone = (phone?.isEmpty == false) ? phone : nil
+
+      self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
+      self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
+
+      self.getAttentiveSdk().clearUser()
+      self.getAttentiveSdk().updateUser(
+        email: self.currentEmail,
+        phone: self.currentPhone
+      ) { _, _, response, error in
+        DispatchQueue.main.async {
+          let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+          self.showToast(with: error == nil && status < 400
+                         ? "User update successful"
+                         : "User update failed")
+        }
+      }
+    })
+
+    present(alert, animated: true)
   }
 
   @objc private func manageAddressesTapped() {
