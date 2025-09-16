@@ -9,6 +9,9 @@ import UIKit
 import ATTNSDKFramework
 import os
 
+/**
+ This PlaceOrderViewController is currently unused.
+ */
 class PlaceOrderViewController: UIViewController {
   
   // MARK: - UI Components
