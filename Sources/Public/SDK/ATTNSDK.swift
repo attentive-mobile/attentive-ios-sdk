@@ -7,11 +7,16 @@
 
 import Foundation
 import WebKit
+import UserNotifications
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
 extension Notification.Name {
   static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
+}
+
+public enum ATTNSDKError: Error {
+  case initializationFailed
 }
 
 @objc(ATTNSDK)
@@ -82,6 +87,24 @@ public final class ATTNSDK: NSObject {
     self.init(domain: domain, mode: ATTNSDKMode(rawValue: mode) ?? .production)
   }
 
+  /// Async initializer that reports success/failure after background setup.
+  public static func initialize(
+    domain: String,
+    mode: ATTNSDKMode = .production,
+    completion: @escaping (Result<ATTNSDK, Error>) -> Void) {
+      let sdk = ATTNSDK(domain: domain, mode: mode)
+      DispatchQueue.global(qos: .userInitiated).async {
+        let setupSucceeded = sdk.webViewHandler != nil
+        DispatchQueue.main.async {
+          if setupSucceeded {
+            completion(.success(sdk))
+          } else {
+            completion(.failure(ATTNSDKError.initializationFailed))
+          }
+        }
+      }
+    }
+
   // MARK: Public API
   @objc(identify:)
   public func identify(_ userIdentifiers: [String: Any]) {
@@ -126,7 +149,9 @@ public final class ATTNSDK: NSObject {
     Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
   }
 
-  // Ask the user for push‐notification permission and register with APNs if granted.
+  // MARK: Push Permissions & Token
+
+  /// Ask the user for push‐notification permission and register with APNs if granted.
   @objc(registerForPushNotificationsWithCompletion:)
   public func registerForPushNotifications(completion: ((Bool, Error?) -> Void)? = nil) {
     Loggers.event.debug("Requesting push-notification authorization…")
@@ -136,9 +161,9 @@ public final class ATTNSDK: NSObject {
       }
       if !granted {
         Loggers.event.debug("""
-          Push notifications permission was denied.
-          To enable push, guide your user to go to Settings → Notifications → Your app.
-          """)
+            Push notifications permission was denied.
+            To enable push, guide your user to go to Settings → Notifications → Your app.
+            """)
       }
       Loggers.event.debug("Push permission granted: \(granted)")
       if granted {
@@ -147,6 +172,41 @@ public final class ATTNSDK: NSObject {
       completion?(granted, error)
     }
   }
+
+  @objc(registerDeviceToken:authorizationStatus:callback:)
+  public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
+  ) {
+    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    Loggers.event.debug("APNs device‐token: \(tokenString)")
+    UserDefaults.standard.set(tokenString, forKey: "attentiveDeviceToken")
+    self.latestPushToken = tokenString
+    // this is called after events are sent. we need a better way to persist this
+    api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
+      Loggers.event.debug("----- Push-Token Request Result -----")
+      if let url = url {
+        Loggers.event.debug("Request URL: \(url.absoluteString)")
+      }
+      if let http = response as? HTTPURLResponse {
+        Loggers.event.debug("Status Code: \(http.statusCode)")
+        Loggers.event.debug("Headers: \(http.allHeaderFields)")
+      }
+      if let d = data, let body = String(data: d, encoding: .utf8) {
+        Loggers.event.debug("Response Body:\n\(body)")
+      }
+      if let error = error {
+        Loggers.event.error("Error:\n\(error.localizedDescription)")
+      }
+
+      callback?(data, url, response, error)
+    }
+  }
+
+  @objc(registerForPushFailed:)
+  public func failedToRegisterForPush(_ error: Error) {
+    Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription)")
+  }
+
+  // MARK: App Events
 
   @objc(registerAppEvents:pushToken:subscriptionStatus:transport:callback:)
   public func registerAppEvents(
@@ -176,46 +236,13 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  @objc(registerDeviceToken:authorizationStatus:callback:)
-  public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
-  ) {
-    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-    Loggers.event.debug("APNs device‐token: \(tokenString)")
-    UserDefaults.standard.set(tokenString, forKey: "attentiveDeviceToken")
-    self.latestPushToken = tokenString
-    //this is called after events are sent. we need a better way to persist this
-    api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
-      Loggers.event.debug("----- Push-Token Request Result -----")
-      if let url = url {
-        Loggers.event.debug("Request URL: \(url.absoluteString)")
-      }
-      if let http = response as? HTTPURLResponse {
-        Loggers.event.debug("Status Code: \(http.statusCode)")
-        Loggers.event.debug("Headers: \(http.allHeaderFields)")
-      }
-      if let d = data, let body = String(data: d, encoding: .utf8) {
-        Loggers.event.debug("Response Body:\n\(body)")
-      }
-      if let error = error {
-        Loggers.event.error("Error:\n\(error.localizedDescription)")
-      }
-
-      callback?(data, url, response, error)
-    }
-  }
-
-  @objc(registerForPushFailed:)
-  public func failedToRegisterForPush(_ error: Error) {
-    Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription)")
-  }
-
   @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
-    //checks and resets push launch flag
+    // checks and resets push launch flag
     guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
-        Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
-        return
-      }
-    //debounce to remove duplicate events; only allow app events tracking once every 2 seconds
+      Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
+      return
+    }
+    // debounce to remove duplicate events; only allow app events tracking once every 2 seconds
     let now = Date()
     if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
       Loggers.event.debug("Skipping duplicate handleRegularOpen due to debounce.")
@@ -279,6 +306,7 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
+    print("entire payload: \(response)")
     let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
@@ -300,7 +328,7 @@ public final class ATTNSDK: NSObject {
       @unknown default:    return "unknown"
       }
     }()
-    registerAppEvents([alEvent,oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+    registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
     guard let linkString = data["attentive_open_action_url"] as? String else {
       Loggers.network.debug("No deep link URL found in push notification")
@@ -308,7 +336,6 @@ public final class ATTNSDK: NSObject {
     }
     Loggers.network.debug("Broadcasting deep link URL found in push notification: \(linkString)")
     normalizeAndBroadcast(linkString)
-
   }
 
   /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
@@ -320,9 +347,109 @@ public final class ATTNSDK: NSObject {
     return pendingURL
   }
 
+  // MARK: Marketing Subscriptions
+
+  @objc(optInMarketingSubscriptionWithEmail:phone:callback:)
+  public func optInMarketingSubscription(
+    email: String? = nil,
+    phone: String? = nil,
+    callback: ATTNAPICallback? = nil
+  ) {
+    let email = normalize(email)
+    let phone = normalize(phone)
+
+    guard email != nil || phone != nil else {
+      Loggers.event.error("Opt-in: missing email/phone")
+      callback?(nil, nil, nil, ATTNError.missingContactInfo)
+      return
+    }
+
+    let pushToken = self.latestPushToken
+    ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+    ?? ""
+
+    api.sendOptInMarketingSubscription(
+      pushToken: pushToken,
+      email: email,
+      phone: phone,
+      userIdentity: userIdentity,
+      callback: callback
+    )
+  }
+
+  @objc(optInMarketingSubscriptionWithEmail:callback:)
+  public func optInMarketingSubscription(
+    email: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optInMarketingSubscription(email: email, phone: nil, callback: callback)
+  }
+
+  @objc(optInMarketingSubscriptionWithPhone:callback:)
+  public func optInMarketingSubscription(
+    phone: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optInMarketingSubscription(email: nil, phone: phone, callback: callback)
+  }
+
+  @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
+  public func optOutMarketingSubscription(
+    email: String? = nil,
+    phone: String? = nil,
+    callback: ATTNAPICallback? = nil
+  ) {
+    let email = normalize(email)
+    let phone = normalize(phone)
+
+    guard email != nil || phone != nil else {
+      Loggers.event.error("Opt-out: missing email/phone")
+      callback?(nil, nil, nil, ATTNError.missingContactInfo)
+      return
+    }
+
+    let pushToken = self.latestPushToken
+    ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+    ?? ""
+
+    api.sendOptOutMarketingSubscription(
+      pushToken: pushToken,
+      email: email,
+      phone: phone,
+      userIdentity: userIdentity,
+      callback: callback
+    )
+  }
+
+  @objc(optOutMarketingSubscriptionWithEmail:callback:)
+  public func optOutMarketingSubscription(
+    email: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optOutMarketingSubscription(email: email, phone: nil, callback: callback)
+  }
+
+  @objc(optOutMarketingSubscriptionWithPhone:callback:)
+  public func optOutMarketingSubscription(
+    phone: String,
+    callback: ATTNAPICallback? = nil
+  ) {
+    optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
+  }
+
   // MARK: - Private Helpers
 
+  private func normalize(_ value: String?) -> String? {
+    let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+    return (trimmed?.isEmpty == false) ? trimmed : nil
+  }
+
   private func registerWithAPNsIfAuthorized() {
+    // Skip UNUserNotificationCenter usage in unit tests
+    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
+      return
+    }
     UNUserNotificationCenter.current().getNotificationSettings { settings in
       Loggers.event.debug("Notification settings: \(settings.authorizationStatus.rawValue)")
       switch settings.authorizationStatus {
@@ -361,6 +488,11 @@ public final class ATTNSDK: NSObject {
   }
 
   @objc private func handleAppDidBecomeActive() {
+    // Skip UNUserNotificationCenter usage in unit tests
+    if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+      Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
+      return
+    }
     UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
       guard let self = self else { return }
       DispatchQueue.main.async {

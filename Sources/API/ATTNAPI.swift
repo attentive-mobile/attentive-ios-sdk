@@ -203,6 +203,151 @@ final class ATTNAPI: ATTNAPIProtocol {
         callback?(data, url, response, error)
       }
     }
+
+  // MARK: - Opt-In Subscriptions
+
+    func sendOptInMarketingSubscription(
+      pushToken: String,
+      email: String?,
+      phone: String?,
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    ) {
+      getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
+        guard let self = self else { return }
+
+        if let geoError = geoError {
+          Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription)")
+          callback?(nil, nil, nil, geoError)
+          return
+        }
+        guard let geoDomain = geoDomain else {
+          Loggers.network.error("Opt-in: geo domain missing")
+          callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+          return
+        }
+
+        let evsJson  = userIdentity.buildExternalVendorIdsJson()
+        let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+
+        var payload: [String: Any] = [
+          "c": geoDomain,
+          "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+          "u": userIdentity.visitorId,
+          "evs": evsArray,
+          "tp": "apns",
+          "type": "MARKETING"
+        ]
+        if let email = email { payload["email"] = email }
+        if let phone = phone { payload["phone"] = phone }
+        if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/opt-in-subscriptions") else {
+          Loggers.network.error("Invalid opt-in subscriptions URL")
+          callback?(nil, nil, nil, ATTNError.badURL)
+          return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload)")
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("Opt-in error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("----- Opt-In Subscriptions Result -----")
+            Loggers.network.debug("Status Code: \(http.statusCode)")
+            Loggers.network.debug("Headers: \(http.allHeaderFields)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("Opt-in API returned status \(http.statusCode)")
+            }
+          }
+          if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+            Loggers.network.debug("Response Body:\n\(bodyStr)")
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      }
+    }
+
+    // MARK: - Opt-Out Subscriptions
+
+    func sendOptOutMarketingSubscription(
+      pushToken: String,
+      email: String?,
+      phone: String?,
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    ) {
+      getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
+        guard let self = self else { return }
+
+        if let geoError = geoError {
+          Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription)")
+          callback?(nil, nil, nil, geoError)
+          return
+        }
+        guard let geoDomain = geoDomain else {
+          Loggers.network.error("Opt-out: geo domain missing")
+          callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+          return
+        }
+
+        let evsJson  = userIdentity.buildExternalVendorIdsJson()
+        let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+
+        var payload: [String: Any] = [
+          "c": geoDomain,
+          "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+          "u": userIdentity.visitorId,
+          "evs": evsArray,
+          "tp": "apns"
+        ]
+        if let email = email { payload["email"] = email }
+        if let phone = phone { payload["phone"] = phone }
+        if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/opt-out-subscriptions") else {
+          Loggers.network.error("Invalid opt-out subscriptions URL")
+          callback?(nil, nil, nil, ATTNError.badURL)
+          return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload)")
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("Opt-out error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("----- Opt-Out Subscriptions Result -----")
+            Loggers.network.debug("Status Code: \(http.statusCode)")
+            Loggers.network.debug("Headers: \(http.allHeaderFields)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("Opt-out API returned status \(http.statusCode)")
+            }
+          }
+          if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+            Loggers.network.debug("Response Body:\n\(bodyStr)")
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      }
+    }
 }
 
 fileprivate extension ATTNAPI {

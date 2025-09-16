@@ -1,3 +1,20 @@
+## [2.0.2-beta.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.2...2.0.2-beta.3) (2025-08-25)
+
+### Feature
+Added Marketing Subscription Management helpers:
+Opt In: Create subscriptions using email, phone (SMS), or both.
+Opt Out: Remove subscriptions using email, phone (SMS), or both.
+
+## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
+
+### Feature
+Add completion handler to `registerForPushNotifications` for async success/error handling
+
+## [2.0.2-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.1-beta.4...2.0.2-beta.1) (2025-08-05)
+
+### Feature
+Add support for image-based push notifications
+
 ## [1.0.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.6.0...1.0.0) (2024-07-17)
 
 This major release marks the transition from beta to general availability (GA) for the Attentive iOS SDK. The 1.0.0 version incorporates feedback and improvements made during the beta phases, ensuring a stable and robust SDK.

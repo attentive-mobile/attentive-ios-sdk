@@ -17,17 +17,35 @@ protocol ATTNAPIProtocol {
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func update(domain newDomain: String)
-  func sendPushToken(_ pushToken: String,
-                     userIdentity: ATTNUserIdentity,
-                     authorizationStatus: UNAuthorizationStatus,
-                     callback: ATTNAPICallback?)
 
-  func sendAppEvents(
+  func sendPushToken(_ pushToken: String,
+                       userIdentity: ATTNUserIdentity,
+                       authorizationStatus: UNAuthorizationStatus,
+                       callback: ATTNAPICallback?)
+
+    func sendAppEvents(
+      pushToken: String,
+      subscriptionStatus: String,
+      transport: String,
+      events: [[String: Any]],
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    )
+
+  func sendOptInMarketingSubscription(
     pushToken: String,
-    subscriptionStatus: String,
-    transport: String,
-    events: [[String: Any]],
+    email: String?,
+    phone: String?,
     userIdentity: ATTNUserIdentity,
     callback: ATTNAPICallback?
   )
+
+  func sendOptOutMarketingSubscription(
+    pushToken: String,
+    email: String?,
+    phone: String?,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
+
 }

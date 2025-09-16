@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods for 2.0.1-beta.7
+### Cocoapods for 2.0.2-beta.3
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.1-beta.7'
+  pod 'attentive-ios-sdk', '2.0.2-beta.3'
 end
 ```
 
@@ -24,8 +24,7 @@ pod install
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
-
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.1-beta.7
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.3
 
 
 ## Usage
@@ -33,7 +32,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 iOS SDK is used.
 
-See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.1-beta.7/Bonni) for a sample of how the push integration works.
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.2-beta.3/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -52,13 +51,20 @@ import ATTNSDKFramework
 
 ```swift
 // Initialize the SDK with your attentive domain, in production mode
-let sdk = ATTNSDK(domain: "myCompanyDomain")
 
-// Alternatively, initialize the SDK in debug mode for more information about your creative and filtering rules
-let sdk = ATTNSDK(domain: "myCompanyDomain", mode: .debug)
+  ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production) { result in
+    switch result {
+    case .success(let sdk):
+      self.attentiveSdk = sdk
 
-// Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
-ATTNEventTracker.setup(with: sdk)
+      // Initialize the AttentiveEventTracker. The AttentiveEventTracker is used to send user events (e.g. a Purchase) to Attentive. It must be set up before it can be used to send events.
+      ATTNEventTracker.setup(with: sdk)
+
+    case .failure(let error):
+      // Handle init failure
+      print("Attentive SDK failed to initialize: \(error)")
+    }
+  }
 ```
 
 #### Objective-C
@@ -323,7 +329,60 @@ if let url = attentiveSdk.consumeDeepLink() {
 }
 ```
 
-## Other functionality
+## Step 5 - Email & SMS Subscription Support
+
+Create or remove a subscription for email, phone, or both, with these methods:
+
+#### Swift
+```
+let attentiveSdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+
+// Opt in with email
+attentiveSdk.optInMarketingSubscription(email: "user@example.com") { _,_,response,error in
+    if error == nil {
+        // print("Email opt-in successful")
+    } else {
+        // print("Email opt-in failed: \(error!)")
+    }
+}
+
+// Opt out with phone
+attentiveSdk.optOutMarketingSubscription(phone: "+15551234567") { _,_,response,error in
+    if error == nil {
+        // print("Phone opt-out successful")
+    } else {
+        // print("Phone opt-out failed: \(error!)")
+    }
+}
+```
+
+#### Objective-C
+```
+ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
+                                                   mode:ATTNSDKModeProduction];
+// Opt in with email
+[attentiveSdk optInMarketingSubscriptionWithEmail:@"user@example.com"
+                                         callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Email opt-in successful");
+    } else {
+        // NSLog(@"Email opt-in failed: %@", error);
+    }
+}];
+
+// Opt out with phone
+[attentiveSdk optOutMarketingSubscriptionWithPhone:@"+15551234567"
+                                          callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Phone opt-out successful");
+    } else {
+        // NSLog(@"Phone opt-out failed: %@", error);
+    }
+}];
+```
+
+
+## Other functionalities
 
 ### Switch to another domain
 

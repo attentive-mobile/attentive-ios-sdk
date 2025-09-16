@@ -60,7 +60,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     let configuration = WKWebViewConfiguration()
     configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-    let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
+    let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
     let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     configuration.userContentController.addUserScript(userScript)
     let webView = CustomWebView(frame: .zero, configuration: configuration)
@@ -263,78 +263,66 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
 extension ATTNWebViewHandler: WKScriptMessageHandler {
   func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-    let messageBody = message.body as? String ?? "'Empty'"
+    let messageBody = message.body as? String ?? "Empty"
+
     Loggers.creative.debug("Web event message: \(messageBody). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO")")
-    if messageBody == "RESIZE_FRAME" {
+    guard let parent = self.webViewProvider?.parentView else { return }
+    var newArea: CGRect = UIScreen.main.bounds
+    DispatchQueue.main.async {
+      if let customWebView = self.webViewProvider?.webView as? CustomWebView {
+        customWebView.updateInteractiveHitArea(newArea)
+        Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
+      }
+
+    }
+    if let body = message.body as? [String: Any],
+       let style = body["style"] as? [String: Any],
+       let widthStr = style["width"] as? String,
+       let heightStr = style["height"] as? String,
+       let leftStr = style["left"] as? String,
+       let bottomStr = style["bottom"] as? String,
+       let width = Double(widthStr.replacingOccurrences(of: "px", with: "")),
+       let height = Double(heightStr.replacingOccurrences(of: "px", with: "")),
+       let originX = Double(leftStr.replacingOccurrences(of: "px", with: "")),
+       let originY = Double(bottomStr.replacingOccurrences(of: "px", with: "")) {
+      let safeFrame = parent.safeAreaLayoutGuide.layoutFrame
+      let flippedY = safeFrame.maxY - CGFloat(originY) - CGFloat(height)
+      let originX = safeFrame.minX + CGFloat(originX)
+
+      if height < 100 {
+        newArea = CGRect(x: CGFloat(originX), y: CGFloat(flippedY), width: CGFloat(width), height: CGFloat(height))
+      } else {
+        newArea = UIScreen.main.bounds
+        Loggers.creative.debug("Fullscreen creative detected. Using UIScreen bounds.")
+      }
       Loggers.creative.debug("Resizing creative")
       DispatchQueue.main.async {
         if let customWebView = self.webViewProvider?.webView as? CustomWebView {
-          let getSizeJS =
-            """
-            (function() {
-              var creative = document.getElementById('attentive_creative');
-              if (creative) {
-                var rect = creative.getBoundingClientRect();
-                return JSON.stringify({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-              } else {
-                return JSON.stringify({ x: 0, y: 0, width: document.body.scrollWidth, height: document.body.scrollHeight });
-              }
-            })();
-            """
-          customWebView.evaluateJavaScript(getSizeJS) { result, error in
-            guard error == nil,
-                  let jsonString = result as? String,
-                  let data = jsonString.data(using: .utf8),
-                  let rectDict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: CGFloat],
-                  let x = rectDict["x"],
-                  let y = rectDict["y"],
-                  let width = rectDict["width"],
-                  let height = rectDict["height"] else {
-              Loggers.creative.error("Failed to determine creative size: \(error?.localizedDescription ?? "unknown error")")
-              return
-            }
-
-            var newArea: CGRect
-            guard let parent = self.webViewProvider?.parentView else { return }
-
-            // If the creative is a bubble (height < 100), adjust its hit area.
-            if height < 100 {
-              let jsFrame = CGRect(x: x, y: y, width: width, height: height)
-              let isModal = parent.parentViewController?.isModal ?? false
-              newArea = self.calculateInteractiveArea(parentFrame: parent.frame, originInPixels: CGPoint(x: x, y: y))
-            } else {
-              // For full screen creatives, use the screen's bounds to make sure user can interact with the full screen webview
-              newArea = UIScreen.main.bounds
-            }
-
-            customWebView.updateInteractiveHitArea(newArea)
-            Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
-          }
+          customWebView.updateInteractiveHitArea(newArea)
+          Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
         }
       }
     }
     if messageBody == "CLOSE" {
       closeCreative()
-    } else if messageBody == "IMPRESSION" {
-      stateManager.updateState(.open)
-      Loggers.creative.debug("Creative opened and generated impression event")
-    } else if messageBody == String(format: "%@ true", Constants.visibilityEvent), stateManager.getState() == .open {
-      Loggers.creative.debug("document-visibility: true, Web View will be closed if the window containing it is no longer in view hierarchy")
-      // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
+    } else if let messageBodyDict = message.body as? [String: Any],
+              let action = messageBodyDict["action"] as? String {
+      if action == "CLOSE" {
+        closeCreative()
+
+      } else if action == "IMPRESSION" {
+        stateManager.updateState(.open)
+        Loggers.creative.debug("Creative opened and generated impression event")
+
+      } else if action == String(format: "%@ true", Constants.visibilityEvent),
+                stateManager.getState() == .open {
+
+        Loggers.creative.debug("document-visibility: true, Web View will be closed if the window containing it is no longer in view hierarchy")
+        // Do NOT call closeCreative() here otherwise web view will close prematurely. In many iOS WebKit edge cases especially while the page is still loading, document.hidden can be set to true momentarily, or iOS can inject a “visibilitychange” event at times you do not expect (such as while the view is transitioning)
+      }
     }
   }
 
-  /**
-   Calculate interactive area for bubble creative.
-   */
-  private func calculateInteractiveArea(parentFrame: CGRect, originInPixels: CGPoint) -> CGRect {
-      let rectWidth: CGFloat = 180
-      let rectHeight: CGFloat = 60
-      return CGRect(x: originInPixels.x,
-                    y: originInPixels.y,
-                    width: rectWidth,
-                    height: rectHeight)
-    }
 }
 
 fileprivate extension ATTNWebViewHandler {
@@ -367,7 +355,6 @@ class CustomWebView: WKWebView {
     interactiveHitArea = newArea
   }
 
-
   override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
     return interactiveHitArea.contains(point)
   }
@@ -381,10 +368,28 @@ class CustomWebView: WKWebView {
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
+    // Ensure gesture state remains consistent across navigation stack transitions
+    updateScrollBehavior()
+
     // If the web view's window becomes nil, it's no longer on screen.
     if self.window == nil {
       onRemovedFromWindow?()
     }
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    updateScrollBehavior()
+  }
+
+  private func updateScrollBehavior() {
+    let shouldReceiveTouches = !interactiveHitArea.isEmpty && bounds.intersects(interactiveHitArea)
+
+    scrollView.isScrollEnabled = shouldReceiveTouches
+    scrollView.isUserInteractionEnabled = shouldReceiveTouches
+
+    // Disable/enable gesture recognizers based on current active area
+    scrollView.gestureRecognizers?.forEach { $0.isEnabled = shouldReceiveTouches }
   }
 }
 
