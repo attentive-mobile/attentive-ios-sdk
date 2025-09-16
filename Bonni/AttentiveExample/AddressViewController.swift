@@ -1,39 +1,36 @@
 import UIKit
 
 class AddressViewController: UIViewController {
-  
+
   private let tableView = UITableView(frame: .zero, style: .grouped)
   private var orderTotal: NSDecimalNumber {
     // compute your subtotal here; using a placeholder
     return NSDecimalNumber(string: "123.45")
   }
-  // Country picker data
   private let countryPicker = UIPickerView()
   private let countryList: [String] = Locale.isoRegionCodes
     .compactMap { Locale.current.localizedString(forRegionCode: $0) }
     .sorted()
-  
+
   override func viewDidLoad() {
     super.viewDidLoad()
     title = "Shipping & Billing"
     view.backgroundColor = .white
     setupTableView()
-    
+
     countryPicker.dataSource = self
     countryPicker.delegate   = self
   }
-  
+
   private func setupTableView() {
     tableView.translatesAutoresizingMaskIntoConstraints = false
     tableView.dataSource = self
     tableView.delegate   = self
-    
-    // Register our custom cells
-    tableView.register(SummaryTableViewCell.self,     forCellReuseIdentifier: SummaryTableViewCell.reuseID)
-    tableView.register(TextfieldTableViewCell.self,   forCellReuseIdentifier: TextfieldTableViewCell.reuseID)
-    tableView.register(UITableViewCell.self,
-                       forCellReuseIdentifier: "PlaceOrderCell")
-    
+
+    tableView.register(SummaryTableViewCell.self, forCellReuseIdentifier: SummaryTableViewCell.reuseID)
+    tableView.register(TextfieldTableViewCell.self, forCellReuseIdentifier: TextfieldTableViewCell.reuseID)
+    tableView.register(ContinueToBillingCell.self, forCellReuseIdentifier: ContinueToBillingCell.reuseID)
+
     view.addSubview(tableView)
     NSLayoutConstraint.activate([
       tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -50,7 +47,7 @@ extension AddressViewController: UITableViewDataSource {
   func numberOfSections(in tableView: UITableView) -> Int {
     return 5
   }
-  
+
   func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
     switch section {
     case 0: return nil
@@ -60,7 +57,7 @@ extension AddressViewController: UITableViewDataSource {
     default: return nil
     }
   }
-  
+
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
     switch section {
     case 0, 1: return 1
@@ -70,11 +67,11 @@ extension AddressViewController: UITableViewDataSource {
     default: return 0
     }
   }
-  
+
   func tableView(_ tableView: UITableView,
                  cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     switch indexPath.section {
-      
+
     case 0:
       guard let cell = tableView.dequeueReusableCell(
         withIdentifier: SummaryTableViewCell.reuseID,
@@ -85,7 +82,7 @@ extension AddressViewController: UITableViewDataSource {
       cell.configure(title: "Order Summary",
                      value: "$\(orderTotal.stringValue)")
       return cell
-      
+
     case 1:
       guard let cell = tableView.dequeueReusableCell(
         withIdentifier: TextfieldTableViewCell.reuseID,
@@ -95,7 +92,7 @@ extension AddressViewController: UITableViewDataSource {
       }
       cell.configure(placeholder: "Email address")
       return cell
-      
+
     case 2:
       guard let cell = tableView.dequeueReusableCell(
         withIdentifier: TextfieldTableViewCell.reuseID,
@@ -103,11 +100,11 @@ extension AddressViewController: UITableViewDataSource {
       else {
         fatalError("Could not dequeue TextfieldTableViewCell")
       }
-      
-      let tf = cell.textField
+
+      let cellTextfield = cell.textField
       if indexPath.row == 0 {
         cell.configure(placeholder: "Country")
-        tf.inputView = countryPicker
+        cellTextfield.inputView = countryPicker
       } else {
         let placeholders = [
           "First Name", "Last Name", "Address Line 1", "Address Line 2",
@@ -115,12 +112,12 @@ extension AddressViewController: UITableViewDataSource {
         ]
         let idx = indexPath.row - 1
         cell.configure(placeholder: placeholders[idx])
-        if idx == 7 { tf.keyboardType = .numberPad }
-        if idx == 8 { tf.keyboardType = .phonePad }
+        if idx == 7 { cellTextfield.keyboardType = .numberPad }
+        if idx == 8 { cellTextfield.keyboardType = .phonePad }
       }
-      
+
       return cell
-      
+
     case 3:
       guard let cell = tableView.dequeueReusableCell(
         withIdentifier: TextfieldTableViewCell.reuseID,
@@ -128,7 +125,7 @@ extension AddressViewController: UITableViewDataSource {
       else {
         fatalError("Could not dequeue TextfieldTableViewCell")
       }
-      
+
       let textfield = cell.textField
       let paymentPlaceholders = [
         "Card Number", "Name on Card", "Expiration Date", "CVV"
@@ -138,38 +135,15 @@ extension AddressViewController: UITableViewDataSource {
         textfield.keyboardType = .numberPad
       }
       return cell
-      
+
     case 4:
       let cell = tableView.dequeueReusableCell(
-        withIdentifier: "PlaceOrderCell",
+        withIdentifier: ContinueToBillingCell.reuseID,
         for: indexPath
-      )
-      // remove old subviews
-      cell.contentView.subviews.forEach { $0.removeFromSuperview() }
-      
-      let placeOrderButton = UIButton(type: .system)
-      placeOrderButton.setTitle("Place Order", for: .normal)
-      placeOrderButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-      placeOrderButton.tintColor = .black
-      placeOrderButton.backgroundColor = .black
-      placeOrderButton.setTitleColor(.white, for: .normal)
-      placeOrderButton.translatesAutoresizingMaskIntoConstraints = false
-      placeOrderButton.addTarget(self,
-                                 action: #selector(placeOrderTapped),
-                                 for: .touchUpInside)
-      
-      cell.contentView.addSubview(placeOrderButton)
-      NSLayoutConstraint.activate([
-        placeOrderButton.leadingAnchor.constraint(equalTo: cell.contentView.leadingAnchor, constant: 20),
-        placeOrderButton.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -20),
-        placeOrderButton.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 10),
-        placeOrderButton.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -10),
-        placeOrderButton.heightAnchor.constraint(equalToConstant: 50)
-      ])
-      
-      cell.selectionStyle = .none
+      ) as! ContinueToBillingCell
+      cell.delegate = self
       return cell
-      
+
     default:
       fatalError("Unexpected section \(indexPath.section)")
     }
@@ -204,4 +178,12 @@ extension AddressViewController: UIPickerViewDataSource, UIPickerViewDelegate {
       cell.textField.text = countryList[row]
     }
   }
+}
+
+extension AddressViewController: ContinueToBillingCellDelegate {
+  func didTapContinueToBillingCell(_ cell: ContinueToBillingCell) {
+    let placeOrderVC = PlaceOrderViewController()
+    navigationController?.pushViewController(placeOrderVC, animated: true)
+  }
+
 }
