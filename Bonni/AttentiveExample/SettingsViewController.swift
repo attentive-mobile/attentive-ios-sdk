@@ -58,9 +58,9 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
-  private let manageAddressesButton: UIButton = {
+  private let switchDomainButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Manage Addresses", for: .normal)
+    button.setTitle("Switch domain", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
@@ -235,7 +235,7 @@ class SettingsViewController: UIViewController {
 
     stackView.addArrangedSubview(accountInfoLabel)
     stackView.addArrangedSubview(switchAccountButton)
-    stackView.addArrangedSubview(manageAddressesButton)
+    stackView.addArrangedSubview(switchDomainButton)
 
     let divider = UIView()
     divider.backgroundColor = .lightGray
@@ -255,7 +255,7 @@ class SettingsViewController: UIViewController {
     if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
       let allButtons: [UIButton] = [
         switchAccountButton,
-        manageAddressesButton,
+        switchDomainButton,
         showCreativeButton,
         showPushPermissionButton,
         sendLocalPushNotification,
@@ -301,7 +301,7 @@ class SettingsViewController: UIViewController {
 
   private func setupActions() {
     switchAccountButton.addTarget(self, action: #selector(switchAccountTapped), for: .touchUpInside)
-    manageAddressesButton.addTarget(self, action: #selector(manageAddressesTapped), for: .touchUpInside)
+    switchDomainButton.addTarget(self, action: #selector(switchDomainTapped), for: .touchUpInside)
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
     sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
@@ -374,8 +374,34 @@ class SettingsViewController: UIViewController {
     present(alert, animated: true)
   }
 
-  @objc private func manageAddressesTapped() {
-    // TODO: Add logic to manage and edit addresses
+  @objc private func switchDomainTapped() {
+    let alert = UIAlertController(title: "Switch Domain",
+                                  message: "Enter the new domain",
+                                  preferredStyle: .alert)
+
+    alert.addTextField { textfield in
+      textfield.autocapitalizationType = .none
+      textfield.autocorrectionType = .no
+      textfield.keyboardType = .default
+    }
+
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let raw = alert.textFields?.first?.text ?? ""
+      let newDomain = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      guard newDomain.isEmpty == false else {
+        self.showToast(with: "Please enter a valid domain")
+        return
+      }
+
+      let sdk = self.getAttentiveSdk()
+      sdk.update(domain: newDomain)
+      self.showToast(with: "Domain updated to “\(newDomain)”")
+    })
+
+    present(alert, animated: true)
   }
 
   @objc private func showCreativeTapped() {

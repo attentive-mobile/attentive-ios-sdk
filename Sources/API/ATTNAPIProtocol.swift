@@ -2,22 +2,23 @@
 //  ATTNAPIProtocol.swift
 //  attentive-ios-sdk-framework
 //
-//  Created by Vladimir - Work on 2024-06-13.
-//
 
 import Foundation
 import UserNotifications
 
 protocol ATTNAPIProtocol {
+  // MARK: - Shared state
   var domain: String { get set }
   var cachedGeoAdjustedDomain: String? { get set }
 
+  // MARK: - Identity & Events
   func send(userIdentity: ATTNUserIdentity)
   func send(userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func update(domain newDomain: String)
 
+  // MARK: - Push token & app events
   func sendPushToken(_ pushToken: String,
                      userIdentity: ATTNUserIdentity,
                      authorizationStatus: UNAuthorizationStatus,
@@ -32,6 +33,7 @@ protocol ATTNAPIProtocol {
     callback: ATTNAPICallback?
   )
 
+  // MARK: - Marketing subscriptions
   func sendOptInMarketingSubscription(
     pushToken: String,
     email: String?,
@@ -47,7 +49,8 @@ protocol ATTNAPIProtocol {
     userIdentity: ATTNUserIdentity,
     callback: ATTNAPICallback?
   )
-  
+
+  // MARK: - Update User
   func updateUser(
     pushToken: String,
     userIdentity: ATTNUserIdentity,
@@ -55,5 +58,4 @@ protocol ATTNAPIProtocol {
     phone: String?,
     callback: ATTNAPICallback?
   )
-
 }
