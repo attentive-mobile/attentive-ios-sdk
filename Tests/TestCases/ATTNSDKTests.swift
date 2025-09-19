@@ -44,7 +44,7 @@ final class ATTNSDKTests: XCTestCase {
     sut.update(domain: newDomain)
 
     XCTAssertTrue(apiSpy.updateDomainWasCalled)
-    XCTAssertTrue(apiSpy.domainWasSetted)
+    XCTAssertTrue(apiSpy.domainWasSet)
     XCTAssertTrue(apiSpy.sendUserIdentityWasCalled)
     
     XCTAssertEqual(apiSpy.domain, newDomain)
@@ -57,7 +57,7 @@ final class ATTNSDKTests: XCTestCase {
     sut.update(domain: testDomain)
 
     XCTAssertFalse(apiSpy.updateDomainWasCalled)
-    XCTAssertFalse(apiSpy.domainWasSetted)
+    XCTAssertFalse(apiSpy.domainWasSet)
     XCTAssertFalse(apiSpy.sendUserIdentityWasCalled)
 
     XCTAssertEqual(apiSpy.domain, testDomain)

@@ -300,7 +300,7 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
-    print("entire payload: \(response)")
+    Loggers.event.debug("Push notification payload: \(userInfo)")
     let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
@@ -518,7 +518,7 @@ public final class ATTNSDK: NSObject {
         let token = self.currentPushToken
         guard !token.isEmpty else {
           // AppDelegate will call handleRegularOpen after token is persisted
-          Loggers.event.debug("Skipping handleRegularOpen: token not yet available after provisional setup.")
+          Loggers.event.debug("Deferring handleRegularOpen: push token not yet available. It will be triggered later from AppDelegate after APNs registration completes.")
           return
         }
         self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
