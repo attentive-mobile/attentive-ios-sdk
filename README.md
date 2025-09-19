@@ -350,6 +350,28 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 }
 ```
 
+#### Sample push payload with deep link and image support
+
+```
+{
+  "aps": {
+    "alert": {
+      "title": "Welcome to Attentive",
+      "body": "Get 10% off your first in-app purchase!"
+    },
+    "sound": "default",
+    "mutable-content": 1
+  },
+  "attentiveCallbackData": {
+    "attentiveData": "<base64-encoded attentive payload>",
+    "attentive_open_action_url": "https://www.example.com/promo",
+    "attentive_message_title": "Welcome to Attentive",
+    "attentive_image_url": "https://cdn.example.com/images/promo-banner.jpg",
+    "attentive_message_body": "Get 10% off your first in-app purchase!"
+  }
+}
+```
+
 ### Deep Link Support
 
 Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
