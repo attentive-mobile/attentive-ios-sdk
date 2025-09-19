@@ -128,6 +128,39 @@ sdk.clearUser()
 [sdk clearUser];
 ```
 
+### Update user via email and/or phone
+
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user, and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+
+#### Swift
+```
+// Update user with both email and phone
+attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
+    switch result {
+    case .success:
+        // print("User updated successfully with email and phone")
+        break
+    case .failure(let error):
+        // print("User update failed: \(error.localizedDescription)")
+        break
+    }
+}
+```
+
+#### Objective-C
+```
+// Update user with email
+[attentiveSdk updateUserWithEmail:@"user@example.com"
+                            phone:nil
+                         callback:^(ATTNAPIResult *result) {
+    if (result.success) {
+        // NSLog(@"User updated successfully with email");
+    } else {
+        // NSLog(@"User update failed: %@", result.error.localizedDescription);
+    }
+}];
+```
+
 ## Step 3 - Record user events
 
 Call Attentive's event functions whenever important events happens in your app, so that Attentive can better understand user behaviors, trigger journeys, and attribute revenue accurately.
@@ -383,39 +416,6 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
         // NSLog(@"Phone opt-out successful");
     } else {
         // NSLog(@"Phone opt-out failed: %@", error);
-    }
-}];
-```
-
-### Update user via email and/or phone
-
-Our SDK allows switching users via email and/or phone (at least one identifier must be provided).
-
-#### Swift
-```
-// Update user with both email and phone
-attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
-    switch result {
-    case .success:
-        // print("User updated successfully with email and phone")
-        break
-    case .failure(let error):
-        // print("User update failed: \(error.localizedDescription)")
-        break
-    }
-}
-```
-
-#### Objective-C
-```
-// Update user with email
-[attentiveSdk updateUserWithEmail:@"user@example.com"
-                            phone:nil
-                         callback:^(ATTNAPIResult *result) {
-    if (result.success) {
-        // NSLog(@"User updated successfully with email");
-    } else {
-        // NSLog(@"User update failed: %@", result.error.localizedDescription);
     }
 }];
 ```
