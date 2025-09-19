@@ -254,6 +254,21 @@ attentiveSdk?.registerForPushNotifications { granted, error in
 }
 ```
 
+Push registration:
+```
+func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+  UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+    guard let self = self else { return }
+    let authStatus = settings.authorizationStatus
+    attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
+      DispatchQueue.main.async {
+        self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+      }
+    })
+  }
+}
+```
+
 Handle when push registration fails:
 ```
 func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {

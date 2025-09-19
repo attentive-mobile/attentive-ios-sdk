@@ -512,17 +512,16 @@ public final class ATTNSDK: NSObject {
       if settings.authorizationStatus == .notDetermined {
         // Await provisional flow fully (auth & APNs register)
         await self.setupProvisionalPush()
-        // Re-read settings after requesting provisional
-        let updated = await center.notificationSettings()
-        await MainActor.run {
-          self.handleRegularOpen(pushToken: self.currentPushToken,
-                                 authorizationStatus: updated.authorizationStatus)
+      }
+      let updated = await center.notificationSettings()
+      await MainActor.run {
+        let token = self.currentPushToken
+        guard !token.isEmpty else {
+          // AppDelegate will call handleRegularOpen after token is persisted
+          Loggers.event.debug("Skipping handleRegularOpen: token not yet available after provisional setup.")
+          return
         }
-      } else {
-        await MainActor.run {
-          self.handleRegularOpen(pushToken: self.currentPushToken,
-                                 authorizationStatus: settings.authorizationStatus)
-        }
+        self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
       }
     }
   }
@@ -610,7 +609,7 @@ private final class PushTokenStore {
       }
     }
     set {
-      queue.async {
+      queue.sync {
         self.inMemory = newValue
         UserDefaults.standard.set(newValue, forKey: self.key)
       }
