@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods for 2.0.2-beta.3
+### Cocoapods for 2.0.2-beta.2
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.2-beta.3'
+  pod 'attentive-ios-sdk', '2.0.2-beta.2'
 end
 ```
 
@@ -24,7 +24,7 @@ pod install
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.3
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.2
 
 
 ## Usage
@@ -32,7 +32,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 iOS SDK is used.
 
-See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.2-beta.3/Bonni) for a sample of how the push integration works.
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.2-beta.2/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -40,6 +40,8 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/b
 ## Step 1 - SDK initialization
 
 ### Initialize the SDK
+
+**Note** the SDK must be initialized as soon as possible after application startup. This is required for us to properly track metrics and to ensure the SDK functions properly.
 
 The code snippets and examples below assume you are working in Swift or Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
@@ -124,6 +126,39 @@ sdk.clearUser()
 #### Objective-C
 ```objective-c
 [sdk clearUser];
+```
+
+### Update user via email and/or phone
+
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user, and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+
+#### Swift
+```
+// Update user with both email and phone
+attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
+    switch result {
+    case .success:
+        // print("User updated successfully with email and phone")
+        break
+    case .failure(let error):
+        // print("User update failed: \(error.localizedDescription)")
+        break
+    }
+}
+```
+
+#### Objective-C
+```
+// Update user with email
+[attentiveSdk updateUserWithEmail:@"user@example.com"
+                            phone:nil
+                         callback:^(ATTNAPIResult *result) {
+    if (result.success) {
+        // NSLog(@"User updated successfully with email");
+    } else {
+        // NSLog(@"User update failed: %@", result.error.localizedDescription);
+    }
+}];
 ```
 
 ## Step 3 - Record user events
@@ -219,6 +254,21 @@ attentiveSdk?.registerForPushNotifications { granted, error in
 }
 ```
 
+Push registration:
+```
+func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+  UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+    guard let self = self else { return }
+    let authStatus = settings.authorizationStatus
+    attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
+      DispatchQueue.main.async {
+        self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+      }
+    })
+  }
+}
+```
+
 Handle when push registration fails:
 ```
 func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
@@ -300,6 +350,28 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 }
 ```
 
+#### Sample push payload with deep link and image support
+
+```
+{
+  "aps": {
+    "alert": {
+      "title": "Welcome to Attentive",
+      "body": "Get 10% off your first in-app purchase!"
+    },
+    "sound": "default",
+    "mutable-content": 1
+  },
+  "attentiveCallbackData": {
+    "attentiveData": "<base64-encoded attentive payload>",
+    "attentive_open_action_url": "https://www.example.com/promo",
+    "attentive_message_title": "Welcome to Attentive",
+    "attentive_image_url": "https://cdn.example.com/images/promo-banner.jpg",
+    "attentive_message_body": "Get 10% off your first in-app purchase!"
+  }
+}
+```
+
 ### Deep Link Support
 
 Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
@@ -331,7 +403,11 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 ## Step 5 - Email & SMS Subscription Support
 
-Create or remove a subscription for email, phone, or both, with these methods:
+### Manage subscriptions for email and phone numbers
+
+Our SDK allows you to directly manage marketing subscriptions for emails and phone numbers. Your app is solely responsible for displaying any required legal information. To opt users in or out, you must provide at least one of either an email address or a phone number. Phone numbers must be in E.164 format.
+
+Create or remove a subscription:
 
 #### Swift
 ```
@@ -380,7 +456,6 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
     }
 }];
 ```
-
 
 ## Other functionalities
 

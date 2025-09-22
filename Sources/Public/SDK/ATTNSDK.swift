@@ -23,19 +23,14 @@ public enum ATTNSDKError: Error {
 public final class ATTNSDK: NSObject {
 
   private var _containerView: UIView?
-  private var latestPushToken: String?
+  private let pushTokenStore = PushTokenStore()
   /// Holds exactly one pending deep-link URL (new taps overwrite old).
   private var pendingURL: URL?
   // Debounce mechanism to prevent duplicate events
   private var lastRegularOpenTime: Date?
 
-  // Always prefer the in‐memory token, but fall back to the last‐saved UserDefaults value
-  private var currentPushToken: String {
-    if let token = latestPushToken, !token.isEmpty {
-      return token
-    }
-    return UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? ""
-  }
+  // Single accessor used across the SDK
+  private var currentPushToken: String { pushTokenStore.token }
 
   // MARK: Instance Properties
   var parentView: UIView?
@@ -178,8 +173,7 @@ public final class ATTNSDK: NSObject {
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     Loggers.event.debug("APNs device‐token: \(tokenString)")
-    UserDefaults.standard.set(tokenString, forKey: "attentiveDeviceToken")
-    self.latestPushToken = tokenString
+    pushTokenStore.token = tokenString
     // this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
       Loggers.event.debug("----- Push-Token Request Result -----")
@@ -236,7 +230,7 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  @objc public func handleRegularOpen(authorizationStatus: UNAuthorizationStatus) {
+  @objc public func handleRegularOpen(pushToken: String? = nil, authorizationStatus: UNAuthorizationStatus) {
     // checks and resets push launch flag
     guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
       Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
@@ -306,7 +300,7 @@ public final class ATTNSDK: NSObject {
   @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
-    print("entire payload: \(response)")
+    Loggers.event.debug("Push notification payload: \(userInfo)")
     let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
     // app launch event
     let alEvent: [String: Any] = [
@@ -364,7 +358,7 @@ public final class ATTNSDK: NSObject {
       return
     }
 
-    let pushToken = self.latestPushToken
+    let pushToken = currentPushToken
     ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
     ?? ""
 
@@ -408,7 +402,7 @@ public final class ATTNSDK: NSObject {
       return
     }
 
-    let pushToken = self.latestPushToken
+    let pushToken = currentPushToken
     ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
     ?? ""
 
@@ -435,6 +429,23 @@ public final class ATTNSDK: NSObject {
     callback: ATTNAPICallback? = nil
   ) {
     optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
+  }
+
+  @objc(updateUserWithEmail:phone:callback:)
+  public func updateUser(email: String? = nil,
+                         phone: String? = nil,
+                         callback: ATTNAPICallback? = nil) {
+    let pushToken = currentPushToken
+      ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
+      ?? ""
+
+    api.updateUser(
+      pushToken: pushToken,
+      userIdentity: userIdentity,
+      email: email,
+      phone: phone,
+      callback: callback
+    )
   }
 
   // MARK: - Private Helpers
@@ -493,10 +504,24 @@ public final class ATTNSDK: NSObject {
       Loggers.event.debug("Skipping handleAppDidBecomeActive during XCTest run.")
       return
     }
-    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
-      guard let self = self else { return }
-      DispatchQueue.main.async {
-        self.handleRegularOpen(authorizationStatus: settings.authorizationStatus)
+
+    let center = UNUserNotificationCenter.current()
+    Task { [weak self] in
+      guard let self else { return }
+      let settings = await center.notificationSettings()
+      if settings.authorizationStatus == .notDetermined {
+        // Await provisional flow fully (auth & APNs register)
+        await self.setupProvisionalPush()
+      }
+      let updated = await center.notificationSettings()
+      await MainActor.run {
+        let token = self.currentPushToken
+        guard !token.isEmpty else {
+          // AppDelegate will call handleRegularOpen after token is persisted
+          Loggers.event.debug("Deferring handleRegularOpen: push token not yet available. It will be triggered later from AppDelegate after APNs registration completes.")
+          return
+        }
+        self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
       }
     }
   }
@@ -522,6 +547,19 @@ public final class ATTNSDK: NSObject {
       object: nil,
       userInfo: ["attentivePushDeeplinkUrl": validURL]
     )
+  }
+
+  private func setupProvisionalPush() async {
+    let center = UNUserNotificationCenter.current()
+    do {
+      // Grants .provisional without showing the system prompt.
+      _ = try await center.requestAuthorization(options: [.alert, .sound, .badge, .provisional])
+    } catch {
+      Loggers.event.error("Failed to request provisional push authorization: \(error)")
+    }
+    await MainActor.run {
+      UIApplication.shared.registerForRemoteNotifications()
+    }
   }
 }
 
@@ -551,6 +589,31 @@ fileprivate extension ATTNSDK {
     handler: ATTNCreativeTriggerCompletionHandler? = nil
   ) {
     webViewHandler?.launchCreative(parentView: view, creativeId: creativeId, handler: handler)
+  }
+
+}
+
+// MARK: - PushToken storage
+private final class PushTokenStore {
+  private let key = "attentiveDeviceToken"
+  private let queue = DispatchQueue(label: "com.attentive.sdk.PushTokenStore", qos: .userInitiated)
+  private var inMemory: String?
+
+  var token: String {
+    get {
+      queue.sync {
+        if let token = inMemory { return token }
+        let persisted = UserDefaults.standard.string(forKey: key) ?? ""
+        inMemory = persisted
+        return persisted
+      }
+    }
+    set {
+      queue.sync {
+        self.inMemory = newValue
+        UserDefaults.standard.set(newValue, forKey: self.key)
+      }
+    }
   }
 }
 

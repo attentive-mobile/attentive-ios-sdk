@@ -348,6 +348,66 @@ final class ATTNAPI: ATTNAPIProtocol {
         task.resume()
       }
     }
+
+  // MARK: - Update User
+
+  func updateUser(
+    pushToken: String,
+    userIdentity: ATTNUserIdentity,
+    email: String? = nil,
+    phone: String? = nil,
+    callback: ATTNAPICallback? = nil
+  ) {
+    var meta: [String: Any] = [:]
+    if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+      meta["email"] = email
+    }
+    if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
+      meta["phone"] = phone
+    }
+
+    var payload: [String: Any] = [
+      "c": self.domain,
+      "u": userIdentity.visitorId,
+      "tp": "apns",
+      "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+      "m": meta
+    ]
+    if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+    guard let url = URL(string: "https://mobile.attentivemobile.com:443/user-update") else {
+      Loggers.network.error("Invalid Update User URL")
+      callback?(nil, nil, nil, ATTNError.badURL)
+      return
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 15
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+    request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+    Loggers.network.debug("POST /update_user payload: \(payload)")
+
+    let task = self.urlSession.dataTask(with: request) { data, response, error in
+      if let error = error {
+        Loggers.network.error("Update User error: \(error.localizedDescription)")
+      } else if let http = response as? HTTPURLResponse {
+        Loggers.network.debug("----- Update User Result -----")
+        Loggers.network.debug("Status Code: \(http.statusCode)")
+        Loggers.network.debug("Headers: \(http.allHeaderFields)")
+        if http.statusCode >= 400 {
+          Loggers.network.error("UpdateUser API returned status \(http.statusCode)")
+        }
+      }
+      if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+        Loggers.network.debug("Response Body:\n\(bodyStr)")
+      }
+      callback?(data, url, response, error)
+    }
+    task.resume()
+  }
 }
 
 fileprivate extension ATTNAPI {
