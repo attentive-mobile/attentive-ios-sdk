@@ -17,6 +17,7 @@ extension Notification.Name {
 
 public enum ATTNSDKError: Error {
   case initializationFailed
+  case missingPushToken
 }
 
 @objc(ATTNSDK)
@@ -210,6 +211,11 @@ public final class ATTNSDK: NSObject {
     transport: String = "apns",
     callback: ATTNAPICallback? = nil
   ) {
+    if pushToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      Loggers.event.error("registerAppEvents aborted: missing push token.")
+      callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
+      return
+    }
     api.sendAppEvents(pushToken: pushToken, subscriptionStatus: subscriptionStatus, transport: transport, events: events, userIdentity: userIdentity) { data, url, response, error in
       Loggers.event.debug("----- App Open Events Request Result -----")
       if let url = url {
@@ -435,10 +441,15 @@ public final class ATTNSDK: NSObject {
   public func updateUser(email: String? = nil,
                          phone: String? = nil,
                          callback: ATTNAPICallback? = nil) {
-    let pushToken = currentPushToken
+    var pushToken = currentPushToken
       ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
       ?? ""
-
+    pushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !pushToken.isEmpty else {
+      Loggers.event.error("updateUser aborted: missing push token.")
+      callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
+      return
+    }
     api.updateUser(
       pushToken: pushToken,
       userIdentity: userIdentity,

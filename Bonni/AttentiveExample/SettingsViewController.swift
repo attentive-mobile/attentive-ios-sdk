@@ -128,63 +128,63 @@ class SettingsViewController: UIViewController {
   }()
 
   private let addEmailButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Add email", for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Add email", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let optInEmailButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Opt in email", for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Opt in email", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let optOutEmailButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Opt out email", for: .normal)
-    b.setTitleColor(.systemRed, for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Opt out email", for: .normal)
+    button.setTitleColor(.systemRed, for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let addPhoneButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Add phone", for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Add phone", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let optInPhoneButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Opt in phone", for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Opt in phone", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let optOutPhoneButton: UIButton = {
-    let b = UIButton(type: .system)
-    b.setTitle("Opt out phone", for: .normal)
-    b.setTitleColor(.systemRed, for: .normal)
-    b.translatesAutoresizingMaskIntoConstraints = false
-    return b
+    let button = UIButton(type: .system)
+    button.setTitle("Opt out phone", for: .normal)
+    button.setTitleColor(.systemRed, for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
   }()
 
   private let currentEmailLabel: UILabel = {
-    let l = UILabel()
-    l.text = "Current email:"
-    l.numberOfLines = 1
-    l.translatesAutoresizingMaskIntoConstraints = false
-    return l
+    let label = UILabel()
+    label.text = "Current email:"
+    label.numberOfLines = 1
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
   }()
 
   private let currentPhoneLabel: UILabel = {
-    let l = UILabel()
-    l.text = "Current phone:"
-    l.numberOfLines = 1
-    l.translatesAutoresizingMaskIntoConstraints = false
-    return l
+    let label = UILabel()
+    label.text = "Current phone:"
+    label.numberOfLines = 1
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
   }()
 
   // MARK: - Lifecycle
