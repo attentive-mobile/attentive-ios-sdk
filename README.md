@@ -4,13 +4,13 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
-### Cocoapods for 2.0.2-beta.2
+### Cocoapods for 2.0.2-beta.3
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.2-beta.2'
+  pod 'attentive-ios-sdk', '2.0.2-beta.3'
 end
 ```
 
@@ -24,7 +24,7 @@ pod install
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.2
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2-beta.3
 
 
 ## Usage
@@ -32,7 +32,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
 iOS SDK is used.
 
-See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.2-beta.2/Bonni) for a sample of how the push integration works.
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/beta/2.0.2-beta.3/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -130,7 +130,7 @@ sdk.clearUser()
 
 ### Update user via email and/or phone
 
-Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user, and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user (the sdk will automatically call clearUser()), and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
 
 #### Swift
 ```

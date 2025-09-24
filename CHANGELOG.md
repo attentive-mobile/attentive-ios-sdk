@@ -1,9 +1,10 @@
-## [2.0.2-beta.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.2...2.0.2-beta.3) (2025-08-25)
+## [2.0.2-beta.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.2...2.0.2-beta.3) (2025-09-24)
 
 ### Feature
 Added Marketing Subscription Management helpers:
 Opt In: Create subscriptions using email, phone (SMS), or both.
 Opt Out: Remove subscriptions using email, phone (SMS), or both.
+Update User: Switch the identified user via email and/or phone.
 
 ## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
 
