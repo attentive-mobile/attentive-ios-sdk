@@ -95,7 +95,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
       Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
 
-      stateManager.updateState(.launching)
       // Time out logic in case creative doesn't launch
       let timeoutInterval: TimeInterval = 5.0
       creativeQueue.asyncAfter(deadline: .now() + timeoutInterval) { [weak self] in
@@ -333,6 +332,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
       let adjustedX = safeFrame.minX + left
       let newArea = CGRect(x: adjustedX, y: flippedY, width: width, height: height)
 
+      // 100 is a magic number that helps determine if a creative is full screen
       let isFullscreen = height >= 100
       Loggers.creative.debug("Resizing creative to \(isFullscreen ? "fullscreen" : "bubble")")
 
