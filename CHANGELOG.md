@@ -11,10 +11,36 @@ Update User: Switch the identified user via email and/or phone.
 ### Feature
 Add completion handler to `registerForPushNotifications` for async success/error handling
 
-## [2.0.2-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.1-beta.4...2.0.2-beta.1) (2025-08-05)
+## [2.0.2-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.1-beta.4...2.0.2-beta.1) (2025-09-05)
 
 ### Feature
-Add support for image-based push notifications
+- **Rich Push Image Support**
+  - Added full support for image-based push notifications using Notification Service Extensions (NSE)
+  - Included Swift and Objective-C implementation examples for downloading and displaying remote images via `attentive_image_url`
+
+### Bug Fixes
+- Fixed JSON encoding issues in push notification payloads (e.g. newline and special character escaping)
+- Improved push reliability by ensuring payloads conform to APNs expectations
+
+## [2.0.1-beta.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.0-beta.1...2.0.1-beta.4) (2025-08-14)
+
+### Feature
+- **Push Deep Link Support**
+  - `ATTNSDKDeepLinkReceived` notification now broadcasts tappable links for in-app navigation
+  - Added `consumeDeepLink()` API to let the host app defer handling of a stored deep link
+  - Expanded README with Objective-C and Swift examples for both consumption patterns
+
+### Improvements
+- Clarified push integration steps in README
+- Enhanced push tracking behavior in background/foreground states
+
+## [2.0.0-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/releases/tag/2.0.0-beta.1) (2025-07-15)
+
+### Initial Beta Release of 2.x
+- Major SDK architecture upgrade
+- Push notification support
+- New sample app:
+  - `Bonni/` app (push integration demo)
 
 ## [1.0.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.6.0...1.0.0) (2024-07-17)
 
