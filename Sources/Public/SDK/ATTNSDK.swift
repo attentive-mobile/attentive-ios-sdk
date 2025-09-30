@@ -364,12 +364,8 @@ public final class ATTNSDK: NSObject {
       return
     }
 
-    let pushToken = currentPushToken
-    ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
-    ?? ""
-
     api.sendOptInMarketingSubscription(
-      pushToken: pushToken,
+      pushToken: currentPushToken,
       email: email,
       phone: phone,
       userIdentity: userIdentity,
@@ -408,12 +404,8 @@ public final class ATTNSDK: NSObject {
       return
     }
 
-    let pushToken = currentPushToken
-    ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
-    ?? ""
-
     api.sendOptOutMarketingSubscription(
-      pushToken: pushToken,
+      pushToken: currentPushToken,
       email: email,
       phone: phone,
       userIdentity: userIdentity,
@@ -441,10 +433,10 @@ public final class ATTNSDK: NSObject {
   public func updateUser(email: String? = nil,
                          phone: String? = nil,
                          callback: ATTNAPICallback? = nil) {
-    var pushToken = currentPushToken
-      ?? UserDefaults.standard.string(forKey: "attentiveDeviceToken")
-      ?? ""
-    pushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
+    let pushToken = !trimmedPushToken.isEmpty
+    ? trimmedPushToken
+    : (UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "")
     guard !pushToken.isEmpty else {
       Loggers.event.error("updateUser aborted: missing push token.")
       callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
@@ -613,7 +605,7 @@ private final class PushTokenStore {
   var token: String {
     get {
       queue.sync {
-        if let token = inMemory { return token }
+        if let token = inMemory, !token.isEmpty { return token }
         let persisted = UserDefaults.standard.string(forKey: key) ?? ""
         inMemory = persisted
         return persisted

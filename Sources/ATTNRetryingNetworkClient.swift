@@ -148,7 +148,8 @@ final class ATTNRetryingNetworkClient {
   ///   delay = initialDelay * (2^attemptCount) + random(jitterRange)
   private func computeBackoff(for attemptCount: Int) -> TimeInterval {
     let exponential = config.initialDelay * pow(2.0, Double(attemptCount))
-    let jitter = Double.random(in: config.jitterRange)
+    var rng = SystemRandomNumberGenerator()
+    let jitter = Double.random(in: config.jitterRange, using: &rng)
     return max(0, exponential + jitter)
   }
 
