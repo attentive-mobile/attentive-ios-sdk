@@ -163,6 +163,8 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
 
   var webViewSetupExpectation: XCTestExpectation?
   var webViewRemovalExpectation: XCTestExpectation?
+  private var didFulfillSetup = false
+  private var didFulfillRemoval = false
 
   private var _webView: WKWebView?
   var webViewCreationCount = 0
@@ -176,11 +178,17 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
           self.loadedURL = mockWebView.loadedURL
         }
         DispatchQueue.main.async {
-          self.webViewSetupExpectation?.fulfill()
+          if self.didFulfillSetup == false {
+            self.webViewSetupExpectation?.fulfill()
+            self.didFulfillSetup = true
+          }
         }
       } else {
         DispatchQueue.main.async {
-          self.webViewRemovalExpectation?.fulfill()
+          if self.didFulfillRemoval == false {
+            self.webViewRemovalExpectation?.fulfill()
+            self.didFulfillRemoval = true
+          }
         }
       }
     }

@@ -78,7 +78,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     creativeId: String? = nil,
     handler: ATTNCreativeTriggerCompletionHandler? = nil
   ) {
-    if stateManager.getState() != .closed {
+    guard stateManager.compareAndSet(from: .closed, to: .launching) else {
       Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
       return
     }
