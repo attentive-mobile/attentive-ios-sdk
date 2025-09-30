@@ -1,3 +1,15 @@
+## [1.1.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.3...1.1.4) (2025-08-01)
+
+### Bug Fixes
+- Fixed a critical issue where the `CustomWebView` interactive area would not update correctly when expanding from bubble to full-screen, or after returning from background.
+- Improved fallback behavior to default to full-screen bounds when style data is invalid or missing.
+
+## [1.1.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.2...1.1.3) (2025-07-23)
+
+### Bug Fixes
+- Fixed an issue where the screen could become unresponsive if the user navigated away before the creative finished loading and returned later.
+- Improved lifecycle handling of creative web view to ensure proper cleanup and consistent touch passthrough behavior.
+
 ## [1.1.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.1...1.1.2) (2025-07-23)
 
 ### Bug Fixes
