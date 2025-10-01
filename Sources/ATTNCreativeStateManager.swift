@@ -31,4 +31,17 @@ final class ATTNCreativeStateManager {
       self.state = newState
     }
   }
+
+  /// Atomically set state from `expected` to `newState`. Returns true iff it succeeded.
+  @discardableResult
+  func compareAndSet(from expected: CreativeState, to newState: CreativeState) -> Bool {
+    var didSet = false
+    queue.sync(flags: .barrier) {
+      if self.state == expected {
+        self.state = newState
+        didSet = true
+      }
+    }
+    return didSet
+  }
 }

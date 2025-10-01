@@ -42,6 +42,38 @@ Add completion handler to `registerForPushNotifications` for async success/error
 - New sample app:
   - `Bonni/` app (push integration demo)
 
+## [1.1.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.3...1.1.4) (2025-08-01)
+
+### Bug Fixes
+- Fixed a critical issue where the `CustomWebView` interactive area would not update correctly when expanding from bubble to full-screen, or after returning from background.
+- Improved fallback behavior to default to full-screen bounds when style data is invalid or missing.
+
+## [1.1.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.2...1.1.3) (2025-07-23)
+
+### Bug Fixes
+- Fixed an issue where the screen could become unresponsive if the user navigated away before the creative finished loading and returned later.
+- Improved lifecycle handling of creative web view to ensure proper cleanup and consistent touch passthrough behavior.
+
+## [1.1.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.1...1.1.2) (2025-07-23)
+
+### Bug Fixes
+- Fixed an issue where `CustomWebView` incorrectly intercepted user touches outside the defined `interactiveHitArea`, blocking interaction with underlying views.
+- Ensured touch passthrough behavior remains consistent across screen transitions and dynamic content resizing.
+
+## [1.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.0...1.1.1) (2025-07-10)
+
+### Bug Fixes
+Improved interactive area detection for creative rendering to better align with user intent and fix layout edge cases. Enhanced UX when interacting with bubble and full-screen creatives.
+
+## [1.1.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.0.0...1.1.0) (2025-06-27)
+
+This minor release focuses on bug fixes, internal optimizations, and performance improvements across the SDK. These changes improve SDK stability, reduce startup time, and enhance developer experience without introducing any breaking changes.
+
+### Improvements
+- Optimized SDK initialization performance
+- Fixed creative rendering issues
+- Minor memory and threading optimizations
+
 ## [1.0.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/0.6.0...1.0.0) (2024-07-17)
 
 This major release marks the transition from beta to general availability (GA) for the Attentive iOS SDK. The 1.0.0 version incorporates feedback and improvements made during the beta phases, ensuring a stable and robust SDK.
