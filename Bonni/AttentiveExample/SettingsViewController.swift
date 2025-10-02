@@ -83,7 +83,7 @@ class SettingsViewController: UIViewController {
 
   private let sendLocalPushNotification: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("🔔 Send Local Push Notification", for: .normal)
+    button.setTitle("🔔 Send \"Local\" Push Notification", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
