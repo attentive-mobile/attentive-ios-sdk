@@ -21,6 +21,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
   private(set) var urlSession: URLSession
 
+  private let retryClient: ATTNRetryingNetworkClient
+  private var lastPushTokenSendTime: Date?
+
   // MARK: ATTNAPIProtocol Properties
   var cachedGeoAdjustedDomain: String?
   var domain: String
@@ -29,12 +32,14 @@ final class ATTNAPI: ATTNAPIProtocol {
     self.urlSession = URLSession.build(withUserAgent: userAgentBuilder.buildUserAgent())
     self.domain = domain
     self.cachedGeoAdjustedDomain = nil
+    self.retryClient = ATTNRetryingNetworkClient(session: self.urlSession)
   }
 
   init(domain: String, urlSession: URLSession) {
     self.urlSession = urlSession
     self.domain = domain
     self.cachedGeoAdjustedDomain = nil
+    self.retryClient = ATTNRetryingNetworkClient(session: self.urlSession)
   }
 
   func send(userIdentity: ATTNUserIdentity) {
@@ -79,6 +84,14 @@ final class ATTNAPI: ATTNAPIProtocol {
                      userIdentity: ATTNUserIdentity,
                      authorizationStatus: UNAuthorizationStatus,
                      callback: ATTNAPICallback?) {
+    //debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
+    let now = Date()
+    if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+      Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
+      return
+    }
+    lastPushTokenSendTime = now
+
     getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
       guard let self = self else { return }
       if let error = error {
@@ -114,7 +127,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       let payload: [String:Any] = [
         "c": geoDomain,
-        "v": "mobile-app",
+        "v": "mobile-app-\(ATTNConstants.sdkVersion)",
         "u": userIdentity.visitorId,
         "evs": evsArray,
         "m": metadata,
@@ -131,7 +144,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       Loggers.network.debug("POST /token payload: \(payload)")
 
-      let task = self.urlSession.dataTask(with: request) { data, response, error in
+      retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
         if let error = error {
           Loggers.network.error("Error sending push token: \(error.localizedDescription)")
         } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -141,7 +154,6 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         callback?(data, url, response, error)
       }
-      task.resume()
     }
   }
 
@@ -153,10 +165,9 @@ final class ATTNAPI: ATTNAPIProtocol {
       userIdentity: ATTNUserIdentity,
       callback: ATTNAPICallback?
     ) {
-      let sdkVersion = "1.1.0"  // TODO: change this with each SDK release
       let deviceInfo: [String: Any] = [
         "c": domain,
-        "v": sdkVersion,
+        "v": "mobile-app-\(ATTNConstants.sdkVersion)",
         "u": userIdentity.visitorId,
         "pd": "",
         "m": userIdentity.buildBaseMetadata(),
@@ -181,7 +192,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
       Loggers.network.debug("POST app open events payload: \(payload)")
 
-      let task = urlSession.dataTask(with: request) { data, response, error in
+      retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
         if let error = error {
           Loggers.network.error("Error sending app events: \(error.localizedDescription)")
         } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -191,8 +202,212 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         callback?(data, url, response, error)
       }
-      task.resume()
     }
+
+  // MARK: - Opt-In Subscriptions
+
+    func sendOptInMarketingSubscription(
+      pushToken: String,
+      email: String?,
+      phone: String?,
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    ) {
+      getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
+        guard let self = self else { return }
+
+        if let geoError = geoError {
+          Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription)")
+          callback?(nil, nil, nil, geoError)
+          return
+        }
+        guard let geoDomain = geoDomain else {
+          Loggers.network.error("Opt-in: geo domain missing")
+          callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+          return
+        }
+
+        let evsJson  = userIdentity.buildExternalVendorIdsJson()
+        let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+
+        var payload: [String: Any] = [
+          "c": geoDomain,
+          "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+          "u": userIdentity.visitorId,
+          "evs": evsArray,
+          "tp": "apns",
+          "type": "MARKETING"
+        ]
+        if let email = email { payload["email"] = email }
+        if let phone = phone { payload["phone"] = phone }
+        if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/opt-in-subscriptions") else {
+          Loggers.network.error("Invalid opt-in subscriptions URL")
+          callback?(nil, nil, nil, ATTNError.badURL)
+          return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload)")
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("Opt-in error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("----- Opt-In Subscriptions Result -----")
+            Loggers.network.debug("Status Code: \(http.statusCode)")
+            Loggers.network.debug("Headers: \(http.allHeaderFields)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("Opt-in API returned status \(http.statusCode)")
+            }
+          }
+          if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+            Loggers.network.debug("Response Body:\n\(bodyStr)")
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      }
+    }
+
+    // MARK: - Opt-Out Subscriptions
+
+    func sendOptOutMarketingSubscription(
+      pushToken: String,
+      email: String?,
+      phone: String?,
+      userIdentity: ATTNUserIdentity,
+      callback: ATTNAPICallback?
+    ) {
+      getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
+        guard let self = self else { return }
+
+        if let geoError = geoError {
+          Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription)")
+          callback?(nil, nil, nil, geoError)
+          return
+        }
+        guard let geoDomain = geoDomain else {
+          Loggers.network.error("Opt-out: geo domain missing")
+          callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+          return
+        }
+
+        let evsJson  = userIdentity.buildExternalVendorIdsJson()
+        let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+
+        var payload: [String: Any] = [
+          "c": geoDomain,
+          "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+          "u": userIdentity.visitorId,
+          "evs": evsArray,
+          "tp": "apns"
+        ]
+        if let email = email { payload["email"] = email }
+        if let phone = phone { payload["phone"] = phone }
+        if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/opt-out-subscriptions") else {
+          Loggers.network.error("Invalid opt-out subscriptions URL")
+          callback?(nil, nil, nil, ATTNError.badURL)
+          return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload)")
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("Opt-out error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("----- Opt-Out Subscriptions Result -----")
+            Loggers.network.debug("Status Code: \(http.statusCode)")
+            Loggers.network.debug("Headers: \(http.allHeaderFields)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("Opt-out API returned status \(http.statusCode)")
+            }
+          }
+          if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+            Loggers.network.debug("Response Body:\n\(bodyStr)")
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      }
+    }
+
+  // MARK: - Update User
+
+  func updateUser(
+    pushToken: String,
+    userIdentity: ATTNUserIdentity,
+    email: String? = nil,
+    phone: String? = nil,
+    callback: ATTNAPICallback? = nil
+  ) {
+    var meta: [String: Any] = [:]
+    if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+      meta["email"] = email
+    }
+    if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
+      meta["phone"] = phone
+    }
+
+    var payload: [String: Any] = [
+      "c": self.domain,
+      "u": userIdentity.visitorId,
+      "tp": "apns",
+      "v": "mobile-app-\(ATTNConstants.sdkVersion)",
+      "m": meta
+    ]
+    if !pushToken.isEmpty { payload["pt"] = pushToken }
+
+    guard let url = URL(string: "https://mobile.attentivemobile.com:443/user-update") else {
+      Loggers.network.error("Invalid Update User URL")
+      callback?(nil, nil, nil, ATTNError.badURL)
+      return
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 15
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+    request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+    Loggers.network.debug("POST /update_user payload: \(payload)")
+
+    let task = self.urlSession.dataTask(with: request) { data, response, error in
+      if let error = error {
+        Loggers.network.error("Update User error: \(error.localizedDescription)")
+      } else if let http = response as? HTTPURLResponse {
+        Loggers.network.debug("----- Update User Result -----")
+        Loggers.network.debug("Status Code: \(http.statusCode)")
+        Loggers.network.debug("Headers: \(http.allHeaderFields)")
+        if http.statusCode >= 400 {
+          Loggers.network.error("UpdateUser API returned status \(http.statusCode)")
+        }
+      }
+      if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
+        Loggers.network.debug("Response Body:\n\(bodyStr)")
+      }
+      callback?(data, url, response, error)
+    }
+    task.resume()
+  }
 }
 
 fileprivate extension ATTNAPI {

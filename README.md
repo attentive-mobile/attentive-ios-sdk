@@ -10,7 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '1.1.0'
+  pod 'attentive-ios-sdk', '2.0.2'
 end
 ```
 
@@ -20,46 +20,19 @@ And then make sure to run:
 pod install
 ```
 
-Check for new versions of the SDK using this command:
-
-```ruby
-pod update ATTNSDKFramework
-```
-
-You can then update the version in your pod file and run `pod install` again to pull the changes.
-
-> [!IMPORTANT]
-> `attentive-ios-sdk` was deprecated in favor of `ATTNSDKFramework`. Please update your Podfile with the newest name for the SDK.
 
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2
 
-In your applications `Package.swift` file, add the attentive-ios-sdk as a dependency:
-
-```swift
-dependencies: [
-    // your other app dependencies
-    .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "1.1.0"),
-],
-```
-
-This will allow your package to update patch releases with `swift package update`, but won't auto-upgrade any minor or major versions.
-
-Then, from a command line, run:
-
-```
-swift package resolve
-```
-
-To update your local package, run `swift package update`.
-
-To check for new major and minor versions of this SDK, navigate to the [releases](https://github.com/attentive-mobile/attentive-ios-sdk/releases) tab of the project. You can then manually update the version in your `Package.swift` file and run `swift package resolve` to complete the update.
 
 ## Usage
 
 See the [Example Project](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Example) for a sample of how the Attentive
-IOS SDK is used.
+iOS SDK is used.
+
+See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/main/Bonni) for a sample of how the push integration works.
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
@@ -68,7 +41,9 @@ IOS SDK is used.
 
 ### Initialize the SDK
 
-The code snippets and examples below assume you are working in Objective C. To make the SDK available, you need to import the header
+**Note** the SDK must be initialized as soon as possible after application startup. This is required for us to properly track metrics and to ensure the SDK functions properly.
+
+The code snippets and examples below assume you are working in Swift or Objective C. To make the SDK available, you need to import the header
 file after installing the SDK:
 
 #### Swift
@@ -153,6 +128,39 @@ sdk.clearUser()
 [sdk clearUser];
 ```
 
+### Update user via email and/or phone
+
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user (the sdk will automatically call clearUser()), and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+
+#### Swift
+```
+// Update user with both email and phone
+attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
+    switch result {
+    case .success:
+        // print("User updated successfully with email and phone")
+        break
+    case .failure(let error):
+        // print("User update failed: \(error.localizedDescription)")
+        break
+    }
+}
+```
+
+#### Objective-C
+```
+// Update user with email
+[attentiveSdk updateUserWithEmail:@"user@example.com"
+                            phone:nil
+                         callback:^(ATTNAPIResult *result) {
+    if (result.success) {
+        // NSLog(@"User updated successfully with email");
+    } else {
+        // NSLog(@"User update failed: %@", result.error.localizedDescription);
+    }
+}];
+```
+
 ## Step 3 - Record user events
 
 Call Attentive's event functions whenever important events happens in your app, so that Attentive can better understand user behaviors, trigger journeys, and attribute revenue accurately.
@@ -229,86 +237,227 @@ ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert V
 [[ATTNEventTracker sharedInstance] recordEvent:customEvent];
 ```
 
-## Step 4 (optional) - Show Creatives
-
+## Step 4 - Integrate With Push
 #### Swift
 
-```swift
-sdk.trigger(view) { status in
-  switch status {
-  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is opened sucessfully
-  case ATTNCreativeTriggerStatus.opened:
-    print("Opened the Creative!")
-  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative has been triggered but it is not opened successfully. 
-  // This can happen if there is no available mobile app creative, if the creative is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
-  case ATTNCreativeTriggerStatus.notOpened:
-    print("Couldn't open the Creative!")
-  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is closed sucessfully
-  case ATTNCreativeTriggerStatus.closed:
-    print("Closed the Creative!")
-  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative is not closed due to an unknown exception
-  case ATTNCreativeTriggerStatus.notClosed:
-    print("Couldn't close the Creative!")
-  default:
-    break
+Show push permission prompt:
+```
+attentiveSdk?.registerForPushNotifications { granted, error in
+    if let error = error {
+        // Handle error (e.g. logging)
+    }
+    if granted {
+        // Permission granted, proceed with registration-dependent logic
+    } else {
+        // Permission denied
+    }
+}
+```
+
+Push registration:
+```
+func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+  UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+    guard let self = self else { return }
+    let authStatus = settings.authorizationStatus
+    attentiveSdk?.registerDeviceToken(deviceToken, authorizationStatus: authStatus, callback: { data, url, response, error in
+      DispatchQueue.main.async {
+        self.attentiveSdk?.handleRegularOpen(authorizationStatus: authStatus)
+      }
+    })
   }
+}
+```
+
+Handle when push registration fails:
+```
+func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+    attentiveSdk?.failedToRegisterForPush(error)
+}
+```
+
+Handle incoming push:
+```
+func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let authStatus = settings.authorizationStatus
+      DispatchQueue.main.async {
+        switch UIApplication.shared.applicationState {
+        case .active:
+          self.attentiveSdk?.handleForegroundPush(response: response, authorizationStatus: authStatus)
+
+        case .background, .inactive:
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
+
+        @unknown default:
+          self.attentiveSdk?.handlePushOpen(response: response, authorizationStatus: authStatus)
+        }
+      }
+    }
+    completionHandler()
 }
 ```
 
 #### Objective-C
 
-```objective-c
-// Load the creative with a completion handler.
-[sdk trigger:self.view
-     handler:^(NSString *triggerStatus) {
-      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
-        NSLog(@"Opened the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
-        NSLog(@"Couldn't open the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
-        NSLog(@"Closed the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
-        NSLog(@"Couldn't close the Creative!");
-      }
+Show push permission prompt:
+```
+[self.attentiveSdk registerForPushNotifications];
+```
+
+Handle when push registration fails:
+```
+[self.attentiveSdk registerForPushFailed:error];
+```
+
+Handle incoming push: 
+```
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+didReceiveNotificationResponse:(UNNotificationResponse *)response
+         withCompletionHandler:(void (^)(void))completionHandler
+{
+    [[UNUserNotificationCenter currentNotificationCenter]
+      getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+
+        UNAuthorizationStatus authStatus = settings.authorizationStatus;
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIApplicationState state = [UIApplication sharedApplication].applicationState;
+            switch (state) {
+                case UIApplicationStateActive:
+                    [self.attentiveSdk
+                        handleForegroundPushWithResponse:response
+                                 authorizationStatus:authStatus];
+                    break;
+
+                case UIApplicationStateBackground:
+                case UIApplicationStateInactive:
+                    [self.attentiveSdk
+                        handlePushOpenWithResponse:response
+                            authorizationStatus:authStatus];
+                    break;
+
+                default:
+                    [self.attentiveSdk
+                        handlePushOpenWithResponse:response
+                            authorizationStatus:authStatus];
+                    break;
+            }
+        });
     }];
+    completionHandler();
+}
 ```
-#### Swift
 
-```swift
-// Alternatively, you can load the creative without a completion handler
-sdk.trigger(view)
+#### Sample push payload with deep link and image support
+
+```
+{
+  "aps": {
+    "alert": {
+      "title": "Welcome to Attentive",
+      "body": "Get 10% off your first in-app purchase!"
+    },
+    "sound": "default",
+    "mutable-content": 1
+  },
+  "attentiveCallbackData": {
+    "attentiveData": "<base64-encoded attentive payload>",
+    "attentive_open_action_url": "https://www.example.com/promo",
+    "attentive_message_title": "Welcome to Attentive",
+    "attentive_image_url": "https://cdn.example.com/images/promo-banner.jpg",
+    "attentive_message_body": "Get 10% off your first in-app purchase!"
+  }
+}
+```
+
+### Deep Link Support
+
+Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
+
+#### Option 1: Observe the ATTNSDKDeepLinkReceived notification
+```
+NotificationCenter.default.addObserver(
+ self,
+ selector: #selector(didReceiveDeepLink(_:)),
+ name: .ATTNSDKDeepLinkReceived,
+ object: nil
+)
+
+@objc private func didReceiveDeepLink(_ notification: Notification) {
+  guard let url = notification.userInfo?["attentivePushDeeplinkUrl"] as? URL else { return }
+  // handle navigating to the link in your app
+}
+```
+
+#### Option 2: Consume deep link when your app is ready to navigate. This will consume and delete the deep link stored in SDK
+```
+let sdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+attentiveSdk = sdk
+
+if let url = attentiveSdk.consumeDeepLink() {
+  // handle navigating to the link in your app
+}
+```
+
+## Step 5 - Email & SMS Subscription Support
+
+### Manage subscriptions for email and phone numbers
+
+Our SDK allows you to directly manage marketing subscriptions for emails and phone numbers. Your app is solely responsible for displaying any required legal information. To opt users in or out, you must provide at least one of either an email address or a phone number. Phone numbers must be in E.164 format.
+
+Create or remove a subscription:
+
+#### Swift
+```
+let attentiveSdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
+
+// Opt in with email
+attentiveSdk.optInMarketingSubscription(email: "user@example.com") { _,_,response,error in
+    if error == nil {
+        // print("Email opt-in successful")
+    } else {
+        // print("Email opt-in failed: \(error!)")
+    }
+}
+
+// Opt out with phone
+attentiveSdk.optOutMarketingSubscription(phone: "+15551234567") { _,_,response,error in
+    if error == nil {
+        // print("Phone opt-out successful")
+    } else {
+        // print("Phone opt-out failed: \(error!)")
+    }
+}
 ```
 
 #### Objective-C
+```
+ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
+                                                   mode:ATTNSDKModeProduction];
+// Opt in with email
+[attentiveSdk optInMarketingSubscriptionWithEmail:@"user@example.com"
+                                         callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Email opt-in successful");
+    } else {
+        // NSLog(@"Email opt-in failed: %@", error);
+    }
+}];
 
-```objective-c
-[sdk trigger:self.view];
+// Opt out with phone
+[attentiveSdk optOutMarketingSubscriptionWithPhone:@"+15551234567"
+                                          callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
+    if (!error) {
+        // NSLog(@"Phone opt-out successful");
+    } else {
+        // NSLog(@"Phone opt-out failed: %@", error);
+    }
+}];
 ```
 
-### Skip Fatigue on Creative
-
-For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
-
-#### Swift
-
-```swift
-let sdk = ATTNSDK(domain: "domain")
-sdk.skipFatigueOnCreative = true
-```
-
-#### Objective-C
-
-```objective-c
-ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
-sdk.skipFatigueOnCreative = YES;
-```
-
-Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
-
-Environment value can be a string with value `"true"` or `"false"`.
-
-
-## Other functionality
+## Other functionalities
 
 ### Switch to another domain
 

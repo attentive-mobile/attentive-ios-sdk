@@ -13,6 +13,10 @@ import UserNotifications
 
 class SettingsViewController: UIViewController {
 
+  // MARK: - New state
+  private var currentEmail: String?
+  private var currentPhone: String?
+
   // MARK: - UI Components
 
   private let scrollView: UIScrollView = {
@@ -49,14 +53,14 @@ class SettingsViewController: UIViewController {
 
   private let switchAccountButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Switch Account / Log Out", for: .normal)
+    button.setTitle("Switch User", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
 
-  private let manageAddressesButton: UIButton = {
+  private let switchDomainButton: UIButton = {
     let button = UIButton(type: .system)
-    button.setTitle("Manage Addresses", for: .normal)
+    button.setTitle("Switch domain", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
@@ -73,20 +77,6 @@ class SettingsViewController: UIViewController {
   private let showPushPermissionButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Show Push Permission", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  private let sendPushTokenButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("Send Push Token", for: .normal)
-    button.translatesAutoresizingMaskIntoConstraints = false
-    return button
-  }()
-
-  private let sendAppOpenEventsButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setTitle("📲 Send App Open Events", for: .normal)
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
@@ -124,6 +114,7 @@ class SettingsViewController: UIViewController {
     copyButton.setTitle("Copy Device Token", for: .normal)
     copyButton.addTarget(self, action: #selector(copyDeviceTokenTapped), for: .touchUpInside)
     return copyButton
+
   }()
 
   private let devicetokenLabel: UILabel = {
@@ -134,6 +125,66 @@ class SettingsViewController: UIViewController {
     devicetokenLabel.textColor = .darkGray
     devicetokenLabel.numberOfLines = 0
     return devicetokenLabel
+  }()
+
+  private let addEmailButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Add email", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let optInEmailButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Opt in email", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let optOutEmailButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Opt out email", for: .normal)
+    button.setTitleColor(.systemRed, for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let addPhoneButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Add phone", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let optInPhoneButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Opt in phone", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let optOutPhoneButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Opt out phone", for: .normal)
+    button.setTitleColor(.systemRed, for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
+  private let currentEmailLabel: UILabel = {
+    let label = UILabel()
+    label.text = "Current email:"
+    label.numberOfLines = 1
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
+  }()
+
+  private let currentPhoneLabel: UILabel = {
+    let label = UILabel()
+    label.text = "Current phone:"
+    label.numberOfLines = 1
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
   }()
 
   // MARK: - Lifecycle
@@ -147,12 +198,10 @@ class SettingsViewController: UIViewController {
     if let navBar = navigationController?.navigationBar {
       navBar.barTintColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1)
       navBar.isTranslucent = false
-      // navBar.titleTextAttributes = [.foregroundColor: UIColor.white] // if you want white title text
     }
 
     setupUI()
     setupActions()
-    setupObservers()
   }
 
   // MARK: - UI Setup
@@ -186,7 +235,7 @@ class SettingsViewController: UIViewController {
 
     stackView.addArrangedSubview(accountInfoLabel)
     stackView.addArrangedSubview(switchAccountButton)
-    stackView.addArrangedSubview(manageAddressesButton)
+    stackView.addArrangedSubview(switchDomainButton)
 
     let divider = UIView()
     divider.backgroundColor = .lightGray
@@ -196,8 +245,6 @@ class SettingsViewController: UIViewController {
 
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
-    stackView.addArrangedSubview(sendPushTokenButton)
-    stackView.addArrangedSubview(sendAppOpenEventsButton)
     stackView.addArrangedSubview(sendLocalPushNotification)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
@@ -208,18 +255,42 @@ class SettingsViewController: UIViewController {
     if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
       let allButtons: [UIButton] = [
         switchAccountButton,
-        manageAddressesButton,
+        switchDomainButton,
         showCreativeButton,
         showPushPermissionButton,
-        sendAppOpenEventsButton,
         sendLocalPushNotification,
-        sendPushTokenButton,
         identifyUserButton,
         clearUserButton,
         clearCookiesButton,
         copyDeviceTokenButton
       ]
       allButtons.forEach {
+        $0.titleLabel?.font = degular
+        $0.titleLabel?.tintColor = .black
+      }
+      currentEmailLabel.font = degular
+      currentPhoneLabel.font = degular
+    }
+
+    let emailRow = UIStackView(arrangedSubviews: [addEmailButton, optInEmailButton, optOutEmailButton])
+    emailRow.axis = .horizontal
+    emailRow.spacing = 12
+    emailRow.distribution = .fillEqually
+
+    let phoneRow = UIStackView(arrangedSubviews: [addPhoneButton, optInPhoneButton, optOutPhoneButton])
+    phoneRow.axis = .horizontal
+    phoneRow.spacing = 12
+    phoneRow.distribution = .fillEqually
+
+    stackView.addArrangedSubview(emailRow)
+    stackView.addArrangedSubview(phoneRow)
+    stackView.addArrangedSubview(currentEmailLabel)
+    stackView.addArrangedSubview(currentPhoneLabel)
+
+    // optional: match font to other buttons
+    if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
+      [addEmailButton, optInEmailButton, optOutEmailButton,
+       addPhoneButton, optInPhoneButton, optOutPhoneButton].forEach {
         $0.titleLabel?.font = degular
         $0.titleLabel?.tintColor = .black
       }
@@ -230,16 +301,21 @@ class SettingsViewController: UIViewController {
 
   private func setupActions() {
     switchAccountButton.addTarget(self, action: #selector(switchAccountTapped), for: .touchUpInside)
-    manageAddressesButton.addTarget(self, action: #selector(manageAddressesTapped), for: .touchUpInside)
+    switchDomainButton.addTarget(self, action: #selector(switchDomainTapped), for: .touchUpInside)
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
-    sendPushTokenButton.addTarget(self, action: #selector(didTapSendPushTokenButton), for: .touchUpInside
-      )
-    sendAppOpenEventsButton.addTarget(self, action: #selector(sendAppOpenEventsTapped), for: .touchUpInside)
     sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
+
+    addEmailButton.addTarget(self, action: #selector(addEmailTapped), for: .touchUpInside)
+    optInEmailButton.addTarget(self, action: #selector(optInEmailTapped), for: .touchUpInside)
+    optOutEmailButton.addTarget(self, action: #selector(optOutEmailTapped), for: .touchUpInside)
+
+    addPhoneButton.addTarget(self, action: #selector(addPhoneTapped), for: .touchUpInside)
+    optInPhoneButton.addTarget(self, action: #selector(optInPhoneTapped), for: .touchUpInside)
+    optOutPhoneButton.addTarget(self, action: #selector(optOutPhoneTapped), for: .touchUpInside)
   }
 
   private func setupObservers() {
@@ -251,16 +327,81 @@ class SettingsViewController: UIViewController {
     )
   }
 
+
   // MARK: - Button Actions
 
   @objc private func switchAccountTapped() {
-    let alert = UIAlertController(title: nil, message: "hello world", preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-    present(alert, animated: true, completion: nil)
+    let alert = UIAlertController(title: "Update User", message: nil, preferredStyle: .alert)
+
+    alert.addTextField { textfield in
+      textfield.placeholder = "name@example.com"
+      textfield.keyboardType = .emailAddress
+      textfield.autocapitalizationType = .none
+    }
+
+    // Phone field needs E.164 format
+    alert.addTextField { tf in
+      tf.placeholder = "+15551234567"
+      tf.keyboardType = .phonePad
+    }
+
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let email = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let phone = alert.textFields?.last?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      self.currentEmail = (email?.isEmpty == false) ? email : nil
+      self.currentPhone = (phone?.isEmpty == false) ? phone : nil
+
+      self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
+      self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
+
+      self.getAttentiveSdk().clearUser()
+      self.getAttentiveSdk().updateUser(
+        email: self.currentEmail,
+        phone: self.currentPhone
+      ) { _, _, response, error in
+        DispatchQueue.main.async {
+          let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+          self.showToast(with: error == nil && status < 400
+                         ? "User update successful"
+                         : "User update failed")
+        }
+      }
+    })
+
+    present(alert, animated: true)
   }
 
-  @objc private func manageAddressesTapped() {
-    // TODO: Add logic to manage and edit addresses
+  @objc private func switchDomainTapped() {
+    let alert = UIAlertController(title: "Switch Domain",
+                                  message: "Enter the new domain",
+                                  preferredStyle: .alert)
+
+    alert.addTextField { textfield in
+      textfield.autocapitalizationType = .none
+      textfield.autocorrectionType = .no
+      textfield.keyboardType = .default
+    }
+
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let raw = alert.textFields?.first?.text ?? ""
+      let newDomain = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      guard newDomain.isEmpty == false else {
+        self.showToast(with: "Please enter a valid domain")
+        return
+      }
+
+      let sdk = self.getAttentiveSdk()
+      sdk.update(domain: newDomain)
+      self.showToast(with: "Domain updated to “\(newDomain)”")
+    })
+
+    present(alert, animated: true)
   }
 
   @objc private func showCreativeTapped() {
@@ -269,100 +410,6 @@ class SettingsViewController: UIViewController {
 
   @objc private func showPushPermissionTapped() {
     self.getAttentiveSdk().registerForPushNotifications()
-  }
-
-  @objc private func didTapSendPushTokenButton() {
-    guard let tokenData = UserDefaults.standard.data(forKey: "deviceTokenData") else {
-      showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
-      return
-    }
-    UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
-      guard let self = self else { return }
-      let authorizationStatus = settings.authorizationStatus
-      getAttentiveSdk().registerDeviceToken(tokenData, authorizationStatus: authorizationStatus) { [weak self] data, url, response, error in
-        guard let self = self else { return }
-        DispatchQueue.main.async {
-          var lines: [String] = []
-          if let url = url {
-            lines.append("URL: \(url.absoluteString)")
-          }
-          lines.append("Domain: games")
-          if let http = response as? HTTPURLResponse {
-            lines.append("Status: \(http.statusCode)")
-            // Clean up headers to remove "AnyHashable" type name etc for readability
-            let headerLines = http.allHeaderFields.compactMap { (key, value) -> String? in
-              guard let keyString = key as? String else { return nil }
-              return "\(keyString): \(value)"
-            }
-            if !headerLines.isEmpty {
-              lines.append("Headers:\n" + headerLines.joined(separator: "\n"))
-            }
-          }
-          if let d = data, let body = String(data: d, encoding: .utf8), !body.isEmpty {
-            lines.append("Body:\n\(body)")
-          }
-          if let err = error {
-            lines.append("Error: \(err.localizedDescription)")
-          }
-          let message = lines.joined(separator: "\n\n")
-
-          let resultVC = UIViewController()
-          resultVC.view.backgroundColor = .systemBackground
-          resultVC.preferredContentSize = CGSize(width: 300, height: 400)
-
-          let textView = UITextView()
-          textView.text = message
-          textView.textAlignment = .left
-          textView.isEditable = false
-          textView.translatesAutoresizingMaskIntoConstraints = false
-          if let customFont = UIFont(name: "DegularDisplay-Regular", size: 16) {
-            textView.font = customFont
-          }
-          resultVC.view.addSubview(textView)
-          NSLayoutConstraint.activate([
-            textView.topAnchor.constraint(equalTo: resultVC.view.topAnchor, constant: 16),
-            textView.leadingAnchor.constraint(equalTo: resultVC.view.leadingAnchor, constant: 16),
-            textView.trailingAnchor.constraint(equalTo: resultVC.view.trailingAnchor, constant: -16),
-            textView.bottomAnchor.constraint(equalTo: resultVC.view.bottomAnchor, constant: -16)
-          ])
-
-          let nav = UINavigationController(rootViewController: resultVC)
-          resultVC.navigationItem.title = "Push Token Result"
-          resultVC.navigationItem.rightBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .action,
-            target: self,
-            action: #selector(self.shareResult)
-          )
-
-          objc_setAssociatedObject(nav, &AssociatedKeys.resultMessage, message, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-
-          nav.modalPresentationStyle = .formSheet
-          self.present(nav, animated: true)
-        }
-      }
-    }
-
-  }
-
-  @objc private func sendAppOpenEventsTapped() {
-    guard let token = UserDefaults.standard.string(forKey: "deviceToken") else {
-      showToast(with: "No push token available. Skipping registering app events")
-      return
-    }
-    let appLaunchEvents: [[String:Any]] = [
-      [
-        "ist": "al",
-        "data": ["message_id": "0",
-                 "send_id": "1",
-                 "destination_token": "0",
-                 "company_id": "1",
-                 "user_id": "0",
-                 "message_type": "app_open",
-                 "message_subtype": "0"]
-      ]
-    ]
-    //getAttentiveSdk().registerAppEvents(appLaunchEvents, pushToken: token)
-    //showToast(with: "App launch event sent!")
   }
 
   @objc private func sendLocalPushNotificationTapped() {
@@ -401,14 +448,90 @@ class SettingsViewController: UIViewController {
   }
 
   @objc private func copyDeviceTokenTapped() {
-    guard let token = UserDefaults.standard.string(forKey: "deviceToken"),
+    guard let token = UserDefaults.standard.string(forKey: "attentiveDeviceToken"),
           !token.isEmpty else {
       showToast(with: "No device token found. Press 'Show Push Permission' button to obtain one.")
       return
     }
     UIPasteboard.general.string = token
-
     showToast(with: "Device token copied")
+  }
+
+  @objc private func addEmailTapped() {
+    let alert = UIAlertController(title: "Add Email", message: nil, preferredStyle: .alert)
+    alert.addTextField { $0.placeholder = "name@example.com"; $0.keyboardType = .emailAddress }
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let text = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+      self.currentEmail = (text?.isEmpty == false) ? text : nil
+      self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
+      self.getAttentiveSdk().identify([ATTNIdentifierType.email : self.currentEmail ?? ""])
+    })
+    present(alert, animated: true)
+  }
+
+  @objc private func addPhoneTapped() {
+    let alert = UIAlertController(title: "Add Phone", message: nil, preferredStyle: .alert)
+    alert.addTextField { tf in
+      tf.placeholder = "+15551234567"
+      tf.keyboardType = .phonePad
+    }
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+      let text = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+      self.currentPhone = (text?.isEmpty == false) ? text : nil
+      self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
+      self.getAttentiveSdk().identify([ATTNIdentifierType.phone : self.currentPhone ?? ""])
+    })
+    present(alert, animated: true)
+  }
+
+  @objc private func optInEmailTapped() {
+    guard let email = currentEmail, !email.isEmpty else {
+      showToast(with: "Add an email first"); return
+    }
+    getAttentiveSdk().optInMarketingSubscription(email: email) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Email opt-in successful" : "Email opt-in failed")
+      }
+    }
+  }
+
+  @objc private func optOutEmailTapped() {
+    guard let email = currentEmail, !email.isEmpty else {
+      showToast(with: "Add an email first"); return
+    }
+    getAttentiveSdk().optOutMarketingSubscription(email: email) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Email opt-out successful" : "Email opt-out failed")
+      }
+    }
+  }
+
+  @objc private func optInPhoneTapped() {
+    guard let phone = currentPhone, !phone.isEmpty else {
+      showToast(with: "Add a phone first"); return
+    }
+    getAttentiveSdk().optInMarketingSubscription(phone: phone) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Phone opt-in successful" : "Phone opt-in failed")
+      }
+    }
+  }
+
+  @objc private func optOutPhoneTapped() {
+    guard let phone = currentPhone, !phone.isEmpty else {
+      showToast(with: "Add a phone first"); return
+    }
+    getAttentiveSdk().optOutMarketingSubscription(phone: phone) { _,_,response,error in
+      _ = (response as? HTTPURLResponse)?.statusCode ?? 0
+      DispatchQueue.main.async {
+        self.showToast(with: error == nil ? "Phone opt-out successful" : "Phone opt-out failed")
+      }
+    }
   }
 
   private func getAttentiveSdk() -> ATTNSDK {

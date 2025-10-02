@@ -1,3 +1,47 @@
+## [2.0.2-beta.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.2...2.0.2-beta.3) (2025-09-24)
+
+### Feature
+Added Marketing Subscription Management helpers:
+Opt In: Create subscriptions using email, phone (SMS), or both.
+Opt Out: Remove subscriptions using email, phone (SMS), or both.
+Update User: Switch the identified user via email and/or phone.
+
+## [2.0.2-beta.2](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.1...2.0.2-beta.2) (2025-08-05)
+
+### Feature
+Add completion handler to `registerForPushNotifications` for async success/error handling
+
+## [2.0.2-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.1-beta.4...2.0.2-beta.1) (2025-09-05)
+
+### Feature
+- **Rich Push Image Support**
+  - Added full support for image-based push notifications using Notification Service Extensions (NSE)
+  - Included Swift and Objective-C implementation examples for downloading and displaying remote images via `attentive_image_url`
+
+### Bug Fixes
+- Fixed JSON encoding issues in push notification payloads (e.g. newline and special character escaping)
+- Improved push reliability by ensuring payloads conform to APNs expectations
+
+## [2.0.1-beta.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.0-beta.1...2.0.1-beta.4) (2025-08-14)
+
+### Feature
+- **Push Deep Link Support**
+  - `ATTNSDKDeepLinkReceived` notification now broadcasts tappable links for in-app navigation
+  - Added `consumeDeepLink()` API to let the host app defer handling of a stored deep link
+  - Expanded README with Objective-C and Swift examples for both consumption patterns
+
+### Improvements
+- Clarified push integration steps in README
+- Enhanced push tracking behavior in background/foreground states
+
+## [2.0.0-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/releases/tag/2.0.0-beta.1) (2025-07-15)
+
+### Initial Beta Release of 2.x
+- Major SDK architecture upgrade
+- Push notification support
+- New sample app:
+  - `Bonni/` app (push integration demo)
+
 ## [1.1.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/1.1.3...1.1.4) (2025-08-01)
 
 ### Bug Fixes
