@@ -277,11 +277,14 @@ public final class ATTNSDK: NSObject {
 
   @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
     let userInfo = response.notification.request.content.userInfo
-    let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
+    Loggers.event.debug("Push notification payload: \(userInfo)")
+    let callbackData = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
+    let escapedData = escapeJSONDictionary(callbackData)
+    Loggers.event.debug("Escaped attentiveCallbackData for handleForegroundPush: \(escapedData)")
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": data
+      "data": escapedData
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -296,7 +299,7 @@ public final class ATTNSDK: NSObject {
 
     registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
-    guard let linkString = data["attentive_open_action_url"] as? String else {
+    guard let linkString = escapedData["attentive_open_action_url"] as? String else {
       Loggers.network.debug("No deep link URL found in push notification")
       return
     }
@@ -307,16 +310,19 @@ public final class ATTNSDK: NSObject {
     ATTNLaunchManager.shared.launchedFromPush = true
     let userInfo = response.notification.request.content.userInfo
     Loggers.event.debug("Push notification payload: \(userInfo)")
-    let data = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
+    let callbackData = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
+    let escapedData = escapeJSONDictionary(callbackData)
+    Loggers.event.debug("Escaped attentiveCallbackData for handlePushOpen: \(escapedData)")
+
     // app launch event
     let alEvent: [String: Any] = [
       "ist": "al",
-      "data": data
+      "data": escapedData
     ]
     // app open from push event
     let oEvent: [String: Any] = [
       "ist": "o",
-      "data": data
+      "data": escapedData
     ]
     let authorizationStatusString: String = {
       switch authorizationStatus {
@@ -330,7 +336,7 @@ public final class ATTNSDK: NSObject {
     }()
     registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
 
-    guard let linkString = data["attentive_open_action_url"] as? String else {
+    guard let linkString = escapedData["attentive_open_action_url"] as? String else {
       Loggers.network.debug("No deep link URL found in push notification")
       return
     }
@@ -562,6 +568,45 @@ public final class ATTNSDK: NSObject {
     }
     await MainActor.run {
       UIApplication.shared.registerForRemoteNotifications()
+    }
+  }
+
+  /// Recursively escapes quotes and slashes in all string values of a JSON dictionary.
+  func escapeJSONDictionary(_ dictionary: [String: Any]) -> [String: Any] {
+    var escapedDict: [String: Any] = [:]
+
+    for (key, value) in dictionary {
+      if let strValue = value as? String {
+        let escaped = strValue
+          .replacingOccurrences(of: "\"", with: "\\\"")
+          .replacingOccurrences(of: "/", with: "\\/")
+        escapedDict[key] = escaped
+      } else if let nestedDict = value as? [String: Any] {
+        escapedDict[key] = escapeJSONDictionary(nestedDict) // recursive for nested dicts
+      } else if let arrayValue = value as? [Any] {
+        escapedDict[key] = escapeJSONArray(arrayValue) // handle arrays
+      } else {
+        escapedDict[key] = value // leave numbers, bools, etc.
+      }
+    }
+
+    return escapedDict
+  }
+
+  /// Recursively escapes string values in JSON arrays.
+  func escapeJSONArray(_ array: [Any]) -> [Any] {
+    return array.map { value in
+      if let strValue = value as? String {
+        return strValue
+          .replacingOccurrences(of: "\"", with: "\\\"")
+          .replacingOccurrences(of: "/", with: "\\/")
+      } else if let dictValue = value as? [String: Any] {
+        return escapeJSONDictionary(dictValue)
+      } else if let nestedArray = value as? [Any] {
+        return escapeJSONArray(nestedArray)
+      } else {
+        return value
+      }
     }
   }
 }

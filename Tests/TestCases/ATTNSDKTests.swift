@@ -46,7 +46,7 @@ final class ATTNSDKTests: XCTestCase {
     XCTAssertTrue(apiSpy.updateDomainWasCalled)
     XCTAssertTrue(apiSpy.domainWasSet)
     XCTAssertTrue(apiSpy.sendUserIdentityWasCalled)
-    
+
     XCTAssertEqual(apiSpy.domain, newDomain)
   }
 
@@ -149,5 +149,87 @@ final class ATTNSDKTests: XCTestCase {
       ATTNCreativeStateManager.shared.updateState(.closed)
     }
   }
+
+  func testEscapeJSONDictionary_shouldEscapeQuotesAndSlashes() {
+      // Given
+      let input: [String: Any] = [
+        "attentive_message_body": #"You heard that right ... shop these "no size" required must-haves and save big!"/test"#,
+        "plain": "Hello"
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+
+      // Then
+      let result = escaped["attentive_message_body"] as? String
+      XCTAssertNotNil(result)
+      XCTAssertTrue(result!.contains("\\\""), "Quotes should be escaped")
+      XCTAssertTrue(result!.contains("\\/"), "Forward slashes should be escaped")
+      XCTAssertEqual(escaped["plain"] as? String, "Hello")
+    }
+
+    func testEscapeJSONDictionary_shouldHandleNestedDictionary() {
+      // Given
+      let input: [String: Any] = [
+        "outer": [
+          "inner": #"He said "hello"/world"#
+        ]
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+      let nested = (escaped["outer"] as? [String: Any])?["inner"] as? String
+
+      // Then
+      XCTAssertNotNil(nested)
+      XCTAssertTrue(nested!.contains("\\\""))
+      XCTAssertTrue(nested!.contains("\\/"))
+    }
+
+    func testEscapeJSONArray_shouldEscapeStringsAndNestedStructures() {
+      // Given
+      let input: [Any] = [
+              "Hello \"friend\"/world",
+              ["nested": "A \"quote\"/slash"],
+              ["array", ["nested \"quote\""]]
+          ]
+
+      // When
+      let escaped = sut.escapeJSONArray(input)
+
+      // Then
+      let first = escaped.first as? String
+      XCTAssertTrue(first?.contains("\\\"") ?? false)
+      XCTAssertTrue(first?.contains("\\/") ?? false)
+
+      if let nestedDict = escaped[1] as? [String: Any],
+         let inner = nestedDict["nested"] as? String {
+        XCTAssertTrue(inner.contains("\\\""))
+        XCTAssertTrue(inner.contains("\\/"))
+      }
+
+      if let nestedArray = (escaped[2] as? [Any])?.last as? [Any],
+         let nestedString = nestedArray.first as? String {
+        XCTAssertTrue(nestedString.contains("\\\""))
+      }
+    }
+
+    func testEscapeJSONDictionary_shouldLeaveNumbersAndBooleansUnchanged() {
+      // Given
+      let input: [String: Any] = [
+        "number": 123,
+        "bool": true,
+        "double": 1.5
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+
+      // Then
+      XCTAssertEqual(escaped["number"] as? Int, 123)
+      XCTAssertEqual(escaped["bool"] as? Bool, true)
+      XCTAssertEqual(escaped["double"] as? Double, 1.5)
+    }
+
 }
 
