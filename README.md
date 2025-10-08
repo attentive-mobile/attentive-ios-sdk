@@ -177,11 +177,34 @@ No action required. The SDK automatically tracks events as anonymous until ident
 ### 2. First login (user provides email and/or phone)  
 Call `identify()` to attach identifiers (email, phone, or both) to the current anonymous user.  
 
+```
+// first-time login
+attentiveSdk?.identify([
+  ATTNIdentifierType.email: "user@example.com",
+  ATTNIdentifierType.phone: "+15551234567"
+])
+```
+
 ### 3. User logs out  
 Call `clearUser()` to remove identifiers.  
 
+``` user logs out
+attentiveSdk?.clearUser()
+```
+
 ### 4. A different user logs in on the same device  
 Call `updateUser(email:phone:callback:)`. This clears the old identifiers automatically and sets the new identifiers accordingly.  
+```
+// switching to a different user on the same device
+attentiveSdk?.updateUser(email: "newuser@example.com", phone: "+15559876543") { result in
+    switch result {
+    case .success:
+        print("Switched to new user")
+    case .failure(let error):
+        print("Failed to update user: \(error.localizedDescription)")
+    }
+}
+```
 
 ### Notes  
 - If the same person logs in again with the same identifiers, the SDK will continue to treat the device as belonging to them.  
