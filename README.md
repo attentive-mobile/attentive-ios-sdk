@@ -161,6 +161,33 @@ attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { resu
 }];
 ```
 
+### Managing User Identity
+
+As discussed above, the SDK provides three methods for managing user identity within your app:
+
+- **`identify()`** – Add or enrich information about the current user.  
+- **`clearUser()`** – Clear all identifiers for the current user (used on logout).  
+- **`updateUser()`** – Switch to a different user (automatically calls `clearUser()` first).  
+
+Common use cases:
+
+### 1. Anonymous user (default state)  
+No action required. The SDK automatically tracks events as anonymous until identifiers are provided.  
+
+### 2. First login (user provides email and/or phone)  
+Call `identify()` to attach identifiers (email, phone, or both) to the current anonymous user.  
+
+### 3. User logs out  
+Call `clearUser()` to remove identifiers.  
+
+### 4. A different user logs in on the same device  
+Call `updateUser(email:phone:callback:)`. This clears the old identifiers automatically and sets the new identifiers accordingly.  
+
+### Notes  
+- If the same person logs in again with the same identifiers, the SDK will continue to treat the device as belonging to them.  
+- At least one identifier (`email` or `phone`) must be provided when calling `identify` or `updateUser`.  
+- Use `updateUser` only when switching users; otherwise prefer `identify` for enriching the current user’s profile.  
+
 ## Step 3 - Record user events
 
 Call Attentive's event functions whenever important events happens in your app, so that Attentive can better understand user behaviors, trigger journeys, and attribute revenue accurately.
