@@ -17,7 +17,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
   private enum Constants {
     static var scheme: String { "https" }
     static var host: String { "events.attentivemobile.com" }
-    static var path: String { "/e" }
+    static var path: String { "/mobile" }
 
     static var pushHost: String { "mobile.attentivemobile.com" }
     static var pushPath: String { "/token" }

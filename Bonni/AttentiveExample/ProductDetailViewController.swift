@@ -116,9 +116,11 @@ class ProductDetailViewController: UIViewController {
   }
 
   private func recordProductViewEvent() {
-    let productViewEvent : ATTNProductViewEvent = ATTNProductViewEvent(items: [product])
-    ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
-    showToast(with: "Product View event sent")
+    //    let productViewEvent : ATTNProductViewEvent = ATTNProductViewEvent(items: [product])
+    //    ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+    //    showToast(with: "Product View event sent")
+    let productViewEvent = ATTNProductViewEvent(items: [product])
+    ATTNEventTracker.sharedInstance()?.record(productViewEvent: productViewEvent, userIdentity: ATTNUserIdentity(identifiers: [:]))
   }
 
   // MARK: - Actions

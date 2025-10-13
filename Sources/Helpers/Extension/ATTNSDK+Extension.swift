@@ -20,4 +20,9 @@ extension ATTNSDK {
       self.skipFatigueOnCreative = false
     }
   }
+
+  func sendProductViewEvent(_ event: ATTNProductViewEvent, userIdentitiy: ATTNUserIdentity) {
+    api.sendProductViewEvent(event, userIdentity: userIdentity)
+  }
+
 }

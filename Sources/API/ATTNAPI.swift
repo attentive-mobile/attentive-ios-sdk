@@ -11,6 +11,7 @@ import UserNotifications
 public typealias ATTNAPICallback = (Data?, URL?, URLResponse?, Error?) -> Void
 
 final class ATTNAPI: ATTNAPIProtocol {
+  
   private enum RequestConstants {
     static var dtagUrlFormat: String { "https://cdn.attn.tv/%@/dtag.js" }
     static var regexPattern: String { "='([a-z0-9-]+)[.]attn[.]tv'" }
@@ -408,6 +409,61 @@ final class ATTNAPI: ATTNAPIProtocol {
     }
     task.resume()
   }
+
+  // MARK: - Product View Event
+
+  func sendProductViewEvent(_ event: ATTNProductViewEvent, userIdentity: ATTNUserIdentity) {
+    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
+      guard let self = self else { return }
+      if let error = error {
+        Loggers.network.error("Error sending ProductView event: \(error.localizedDescription)")
+        //callback?(nil, nil, nil, error)
+        //todo add , callback: ATTNAPICallback? = nil back to the method signature
+        return
+      }
+      guard let geoDomain = geoDomain else {
+        Loggers.network.error("ProductView event: geo domain unavailable")
+        // TODO callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+        return
+      }
+
+      let requests = event.eventRequests(for: userIdentity, domain: geoDomain)
+      for request in requests {
+        guard let url = self.eventUrlProvider.buildUrl(
+          for: request,
+          userIdentity: userIdentity,
+          domain: geoDomain
+        ) else {
+          Loggers.event.error("ProductView event: failed to build URL")
+          continue
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+
+        // Attach wrapped JSON payload if present
+        if let body = try? JSONSerialization.data(withJSONObject: request.metadata) {
+          urlRequest.httpBody = body
+          urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+
+        Loggers.event.debug("POST ProductView event payload: \(request.metadata)")
+
+        let task = self.urlSession.dataTask(with: urlRequest) { data, response, error in
+          if let error = error {
+            Loggers.event.error("Error sending ProductView event: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            Loggers.event.error("ProductView API returned status \(http.statusCode)")
+          } else {
+            Loggers.event.debug("Successfully sent ProductView event")
+          }
+          // TODO callback?(data, url, response, error)
+        }
+        task.resume()
+      }
+    }
+  }
+
 }
 
 fileprivate extension ATTNAPI {

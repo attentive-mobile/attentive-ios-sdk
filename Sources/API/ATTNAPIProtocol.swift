@@ -17,6 +17,7 @@ protocol ATTNAPIProtocol {
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func update(domain newDomain: String)
+  func sendProductViewEvent(_ event: ATTNProductViewEvent, userIdentity: ATTNUserIdentity)
 
   // MARK: - Push token & app events
   func sendPushToken(_ pushToken: String,

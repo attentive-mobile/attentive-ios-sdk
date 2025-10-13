@@ -33,6 +33,11 @@ public final class ATTNEventTracker: NSObject {
     sdk.send(event: event)
   }
 
+  @objc(recordProductViewEvent:userIdentity:)
+  public func record(productViewEvent: ATTNProductViewEvent, userIdentity: ATTNUserIdentity) {
+    sdk.sendProductViewEvent(productViewEvent, userIdentitiy: userIdentity)
+  }
+
   @objc
   public static func sharedInstance() -> ATTNEventTracker? {
     assert(_sharedInstance != nil, "ATTNEventTracker must be setup before being used")
