@@ -10,7 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.2'
+  pod 'attentive-ios-sdk', '2.0.3'
 end
 ```
 
@@ -24,7 +24,7 @@ pod install
 ### Swift Package Manager
 
 We also support adding the dependency via Swift Package Manager.
-SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI and then specify branch name: beta/2.0.2
+SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI.
 
 
 ## Usage
