@@ -205,6 +205,9 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
     detailVC.delegate = self
     navigationController?.pushViewController(detailVC, animated: true)
   }
+
+  
+
 }
 
 extension ProductViewController: ProductDetailViewControllerDelegate {
