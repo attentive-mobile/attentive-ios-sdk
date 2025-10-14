@@ -557,4 +557,43 @@ extension ATTNAPI {
 
     task.resume()
   }
+
+  func sendNewEvent<M: Codable>(
+          _ event: ATTNBaseEvent<M>,
+          callback: ATTNAPICallback? = nil
+      ) {
+        let url = self.eventUrlProvider.buildNewEventEndpointUrl(for: <#T##ATTNEventRequest#>, userIdentity: <#T##ATTNUserIdentity#>, domain: <#T##String#>)
+
+          var request = URLRequest(url: url)
+          request.httpMethod = "POST"
+          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+          request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+
+          do {
+              let encoder = JSONEncoder()
+              encoder.dateEncodingStrategy = .iso8601
+              let bodyData = try encoder.encode(event)
+              request.httpBody = bodyData
+
+              Loggers.network.debug("POST \(url.absoluteString) payload: \(String(data: bodyData, encoding: .utf8) ?? "")")
+
+              let task = urlSession.dataTask(with: request) { data, response, error in
+                  if let error = error {
+                      Loggers.network.error("New event send error: \(error.localizedDescription)")
+                  } else if let http = response as? HTTPURLResponse {
+                      Loggers.network.debug("New event status code: \(http.statusCode)")
+                      if http.statusCode >= 400 {
+                          Loggers.network.error("New event failed: \(http.statusCode)")
+                      }
+                  }
+                  callback?(data, url, response, error)
+              }
+
+              task.resume()
+          } catch {
+              Loggers.network.error("Encoding error: \(error.localizedDescription)")
+              callback?(nil, url, nil, error)
+          }
+      }
+
 }
