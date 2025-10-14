@@ -1,3 +1,7 @@
+## [2.0.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.3...2.0.4) (2025-10-14)
+### Bug Fixes
+Minor bugfix around email/phone opt out.
+
 ## [2.0.3](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.2-beta.3...2.0.3) (2025-10-13)
 ### Bug Fixes
 Improved handling of special characters in push notification payloads to ensure proper decoding and display.
