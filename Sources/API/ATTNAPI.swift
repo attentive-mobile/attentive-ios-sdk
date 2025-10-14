@@ -308,7 +308,8 @@ final class ATTNAPI: ATTNAPIProtocol {
           "v": "mobile-app-\(ATTNConstants.sdkVersion)",
           "u": userIdentity.visitorId,
           "evs": evsArray,
-          "tp": "apns"
+          "tp": "apns",
+          "type": "MARKETING"
         ]
         if let email = email { payload["email"] = email }
         if let phone = phone { payload["phone"] = phone }

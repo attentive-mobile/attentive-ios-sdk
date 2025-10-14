@@ -10,7 +10,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.3'
+  pod 'attentive-ios-sdk', '2.0.4'
 end
 ```
 
@@ -457,27 +457,38 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 Our SDK allows you to directly manage marketing subscriptions for emails and phone numbers. Your app is solely responsible for displaying any required legal information. To opt users in or out, you must provide at least one of either an email address or a phone number. Phone numbers must be in E.164 format.
 
-Create or remove a subscription:
+Examples for creating or removing a subscription (opt in with email, opt out with phone number):
 
 #### Swift
 ```
 let attentiveSdk = ATTNSDK(domain: "YOUR_DOMAIN", mode: .production)
 
-// Opt in with email
-attentiveSdk.optInMarketingSubscription(email: "user@example.com") { _,_,response,error in
+// Opt in a user using their email address and phone.
+
+attentiveSdk.optInMarketingSubscription(email: "user@example.com", phone: "+15551234567") { _, _, response, error in
     if error == nil {
-        // print("Email opt-in successful")
+        // print("Opt-in successful")
     } else {
-        // print("Email opt-in failed: \(error!)")
+        // print("Opt-in failed: \(error)")
     }
 }
 
-// Opt out with phone
-attentiveSdk.optOutMarketingSubscription(phone: "+15551234567") { _,_,response,error in
+// You can also opt in using only a single identifier (email or phone).
+attentiveSdk.optInMarketingSubscription(email: "seconduser@example.com") { _, _, response, error in
     if error == nil {
-        // print("Phone opt-out successful")
+        // print("Opt-in successful")
     } else {
-        // print("Phone opt-out failed: \(error!)")
+        // print("Opt-in failed: \(error)")
+    }
+}
+
+// Opt out a user who previously opted in (via email, phone, or both).
+// The same parameters apply here. Pass whichever identifiers were used for opt-in.
+attentiveSdk.optOutMarketingSubscription(email: "user@example.com", phone: "+15551234567") { _, _, response, error in
+    if error == nil {
+        // print("Opt-out successful")
+    } else {
+        // print("Opt-out failed: \(error)")
     }
 }
 ```
