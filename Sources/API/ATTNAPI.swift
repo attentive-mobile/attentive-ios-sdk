@@ -558,42 +558,73 @@ extension ATTNAPI {
     task.resume()
   }
 
+  /// Sends a new-style event payload to the `/mobile` endpoint.
+  /// - Parameters:
+  ///   - event: The typed event payload (ATTNBaseEvent<M>)
+  ///   - eventRequest: The legacy request object for backward compatibility and URL building
+  ///   - userIdentity: The current user identity
+  ///   - callback: Optional callback for the API response
   func sendNewEvent<M: Codable>(
-          _ event: ATTNBaseEvent<M>,
-          callback: ATTNAPICallback? = nil
-      ) {
-        let url = self.eventUrlProvider.buildNewEventEndpointUrl(for: <#T##ATTNEventRequest#>, userIdentity: <#T##ATTNUserIdentity#>, domain: <#T##String#>)
+    event: ATTNBaseEvent<M>,
+    eventRequest: ATTNEventRequest,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback? = nil
+  ) {
+    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
+      guard let self = self else { return }
 
-          var request = URLRequest(url: url)
-          request.httpMethod = "POST"
-          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-          request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-
-          do {
-              let encoder = JSONEncoder()
-              encoder.dateEncodingStrategy = .iso8601
-              let bodyData = try encoder.encode(event)
-              request.httpBody = bodyData
-
-              Loggers.network.debug("POST \(url.absoluteString) payload: \(String(data: bodyData, encoding: .utf8) ?? "")")
-
-              let task = urlSession.dataTask(with: request) { data, response, error in
-                  if let error = error {
-                      Loggers.network.error("New event send error: \(error.localizedDescription)")
-                  } else if let http = response as? HTTPURLResponse {
-                      Loggers.network.debug("New event status code: \(http.statusCode)")
-                      if http.statusCode >= 400 {
-                          Loggers.network.error("New event failed: \(http.statusCode)")
-                      }
-                  }
-                  callback?(data, url, response, error)
-              }
-
-              task.resume()
-          } catch {
-              Loggers.network.error("Encoding error: \(error.localizedDescription)")
-              callback?(nil, url, nil, error)
-          }
+      if let error = error {
+        Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription)")
+        callback?(nil, nil, nil, error)
+        return
       }
+
+      guard let geoDomain = geoDomain,
+            let url = self.eventUrlProvider.buildNewEventEndpointUrl(
+              for: eventRequest,
+              userIdentity: userIdentity,
+              domain: geoDomain
+            ) else {
+        Loggers.network.error("Invalid /mobile event URL")
+        callback?(nil, nil, nil, ATTNError.badURL)
+        return
+      }
+
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+
+      do {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let bodyData = try encoder.encode(event)
+        request.httpBody = bodyData
+
+        Loggers.network.debug("""
+                  ---- Sending /mobile Event ----
+                  URL: \(url.absoluteString)
+                  Payload: \(String(data: bodyData, encoding: .utf8) ?? "")
+                  --------------------------------
+                  """)
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("New event send error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("New event status code: \(http.statusCode)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("New event failed with HTTP \(http.statusCode)")
+            }
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      } catch {
+        Loggers.network.error("Encoding error for /mobile event: \(error.localizedDescription)")
+        callback?(nil, url, nil, error)
+      }
+    }
+  }
 
 }

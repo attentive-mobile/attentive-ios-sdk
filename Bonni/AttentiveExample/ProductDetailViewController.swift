@@ -125,4 +125,37 @@ class ProductDetailViewController: UIViewController {
   @objc private func addToCartTapped() {
     delegate?.productDetailViewController(self, didAddToCart: product)
   }
+
+  private func recordNewProductViewEvent() {
+    let product = ATTNProduct(
+        productId: "12345",
+        variantId: nil,
+        name: "Wireless Controller",
+        variantName: nil,
+        imageUrl: "https://cdn.store.com/controller.jpg",
+        categories: ["Electronics"],
+        price: "59.99",
+        quantity: 1,
+        productUrl: "https://store.com/p/12345"
+    )
+
+    let metadata = ATTNProductViewMetadata(product: product, currency: "USD")
+
+    let event = ATTNBaseEvent(
+        visitorId: userIdentity.visitorId,
+        version: "2.0.2",
+        attentiveDomain: domain,
+        locationHref: "https://store.com/p/12345",
+        referrer: "https://store.com/home",
+        eventType: .productView,
+        timestamp: ISO8601DateFormatter().string(from: Date()),
+        identifiers: userIdentity.toIdentifiers(),
+        eventMetadata: metadata
+    )
+
+    // Example legacy eventRequest
+    let eventRequest = ATTNEventRequest(eventNameAbbreviation: "d", metadata: [:])
+
+    api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity)
+  }
 }
