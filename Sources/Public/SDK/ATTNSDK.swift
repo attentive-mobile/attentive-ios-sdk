@@ -456,6 +456,15 @@ public final class ATTNSDK: NSObject {
       callback: callback
     )
   }
+  // TODO Add @objc 
+  public func sendNewEvent<M: Codable>(
+    event: ATTNBaseEvent<M>,
+    eventRequest: ATTNEventRequest,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback? = nil
+  ) {
+    api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity, callback: callback)
+  }
 
   // MARK: - Private Helpers
 
