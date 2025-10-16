@@ -127,35 +127,69 @@ class ProductDetailViewController: UIViewController {
   }
 
   private func recordNewProductViewEvent() {
-    let product = ATTNProduct(
-        productId: "12345",
-        variantId: nil,
-        name: "Wireless Controller",
-        variantName: nil,
-        imageUrl: "https://cdn.store.com/controller.jpg",
-        categories: ["Electronics"],
-        price: "59.99",
-        quantity: 1,
-        productUrl: "https://store.com/p/12345"
-    )
+      // 1️⃣ Access the initialized SDK and its context
+      guard
+        let tracker = ATTNEventTracker.sharedInstance(),
+        let sdk = (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
+      else {
+        print("❌ ATTN SDK not initialized")
+        return
+      }
 
-    let metadata = ATTNProductViewMetadata(product: product, currency: "USD")
+      let userIdentity = sdk.userIdentity
+      let domain = sdk.domain
 
-    let event = ATTNBaseEvent(
-        visitorId: userIdentity.visitorId,
-        version: "2.0.2",
-        attentiveDomain: domain,
-        locationHref: "https://store.com/p/12345",
-        referrer: "https://store.com/home",
-        eventType: .productView,
-        timestamp: ISO8601DateFormatter().string(from: Date()),
-        identifiers: userIdentity.toIdentifiers(),
-        eventMetadata: metadata
-    )
+      // 2️⃣ Create a new product manually
+      let productPayload = ATTNProduct(
+          productId: "12345",
+          variantId: "12345-A",
+          name: "Wireless Controller",
+          variantName: "Midnight Edition",
+          imageUrl: "https://cdn.store.com/controller.jpg",
+          categories: ["Electronics", "Gaming"],
+          price: "59.99",
+          quantity: 1,
+          productUrl: "https://store.com/p/12345"
+      )
 
-    // Example legacy eventRequest
-    let eventRequest = ATTNEventRequest(eventNameAbbreviation: "d", metadata: [:])
+      // 3️⃣ Create event metadata
+      let metadata = ATTNProductViewMetadata(
+          product: productPayload,
+          currency: "USD"
+      )
 
-    api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity)
+      // 4️⃣ Build the event payload
+      let event = ATTNBaseEvent(
+          visitorId: userIdentity.visitorId,
+          version: sdk.version,
+          attentiveDomain: domain,
+          locationHref: productPayload.productUrl,
+          referrer: "https://store.com/home",
+          eventType: .productView,
+          timestamp: ISO8601DateFormatter().string(from: Date()),
+          identifiers: ATTNIdentifiers(
+              encryptedEmail: userIdentity.encryptedEmail,
+              encryptedPhone: userIdentity.encryptedPhone
+          ),
+          eventMetadata: metadata
+      )
+
+      // 5️⃣ Send the event to the new /mobile endpoint
+    sdk.sendNewEvent(
+          event: event,
+          eventRequest: ATTNEventRequest(
+              eventNameAbbreviation: ATTNEventTypes.productView,
+              metadata: [:]
+          ),
+          userIdentity: userIdentity
+      ) { data, url, response, error in
+          if let error = error {
+              //Loggers.network.error("❌ Failed to send /mobile ProductView: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+              //Loggers.network.debug("✅ Sent ProductView event: HTTP \(http.statusCode)")
+          }
+      }
+
+      showToast(with: "New Product View event sent")
   }
 }
