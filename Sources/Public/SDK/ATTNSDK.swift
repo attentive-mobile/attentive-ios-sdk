@@ -518,9 +518,34 @@ public final class ATTNSDK: NSObject {
     Task { [weak self] in
       guard let self else { return }
       let settings = await center.notificationSettings()
-      if settings.authorizationStatus == .notDetermined {
+      let currentStatus = settings.authorizationStatus
+
+      let lastStatus = UserDefaults.standard.integer(forKey: "attentiveLastAuthStatus")
+              UserDefaults.standard.set(currentStatus.rawValue, forKey: "attentiveLastAuthStatus")
+
+              if lastStatus == UNAuthorizationStatus.denied.rawValue &&
+                 currentStatus == .authorized {
+                  Loggers.event.debug("Push permission was re-enabled after being denied. Clearing cached token and forcing APNs re-registration.")
+                  UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+                  self.pushTokenStore.token = ""
+                  await MainActor.run {
+                      UIApplication.shared.registerForRemoteNotifications()
+                  }
+              }
+
+      if currentStatus == .notDetermined {
         // Await provisional flow fully (auth & APNs register)
         await self.setupProvisionalPush()
+      } else if currentStatus == .authorized {
+        // Clear old token and re-register every time authorization flips to authorized
+        await MainActor.run {
+          if self.currentPushToken == nil {
+            Loggers.event.debug("Authorization granted after denial — forcing APNs re-registration.")
+            UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+              }
+          Loggers.event.debug("Notification permission authorized. Registering for remote notifications.")
+          UIApplication.shared.registerForRemoteNotifications()
+        }
       }
       let updated = await center.notificationSettings()
       await MainActor.run {
