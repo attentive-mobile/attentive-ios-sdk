@@ -539,7 +539,7 @@ public final class ATTNSDK: NSObject {
       } else if currentStatus == .authorized {
         // Clear old token and re-register every time authorization flips to authorized
         await MainActor.run {
-          if self.currentPushToken == nil {
+          if self.currentPushToken.isEmpty {
             Loggers.event.debug("Authorization granted after denial — forcing APNs re-registration.")
             UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
               }
