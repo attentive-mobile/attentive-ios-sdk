@@ -173,7 +173,7 @@ public final class ATTNSDK: NSObject {
   public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-    Loggers.event.debug("APNs device‐token: \(tokenString)")
+    Loggers.event.debug("APNs device‐token: \(tokenString), auth status raw value: \(authorizationStatus.rawValue)")
     pushTokenStore.token = tokenString
     // this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -523,9 +523,9 @@ public final class ATTNSDK: NSObject {
       let lastStatus = UserDefaults.standard.integer(forKey: "attentiveLastAuthStatus")
               UserDefaults.standard.set(currentStatus.rawValue, forKey: "attentiveLastAuthStatus")
 
-              if lastStatus == UNAuthorizationStatus.denied.rawValue &&
+              if lastStatus != UNAuthorizationStatus.authorized.rawValue &&
                  currentStatus == .authorized {
-                  Loggers.event.debug("Push permission was re-enabled after being denied. Clearing cached token and forcing APNs re-registration.")
+                  Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
                   UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
                   self.pushTokenStore.token = ""
                   await MainActor.run {
