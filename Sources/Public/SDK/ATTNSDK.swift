@@ -173,7 +173,7 @@ public final class ATTNSDK: NSObject {
   public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
   ) {
     let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-    Loggers.event.debug("APNs device‐token: \(tokenString)")
+    Loggers.event.debug("APNs device‐token: \(tokenString), auth status raw value: \(authorizationStatus.rawValue)")
     pushTokenStore.token = tokenString
     // this is called after events are sent. we need a better way to persist this
     api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -518,9 +518,34 @@ public final class ATTNSDK: NSObject {
     Task { [weak self] in
       guard let self else { return }
       let settings = await center.notificationSettings()
-      if settings.authorizationStatus == .notDetermined {
+      let currentStatus = settings.authorizationStatus
+
+      let lastStatus = UserDefaults.standard.integer(forKey: "attentiveLastAuthStatus")
+              UserDefaults.standard.set(currentStatus.rawValue, forKey: "attentiveLastAuthStatus")
+
+              if lastStatus != UNAuthorizationStatus.authorized.rawValue &&
+                 currentStatus == .authorized {
+                  Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
+                  UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+                  self.pushTokenStore.token = ""
+                  await MainActor.run {
+                      UIApplication.shared.registerForRemoteNotifications()
+                  }
+              }
+
+      if currentStatus == .notDetermined {
         // Await provisional flow fully (auth & APNs register)
         await self.setupProvisionalPush()
+      } else if currentStatus == .authorized {
+        // Clear old token and re-register every time authorization flips to authorized
+        await MainActor.run {
+          if self.currentPushToken.isEmpty {
+            Loggers.event.debug("Authorization granted after denial — forcing APNs re-registration.")
+            UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+              }
+          Loggers.event.debug("Notification permission authorized. Registering for remote notifications.")
+          UIApplication.shared.registerForRemoteNotifications()
+        }
       }
       let updated = await center.notificationSettings()
       await MainActor.run {

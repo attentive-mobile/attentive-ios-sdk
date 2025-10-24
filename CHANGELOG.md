@@ -1,3 +1,7 @@
+## [2.0.5](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.4...2.0.5) (2025-10-23)
+### Bug Fixes
+Minor bugfix around receiving push after previously denying then allowing push notifications in settings.
+
 ## [2.0.4](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.3...2.0.4) (2025-10-14)
 ### Bug Fixes
 Minor bugfix around email/phone opt out.
