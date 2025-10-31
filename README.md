@@ -575,6 +575,84 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
 }];
 ```
 
+## Step 6 (optional) - Show Creatives
+
+#### Swift
+
+```swift
+sdk.trigger(view) { status in
+  switch status {
+  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is opened sucessfully
+  case ATTNCreativeTriggerStatus.opened:
+    print("Opened the Creative!")
+  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative has been triggered but it is not opened successfully. 
+  // This can happen if there is no available mobile app creative, if the creative is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
+  case ATTNCreativeTriggerStatus.notOpened:
+    print("Couldn't open the Creative!")
+  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is closed sucessfully
+  case ATTNCreativeTriggerStatus.closed:
+    print("Closed the Creative!")
+  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative is not closed due to an unknown exception
+  case ATTNCreativeTriggerStatus.notClosed:
+    print("Couldn't close the Creative!")
+  default:
+    break
+  }
+}
+```
+
+#### Objective-C
+
+```objective-c
+// Load the creative with a completion handler.
+[sdk trigger:self.view
+     handler:^(NSString *triggerStatus) {
+      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+        NSLog(@"Opened the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+        NSLog(@"Couldn't open the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+        NSLog(@"Closed the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+        NSLog(@"Couldn't close the Creative!");
+      }
+    }];
+```
+#### Swift
+
+```swift
+// Alternatively, you can load the creative without a completion handler
+sdk.trigger(view)
+```
+
+#### Objective-C
+
+```objective-c
+[sdk trigger:self.view];
+```
+
+### Skip Fatigue on Creative
+
+For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
+
+#### Swift
+
+```swift
+let sdk = ATTNSDK(domain: "domain")
+sdk.skipFatigueOnCreative = true
+```
+
+#### Objective-C
+
+```objective-c
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
+sdk.skipFatigueOnCreative = YES;
+```
+
+Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
+
+Environment value can be a string with value `"true"` or `"false"`.
+
 ## Other functionalities
 
 ### Switch to another domain
