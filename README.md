@@ -211,6 +211,63 @@ attentiveSdk?.updateUser(email: "newuser@example.com", phone: "+15559876543") { 
 - At least one identifier (`email` or `phone`) must be provided when calling `identify` or `updateUser`.  
 - Use `updateUser` only when switching users; otherwise prefer `identify` for enriching the current user’s profile.  
 
+### Load and render the creative
+
+#### Swift
+
+```swift
+sdk.trigger(view) { status in
+  switch status {
+  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is opened sucessfully
+  case ATTNCreativeTriggerStatus.opened:
+    print("Opened the Creative!")
+  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative has been triggered but it is not opened successfully. 
+  // This can happen if there is no available mobile app creative, if the creative is fatigued, if the creative call has been timed out, or if an unknown exception occurs.
+  case ATTNCreativeTriggerStatus.notOpened:
+    print("Couldn't open the Creative!")
+  // Status passed to ATTNCreativeTriggerCompletionHandler when the creative is closed sucessfully
+  case ATTNCreativeTriggerStatus.closed:
+    print("Closed the Creative!")
+  // Status passed to the ATTNCreativeTriggerCompletionHandler when the Creative is not closed due to an unknown exception
+  case ATTNCreativeTriggerStatus.notClosed:
+    print("Couldn't close the Creative!")
+  default:
+    break
+  }
+}
+```
+
+#### Objective-C
+
+```objective-c
+// Load the creative with a completion handler.
+[sdk trigger:self.view
+     handler:^(NSString *triggerStatus) {
+      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+        NSLog(@"Opened the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+        NSLog(@"Couldn't open the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+        NSLog(@"Closed the Creative!");
+      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+        NSLog(@"Couldn't close the Creative!");
+      }
+    }];
+```
+#### Swift
+
+```swift
+// Alternatively, you can load the creative without a completion handler
+sdk.trigger(view)
+```
+
+#### Objective-C
+
+```objective-c
+[sdk trigger:self.view];
+```
+
+
 ## Step 3 - Record user events
 
 Call Attentive's event functions whenever important events happens in your app, so that Attentive can better understand user behaviors, trigger journeys, and attribute revenue accurately.
