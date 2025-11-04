@@ -71,4 +71,20 @@ extension ATTNUserIdentity {
     queryParams["u"] = visitorId
     return queryParams
   }
+
+  /// Returns base64 encoded email from identifiers, or nil if not present
+  var encryptedEmail: String? {
+    guard let email = identifiers[ATTNIdentifierType.email] as? String else {
+      return nil
+    }
+    return Data(email.utf8).base64EncodedString()
+  }
+
+  /// Returns base64 encoded phone from identifiers, or nil if not present
+  var encryptedPhone: String? {
+    guard let phone = identifiers[ATTNIdentifierType.phone] as? String else {
+      return nil
+    }
+    return Data(phone.utf8).base64EncodedString()
+  }
 }

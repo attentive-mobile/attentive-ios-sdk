@@ -38,6 +38,47 @@ public final class ATTNEventTracker: NSObject {
     assert(_sharedInstance != nil, "ATTNEventTracker must be setup before being used")
     return _sharedInstance
   }
+
+  // MARK: - New Event API (v2 endpoint)
+
+  /// Records an AddToCart event to the new /mobile endpoint
+  /// - Parameters:
+  ///   - product: The product being added to cart
+  ///   - currency: The currency code (e.g., "USD")
+  public func recordAddToCart(product: ATTNProduct, currency: String) {
+    sdk.sendAddToCartEvent(product: product, currency: currency)
+  }
+
+  /// Records a ProductView event to the new /mobile endpoint
+  /// - Parameters:
+  ///   - product: The product being viewed
+  ///   - currency: The currency code (e.g., "USD")
+  public func recordProductView(product: ATTNProduct, currency: String) {
+    sdk.sendProductViewEvent(product: product, currency: currency)
+  }
+
+  /// Records a Purchase event to the new /mobile endpoint
+  /// - Parameters:
+  ///   - orderId: The order identifier
+  ///   - currency: The currency code (e.g., "USD")
+  ///   - orderTotal: The total order amount
+  ///   - cart: Optional cart details
+  ///   - products: Array of products in the purchase
+  public func recordPurchase(
+    orderId: String,
+    currency: String,
+    orderTotal: String,
+    cart: ATTNCartPayload?,
+    products: [ATTNProduct]
+  ) {
+    sdk.sendPurchaseEvent(
+      orderId: orderId,
+      currency: currency,
+      orderTotal: orderTotal,
+      cart: cart,
+      products: products
+    )
+  }
 }
 
 // MARK: Internal Helpers

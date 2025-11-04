@@ -41,7 +41,7 @@ public final class ATTNSDK: NSObject {
   private(set) var api: ATTNAPIProtocol
   private(set) var userIdentity: ATTNUserIdentity
 
-  private var domain: String
+  internal var domain: String
   private var mode: ATTNSDKMode
   private var webViewHandler: ATTNWebViewHandling?
 
@@ -455,15 +455,6 @@ public final class ATTNSDK: NSObject {
       phone: phone,
       callback: callback
     )
-  }
-  // TODO Add @objc 
-  public func sendNewEvent<M: Codable>(
-    event: ATTNBaseEvent<M>,
-    eventRequest: ATTNEventRequest,
-    userIdentity: ATTNUserIdentity,
-    callback: ATTNAPICallback? = nil
-  ) {
-    api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity, callback: callback)
   }
 
   // MARK: - Private Helpers

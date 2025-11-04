@@ -592,19 +592,34 @@ extension ATTNAPI {
 
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
       request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
 
       do {
+        // Encode the event to JSON with explicit null values
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        let bodyData = try encoder.encode(event)
-        request.httpBody = bodyData
+        encoder.outputFormatting = [.sortedKeys]
+        let jsonData = try encoder.encode(event)
+
+        // Convert JSON to string for logging
+        let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+
+        // URL-encode the JSON and wrap it in form data with key 'd'
+        guard let encodedJson = jsonString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+          Loggers.network.error("Failed to URL-encode JSON payload")
+          callback?(nil, url, nil, ATTNError.badURL)
+          return
+        }
+
+        let formBody = "d=\(encodedJson)"
+        request.httpBody = formBody.data(using: .utf8)
 
         Loggers.network.debug("""
                   ---- Sending /mobile Event ----
                   URL: \(url.absoluteString)
-                  Payload: \(String(data: bodyData, encoding: .utf8) ?? "")
+                  JSON Payload: \(jsonString)
+                  Form Body: \(formBody)
                   --------------------------------
                   """)
 

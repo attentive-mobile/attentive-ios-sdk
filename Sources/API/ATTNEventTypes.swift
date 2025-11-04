@@ -22,9 +22,9 @@ enum ATTNEventTypes {
 
 /// Represents event type identifiers for the Internal Events API.
 public enum ATTNEventType: String, Codable {
-  case purchase = "p"
-  case addToCart = "c"
-  case productView = "d"
+  case purchase = "Purchase"
+  case addToCart = "AddToCart"
+  case productView = "ProductView"
 }
 
 /// Identifiers used to represent user identity in the event payload.
@@ -41,6 +41,13 @@ public struct ATTNIdentifiers: Codable {
     self.encryptedEmail = encryptedEmail
     self.encryptedPhone = encryptedPhone
     self.otherIdentifiers = otherIdentifiers
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(encryptedEmail, forKey: .encryptedEmail)
+    try container.encode(encryptedPhone, forKey: .encryptedPhone)
+    try container.encode(otherIdentifiers, forKey: .otherIdentifiers)
   }
 }
 
@@ -76,6 +83,19 @@ public struct ATTNProduct: Codable {
     self.price = price
     self.quantity = quantity
     self.productUrl = productUrl
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(productId, forKey: .productId)
+    try container.encode(variantId, forKey: .variantId)
+    try container.encode(name, forKey: .name)
+    try container.encode(variantName, forKey: .variantName)
+    try container.encode(imageUrl, forKey: .imageUrl)
+    try container.encode(categories, forKey: .categories)
+    try container.encode(price, forKey: .price)
+    try container.encode(quantity, forKey: .quantity)
+    try container.encode(productUrl, forKey: .productUrl)
   }
 }
 
@@ -155,6 +175,26 @@ public struct ATTNPurchaseMetadata: Codable {
   }
 }
 
+/// Represents generic metadata for identity and product catalog
+public struct ATTNGenericMetadata: Codable {
+  public let identity: [String: String]?
+  public let productCatalog: [String: String]?
+
+  public init(
+    identity: [String: String]? = nil,
+    productCatalog: [String: String]? = nil
+  ) {
+    self.identity = identity
+    self.productCatalog = productCatalog
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(identity, forKey: .identity)
+    try container.encode(productCatalog, forKey: .productCatalog)
+  }
+}
+
 /// Represents a generic base event sent to the Attentive Internal Events API.
 public struct ATTNBaseEvent<M: Codable>: Codable {
   public let visitorId: String
@@ -166,6 +206,7 @@ public struct ATTNBaseEvent<M: Codable>: Codable {
   public let timestamp: String
   public let identifiers: ATTNIdentifiers
   public let eventMetadata: M
+  public let genericMetadata: ATTNGenericMetadata?
   public let sourceType: String
   public let appSdk: String
 
@@ -179,6 +220,7 @@ public struct ATTNBaseEvent<M: Codable>: Codable {
     timestamp: String,
     identifiers: ATTNIdentifiers,
     eventMetadata: M,
+    genericMetadata: ATTNGenericMetadata? = nil,
     sourceType: String = "mobile",
     appSdk: String = "iOS"
   ) {
@@ -191,7 +233,24 @@ public struct ATTNBaseEvent<M: Codable>: Codable {
     self.timestamp = timestamp
     self.identifiers = identifiers
     self.eventMetadata = eventMetadata
+    self.genericMetadata = genericMetadata
     self.sourceType = sourceType
     self.appSdk = appSdk
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(visitorId, forKey: .visitorId)
+    try container.encode(version, forKey: .version)
+    try container.encode(attentiveDomain, forKey: .attentiveDomain)
+    try container.encode(locationHref, forKey: .locationHref)
+    try container.encode(referrer, forKey: .referrer)
+    try container.encode(eventType, forKey: .eventType)
+    try container.encode(timestamp, forKey: .timestamp)
+    try container.encode(identifiers, forKey: .identifiers)
+    try container.encode(eventMetadata, forKey: .eventMetadata)
+    try container.encode(genericMetadata, forKey: .genericMetadata)
+    try container.encode(sourceType, forKey: .sourceType)
+    try container.encode(appSdk, forKey: .appSdk)
   }
 }

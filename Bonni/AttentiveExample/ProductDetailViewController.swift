@@ -38,9 +38,20 @@ class ProductDetailViewController: UIViewController {
 
   private let addToCartButton: UIButton = {
           let button = UIButton(type: .system)
-          button.setTitle("Add to Cart", for: .normal)
+          button.setTitle("Add to Cart (Legacy)", for: .normal)
           button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
           button.backgroundColor = .systemBlue
+          button.setTitleColor(.white, for: .normal)
+          button.layer.cornerRadius = 8
+          button.translatesAutoresizingMaskIntoConstraints = false
+          return button
+      }()
+
+  private let addToCartV2Button: UIButton = {
+          let button = UIButton(type: .system)
+          button.setTitle("Add to Cart (V2 - New Format)", for: .normal)
+          button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
+          button.backgroundColor = .systemGreen
           button.setTitleColor(.white, for: .normal)
           button.layer.cornerRadius = 8
           button.translatesAutoresizingMaskIntoConstraints = false
@@ -75,7 +86,10 @@ class ProductDetailViewController: UIViewController {
     view.addSubview(productImageView)
     view.addSubview(productNameLabel)
     view.addSubview(addToCartButton)
+    view.addSubview(addToCartV2Button)
+
     addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
+    addToCartV2Button.addTarget(self, action: #selector(addToCartV2Tapped), for: .touchUpInside)
 
     NSLayoutConstraint.activate([
       productImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
@@ -92,6 +106,10 @@ class ProductDetailViewController: UIViewController {
       addToCartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
       addToCartButton.heightAnchor.constraint(equalToConstant: 50),
 
+      addToCartV2Button.topAnchor.constraint(equalTo: addToCartButton.bottomAnchor, constant: 10),
+      addToCartV2Button.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+      addToCartV2Button.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+      addToCartV2Button.heightAnchor.constraint(equalToConstant: 50),
     ])
   }
 
@@ -126,21 +144,45 @@ class ProductDetailViewController: UIViewController {
     delegate?.productDetailViewController(self, didAddToCart: product)
   }
 
+  @objc private func addToCartV2Tapped() {
+    // 1️⃣ Get the EventTracker instance
+    guard let tracker = ATTNEventTracker.sharedInstance() else {
+      print("❌ ATTN SDK not initialized")
+      showToast(with: "❌ SDK not initialized")
+      return
+    }
+
+    // 2️⃣ Create ATTNProduct from ATTNItem
+    let productV2 = ATTNProduct(
+      productId: product.productId,
+      variantId: product.productVariantId,
+      name: product.name ?? "Unknown Product",
+      variantName: nil,
+      imageUrl: product.productImage,
+      categories: product.category != nil ? [product.category!] : nil,
+      price: product.price.price.stringValue,
+      quantity: product.quantity,
+      productUrl: nil
+    )
+
+    // 3️⃣ Send the AddToCart event via EventTracker (new V2 format)
+    tracker.recordAddToCart(product: productV2, currency: product.price.currency)
+
+    // Also notify delegate for cart update
+    delegate?.productDetailViewController(self, didAddToCart: product)
+
+    showToast(with: "✅ V2 AddToCart event sent!")
+  }
+
   private func recordNewProductViewEvent() {
-      // 1️⃣ Access the initialized SDK and its context
-      guard
-        let tracker = ATTNEventTracker.sharedInstance(),
-        let sdk = (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
-      else {
+      // 1️⃣ Access the initialized EventTracker
+      guard let tracker = ATTNEventTracker.sharedInstance() else {
         print("❌ ATTN SDK not initialized")
         return
       }
 
-      let userIdentity = sdk.userIdentity
-      let domain = sdk.domain
-
-      // 2️⃣ Create a new product manually
-      let productPayload = ATTNProduct(
+      // 2️⃣ Create a product
+      let product = ATTNProduct(
           productId: "12345",
           variantId: "12345-A",
           name: "Wireless Controller",
@@ -152,43 +194,8 @@ class ProductDetailViewController: UIViewController {
           productUrl: "https://store.com/p/12345"
       )
 
-      // 3️⃣ Create event metadata
-      let metadata = ATTNProductViewMetadata(
-          product: productPayload,
-          currency: "USD"
-      )
-
-      // 4️⃣ Build the event payload
-      let event = ATTNBaseEvent(
-          visitorId: userIdentity.visitorId,
-          version: sdk.version,
-          attentiveDomain: domain,
-          locationHref: productPayload.productUrl,
-          referrer: "https://store.com/home",
-          eventType: .productView,
-          timestamp: ISO8601DateFormatter().string(from: Date()),
-          identifiers: ATTNIdentifiers(
-              encryptedEmail: userIdentity.encryptedEmail,
-              encryptedPhone: userIdentity.encryptedPhone
-          ),
-          eventMetadata: metadata
-      )
-
-      // 5️⃣ Send the event to the new /mobile endpoint
-    sdk.sendNewEvent(
-          event: event,
-          eventRequest: ATTNEventRequest(
-              eventNameAbbreviation: ATTNEventTypes.productView,
-              metadata: [:]
-          ),
-          userIdentity: userIdentity
-      ) { data, url, response, error in
-          if let error = error {
-              //Loggers.network.error("❌ Failed to send /mobile ProductView: \(error.localizedDescription)")
-          } else if let http = response as? HTTPURLResponse {
-              //Loggers.network.debug("✅ Sent ProductView event: HTTP \(http.statusCode)")
-          }
-      }
+      // 3️⃣ Send the ProductView event via EventTracker
+      tracker.recordProductView(product: product, currency: "USD")
 
       showToast(with: "New Product View event sent")
   }
