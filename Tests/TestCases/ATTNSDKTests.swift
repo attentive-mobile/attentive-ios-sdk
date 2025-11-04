@@ -172,46 +172,139 @@ final class ATTNSDKTests: XCTestCase {
       // Given
       let input: [String: Any] = [
         "outer": [
-          "inner": #"He said "hello"/world"#
+          "attentive_message_title": #"He said "hello"/world"#,
+          "other_field": #"Don't escape "this""#
         ]
       ]
 
       // When
       let escaped = sut.escapeJSONDictionary(input)
-      let nested = (escaped["outer"] as? [String: Any])?["inner"] as? String
+      let nested = escaped["outer"] as? [String: Any]
+      let escapedTitle = nested?["attentive_message_title"] as? String
+      let otherField = nested?["other_field"] as? String
 
       // Then
-      XCTAssertNotNil(nested)
-      XCTAssertTrue(nested!.contains("\\\""))
-      XCTAssertTrue(nested!.contains("\\/"))
+      XCTAssertNotNil(escapedTitle)
+      XCTAssertTrue(escapedTitle!.contains("\\\""), "attentive_message_title should be escaped")
+      XCTAssertTrue(escapedTitle!.contains("\\/"), "attentive_message_title slashes should be escaped")
+      XCTAssertNotNil(otherField)
+      XCTAssertFalse(otherField!.contains("\\\""), "other_field should NOT be escaped")
     }
 
-    func testEscapeJSONArray_shouldEscapeStringsAndNestedStructures() {
+    func testEscapeJSONArray_shouldOnlyEscapeSpecificFields() {
       // Given
       let input: [Any] = [
-              "Hello \"friend\"/world",
-              ["nested": "A \"quote\"/slash"],
-              ["array", ["nested \"quote\""]]
-          ]
+        "Hello \"friend\"/world",  // Direct strings should NOT be escaped
+        ["attentive_message_body": #"A "quote"/slash"#, "other": #"Keep "this""#],
+        ["attentive_message_title": #"Title with "quotes""#]
+      ]
 
       // When
       let escaped = sut.escapeJSONArray(input)
 
       // Then
+      // Direct strings in array should NOT be escaped
       let first = escaped.first as? String
-      XCTAssertTrue(first?.contains("\\\"") ?? false)
-      XCTAssertTrue(first?.contains("\\/") ?? false)
+      XCTAssertNotNil(first)
+      XCTAssertFalse(first!.contains("\\\""), "Direct strings in arrays should NOT be escaped")
+      XCTAssertFalse(first!.contains("\\/"), "Direct strings in arrays should NOT be escaped")
 
-      if let nestedDict = escaped[1] as? [String: Any],
-         let inner = nestedDict["nested"] as? String {
-        XCTAssertTrue(inner.contains("\\\""))
-        XCTAssertTrue(inner.contains("\\/"))
+      // attentive_message_body should be escaped
+      if let nestedDict = escaped[1] as? [String: Any] {
+        let messageBody = nestedDict["attentive_message_body"] as? String
+        let other = nestedDict["other"] as? String
+        XCTAssertNotNil(messageBody)
+        XCTAssertTrue(messageBody!.contains("\\\""), "attentive_message_body should be escaped")
+        XCTAssertTrue(messageBody!.contains("\\/"), "attentive_message_body slashes should be escaped")
+        XCTAssertNotNil(other)
+        XCTAssertFalse(other!.contains("\\\""), "other field should NOT be escaped")
+      } else {
+        XCTFail("Expected dictionary at index 1")
       }
 
-      if let nestedArray = (escaped[2] as? [Any])?.last as? [Any],
-         let nestedString = nestedArray.first as? String {
-        XCTAssertTrue(nestedString.contains("\\\""))
+      // attentive_message_title should be escaped
+      if let titleDict = escaped[2] as? [String: Any],
+         let messageTitle = titleDict["attentive_message_title"] as? String {
+        XCTAssertTrue(messageTitle.contains("\\\""), "attentive_message_title should be escaped")
+      } else {
+        XCTFail("Expected dictionary with attentive_message_title at index 2")
       }
+    }
+
+    func testEscapeJSONDictionary_shouldEscapeBothTitleAndBody() {
+      // Given
+      let input: [String: Any] = [
+        "attentive_message_title": #"Title with "quotes" and /slashes"#,
+        "attentive_message_body": #"Body with "quotes" and /slashes"#,
+        "random_field": #"This has "quotes" but should not be escaped"#
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+
+      // Then
+      let title = escaped["attentive_message_title"] as? String
+      let body = escaped["attentive_message_body"] as? String
+      let random = escaped["random_field"] as? String
+
+      XCTAssertNotNil(title)
+      XCTAssertTrue(title!.contains("\\\""), "attentive_message_title quotes should be escaped")
+      XCTAssertTrue(title!.contains("\\/"), "attentive_message_title slashes should be escaped")
+
+      XCTAssertNotNil(body)
+      XCTAssertTrue(body!.contains("\\\""), "attentive_message_body quotes should be escaped")
+      XCTAssertTrue(body!.contains("\\/"), "attentive_message_body slashes should be escaped")
+
+      XCTAssertNotNil(random)
+      XCTAssertFalse(random!.contains("\\\""), "random_field should NOT be escaped")
+    }
+
+    func testEscapeJSONDictionary_shouldHandleDeeplyNestedStructures() {
+      // Given
+      let input: [String: Any] = [
+        "level1": [
+          "level2": [
+            "attentive_message_body": #"Deep "nested" /value"#,
+            "other": #"Don't escape "this""#
+          ]
+        ]
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+
+      // Then
+      if let level1 = escaped["level1"] as? [String: Any],
+         let level2 = level1["level2"] as? [String: Any] {
+        let messageBody = level2["attentive_message_body"] as? String
+        let other = level2["other"] as? String
+
+        XCTAssertNotNil(messageBody)
+        XCTAssertTrue(messageBody!.contains("\\\""), "Deeply nested attentive_message_body should be escaped")
+        XCTAssertTrue(messageBody!.contains("\\/"), "Deeply nested attentive_message_body slashes should be escaped")
+
+        XCTAssertNotNil(other)
+        XCTAssertFalse(other!.contains("\\\""), "Other fields should NOT be escaped even when deeply nested")
+      } else {
+        XCTFail("Expected nested dictionary structure")
+      }
+    }
+
+    func testEscapeJSONDictionary_shouldHandleEmptyStringsAndSpecialCases() {
+      // Given
+      let input: [String: Any] = [
+        "attentive_message_title": "",
+        "attentive_message_body": "No special chars",
+        "other": ""
+      ]
+
+      // When
+      let escaped = sut.escapeJSONDictionary(input)
+
+      // Then
+      XCTAssertEqual(escaped["attentive_message_title"] as? String, "", "Empty string should remain empty")
+      XCTAssertEqual(escaped["attentive_message_body"] as? String, "No special chars", "String with no special chars should be unchanged")
+      XCTAssertEqual(escaped["other"] as? String, "", "Empty string in non-targeted field should remain empty")
     }
 
     func testEscapeJSONDictionary_shouldLeaveNumbersAndBooleansUnchanged() {
