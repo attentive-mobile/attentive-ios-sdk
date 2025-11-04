@@ -596,16 +596,21 @@ public final class ATTNSDK: NSObject {
     }
   }
 
-  /// Recursively escapes quotes and slashes in all string values of a JSON dictionary.
+  /// Recursively escapes quotes and slashes only in attentive_message_title and attentive_message_body fields.
   func escapeJSONDictionary(_ dictionary: [String: Any]) -> [String: Any] {
     var escapedDict: [String: Any] = [:]
 
     for (key, value) in dictionary {
       if let strValue = value as? String {
-        let escaped = strValue
-          .replacingOccurrences(of: "\"", with: "\\\"")
-          .replacingOccurrences(of: "/", with: "\\/")
-        escapedDict[key] = escaped
+        // Only escape specific fields that contain user-facing message content
+        if key == "attentive_message_title" || key == "attentive_message_body" {
+          let escaped = strValue
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "/", with: "\\/")
+          escapedDict[key] = escaped
+        } else {
+          escapedDict[key] = strValue
+        }
       } else if let nestedDict = value as? [String: Any] {
         escapedDict[key] = escapeJSONDictionary(nestedDict) // recursive for nested dicts
       } else if let arrayValue = value as? [Any] {
@@ -614,18 +619,13 @@ public final class ATTNSDK: NSObject {
         escapedDict[key] = value // leave numbers, bools, etc.
       }
     }
-
     return escapedDict
   }
 
-  /// Recursively escapes string values in JSON arrays.
+  /// Recursively processes JSON arrays, escaping only attentive_message_title and attentive_message_body in nested dictionaries.
   func escapeJSONArray(_ array: [Any]) -> [Any] {
     return array.map { value in
-      if let strValue = value as? String {
-        return strValue
-          .replacingOccurrences(of: "\"", with: "\\\"")
-          .replacingOccurrences(of: "/", with: "\\/")
-      } else if let dictValue = value as? [String: Any] {
+      if let dictValue = value as? [String: Any] {
         return escapeJSONDictionary(dictValue)
       } else if let nestedArray = value as? [Any] {
         return escapeJSONArray(nestedArray)
