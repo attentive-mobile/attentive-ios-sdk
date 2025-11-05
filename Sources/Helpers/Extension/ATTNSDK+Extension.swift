@@ -92,6 +92,7 @@ extension ATTNSDK {
       metadata: [:],
       eventNameAbbreviation: eventNameAbbreviation
     )
+    Loggers.event.debug("Sending v2 \(eventType.rawValue) event: \(eventRequest)")
 
     // Send via API
     api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity, callback: nil)

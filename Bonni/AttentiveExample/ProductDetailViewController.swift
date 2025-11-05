@@ -145,14 +145,14 @@ class ProductDetailViewController: UIViewController {
   }
 
   @objc private func addToCartV2Tapped() {
-    // 1️⃣ Get the EventTracker instance
+    // Get the EventTracker instance
     guard let tracker = ATTNEventTracker.sharedInstance() else {
-      print("❌ ATTN SDK not initialized")
-      showToast(with: "❌ SDK not initialized")
+      print("Error: ATTNEventTracker not initialized")
+      showToast(with: "Error: ATTNEventTracker not initialized")
       return
     }
 
-    // 2️⃣ Create ATTNProduct from ATTNItem
+    // Create ATTNProduct from ATTNItem
     let productV2 = ATTNProduct(
       productId: product.productId,
       variantId: product.productVariantId,
@@ -165,23 +165,24 @@ class ProductDetailViewController: UIViewController {
       productUrl: nil
     )
 
-    // 3️⃣ Send the AddToCart event via EventTracker (new V2 format)
+    // Send the AddToCart event via EventTracker (new v2 format)
     tracker.recordAddToCart(product: productV2, currency: product.price.currency)
 
     // Also notify delegate for cart update
     delegate?.productDetailViewController(self, didAddToCart: product)
 
-    showToast(with: "✅ V2 AddToCart event sent!")
+    showToast(with: "V2 AddToCart event sent!")
+    recordNewProductViewEvent() // TODO DELETE
   }
 
   private func recordNewProductViewEvent() {
       // 1️⃣ Access the initialized EventTracker
       guard let tracker = ATTNEventTracker.sharedInstance() else {
-        print("❌ ATTN SDK not initialized")
+        print("Error: ATTNEventTracker not initialized")
         return
       }
 
-      // 2️⃣ Create a product
+      // Create a product
       let product = ATTNProduct(
           productId: "12345",
           variantId: "12345-A",
@@ -194,7 +195,7 @@ class ProductDetailViewController: UIViewController {
           productUrl: "https://store.com/p/12345"
       )
 
-      // 3️⃣ Send the ProductView event via EventTracker
+      // Send the ProductView event via EventTracker
       tracker.recordProductView(product: product, currency: "USD")
 
       showToast(with: "New Product View event sent")
