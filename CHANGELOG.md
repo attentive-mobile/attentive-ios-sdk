@@ -1,3 +1,7 @@
+## [2.0.6](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.5...2.0.6) (2025-11-05)
+### Bug Fixes
+Minor bugfix around push notifications deep link encoding.
+
 ## [2.0.5](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.4...2.0.5) (2025-10-23)
 ### Bug Fixes
 Minor bugfix around receiving push after previously denying then allowing push notifications in settings.
