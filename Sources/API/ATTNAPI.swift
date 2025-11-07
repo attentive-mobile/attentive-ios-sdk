@@ -629,7 +629,7 @@ extension ATTNAPI {
           } else if let http = response as? HTTPURLResponse {
             Loggers.network.debug("New event status code: \(http.statusCode)")
             if http.statusCode >= 400 {
-              Loggers.network.error("New event failed with HTTP \(http.statusCode)")
+              Loggers.network.error("New event failed with HTTP status code \(http.statusCode)")
             }
           }
           callback?(data, url, response, error)

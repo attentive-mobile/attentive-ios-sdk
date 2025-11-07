@@ -77,7 +77,6 @@ class ProductDetailViewController: UIViewController {
     view.backgroundColor = .white
     setupUI()
     configureProduct()
-    recordProductViewEvent()
   }
 
   // MARK: - Setup UI
@@ -145,14 +144,12 @@ class ProductDetailViewController: UIViewController {
   }
 
   @objc private func addToCartV2Tapped() {
-    // Get the EventTracker instance
     guard let tracker = ATTNEventTracker.sharedInstance() else {
       print("Error: ATTNEventTracker not initialized")
       showToast(with: "Error: ATTNEventTracker not initialized")
       return
     }
 
-    // Create ATTNProduct from ATTNItem
     let productV2 = ATTNProduct(
       productId: product.productId,
       variantId: product.productVariantId,
@@ -165,18 +162,14 @@ class ProductDetailViewController: UIViewController {
       productUrl: nil
     )
 
-    // Send the AddToCart event via EventTracker (new v2 format)
     tracker.recordAddToCart(product: productV2, currency: product.price.currency)
 
-    // Also notify delegate for cart update
     delegate?.productDetailViewController(self, didAddToCart: product)
 
     showToast(with: "V2 AddToCart event sent!")
-    recordNewProductViewEvent() // TODO DELETE
   }
 
   private func recordNewProductViewEvent() {
-      // 1️⃣ Access the initialized EventTracker
       guard let tracker = ATTNEventTracker.sharedInstance() else {
         print("Error: ATTNEventTracker not initialized")
         return
@@ -200,4 +193,6 @@ class ProductDetailViewController: UIViewController {
 
       showToast(with: "New Product View event sent")
   }
+
+
 }
