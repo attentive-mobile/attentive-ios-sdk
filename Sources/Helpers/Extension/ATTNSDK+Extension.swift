@@ -50,6 +50,11 @@ extension ATTNSDK {
     sendNewEventInternal(eventType: .purchase, metadata: metadata)
   }
 
+  func sendCustomEvent(customProperties: [String: String]?) {
+    let metadata = ATTNMobileCustomEventMetadata(customProperties: customProperties)
+    sendNewEventInternal(eventType: .mobileCustomEvent, metadata: metadata)
+  }
+
   private func sendNewEventInternal<M: Codable>(eventType: ATTNEventType, metadata: M) {
     // Get current timestamp in ISO8601 format
     let timestamp = ISO8601DateFormatter().string(from: Date())
@@ -86,6 +91,8 @@ extension ATTNSDK {
       eventNameAbbreviation = ATTNEventTypes.productView
     case .purchase:
       eventNameAbbreviation = ATTNEventTypes.purchase
+    case .mobileCustomEvent:
+      eventNameAbbreviation = ATTNEventTypes.customEvent
     }
 
     let eventRequest = ATTNEventRequest(

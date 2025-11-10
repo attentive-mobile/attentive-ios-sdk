@@ -79,6 +79,13 @@ public final class ATTNEventTracker: NSObject {
       products: products
     )
   }
+
+  /// Records a MobileCustomEvent to the new /mobile endpoint
+  /// - Parameters:
+  ///   - customProperties: Optional dictionary of custom properties
+  public func recordCustomEvent(customProperties: [String: String]?) {
+    sdk.sendCustomEvent(customProperties: customProperties)
+  }
 }
 
 // MARK: Internal Helpers

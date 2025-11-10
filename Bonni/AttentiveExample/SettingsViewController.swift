@@ -88,6 +88,13 @@ class SettingsViewController: UIViewController {
     return button
   }()
 
+  private let sendCustomEventButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Send Custom Event (V2)", for: .normal)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
+
   private let identifyUserButton: UIButton = {
     let button = UIButton(type: .system)
     button.setTitle("Identify User", for: .normal)
@@ -246,6 +253,7 @@ class SettingsViewController: UIViewController {
     stackView.addArrangedSubview(showCreativeButton)
     stackView.addArrangedSubview(showPushPermissionButton)
     stackView.addArrangedSubview(sendLocalPushNotification)
+    stackView.addArrangedSubview(sendCustomEventButton)
     // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
     stackView.addArrangedSubview(clearUserButton)
     stackView.addArrangedSubview(clearCookiesButton)
@@ -259,6 +267,7 @@ class SettingsViewController: UIViewController {
         showCreativeButton,
         showPushPermissionButton,
         sendLocalPushNotification,
+        sendCustomEventButton,
         identifyUserButton,
         clearUserButton,
         clearCookiesButton,
@@ -305,6 +314,7 @@ class SettingsViewController: UIViewController {
     showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
     showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
     sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
+    sendCustomEventButton.addTarget(self, action: #selector(sendCustomEventTapped), for: .touchUpInside)
     identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
     clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
     clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
@@ -429,6 +439,24 @@ class SettingsViewController: UIViewController {
         print("Scheduling error:", err)
       }
     }
+  }
+
+  @objc private func sendCustomEventTapped() {
+    guard let tracker = ATTNEventTracker.sharedInstance() else {
+      print("Error: ATTNEventTracker not initialized")
+      showToast(with: "Error: ATTNEventTracker not initialized")
+      return
+    }
+
+    let customProperties: [String: String] = [
+      "test_key_1": "test_value_1",
+      "test_key_2": "test_value_2",
+      "event_source": "settings_screen"
+    ]
+
+    tracker.recordCustomEvent(customProperties: customProperties)
+
+    showToast(with: "Custom Event sent!")
   }
 
   @objc private func identifyUserTapped() {

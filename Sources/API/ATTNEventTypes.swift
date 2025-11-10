@@ -25,6 +25,7 @@ public enum ATTNEventType: String, Codable {
   case purchase = "Purchase"
   case addToCart = "AddToCart"
   case productView = "ProductView"
+  case mobileCustomEvent = "MobileCustomEvent"
 }
 
 /// Identifiers used to represent user identity in the event payload.
@@ -172,6 +173,16 @@ public struct ATTNPurchaseMetadata: Codable {
     self.orderTotal = orderTotal
     self.cart = cart
     self.products = products
+  }
+}
+
+/// Metadata for "MobileCustomEvent" events.
+public struct ATTNMobileCustomEventMetadata: Codable {
+  public let eventType: String = "MobileCustomEvent"
+  public let customProperties: [String: String]?
+
+  public init(customProperties: [String: String]? = nil) {
+    self.customProperties = customProperties
   }
 }
 
