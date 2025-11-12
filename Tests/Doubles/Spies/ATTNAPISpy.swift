@@ -14,6 +14,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
   private(set) var sendUserIdentityCallbackWasCalled = false
   private(set) var sendEventWasCalled = false
   private(set) var sendEventCallbackWasCalled = false
+  private(set) var sendNewEventWasCalled = false
   private(set) var updateDomainWasCalled = false
   private(set) var domainWasSet = false
   private(set) var cachedGeoAdjustedDomainWasSet = false
@@ -63,6 +64,16 @@ final class ATTNAPISpy: ATTNAPIProtocol {
 
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
     sendEventCallbackWasCalled = true
+    callback?(nil, nil, nil, nil)
+  }
+
+  func sendNewEvent<M: Codable>(
+    event: ATTNBaseEvent<M>,
+    eventRequest: ATTNEventRequest,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  ) {
+    sendNewEventWasCalled = true
     callback?(nil, nil, nil, nil)
   }
 
