@@ -535,7 +535,7 @@ extension ATTNAPI {
         return
       }
 
-      guard httpResponse.statusCode == 200, let data = data else {
+      guard (200...299).contains(httpResponse.statusCode), let data = data else {
         Loggers.network.error("Error getting the geo-adjusted domain for \(domain). Incorrect status code: '\(httpResponse.statusCode)'")
         completionHandler(nil, NSError(domain: "com.attentive.API", code: NSURLErrorBadServerResponse, userInfo: nil))
         return
@@ -612,14 +612,14 @@ extension ATTNAPI {
           return
         }
 
-        let formBody = "d=\(encodedJson)"
-        request.httpBody = formBody.data(using: .utf8)
+        let requestBody = "d=\(encodedJson)"
+        request.httpBody = requestBody.data(using: .utf8)
 
         Loggers.network.debug("""
                   ---- Sending /mobile Event ----
                   URL: \(url.absoluteString)
                   JSON Payload: \(jsonString)
-                  Form Body: \(formBody)
+                  Request Body: \(requestBody)
                   --------------------------------
                   """)
 
