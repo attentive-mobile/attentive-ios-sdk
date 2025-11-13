@@ -448,6 +448,7 @@ public final class ATTNSDK: NSObject {
       callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
       return
     }
+    clearUser()
     api.updateUser(
       pushToken: pushToken,
       userIdentity: userIdentity,

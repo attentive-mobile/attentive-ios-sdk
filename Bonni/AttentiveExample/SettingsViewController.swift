@@ -453,9 +453,7 @@ class SettingsViewController: UIViewController {
       "test_key_2": "test_value_2",
       "event_source": "settings_screen"
     ]
-
-    tracker.recordCustomEvent(customProperties: customProperties)
-
+    tracker.recordEvent(.customEvent(customProperties: customProperties))
     showToast(with: "Custom Event sent!")
   }
 

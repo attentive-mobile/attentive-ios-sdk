@@ -130,8 +130,7 @@ sdk.clearUser()
 
 ### Update user via email and/or phone
 
-Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
-Please call clearUser() prior to calling updateUser(). This removes any identifiers previously linked to the current user, ensuring a clean transition between user profiles.
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user (the sdk will automatically call clearUser()), and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
 
 #### Swift
 ```

@@ -177,13 +177,7 @@ class PlaceOrderViewController: UIViewController {
     )
 
     // Call recordPurchase with V2 format
-    tracker.recordPurchase(
-      orderId: "778899",
-      currency: item.price.currency,
-      orderTotal: item.price.price.stringValue,
-      cart: nil,
-      products: [productV2]
-    )
+    tracker.recordEvent(.purchase(orderId: "789789", currency: item.price.currency, orderTotal: item.price.price.stringValue, cart: nil, products: [productV2]))
 
     let orderConfirmationVC = OrderConfirmationViewController()
     navigationController?.pushViewController(orderConfirmationVC, animated: true)
