@@ -27,25 +27,26 @@ final class ATTNEventTrackerV2Tests: XCTestCase {
     super.tearDown()
   }
 
-  // MARK: - recordAddToCart Tests
+  // MARK: - Setup Tests
 
-  func testRecordAddToCart_validProduct_doesNotThrow() {
-    let product = ATTNProduct(
-      productId: "123",
-      variantId: "456",
-      name: "Test Product",
-      variantName: nil,
-      imageUrl: nil,
-      categories: ["Electronics"],
-      price: "59.99",
-      quantity: 1,
-      productUrl: nil
-    )
-
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "USD"))
+  func testSharedInstance_afterSetup_returnsValidInstance() {
+    XCTAssertNotNil(ATTNEventTracker.sharedInstance())
   }
 
-  func testRecordAddToCart_productWithAllFields_doesNotThrow() {
+  // MARK: - AddToCart Event Tests
+
+  func testRecordEvent_addToCart_withRequiredFields_doesNotThrow() {
+    let product = ATTNProduct(
+      productId: "123",
+      name: "Test Product",
+      price: "59.99",
+      quantity: 1
+    )
+
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "USD")))
+  }
+
+  func testRecordEvent_addToCart_withAllFields_doesNotThrow() {
     let product = ATTNProduct(
       productId: "123",
       variantId: "456",
@@ -58,20 +59,20 @@ final class ATTNEventTrackerV2Tests: XCTestCase {
       productUrl: "https://example.com/product/123"
     )
 
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "USD"))
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "USD")))
   }
 
-  func testRecordAddToCart_differentCurrencies_doesNotThrow() {
+  func testRecordEvent_addToCart_differentCurrencies_doesNotThrow() {
     let product = ATTNProduct(productId: "123", name: "Test", price: "10.00", quantity: 1)
 
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "USD"))
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "EUR"))
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "GBP"))
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "USD")))
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "EUR")))
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "GBP")))
   }
 
-  // MARK: - recordProductView Tests
+  // MARK: - ProductView Event Tests
 
-  func testRecordProductView_validProduct_doesNotThrow() {
+  func testRecordEvent_productView_withRequiredFields_doesNotThrow() {
     let product = ATTNProduct(
       productId: "123",
       name: "Test Product",
@@ -79,10 +80,10 @@ final class ATTNEventTrackerV2Tests: XCTestCase {
       quantity: 1
     )
 
-    XCTAssertNoThrow(tracker.recordProductView(product: product, currency: "USD"))
+    XCTAssertNoThrow(tracker.recordEvent(.productView(product: product, currency: "USD")))
   }
 
-  func testRecordProductView_productWithOptionalFields_doesNotThrow() {
+  func testRecordEvent_productView_withAllFields_doesNotThrow() {
     let product = ATTNProduct(
       productId: "123",
       variantId: "456",
@@ -95,24 +96,24 @@ final class ATTNEventTrackerV2Tests: XCTestCase {
       productUrl: "https://example.com/product/123"
     )
 
-    XCTAssertNoThrow(tracker.recordProductView(product: product, currency: "USD"))
+    XCTAssertNoThrow(tracker.recordEvent(.productView(product: product, currency: "USD")))
   }
 
-  // MARK: - recordPurchase Tests
+  // MARK: - Purchase Event Tests
 
-  func testRecordPurchase_withoutCart_doesNotThrow() {
+  func testRecordEvent_purchase_withoutCart_doesNotThrow() {
     let product = ATTNProduct(productId: "123", name: "Test", price: "10.00", quantity: 1)
 
-    XCTAssertNoThrow(tracker.recordPurchase(
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
       orderId: "order123",
       currency: "USD",
       orderTotal: "10.00",
       cart: nil,
       products: [product]
-    ))
+    )))
   }
 
-  func testRecordPurchase_withCart_doesNotThrow() {
+  func testRecordEvent_purchase_withCart_doesNotThrow() {
     let product = ATTNProduct(productId: "123", name: "Test", price: "10.00", quantity: 1)
     let cart = ATTNCartPayload(
       cartId: "cart123",
@@ -121,82 +122,138 @@ final class ATTNEventTrackerV2Tests: XCTestCase {
       cartDiscount: "1.00"
     )
 
-    XCTAssertNoThrow(tracker.recordPurchase(
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
       orderId: "order123",
       currency: "USD",
       orderTotal: "10.00",
       cart: cart,
       products: [product]
-    ))
+    )))
   }
 
-  func testRecordPurchase_multipleProducts_doesNotThrow() {
+  func testRecordEvent_purchase_multipleProducts_doesNotThrow() {
     let product1 = ATTNProduct(productId: "123", name: "Test 1", price: "10.00", quantity: 1)
     let product2 = ATTNProduct(productId: "456", name: "Test 2", price: "20.00", quantity: 2)
 
-    XCTAssertNoThrow(tracker.recordPurchase(
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
       orderId: "order123",
       currency: "USD",
       orderTotal: "50.00",
       cart: nil,
       products: [product1, product2]
-    ))
+    )))
   }
 
-  func testRecordPurchase_emptyProductsArray_doesNotThrow() {
-    XCTAssertNoThrow(tracker.recordPurchase(
+  func testRecordEvent_purchase_emptyProductsArray_doesNotThrow() {
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
       orderId: "order123",
       currency: "USD",
       orderTotal: "0.00",
       cart: nil,
       products: []
-    ))
+    )))
   }
 
-  // MARK: - recordCustomEvent Tests
+  func testRecordEvent_purchase_withFullCart_doesNotThrow() {
+    let product = ATTNProduct(
+      productId: "123",
+      variantId: "456",
+      name: "Test Product",
+      variantName: "Blue",
+      imageUrl: "https://example.com/image.jpg",
+      categories: ["Electronics"],
+      price: "59.99",
+      quantity: 2,
+      productUrl: "https://example.com/product/123"
+    )
 
-  func testRecordCustomEvent_withProperties_doesNotThrow() {
+    let cart = ATTNCartPayload(
+      cartId: "cart456",
+      cartTotal: "119.98",
+      cartCoupon: "SUMMER20",
+      cartDiscount: "10.00"
+    )
+
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
+      orderId: "order456",
+      currency: "USD",
+      orderTotal: "109.98",
+      cart: cart,
+      products: [product]
+    )))
+  }
+
+  // MARK: - CustomEvent Tests
+
+  func testRecordEvent_customEvent_withProperties_doesNotThrow() {
     let properties = ["key1": "value1", "key2": "value2"]
 
-    XCTAssertNoThrow(tracker.recordCustomEvent(customProperties: properties))
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: properties)))
   }
 
-  func testRecordCustomEvent_withoutProperties_doesNotThrow() {
-    XCTAssertNoThrow(tracker.recordCustomEvent(customProperties: nil))
+  func testRecordEvent_customEvent_withoutProperties_doesNotThrow() {
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: nil)))
   }
 
-  func testRecordCustomEvent_emptyProperties_doesNotThrow() {
-    XCTAssertNoThrow(tracker.recordCustomEvent(customProperties: [:]))
+  func testRecordEvent_customEvent_emptyProperties_doesNotThrow() {
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: [:])))
   }
 
-  func testRecordCustomEvent_withSpecialCharacters_doesNotThrow() {
+  func testRecordEvent_customEvent_withSpecialCharacters_doesNotThrow() {
     let properties = [
       "key_with_underscore": "value",
       "key-with-dash": "value",
       "key.with.dot": "value"
     ]
 
-    XCTAssertNoThrow(tracker.recordCustomEvent(customProperties: properties))
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: properties)))
   }
 
   // MARK: - Integration Tests
 
-  func testMultipleEventTypes_sequential_doesNotThrow() {
+  func testRecordEvent_multipleEventTypes_sequential_doesNotThrow() {
     let product = ATTNProduct(productId: "123", name: "Test", price: "10.00", quantity: 1)
 
-    XCTAssertNoThrow(tracker.recordProductView(product: product, currency: "USD"))
-    XCTAssertNoThrow(tracker.recordAddToCart(product: product, currency: "USD"))
-    XCTAssertNoThrow(tracker.recordCustomEvent(customProperties: ["action": "checkout_started"]))
-    XCTAssertNoThrow(tracker.recordPurchase(
+    XCTAssertNoThrow(tracker.recordEvent(.productView(product: product, currency: "USD")))
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product, currency: "USD")))
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: ["action": "checkout_started"])))
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
       orderId: "order123",
       currency: "USD",
       orderTotal: "10.00",
       cart: nil,
       products: [product]
-    ))
+    )))
   }
 
-  func testSharedInstance_afterSetup_returnsValidInstance() {
-    XCTAssertNotNil(ATTNEventTracker.sharedInstance())
+  func testRecordEvent_completeUserJourney_doesNotThrow() {
+    // Simulate a complete user journey through the app
+    let product1 = ATTNProduct(productId: "PROD1", name: "Widget A", price: "29.99", quantity: 1)
+    let product2 = ATTNProduct(productId: "PROD2", name: "Widget B", price: "39.99", quantity: 2)
+
+    // View product 1
+    XCTAssertNoThrow(tracker.recordEvent(.productView(product: product1, currency: "USD")))
+
+    // Add product 1 to cart
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product1, currency: "USD")))
+
+    // View product 2
+    XCTAssertNoThrow(tracker.recordEvent(.productView(product: product2, currency: "USD")))
+
+    // Add product 2 to cart
+    XCTAssertNoThrow(tracker.recordEvent(.addToCart(product: product2, currency: "USD")))
+
+    // Custom event for checkout start
+    XCTAssertNoThrow(tracker.recordEvent(.customEvent(customProperties: ["step": "checkout_initiated"])))
+
+    // Complete purchase
+    let cart = ATTNCartPayload(cartId: "CART123", cartTotal: "109.97", cartCoupon: "SAVE10", cartDiscount: "5.00")
+    XCTAssertNoThrow(tracker.recordEvent(.purchase(
+      orderId: "ORDER789",
+      currency: "USD",
+      orderTotal: "104.97",
+      cart: cart,
+      products: [product1, product2]
+    )))
   }
 }
