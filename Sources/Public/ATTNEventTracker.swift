@@ -49,10 +49,9 @@ public final class ATTNEventTracker: NSObject {
     return _sharedInstance
   }
 
-  // MARK: - New Event API (v2 endpoint) - Centralized Entry Point
+  // MARK: - New Event API (v2 endpoint)
 
-  /// Records an event to the new /mobile endpoint.
-  /// This is the centralized entry point for all v2 event types.
+  /// Records an event to the new /mobile endpoint
   /// The function determines the event type and calls the appropriate SDK method.
   ///
   /// Supports the following event types:
@@ -62,7 +61,6 @@ public final class ATTNEventTracker: NSObject {
   /// - CustomEvent: Records a custom mobile event
   ///
   /// - Parameter eventData: The event data containing event-specific information
-  ///
   /// ```
   public func recordEvent(_ eventData: ATTNEventData) {
     switch eventData {
@@ -84,62 +82,6 @@ public final class ATTNEventTracker: NSObject {
     case let .customEvent(customProperties):
       sdk.sendCustomEvent(customProperties: customProperties)
     }
-  }
-
-  // MARK: - Convenience Methods (Deprecated)
-
-  /// Records an AddToCart event to the new /mobile endpoint
-  /// - Parameters:
-  ///   - product: The product being added to cart
-  ///   - currency: The currency code (e.g., "USD")
-  /// - Note: This method is deprecated. Use `recordEvent(.addToCart(product:currency:))` instead.
-  @available(*, deprecated, message: "Use recordEvent(.addToCart(product:currency:)) instead")
-  public func recordAddToCart(product: ATTNProduct, currency: String) {
-    recordEvent(.addToCart(product: product, currency: currency))
-  }
-
-  /// Records a ProductView event to the new /mobile endpoint
-  /// - Parameters:
-  ///   - product: The product being viewed
-  ///   - currency: The currency code (e.g., "USD")
-  /// - Note: This method is deprecated. Use `recordEvent(.productView(product:currency:))` instead.
-  @available(*, deprecated, message: "Use recordEvent(.productView(product:currency:)) instead")
-  public func recordProductView(product: ATTNProduct, currency: String) {
-    recordEvent(.productView(product: product, currency: currency))
-  }
-
-  /// Records a Purchase event to the new /mobile endpoint
-  /// - Parameters:
-  ///   - orderId: The order identifier
-  ///   - currency: The currency code (e.g., "USD")
-  ///   - orderTotal: The total order amount
-  ///   - cart: Optional cart details
-  ///   - products: Array of products in the purchase
-  /// - Note: This method is deprecated. Use `recordEvent(.purchase(...))` instead.
-  @available(*, deprecated, message: "Use recordEvent(.purchase(orderId:currency:orderTotal:cart:products:)) instead")
-  public func recordPurchase(
-    orderId: String,
-    currency: String,
-    orderTotal: String,
-    cart: ATTNCartPayload?,
-    products: [ATTNProduct]
-  ) {
-    recordEvent(.purchase(
-      orderId: orderId,
-      currency: currency,
-      orderTotal: orderTotal,
-      cart: cart,
-      products: products
-    ))
-  }
-
-  /// Records a MobileCustomEvent to the new /mobile endpoint
-  /// - Parameters:
-  ///   - customProperties: Optional dictionary of custom properties
-  /// - Note: This method is deprecated. Use `recordEvent(.customEvent(customProperties:))` instead.
-  @available(*, deprecated, message: "Use recordEvent(.customEvent(customProperties:)) instead")
-  public func recordCustomEvent(customProperties: [String: String]?) {
-    recordEvent(.customEvent(customProperties: customProperties))
   }
 }
 
