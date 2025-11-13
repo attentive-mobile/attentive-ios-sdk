@@ -135,6 +135,7 @@ Our SDK supports switching the identified user via email and/or phone (at least 
 #### Swift
 ```
 // Update user with both email and phone
+attentiveSdk.clearUser() // Must be called prior to calling updateUser()
 attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
     switch result {
     case .success:

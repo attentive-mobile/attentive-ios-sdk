@@ -535,7 +535,7 @@ extension ATTNAPI {
         return
       }
 
-      guard httpResponse.statusCode == 200, let data = data else {
+      guard (200...299).contains(httpResponse.statusCode), let data = data else {
         Loggers.network.error("Error getting the geo-adjusted domain for \(domain). Incorrect status code: '\(httpResponse.statusCode)'")
         completionHandler(nil, NSError(domain: "com.attentive.API", code: NSURLErrorBadServerResponse, userInfo: nil))
         return
@@ -557,4 +557,89 @@ extension ATTNAPI {
 
     task.resume()
   }
+
+  /// Sends a new-style event payload to the `/mobile` endpoint.
+  /// - Parameters:
+  ///   - event: The typed event payload (ATTNBaseEvent<M>)
+  ///   - eventRequest: The legacy request object for backward compatibility and URL building
+  ///   - userIdentity: The current user identity
+  ///   - callback: Optional callback for the API response
+  func sendNewEvent<M: Codable>(
+    event: ATTNBaseEvent<M>,
+    eventRequest: ATTNEventRequest,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback? = nil
+  ) {
+    getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
+      guard let self = self else { return }
+
+      if let error = error {
+        Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription)")
+        callback?(nil, nil, nil, error)
+        return
+      }
+
+      guard let geoDomain = geoDomain,
+            let url = self.eventUrlProvider.buildNewEventEndpointUrl(
+              for: eventRequest,
+              userIdentity: userIdentity,
+              domain: geoDomain
+            ) else {
+        Loggers.network.error("Invalid /mobile event URL")
+        callback?(nil, nil, nil, ATTNError.badURL)
+        return
+      }
+
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
+      request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+
+      do {
+        // Encode the event to JSON with explicit null values
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        let jsonData = try encoder.encode(event)
+
+        // Convert JSON to string for logging
+        let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+
+        // URL-encode the JSON and wrap it in form data with key 'd'
+        guard let encodedJson = jsonString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+          Loggers.network.error("Failed to URL-encode JSON payload")
+          callback?(nil, url, nil, ATTNError.badURL)
+          return
+        }
+
+        let requestBody = "d=\(encodedJson)"
+        request.httpBody = requestBody.data(using: .utf8)
+
+        Loggers.network.debug("""
+                  ---- Sending /mobile Event ----
+                  URL: \(url.absoluteString)
+                  JSON Payload: \(jsonString)
+                  Request Body: \(requestBody)
+                  --------------------------------
+                  """)
+
+        let task = self.urlSession.dataTask(with: request) { data, response, error in
+          if let error = error {
+            Loggers.network.error("New event send error: \(error.localizedDescription)")
+          } else if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("New event status code: \(http.statusCode)")
+            if http.statusCode >= 400 {
+              Loggers.network.error("New event failed with HTTP status code \(http.statusCode)")
+            }
+          }
+          callback?(data, url, response, error)
+        }
+        task.resume()
+      } catch {
+        Loggers.network.error("Encoding error for /mobile event: \(error.localizedDescription)")
+        callback?(nil, url, nil, error)
+      }
+    }
+  }
+
 }

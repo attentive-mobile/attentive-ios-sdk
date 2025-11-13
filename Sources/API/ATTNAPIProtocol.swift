@@ -16,6 +16,12 @@ protocol ATTNAPIProtocol {
   func send(userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity)
   func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?)
+  func sendNewEvent<M: Codable>(
+    event: ATTNBaseEvent<M>,
+    eventRequest: ATTNEventRequest,
+    userIdentity: ATTNUserIdentity,
+    callback: ATTNAPICallback?
+  )
   func update(domain newDomain: String)
 
   // MARK: - Push token & app events

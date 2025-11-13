@@ -41,7 +41,7 @@ public final class ATTNSDK: NSObject {
   private(set) var api: ATTNAPIProtocol
   private(set) var userIdentity: ATTNUserIdentity
 
-  private var domain: String
+  internal var domain: String
   private var mode: ATTNSDKMode
   private var webViewHandler: ATTNWebViewHandling?
 
@@ -448,6 +448,7 @@ public final class ATTNSDK: NSObject {
       callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
       return
     }
+    clearUser()
     api.updateUser(
       pushToken: pushToken,
       userIdentity: userIdentity,

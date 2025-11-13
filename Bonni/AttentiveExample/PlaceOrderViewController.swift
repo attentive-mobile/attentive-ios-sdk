@@ -70,6 +70,17 @@ class PlaceOrderViewController: UIViewController {
     button.translatesAutoresizingMaskIntoConstraints = false
     return button
   }()
+
+  private let placeOrderV2Button: UIButton = {
+    let button = UIButton(type: .system)
+    button.setTitle("Place Order (V2 - New Format)", for: .normal)
+    button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
+    button.backgroundColor = .systemBlue
+    button.setTitleColor(.white, for: .normal)
+    button.layer.cornerRadius = 8
+    button.translatesAutoresizingMaskIntoConstraints = false
+    return button
+  }()
   
   // MARK: - View Lifecycle
   
@@ -105,7 +116,8 @@ class PlaceOrderViewController: UIViewController {
       cardHolderNameTextField,
       expirationDateTextField,
       cvvTextField,
-      placeOrderButton
+      placeOrderButton,
+      placeOrderV2Button
     ])
     stackView.axis = .vertical
     stackView.spacing = 16
@@ -121,8 +133,10 @@ class PlaceOrderViewController: UIViewController {
     ])
     
     placeOrderButton.heightAnchor.constraint(equalToConstant: 50).isActive = true
-    
+    placeOrderV2Button.heightAnchor.constraint(equalToConstant: 50).isActive = true
+
     placeOrderButton.addTarget(self, action: #selector(placeOrderTapped), for: .touchUpInside)
+    placeOrderV2Button.addTarget(self, action: #selector(placeOrderV2Tapped), for: .touchUpInside)
   }
   
   // MARK: - Actions
@@ -132,12 +146,43 @@ class PlaceOrderViewController: UIViewController {
     let cardHolderName = cardHolderNameTextField.text ?? ""
     let expirationDate = expirationDateTextField.text ?? ""
     let cvv = cvvTextField.text ?? ""
-    
+
     // TODO: Validate fields & send purchase event
     // In PlaceOrderViewController, after a successful order:
     let orderConfirmationVC = OrderConfirmationViewController()
     navigationController?.pushViewController(orderConfirmationVC, animated: true)
     recordPlaceOrderEvent()
+  }
+
+  @objc private func placeOrderV2Tapped() {
+    guard let tracker = ATTNEventTracker.sharedInstance() else {
+      print("Error: ATTNEventTracker not initialized")
+      showToast(with: "Error: ATTNEventTracker not initialized")
+      return
+    }
+
+    let item = buildItem()
+
+    // Convert ATTNItem to ATTNProduct for V2 API
+    let productV2 = ATTNProduct(
+      productId: item.productId,
+      variantId: item.productVariantId,
+      name: item.name ?? "Unknown Product",
+      variantName: nil,
+      imageUrl: item.productImage,
+      categories: item.category != nil ? [item.category!] : nil,
+      price: item.price.price.stringValue,
+      quantity: item.quantity,
+      productUrl: nil
+    )
+
+    // Call recordPurchase with V2 format
+    tracker.recordEvent(.purchase(orderId: "789789", currency: item.price.currency, orderTotal: item.price.price.stringValue, cart: nil, products: [productV2]))
+
+    let orderConfirmationVC = OrderConfirmationViewController()
+    navigationController?.pushViewController(orderConfirmationVC, animated: true)
+
+    showToast(with: "V2 Purchase event sent!")
   }
 
   private func recordPlaceOrderEvent() {
