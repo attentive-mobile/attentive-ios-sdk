@@ -17,7 +17,7 @@ platform :ios do
 
   desc "Setup dependencies and environment"
   lane :setup do
-    UI.message("🔧 Setting up dependencies...")
+    UI.message("Setting up dependencies...")
 
     # Resolve Swift Package Manager dependencies
     xcodebuild(
@@ -26,7 +26,7 @@ platform :ios do
       xcargs: "-resolvePackageDependencies"
     )
 
-    UI.success("✅ Dependencies resolved successfully")
+    UI.success("Dependencies resolved successfully")
   end
 
   # ========================
@@ -41,14 +41,14 @@ platform :ios do
     # If version provided, update .version file first
     if options[:version]
       File.write(version_file, options[:version])
-      UI.message("📝 Updated .version file to: #{options[:version]}")
+      UI.message("Updated .version file to: #{options[:version]}")
     end
 
     # Read version from file
     version = File.read(version_file).strip
     UI.user_error!(".version file is empty") if version.empty?
 
-    UI.message("🔄 Syncing version: #{version}")
+    UI.message("Syncing version: #{version}")
 
     # 1. Update ATTNConstants.swift
     constants_file = File.join(root_dir, "Sources/ATTNConstants.swift")
@@ -56,7 +56,7 @@ platform :ios do
       content = File.read(constants_file)
       content.gsub!(/static let sdkVersion = ".*"/, "static let sdkVersion = \"#{version}\"")
       File.write(constants_file, content)
-      UI.success("✓ Updated ATTNConstants.swift")
+      UI.success("Updated ATTNConstants.swift")
     end
 
     # 2. Update Package.swift (the URL version)
@@ -65,7 +65,7 @@ platform :ios do
       content = File.read(package_file)
       content.gsub!(%r{releases/download/[0-9.]+[^/]*/}, "releases/download/#{version}/")
       File.write(package_file, content)
-      UI.success("✓ Updated Package.swift")
+      UI.success("Updated Package.swift")
     end
 
     # 3. Update README.md pod versions
@@ -75,11 +75,11 @@ platform :ios do
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
       content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
       File.write(readme_file, content)
-      UI.success("✓ Updated README.md")
+      UI.success("Updated README.md")
     end
 
     UI.success("")
-    UI.success("✅ Version sync complete: #{version}")
+    UI.success("Version sync complete: #{version}")
     UI.message("")
     UI.message("Files updated:")
     UI.message("  - .version (source of truth)")
@@ -194,7 +194,7 @@ platform :ios do
     end
 
     new_version = parts.join('.')
-    UI.message("Bumping version: #{current_version} → #{new_version}")
+    UI.message("Bumping version: #{current_version} -> #{new_version}")
 
     sync_version(version: new_version)
   end
@@ -205,16 +205,16 @@ platform :ios do
 
   desc "Run SwiftLint"
   lane :lint do
-    UI.message("🔍 Running SwiftLint...")
+    UI.message("Running SwiftLint...")
 
     # Ensure SwiftLint is installed
     begin
       swiftlint_path = sh("command -v swiftlint", log: false).strip
-      UI.message("✅ SwiftLint found at: #{swiftlint_path}")
+      UI.message("SwiftLint found at: #{swiftlint_path}")
     rescue => exception
-      UI.message("⚠️  SwiftLint not found, installing via Homebrew...")
+      UI.message("SwiftLint not found, installing via Homebrew...")
       sh("brew install swiftlint")
-      UI.success("✅ SwiftLint installed successfully")
+      UI.success("SwiftLint installed successfully")
     end
 
     # Create reports directory
@@ -229,7 +229,7 @@ platform :ios do
       ignore_exit_status: true
     )
 
-    UI.success("✅ SwiftLint passed")
+    UI.success("SwiftLint passed")
   end
 
   # ========================
@@ -238,7 +238,7 @@ platform :ios do
 
   desc "Run unit tests"
   lane :unit_test do
-    UI.message("🧪 Running unit tests...")
+    UI.message("Running unit tests...")
     run_tests(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
@@ -248,12 +248,84 @@ platform :ios do
       result_bundle: true
     )
 
-    UI.success("✅ Unit tests passed")
+    UI.success("Unit tests passed")
+  end
+
+  desc "Run UI tests"
+  lane :ui_test do
+    UI.message("Running UI tests...")
+
+    sh("mkdir -p #{FASTLANE_TEST_OUTPUT_DIR}")
+
+    # Reset simulators for clean state
+    UI.message("Resetting simulators...")
+    sh("xcrun simctl erase all")
+
+    # Boot simulator
+    sh("xcrun simctl boot '#{FASTLANE_TEST_DEVICE}' || true")
+    sh("xcrun simctl bootstatus '#{FASTLANE_TEST_DEVICE}'")
+
+    scan(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "CreativeUITest",
+      device: "#{FASTLANE_TEST_DEVICE}",
+      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
+      output_types: "html,junit",
+      result_bundle: true
+    )
+
+    UI.success("UI tests passed")
+  end
+
+  desc "Run snapshot tests"
+  lane :snapshot_test do
+    UI.message("Running snapshot tests...")
+
+    sh("mkdir -p #{FASTLANE_TEST_OUTPUT_DIR}")
+
+    # Boot simulator
+    sh("xcrun simctl boot '#{FASTLANE_TEST_DEVICE}' || true")
+
+    scan(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "SnapshotTests",
+      device: "#{FASTLANE_TEST_DEVICE}",
+      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
+      output_types: "html,junit",
+      result_bundle: true
+    )
+
+    # Check for snapshot failures
+    if File.directory?("__Snapshots__/__Failures__")
+      UI.user_error!("Snapshot tests failed! Visual regressions detected. Check artifacts for details.")
+    else
+      UI.success("Snapshot tests passed")
+    end
+  end
+
+  desc "Record new snapshots"
+  lane :record_snapshots do
+    UI.message("Recording new snapshots...")
+
+    ENV["SNAPSHOT_RECORDING"] = "true"
+
+    sh("xcrun simctl boot '#{FASTLANE_TEST_DEVICE}' || true")
+
+    scan(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "SnapshotTests",
+      device: "#{FASTLANE_TEST_DEVICE}",
+      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}"
+    )
+
+    UI.success("Snapshots recorded successfully!")
+    UI.important("Don't forget to commit the updated __Snapshots__ directory")
   end
 
   # ========================
-  # Build
+  # Building
   # ========================
+
   lane :build_xcframework do
     project       = "attentive-ios-sdk.xcodeproj"
     scheme        = "attentive-ios-sdk-framework"
@@ -340,8 +412,210 @@ platform :ios do
 
     sh("find #{output_root}/#{framework}.xcframework -name '*.swiftsourceinfo' -delete")
     sh("find #{output_root}/#{framework}.xcframework -type d -name 'Project' -empty -delete")
-    
-    UI.success "✅ Done building attentive-ios-sdk XCFrameworks"
+
+    UI.success "Done building attentive-ios-sdk XCFrameworks"
+  end
+
+  desc "Build framework for device and simulator"
+  lane :build_framework do
+    UI.message("Building framework...")
+
+    # Build for iOS Device
+    UI.message("Building for iOS Device...")
+    xcodebuild(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      destination: "generic/platform=iOS",
+      configuration: "Release",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+    )
+
+    # Build for iOS Simulator
+    UI.message("Building for iOS Simulator...")
+    xcodebuild(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      destination: "generic/platform=iOS Simulator",
+      configuration: "Release",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+    )
+
+    UI.success("Framework built successfully")
+  end
+
+  desc "Build example apps"
+  lane :build_examples do
+    UI.message("Building example apps...")
+
+    # Build Example App (Local)
+    UI.message("Building Example - Local...")
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "Example - Local",
+      destination: "platform=iOS Simulator,name=#{FASTLANE_TEST_DEVICE}",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    # Build ExampleSwift App (SPM)
+    UI.message("Building ExampleSwift - SPM...")
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "ExampleSwift - SPM",
+      destination: "platform=iOS Simulator,name=#{FASTLANE_TEST_DEVICE}",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    # Build Bonni App
+    UI.message("Building Bonni/AttentiveExample...")
+    xcodebuild(
+      project: "Bonni/Bonni.xcodeproj",
+      scheme: "AttentiveExample",
+      destination: "platform=iOS Simulator,name=#{FASTLANE_TEST_DEVICE}",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    UI.success("All example apps built successfully")
+  end
+
+  # ========================
+  # Validation
+  # ========================
+
+  desc "Validate CocoaPods podspec"
+  lane :validate_podspec do
+    UI.message("Validating CocoaPods podspec...")
+
+    # Ensure CocoaPods is installed
+    unless sh("command -v pod", log: false).strip.empty?
+      UI.message("CocoaPods already installed")
+    else
+      UI.message("Installing CocoaPods...")
+      sh("sudo gem install cocoapods")
+    end
+
+    pod_lib_lint(
+      podspec: "ATTNSDKFramework.podspec",
+      allow_warnings: true
+    )
+
+    UI.success("Podspec validation passed")
+  end
+
+  desc "Validate Swift Package Manager"
+  lane :validate_spm do
+    UI.message("Validating Swift Package...")
+
+    sh("swift package resolve")
+    sh("swift build")
+
+    UI.success("SPM validation passed")
+  end
+
+  # ========================
+  # Distribution
+  # ========================
+
+  desc "Upload a new build to TestFlight"
+  lane :beta do
+    UI.message("Preparing TestFlight distribution...")
+
+    # Setup CI environment if running on CI
+    setup_ci if ENV['CI']
+
+    # Sync code signing
+    UI.message("Syncing code signing certificates...")
+    match(
+      type: "appstore",
+      readonly: true,
+      git_url: ENV["MATCH_GIT_URL"],
+      app_identifier: ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example"
+    )
+
+    # Increment build number based on CI build
+    if ENV["CIRCLE_BUILD_NUM"]
+      increment_build_number(
+        build_number: ENV["CIRCLE_BUILD_NUM"]
+      )
+    end
+
+    # Build the app
+    UI.message("Building app for App Store...")
+    gym(
+      scheme: "Example - Local",
+      workspace: "attentive-ios-sdk.xcworkspace",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
+        }
+      },
+      output_directory: "build/",
+      clean: true
+    )
+
+    # Upload to TestFlight
+    UI.message("Uploading to TestFlight...")
+    pilot(
+      skip_waiting_for_build_processing: true,
+      changelog: "Build #{ENV['CIRCLE_BUILD_NUM'] || 'local'} - #{ENV['CIRCLE_BRANCH'] || 'development'}",
+      distribute_external: false,
+      notify_external_testers: false
+    )
+
+    UI.success("Build uploaded to TestFlight successfully!")
+  end
+
+  # ========================
+  # Convenience Lanes
+  # ========================
+
+  desc "Run all quality checks (lint + test + build)"
+  lane :quality do
+    UI.message("Running all quality checks...")
+
+    lint
+    unit_test
+    build_framework
+
+    UI.success("All quality checks passed!")
+  end
+
+  desc "Run complete CI validation"
+  lane :ci do
+    UI.message("Running complete CI validation...")
+
+    setup
+    lint
+    unit_test
+    build_framework
+    validate_podspec
+    validate_spm
+    build_examples
+
+    UI.success("Complete CI validation passed!")
+  end
+
+  desc "Run tests only (unit + UI)"
+  lane :test_all do
+    UI.message("Running all tests...")
+
+    unit_test
+    ui_test
+
+    UI.success("All tests passed!")
   end
 
   # ========================
@@ -349,7 +623,7 @@ platform :ios do
   # ========================
 
   error do |lane, exception|
-    UI.error("❌ Lane #{lane} failed with error:")
+    UI.error("Lane #{lane} failed with error:")
     UI.error(exception.message)
 
     # Add custom error handling here (Slack notifications, etc.)
