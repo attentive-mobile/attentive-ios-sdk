@@ -1,0 +1,36 @@
+# Matchfile for Fastlane Match
+# Configuration for code signing certificate management
+
+# Git repository URL where certificates and profiles are stored
+# Set via environment variable MATCH_GIT_URL
+git_url(ENV["MATCH_GIT_URL"])
+
+# Storage mode (git, google_cloud, s3, gitlab_secure_files)
+storage_mode("git")
+
+# App identifier
+app_identifier(ENV["APP_IDENTIFIER"] || ["com.attentive.sdk.example"])
+
+# Your Apple Developer Portal username
+username(ENV["APPLE_ID"] || ENV["FASTLANE_USER"])
+
+# Certificate type (development, appstore, adhoc, enterprise)
+type("appstore")
+
+# Read-only mode (true for CI)
+readonly(is_ci)
+
+# Git branch to use
+git_branch("main")
+
+# Shallow clone for faster execution
+shallow_clone(true)
+
+# Force for match (be careful with this)
+force(false)
+
+# Clone using SSH instead of HTTPS
+git_basic_authorization(ENV["MATCH_GIT_BASIC_AUTHORIZATION"])
+
+# Verbose logging
+verbose(true)
