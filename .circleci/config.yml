@@ -1,0 +1,403 @@
+version: 2.1
+
+# ========================
+# Executors
+# ========================
+executors:
+  macos-xcode:
+    macos:
+      xcode: "15.3.0"
+    resource_class: macos.m1.medium.gen1
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      FASTLANE_SKIP_UPDATE_CHECK: "YES"
+      LC_ALL: "en_US.UTF-8"
+      LANG: "en_US.UTF-8"
+
+# ========================
+# Commands (Reusable)
+# ========================
+commands:
+  setup-fastlane:
+    description: "Install Fastlane via Bundler"
+    steps:
+      - restore_cache:
+          keys:
+            - v1-gems-{{ checksum "Gemfile.lock" }}
+            - v1-gems-
+      - run:
+          name: Install Bundler Dependencies
+          command: |
+            bundle install --path vendor/bundle
+      - save_cache:
+          key: v1-gems-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
+# ========================
+# Jobs
+# ========================
+jobs:
+  # -----------------------
+  # Checkout and Setup
+  # -----------------------
+  checkout-and-setup:
+    executor: macos-xcode
+    steps:
+      - checkout
+
+      # Setup Fastlane
+      - setup-fastlane
+
+      # Cache Swift Package Manager dependencies
+      - restore_cache:
+          keys:
+            - v1-spm-{{ checksum "Package.resolved" }}
+            - v1-spm-
+
+      # Resolve dependencies via Fastlane
+      - run:
+          name: Setup Dependencies via Fastlane
+          command: bundle exec fastlane ios setup
+
+      - save_cache:
+          key: v1-spm-{{ checksum "Package.resolved" }}
+          paths:
+            - ~/.swiftpm
+            - ~/Library/Developer/Xcode/DerivedData
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  # -----------------------
+  # Lint
+  # -----------------------
+  lint:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run SwiftLint via Fastlane
+          command: bundle exec fastlane ios lint
+
+      - store_artifacts:
+          path: fastlane/reports/swiftlint.html
+          destination: lint-results/swiftlint.html
+
+  # -----------------------
+  # Unit Tests
+  # -----------------------
+  unit-tests:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run Unit Tests via Fastlane
+          command: bundle exec fastlane ios test
+
+      - store_test_results:
+          path: fastlane/test_output
+
+      - store_artifacts:
+          path: fastlane/test_output
+          destination: test-results
+
+      - store_artifacts:
+          path: fastlane/reports/coverage.json
+          destination: coverage
+
+      - store_artifacts:
+          path: fastlane/reports/coverage.txt
+          destination: coverage
+
+  # -----------------------
+  # UI Tests
+  # -----------------------
+  ui-tests:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run UI Tests via Fastlane
+          command: bundle exec fastlane ios ui_test
+          no_output_timeout: 20m
+
+      - store_test_results:
+          path: fastlane/test_output
+
+      - store_artifacts:
+          path: fastlane/test_output
+          destination: ui-test-results
+
+      - store_artifacts:
+          path: ~/Library/Logs/DiagnosticReports
+          destination: crash-reports
+          when: on_fail
+
+  # -----------------------
+  # Snapshot Tests
+  # -----------------------
+  snapshot-tests:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - restore_cache:
+          keys:
+            - v1-snapshots-{{ .Branch }}
+            - v1-snapshots-main
+
+      - run:
+          name: Run Snapshot Tests via Fastlane
+          command: bundle exec fastlane ios snapshot_test
+
+      - run:
+          name: Check for Snapshot Failures
+          command: |
+            if [ -d "__Snapshots__/__Failures__" ]; then
+              echo "❌ Snapshot tests failed! Visual regressions detected."
+              echo "Review the failure artifacts to see differences."
+              exit 1
+            fi
+          when: always
+
+      - store_test_results:
+          path: fastlane/test_output
+
+      - store_artifacts:
+          path: fastlane/test_output
+          destination: snapshot-results
+
+      - store_artifacts:
+          path: __Snapshots__/__Failures__
+          destination: snapshot-failures
+          when: on_fail
+
+      - save_cache:
+          key: v1-snapshots-{{ .Branch }}-{{ epoch }}
+          paths:
+            - __Snapshots__
+
+  # -----------------------
+  # Build Framework
+  # -----------------------
+  build-framework:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build Framework via Fastlane
+          command: bundle exec fastlane ios build_framework
+
+      - store_artifacts:
+          path: build/
+          destination: framework-builds
+
+  # -----------------------
+  # Build Example Apps
+  # -----------------------
+  build-examples:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build Example Apps via Fastlane
+          command: bundle exec fastlane ios build_examples
+
+  # -----------------------
+  # Validate CocoaPods Spec
+  # -----------------------
+  validate-podspec:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - restore_cache:
+          keys:
+            - v1-cocoapods-{{ checksum "ATTNSDKFramework.podspec" }}
+            - v1-cocoapods-
+
+      - run:
+          name: Validate Podspec via Fastlane
+          command: bundle exec fastlane ios validate_podspec
+
+      - save_cache:
+          key: v1-cocoapods-{{ checksum "ATTNSDKFramework.podspec" }}
+          paths:
+            - ~/Library/Caches/CocoaPods
+
+  # -----------------------
+  # Validate Swift Package Manager
+  # -----------------------
+  validate-spm:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Validate Swift Package via Fastlane
+          command: bundle exec fastlane ios validate_spm
+
+  # -----------------------
+  # Deploy to TestFlight
+  # -----------------------
+  deploy-testflight:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Setup App Store Connect API Key
+          command: |
+            mkdir -p ~/.appstoreconnect/private_keys
+            echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 --decode > \
+              ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+
+      - run:
+          name: Deploy to TestFlight via Fastlane
+          command: bundle exec fastlane ios beta
+
+      - store_artifacts:
+          path: fastlane/report.xml
+          destination: fastlane-report
+
+      - store_artifacts:
+          path: build/
+          destination: build-artifacts
+
+# ========================
+# Workflows
+# ========================
+workflows:
+  version: 2
+
+  # Main workflow for all branches
+  build-test:
+    jobs:
+      - checkout-and-setup
+
+      # Run these in parallel after setup
+      - lint:
+          requires:
+            - checkout-and-setup
+
+      - unit-tests:
+          requires:
+            - checkout-and-setup
+
+      - build-framework:
+          requires:
+            - checkout-and-setup
+
+      - validate-podspec:
+          requires:
+            - checkout-and-setup
+
+      - validate-spm:
+          requires:
+            - checkout-and-setup
+
+      # Snapshot tests (can be disabled if not implemented yet)
+      # - snapshot-tests:
+      #     requires:
+      #       - checkout-and-setup
+
+      # UI tests only on main and release branches
+      - ui-tests:
+          requires:
+            - checkout-and-setup
+          filters:
+            branches:
+              only:
+                - main
+                - /release\/.*/
+
+      # Build examples after framework builds
+      - build-examples:
+          requires:
+            - build-framework
+
+      # TestFlight deployment (main branch, manual approval)
+      - hold-testflight:
+          type: approval
+          requires:
+            - lint
+            - unit-tests
+            - build-framework
+            - build-examples
+          filters:
+            branches:
+              only: main
+
+      - deploy-testflight:
+          requires:
+            - hold-testflight
+          filters:
+            branches:
+              only: main
+
+  # Nightly comprehensive test run
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"  # Midnight UTC
+          filters:
+            branches:
+              only: main
+    jobs:
+      - checkout-and-setup
+      - lint:
+          requires:
+            - checkout-and-setup
+      - unit-tests:
+          requires:
+            - checkout-and-setup
+      - ui-tests:
+          requires:
+            - checkout-and-setup
+      - build-framework:
+          requires:
+            - checkout-and-setup
+      - build-examples:
+          requires:
+            - build-framework
+      - validate-podspec:
+          requires:
+            - checkout-and-setup
+      - validate-spm:
+          requires:
+            - checkout-and-setup

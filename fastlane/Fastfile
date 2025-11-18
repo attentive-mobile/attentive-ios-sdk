@@ -1,0 +1,390 @@
+# Fastfile for Attentive iOS SDK
+# This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
+
+default_platform(:ios)
+
+platform :ios do
+  # ========================
+  # Setup and Dependencies
+  # ========================
+
+  desc "Setup dependencies and environment"
+  lane :setup do
+    UI.message("🔧 Setting up dependencies...")
+
+    # Resolve Swift Package Manager dependencies
+    sh("xcodebuild -resolvePackageDependencies -project attentive-ios-sdk.xcodeproj")
+
+    UI.success("✅ Dependencies resolved successfully")
+  end
+
+  # ========================
+  # Code Quality
+  # ========================
+
+  desc "Run SwiftLint"
+  lane :lint do
+    UI.message("🔍 Running SwiftLint...")
+
+    # Ensure SwiftLint is installed
+    begin
+      swiftlint_path = sh("command -v swiftlint", log: false).strip
+      UI.message("✅ SwiftLint found at: #{swiftlint_path}")
+    rescue => exception
+      UI.message("⚠️  SwiftLint not found, installing via Homebrew...")
+      sh("brew install swiftlint")
+      UI.success("✅ SwiftLint installed successfully")
+    end
+
+    # Create reports directory
+    sh("mkdir -p fastlane/reports")
+
+    # Run SwiftLint with HTML reporter for artifacts
+    begin
+      sh("swiftlint --reporter html > fastlane/reports/swiftlint.html")
+    rescue
+      UI.error("SwiftLint found issues, see report")
+    end
+
+    # Run SwiftLint with default reporter (will fail if issues found)
+    swiftlint(
+      mode: :lint,
+      strict: false,
+      raise_if_swiftlint_error: true
+    )
+
+    UI.success("✅ SwiftLint passed")
+  end
+
+  # ========================
+  # Testing
+  # ========================
+
+  desc "Run unit tests"
+  lane :test do
+    UI.message("🧪 Running unit tests...")
+
+    # Create output directories
+    sh("mkdir -p fastlane/test_output")
+    sh("mkdir -p fastlane/reports")
+
+    # Boot simulator
+    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
+    sh("xcrun simctl bootstatus 'iPhone 16 Pro'")
+
+    scan(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      device: "iPhone 16 Pro",
+      code_coverage: true,
+      output_directory: "fastlane/test_output",
+      output_types: "html,junit",
+      result_bundle: true
+    )
+
+    # Generate coverage reports
+    UI.message("📊 Generating coverage reports...")
+    # Find the .xcresult bundle (Fastlane names it automatically)
+    result_bundle = Dir.glob("fastlane/test_output/**/*.xcresult").first
+    if result_bundle
+      sh("xcrun xccov view --report --json #{result_bundle} > fastlane/reports/coverage.json")
+      sh("xcrun xccov view --report #{result_bundle} > fastlane/reports/coverage.txt")
+    else
+      UI.error("Could not find .xcresult bundle for coverage report")
+    end
+
+    UI.success("✅ Unit tests passed")
+  end
+
+  desc "Run UI tests"
+  lane :ui_test do
+    UI.message("🎨 Running UI tests...")
+
+    # Create output directory
+    sh("mkdir -p fastlane/test_output")
+
+    # Reset simulators for clean state
+    UI.message("Resetting simulators...")
+    sh("xcrun simctl erase all")
+
+    # Boot simulator
+    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
+    sh("xcrun simctl bootstatus 'iPhone 16 Pro'")
+
+    scan(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "CreativeUITest",
+      device: "iPhone 16 Pro",
+      output_directory: "fastlane/test_output",
+      output_types: "html,junit",
+      result_bundle: true
+    )
+
+    UI.success("✅ UI tests passed")
+  end
+
+  desc "Run snapshot tests"
+  lane :snapshot_test do
+    UI.message("📸 Running snapshot tests...")
+
+    # Create output directory
+    sh("mkdir -p fastlane/test_output")
+
+    # Boot simulator
+    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
+
+    scan(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "SnapshotTests",
+      device: "iPhone 16 Pro",
+      output_directory: "fastlane/test_output",
+      output_types: "html,junit",
+      result_bundle: true
+    )
+
+    # Check for snapshot failures
+    if File.directory?("__Snapshots__/__Failures__")
+      UI.user_error!("❌ Snapshot tests failed! Visual regressions detected. Check artifacts for details.")
+    else
+      UI.success("✅ Snapshot tests passed")
+    end
+  end
+
+  desc "Record new snapshots"
+  lane :record_snapshots do
+    UI.message("📸 Recording new snapshots...")
+
+    # Set environment variable to enable recording
+    ENV["SNAPSHOT_RECORDING"] = "true"
+
+    # Boot simulator
+    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
+
+    scan(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "SnapshotTests",
+      device: "iPhone 16 Pro",
+      output_directory: "fastlane/test_output"
+    )
+
+    UI.success("✅ Snapshots recorded successfully!")
+    UI.important("📝 Don't forget to commit the updated __Snapshots__ directory")
+  end
+
+  # ========================
+  # Building
+  # ========================
+
+  desc "Build framework for device and simulator"
+  lane :build_framework do
+    UI.message("🏗️  Building framework...")
+
+    # Build for iOS Device
+    UI.message("Building for iOS Device...")
+    xcodebuild(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      destination: "generic/platform=iOS",
+      configuration: "Release",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+    )
+
+    # Build for iOS Simulator
+    UI.message("Building for iOS Simulator...")
+    xcodebuild(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      destination: "generic/platform=iOS Simulator",
+      configuration: "Release",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+    )
+
+    UI.success("✅ Framework built successfully")
+  end
+
+  desc "Build example apps"
+  lane :build_examples do
+    UI.message("🏗️  Building example apps...")
+
+    # Build Example App (Local)
+    UI.message("Building Example - Local...")
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "Example - Local",
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    # Build ExampleSwift App (SPM)
+    UI.message("Building ExampleSwift - SPM...")
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "ExampleSwift - SPM",
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    # Build Bonni App
+    UI.message("Building Bonni/AttentiveExample...")
+    xcodebuild(
+      project: "Bonni/Bonni.xcodeproj",
+      scheme: "AttentiveExample",
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      configuration: "Debug",
+      clean: true,
+      build: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    UI.success("✅ All example apps built successfully")
+  end
+
+  # ========================
+  # Validation
+  # ========================
+
+  desc "Validate CocoaPods podspec"
+  lane :validate_podspec do
+    UI.message("🔍 Validating CocoaPods podspec...")
+
+    # Ensure CocoaPods is installed
+    unless sh("command -v pod", log: false).strip.empty?
+      UI.message("CocoaPods already installed")
+    else
+      UI.message("Installing CocoaPods...")
+      sh("sudo gem install cocoapods")
+    end
+
+    pod_lib_lint(
+      podspec: "ATTNSDKFramework.podspec",
+      allow_warnings: true
+    )
+
+    UI.success("✅ Podspec validation passed")
+  end
+
+  desc "Validate Swift Package Manager"
+  lane :validate_spm do
+    UI.message("🔍 Validating Swift Package...")
+
+    sh("swift package resolve")
+    sh("swift build")
+
+    UI.success("✅ SPM validation passed")
+  end
+
+  # ========================
+  # Distribution
+  # ========================
+
+  desc "Upload a new build to TestFlight"
+  lane :beta do
+    UI.message("🚀 Preparing TestFlight distribution...")
+
+    # Setup CI environment if running on CI
+    setup_ci if ENV['CI']
+
+    # Sync code signing
+    UI.message("🔐 Syncing code signing certificates...")
+    match(
+      type: "appstore",
+      readonly: true,
+      git_url: ENV["MATCH_GIT_URL"],
+      app_identifier: ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example"
+    )
+
+    # Increment build number based on CI build
+    if ENV["CIRCLE_BUILD_NUM"]
+      increment_build_number(
+        build_number: ENV["CIRCLE_BUILD_NUM"]
+      )
+    end
+
+    # Build the app
+    UI.message("🏗️  Building app for App Store...")
+    gym(
+      scheme: "Example - Local",
+      workspace: "attentive-ios-sdk.xcworkspace",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
+        }
+      },
+      output_directory: "build/",
+      clean: true
+    )
+
+    # Upload to TestFlight
+    UI.message("☁️  Uploading to TestFlight...")
+    pilot(
+      skip_waiting_for_build_processing: true,
+      changelog: "Build #{ENV['CIRCLE_BUILD_NUM'] || 'local'} - #{ENV['CIRCLE_BRANCH'] || 'development'}",
+      distribute_external: false,
+      notify_external_testers: false
+    )
+
+    UI.success("✅ Build uploaded to TestFlight successfully!")
+  end
+
+  # ========================
+  # Convenience Lanes
+  # ========================
+
+  desc "Run all quality checks (lint + test + build)"
+  lane :quality do
+    UI.message("🎯 Running all quality checks...")
+
+    lint
+    test
+    build_framework
+
+    UI.success("✅ All quality checks passed!")
+  end
+
+  desc "Run complete CI validation"
+  lane :ci do
+    UI.message("🤖 Running complete CI validation...")
+
+    setup
+    lint
+    test
+    build_framework
+    validate_podspec
+    validate_spm
+    build_examples
+
+    UI.success("✅ Complete CI validation passed!")
+  end
+
+  desc "Run tests only (unit + UI)"
+  lane :test_all do
+    UI.message("🧪 Running all tests...")
+
+    test
+    ui_test
+
+    UI.success("✅ All tests passed!")
+  end
+
+  # ========================
+  # Error Handling
+  # ========================
+
+  error do |lane, exception|
+    UI.error("❌ Lane #{lane} failed with error:")
+    UI.error(exception.message)
+
+    # Add custom error handling here (Slack notifications, etc.)
+  end
+end

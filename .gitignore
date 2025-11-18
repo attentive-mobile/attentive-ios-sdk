@@ -49,3 +49,27 @@ Sessionx.vim
 
 # UI tests
 ui-test-results.xcresult/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+fastlane/reports
+*.ipa
+*.dSYM.zip
+
+# Fastlane environment variables (contains secrets)
+.env
+.env.*
+!.env.default
+
+# Bundler
+vendor/bundle
+# Note: Gemfile.lock IS committed for CI/CD consistency
+# Only libraries should ignore Gemfile.lock, applications should commit it
+
+# Test results
+coverage.json
+coverage.txt
+swiftlint-results.html
