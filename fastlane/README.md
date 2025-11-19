@@ -87,22 +87,6 @@ Run unit tests
 
 Run UI tests
 
-### ios snapshot_test
-
-```sh
-[bundle exec] fastlane ios snapshot_test
-```
-
-Run snapshot tests
-
-### ios record_snapshots
-
-```sh
-[bundle exec] fastlane ios record_snapshots
-```
-
-Record new snapshots
-
 ### ios build_xcframework
 
 ```sh
