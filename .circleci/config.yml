@@ -149,53 +149,6 @@ jobs:
           when: on_fail
 
   # -----------------------
-  # Snapshot Tests
-  # -----------------------
-  snapshot-tests:
-    executor: macos-xcode
-    steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
-      - restore_cache:
-          keys:
-            - v1-snapshots-{{ .Branch }}
-            - v1-snapshots-main
-
-      - run:
-          name: Run Snapshot Tests via Fastlane
-          command: bundle exec fastlane ios snapshot_test
-
-      - run:
-          name: Check for Snapshot Failures
-          command: |
-            if [ -d "__Snapshots__/__Failures__" ]; then
-              echo "❌ Snapshot tests failed! Visual regressions detected."
-              echo "Review the failure artifacts to see differences."
-              exit 1
-            fi
-          when: always
-
-      - store_test_results:
-          path: fastlane/test_output
-
-      - store_artifacts:
-          path: fastlane/test_output
-          destination: snapshot-results
-
-      - store_artifacts:
-          path: __Snapshots__/__Failures__
-          destination: snapshot-failures
-          when: on_fail
-
-      - save_cache:
-          key: v1-snapshots-{{ .Branch }}-{{ epoch }}
-          paths:
-            - __Snapshots__
-
-  # -----------------------
   # Build Framework
   # -----------------------
   build-framework:
@@ -330,11 +283,6 @@ workflows:
       - validate-spm:
           requires:
             - checkout-and-setup
-
-      # Snapshot tests (can be disabled if not implemented yet)
-      # - snapshot-tests:
-      #     requires:
-      #       - checkout-and-setup
 
       # UI tests only on main and release branches
       - ui-tests:

@@ -123,54 +123,6 @@ platform :ios do
     UI.success("✅ UI tests passed")
   end
 
-  desc "Run snapshot tests"
-  lane :snapshot_test do
-    UI.message("📸 Running snapshot tests...")
-
-    # Create output directory
-    sh("mkdir -p fastlane/test_output")
-
-    # Boot simulator
-    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
-
-    scan(
-      project: "attentive-ios-sdk.xcodeproj",
-      scheme: "SnapshotTests",
-      device: "iPhone 16 Pro",
-      output_directory: "fastlane/test_output",
-      output_types: "html,junit",
-      result_bundle: true
-    )
-
-    # Check for snapshot failures
-    if File.directory?("__Snapshots__/__Failures__")
-      UI.user_error!("❌ Snapshot tests failed! Visual regressions detected. Check artifacts for details.")
-    else
-      UI.success("✅ Snapshot tests passed")
-    end
-  end
-
-  desc "Record new snapshots"
-  lane :record_snapshots do
-    UI.message("📸 Recording new snapshots...")
-
-    # Set environment variable to enable recording
-    ENV["SNAPSHOT_RECORDING"] = "true"
-
-    # Boot simulator
-    sh("xcrun simctl boot 'iPhone 16 Pro' || true")
-
-    scan(
-      project: "attentive-ios-sdk.xcodeproj",
-      scheme: "SnapshotTests",
-      device: "iPhone 16 Pro",
-      output_directory: "fastlane/test_output"
-    )
-
-    UI.success("✅ Snapshots recorded successfully!")
-    UI.important("📝 Don't forget to commit the updated __Snapshots__ directory")
-  end
-
   # ========================
   # Building
   # ========================
