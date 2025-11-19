@@ -28,7 +28,8 @@ commands:
       - run:
           name: Install Bundler Dependencies
           command: |
-            bundle install --path vendor/bundle
+            bundle config set --local path 'vendor/bundle'
+            bundle install
       - save_cache:
           key: v1-gems-{{ checksum "Gemfile.lock" }}
           paths:
