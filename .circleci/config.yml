@@ -1,7 +1,5 @@
 version: 2.1
 
-# test push
-
 # ========================
 # Executors
 # ========================
@@ -27,6 +25,9 @@ commands:
           keys:
             - v1-gems-{{ checksum "Gemfile.lock" }}
             - v1-gems-
+      - run:
+          name: Set Ruby Version
+          command: rbenv install $(rbenv install --list | grep "^  3.3." | tail -1 | xargs) && rbenv global 3.3
       - run:
           name: Install Bundler Dependencies
           command: |
