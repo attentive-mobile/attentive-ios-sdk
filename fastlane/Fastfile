@@ -166,7 +166,7 @@ platform :ios do
     xcodebuild(
       workspace: "attentive-ios-sdk.xcworkspace",
       scheme: "Example - Local",
-      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      destination: "platform=iOS Simulator,name=Any iOS Simulator Device",
       configuration: "Debug",
       clean: true,
       build: true,
@@ -178,7 +178,7 @@ platform :ios do
     xcodebuild(
       workspace: "attentive-ios-sdk.xcworkspace",
       scheme: "ExampleSwift - SPM",
-      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      destination: "platform=iOS Simulator,name=Any iOS Simulator Device",
       configuration: "Debug",
       clean: true,
       build: true,
@@ -190,7 +190,7 @@ platform :ios do
     xcodebuild(
       project: "Bonni/Bonni.xcodeproj",
       scheme: "AttentiveExample",
-      destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      destination: "platform=iOS Simulator,name=Any iOS Simulator Device",
       configuration: "Debug",
       clean: true,
       build: true,
@@ -229,7 +229,7 @@ platform :ios do
     UI.message("🔍 Validating Swift Package...")
 
     sh("cd .. && swift package resolve")
-    sh("cd .. && xcodebuild -scheme attentive-ios-sdk-framework -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build")
+    sh("cd .. && xcodebuild -scheme attentive-ios-sdk-framework -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' build")
 
     UI.success("✅ SPM validation passed")
   end
