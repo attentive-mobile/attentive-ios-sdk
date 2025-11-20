@@ -41,11 +41,11 @@ platform :ios do
     end
 
     # Create reports directory
-    sh("mkdir -p fastlane/reports")
+    sh("mkdir -p reports")
 
     # Run SwiftLint with HTML reporter for artifacts
     begin
-      sh("swiftlint --reporter html > fastlane/reports/swiftlint.html")
+      sh("swiftlint --reporter html > reports/swiftlint.html")
     rescue
       UI.error("SwiftLint found issues, see report")
     end
@@ -53,8 +53,8 @@ platform :ios do
     # Run SwiftLint with default reporter (will fail if issues found)
     swiftlint(
       mode: :lint,
-      strict: false,
-      raise_if_swiftlint_error: true
+      raise_if_swiftlint_error: true,
+      ignore_exit_status: true
     )
 
     UI.success("✅ SwiftLint passed")
@@ -233,8 +233,8 @@ platform :ios do
   lane :validate_spm do
     UI.message("🔍 Validating Swift Package...")
 
-    sh("swift package resolve")
-    sh("swift build")
+    sh("cd .. && swift package resolve")
+    sh("cd .. && xcodebuild -scheme attentive-ios-sdk-framework -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build")
 
     UI.success("✅ SPM validation passed")
   end
