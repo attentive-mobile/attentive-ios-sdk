@@ -473,8 +473,8 @@ platform :ios do
   lane :validate_spm do
     UI.message("Validating Swift Package...")
 
-    sh("swift package resolve")
-    sh("swift build")
+    sh("cd .. && swift package resolve")
+    sh("cd .. && xcodebuild -scheme attentive-ios-sdk-framework -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build")
 
     UI.success("SPM validation passed")
   end
