@@ -40,6 +40,9 @@ commands:
       - macos/switch-ruby:
           version: "3.3"
       - run:
+          name: Set Ruby Version
+          command: rbenv global 3.3.8 && rbenv rehash
+      - run:
           name: Install Bundler Dependencies
           command: |
             bundle config set --local path 'vendor/bundle'
