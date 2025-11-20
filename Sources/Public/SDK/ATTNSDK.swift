@@ -603,13 +603,10 @@ public final class ATTNSDK: NSObject {
 
     for (key, value) in dictionary {
       if let strValue = value as? String {
-        // Only escape specific fields that contain user-facing message content
         if key == "attentive_message_title" || key == "attentive_message_body" {
-          let escaped = strValue
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "/", with: "\\/")
-          escapedDict[key] = escaped
-        } else {
+            escapedDict[key] = strValue
+        }
+        else {
           escapedDict[key] = strValue
         }
       } else if let nestedDict = value as? [String: Any] {
