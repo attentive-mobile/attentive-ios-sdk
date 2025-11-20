@@ -64,8 +64,8 @@ platform :ios do
     UI.message("🧪 Running unit tests...")
 
     # Create output directories
-    sh("mkdir -p fastlane/test_output")
-    sh("mkdir -p fastlane/reports")
+    sh("mkdir -p test_output")
+    sh("mkdir -p reports")
 
     # Boot simulator
     sh("xcrun simctl boot 'iPhone 16 Pro' || true")
@@ -86,8 +86,8 @@ platform :ios do
     # Find the .xcresult bundle (Fastlane names it automatically)
     result_bundle = Dir.glob("fastlane/test_output/**/*.xcresult").first
     if result_bundle
-      sh("xcrun xccov view --report --json #{result_bundle} > fastlane/reports/coverage.json")
-      sh("xcrun xccov view --report #{result_bundle} > fastlane/reports/coverage.txt")
+      sh("xcrun xccov view --report --json #{result_bundle} > reports/coverage.json")
+      sh("xcrun xccov view --report #{result_bundle} > reports/coverage.txt")
     else
       UI.error("Could not find .xcresult bundle for coverage report")
     end
@@ -100,7 +100,7 @@ platform :ios do
     UI.message("🎨 Running UI tests...")
 
     # Create output directory
-    sh("mkdir -p fastlane/test_output")
+    sh("mkdir -p test_output")
 
     # Reset simulators for clean state
     UI.message("Resetting simulators...")
