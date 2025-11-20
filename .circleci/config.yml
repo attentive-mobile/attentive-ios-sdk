@@ -1,0 +1,87 @@
+version: 2.1
+
+# ========================
+# Executors
+# ========================
+executors:
+  macos-xcode:
+    macos:
+      xcode: "26.0.1"
+    resource_class: m4pro.medium
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      FASTLANE_SKIP_UPDATE_CHECK: "YES"
+      LC_ALL: "en_US.UTF-8"
+      LANG: "en_US.UTF-8"
+
+# ========================
+# Commands (Reusable)
+# ========================
+commands:
+  setup-fastlane:
+    description: "Install Fastlane via Bundler"
+    steps:
+      - restore_cache:
+          keys:
+            - v1-gems-{{ checksum "Gemfile.lock" }}
+            - v1-gems-
+      - run:
+          name: Set Ruby Version
+          command: rbenv global $(rbenv versions --bare | grep "^3\.3\." | tail -1)
+      - run:
+          name: Install Bundler Dependencies
+          command: |
+            bundle config set --local path 'vendor/bundle'
+            bundle install
+      - save_cache:
+          key: v1-gems-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
+# ========================
+# Jobs
+# ========================
+jobs:
+  # -----------------------
+  # Checkout and Setup
+  # -----------------------
+  checkout-and-setup:
+    executor: macos-xcode
+    steps:
+      - checkout
+
+      # Setup Fastlane
+      - setup-fastlane
+
+      # Cache Swift Package Manager dependencies
+      - restore_cache:
+          keys:
+            - v1-spm-{{ checksum "Package.resolved" }}
+            - v1-spm-
+
+      # Resolve dependencies via Fastlane
+      - run:
+          name: Setup Dependencies via Fastlane
+          command: bundle exec fastlane setup
+
+      - save_cache:
+          key: v1-spm-{{ checksum "Package.resolved" }}
+          paths:
+            - ~/.swiftpm
+            - ~/Library/Developer/Xcode/DerivedData
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+# ========================
+# Workflows
+# ========================
+workflows:
+  version: 2
+
+  # Main workflow for all branches
+  build-test:
+    jobs:
+      - checkout-and-setup
