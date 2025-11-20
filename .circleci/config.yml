@@ -41,7 +41,7 @@ commands:
           version: "3.3"
       - run:
           name: Set Ruby Version
-          command: rbenv global 3.3.8 && rbenv rehash
+          command: rbenv global 3 && rbenv rehash
       - run:
           name: Install Bundler Dependencies
           command: |
