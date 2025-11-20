@@ -41,7 +41,7 @@ commands:
           version: "3.3"
       - run:
           name: Set Ruby Version
-          command: rbenv install $(rbenv install --list | grep "^  3.3." | tail -1 | xargs) && rbenv global 3.3
+          command: rbenv global $(rbenv versions --bare | grep "^3\.3\." | tail -1)
       - run:
           name: Install Bundler Dependencies
           command: |
