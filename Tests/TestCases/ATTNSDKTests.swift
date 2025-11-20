@@ -163,8 +163,11 @@ final class ATTNSDKTests: XCTestCase {
       // Then
       let result = escaped["attentive_message_body"] as? String
       XCTAssertNotNil(result)
-      XCTAssertTrue(result!.contains("\\\""), "Quotes should be escaped")
-      XCTAssertTrue(result!.contains("\\/"), "Forward slashes should be escaped")
+      // Escaping is no longer done - strings should remain unchanged
+      XCTAssertFalse(result!.contains("\\\""), "Quotes should NOT be escaped")
+      XCTAssertFalse(result!.contains("\\/"), "Forward slashes should NOT be escaped")
+      XCTAssertTrue(result!.contains("\""), "Original quotes should remain")
+      XCTAssertTrue(result!.contains("/"), "Original slashes should remain")
       XCTAssertEqual(escaped["plain"] as? String, "Hello")
     }
 
@@ -185,8 +188,11 @@ final class ATTNSDKTests: XCTestCase {
 
       // Then
       XCTAssertNotNil(escapedTitle)
-      XCTAssertTrue(escapedTitle!.contains("\\\""), "attentive_message_title should be escaped")
-      XCTAssertTrue(escapedTitle!.contains("\\/"), "attentive_message_title slashes should be escaped")
+      // Escaping is no longer done - strings should remain unchanged
+      XCTAssertFalse(escapedTitle!.contains("\\\""), "attentive_message_title should NOT be escaped")
+      XCTAssertFalse(escapedTitle!.contains("\\/"), "attentive_message_title slashes should NOT be escaped")
+      XCTAssertTrue(escapedTitle!.contains("\""), "Original quotes should remain")
+      XCTAssertTrue(escapedTitle!.contains("/"), "Original slashes should remain")
       XCTAssertNotNil(otherField)
       XCTAssertFalse(otherField!.contains("\\\""), "other_field should NOT be escaped")
     }
@@ -209,23 +215,26 @@ final class ATTNSDKTests: XCTestCase {
       XCTAssertFalse(first!.contains("\\\""), "Direct strings in arrays should NOT be escaped")
       XCTAssertFalse(first!.contains("\\/"), "Direct strings in arrays should NOT be escaped")
 
-      // attentive_message_body should be escaped
+      // Escaping is no longer done - attentive_message_body should remain unchanged
       if let nestedDict = escaped[1] as? [String: Any] {
         let messageBody = nestedDict["attentive_message_body"] as? String
         let other = nestedDict["other"] as? String
         XCTAssertNotNil(messageBody)
-        XCTAssertTrue(messageBody!.contains("\\\""), "attentive_message_body should be escaped")
-        XCTAssertTrue(messageBody!.contains("\\/"), "attentive_message_body slashes should be escaped")
+        XCTAssertFalse(messageBody!.contains("\\\""), "attentive_message_body should NOT be escaped")
+        XCTAssertFalse(messageBody!.contains("\\/"), "attentive_message_body slashes should NOT be escaped")
+        XCTAssertTrue(messageBody!.contains("\""), "Original quotes should remain")
+        XCTAssertTrue(messageBody!.contains("/"), "Original slashes should remain")
         XCTAssertNotNil(other)
         XCTAssertFalse(other!.contains("\\\""), "other field should NOT be escaped")
       } else {
         XCTFail("Expected dictionary at index 1")
       }
 
-      // attentive_message_title should be escaped
+      // Escaping is no longer done - attentive_message_title should remain unchanged
       if let titleDict = escaped[2] as? [String: Any],
          let messageTitle = titleDict["attentive_message_title"] as? String {
-        XCTAssertTrue(messageTitle.contains("\\\""), "attentive_message_title should be escaped")
+        XCTAssertFalse(messageTitle.contains("\\\""), "attentive_message_title should NOT be escaped")
+        XCTAssertTrue(messageTitle.contains("\""), "Original quotes should remain")
       } else {
         XCTFail("Expected dictionary with attentive_message_title at index 2")
       }
@@ -248,12 +257,17 @@ final class ATTNSDKTests: XCTestCase {
       let random = escaped["random_field"] as? String
 
       XCTAssertNotNil(title)
-      XCTAssertTrue(title!.contains("\\\""), "attentive_message_title quotes should be escaped")
-      XCTAssertTrue(title!.contains("\\/"), "attentive_message_title slashes should be escaped")
+      // Escaping is no longer done - strings should remain unchanged
+      XCTAssertFalse(title!.contains("\\\""), "attentive_message_title quotes should NOT be escaped")
+      XCTAssertFalse(title!.contains("\\/"), "attentive_message_title slashes should NOT be escaped")
+      XCTAssertTrue(title!.contains("\""), "Original quotes should remain")
+      XCTAssertTrue(title!.contains("/"), "Original slashes should remain")
 
       XCTAssertNotNil(body)
-      XCTAssertTrue(body!.contains("\\\""), "attentive_message_body quotes should be escaped")
-      XCTAssertTrue(body!.contains("\\/"), "attentive_message_body slashes should be escaped")
+      XCTAssertFalse(body!.contains("\\\""), "attentive_message_body quotes should NOT be escaped")
+      XCTAssertFalse(body!.contains("\\/"), "attentive_message_body slashes should NOT be escaped")
+      XCTAssertTrue(body!.contains("\""), "Original quotes should remain")
+      XCTAssertTrue(body!.contains("/"), "Original slashes should remain")
 
       XCTAssertNotNil(random)
       XCTAssertFalse(random!.contains("\\\""), "random_field should NOT be escaped")
@@ -280,8 +294,11 @@ final class ATTNSDKTests: XCTestCase {
         let other = level2["other"] as? String
 
         XCTAssertNotNil(messageBody)
-        XCTAssertTrue(messageBody!.contains("\\\""), "Deeply nested attentive_message_body should be escaped")
-        XCTAssertTrue(messageBody!.contains("\\/"), "Deeply nested attentive_message_body slashes should be escaped")
+        // Escaping is no longer done - strings should remain unchanged
+        XCTAssertFalse(messageBody!.contains("\\\""), "Deeply nested attentive_message_body should NOT be escaped")
+        XCTAssertFalse(messageBody!.contains("\\/"), "Deeply nested attentive_message_body slashes should NOT be escaped")
+        XCTAssertTrue(messageBody!.contains("\""), "Original quotes should remain")
+        XCTAssertTrue(messageBody!.contains("/"), "Original slashes should remain")
 
         XCTAssertNotNil(other)
         XCTAssertFalse(other!.contains("\\\""), "Other fields should NOT be escaped even when deeply nested")
