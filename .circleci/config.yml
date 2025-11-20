@@ -26,9 +26,6 @@ commands:
             - v1-gems-{{ checksum "Gemfile.lock" }}
             - v1-gems-
       - run:
-          name: Set Ruby Version
-          command: rbenv global 3 && rbenv rehash
-      - run:
           name: Install Bundler Dependencies
           command: |
             bundle config set --local path 'vendor/bundle'
