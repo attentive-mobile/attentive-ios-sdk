@@ -182,7 +182,7 @@
 			mainGroup = F915FE2B2D77BF3100012489;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				F9467AAB2F329ED9008ED860 /* XCLocalSwiftPackageReference "../../attentive-ios-sdk" */,
+				F92DE7162DB01CB6005693CD /* XCLocalSwiftPackageReference ".." */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F915FE352D77BF3100012489 /* Products */;
@@ -496,9 +496,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		F9467AAB2F329ED9008ED860 /* XCLocalSwiftPackageReference "../../attentive-ios-sdk" */ = {
+		F92DE7162DB01CB6005693CD /* XCLocalSwiftPackageReference ".." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../attentive-ios-sdk";
+			relativePath = "..";
 		};
 /* End XCLocalSwiftPackageReference section */
 
