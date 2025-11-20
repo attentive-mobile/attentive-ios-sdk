@@ -13,7 +13,11 @@ platform :ios do
     UI.message("🔧 Setting up dependencies...")
 
     # Resolve Swift Package Manager dependencies
-    sh("xcodebuild -resolvePackageDependencies -project attentive-ios-sdk.xcodeproj")
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "attentive-ios-sdk-framework",
+      xcargs: "-resolvePackageDependencies"
+    )
 
     UI.success("✅ Dependencies resolved successfully")
   end
