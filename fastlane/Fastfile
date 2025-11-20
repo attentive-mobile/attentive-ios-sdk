@@ -1,0 +1,38 @@
+# Fastfile for Attentive iOS SDK
+# This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
+
+default_platform(:ios)
+
+platform :ios do
+  # ========================
+  # Setup and Dependencies
+  # ========================
+  before_all do
+    setup_circle_ci
+  end
+
+  desc "Setup dependencies and environment"
+  lane :setup do
+    UI.message("🔧 Setting up dependencies...")
+
+    # Resolve Swift Package Manager dependencies
+    xcodebuild(
+      workspace: "attentive-ios-sdk.xcworkspace",
+      scheme: "attentive-ios-sdk-framework",
+      xcargs: "-resolvePackageDependencies"
+    )
+
+    UI.success("✅ Dependencies resolved successfully")
+  end
+
+  # ========================
+  # Error Handling
+  # ========================
+
+  error do |lane, exception|
+    UI.error("❌ Lane #{lane} failed with error:")
+    UI.error(exception.message)
+
+    # Add custom error handling here (Slack notifications, etc.)
+  end
+end
