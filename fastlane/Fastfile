@@ -43,17 +43,12 @@ platform :ios do
     # Create reports directory
     sh("mkdir -p reports")
 
-    # Run SwiftLint with HTML reporter for artifacts
-    begin
-      sh("swiftlint --reporter html > reports/swiftlint.html")
-    rescue
-      UI.error("SwiftLint found issues, see report")
-    end
-
     # Run SwiftLint with default reporter (will fail if issues found)
     swiftlint(
       mode: :lint,
+      output_file: "fastlane/reports/swiftlint.html",
       raise_if_swiftlint_error: true,
+      reporter: "html",
       ignore_exit_status: true
     )
 
