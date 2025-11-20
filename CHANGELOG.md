@@ -1,3 +1,7 @@
+## [2.0.8](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.7...2.0.8) (2025-11-20)
+### Bug Fixes
+Minor bugfix around string encoding in push notifications where question marks were incorrectly escaped.
+
 ## [2.0.7](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.6...2.0.7) (2025-11-13)
 ### Bug Fixes
 Minor bugfix around updateUser() function which now includes clearUser() call.
