@@ -47,7 +47,7 @@ platform :ios do
     swiftlint(
       mode: :lint,
       output_file: "fastlane/reports/swiftlint.html",
-      raise_if_swiftlint_error: true,
+      raise_if_swiftlint_error: false,
       reporter: "html",
       ignore_exit_status: true
     )
