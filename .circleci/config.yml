@@ -15,6 +15,12 @@ executors:
       LANG: "en_US.UTF-8"
 
 # ========================
+# Orbs
+# ========================
+orbs:
+  macos: circleci/macos@2
+
+# ========================
 # Commands (Reusable)
 # ========================
 commands:
@@ -25,9 +31,8 @@ commands:
           keys:
             - v1-gems-{{ checksum "Gemfile.lock" }}
             - v1-gems-
-      - run:
-          name: Set Ruby Version
-          command: rbenv global $(rbenv versions --bare | grep "^3\.3\." | tail -1)
+      - macos/switch-ruby:
+          version: "3.3"
       - run:
           name: Install Bundler Dependencies
           command: |
