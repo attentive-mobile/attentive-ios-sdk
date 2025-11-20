@@ -74,7 +74,7 @@ platform :ios do
     scan(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
-      destination: "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6",
+      device: "iPhone 16 Pro",
       code_coverage: true,
       output_directory: "fastlane/test_output",
       output_types: "html,junit",
