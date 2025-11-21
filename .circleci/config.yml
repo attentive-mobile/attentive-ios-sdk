@@ -96,7 +96,7 @@ jobs:
           command: bundle exec fastlane ios lint
 
       - store_artifacts:
-          path: $FASTLANE_REPORTS_DIR/swiftlint.html
+          path: fastlane/reports/swiftlint.html
           destination: lint-results/swiftlint.html
 
 # ========================

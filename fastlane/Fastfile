@@ -1,6 +1,8 @@
 # Fastfile for Attentive iOS SDK
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
+FASTLANE_REPORTS_DIR="fastlane/reports"
+
 default_platform(:ios)
 
 platform :ios do
@@ -49,7 +51,7 @@ platform :ios do
     # Run SwiftLint with default reporter (will fail if issues found)
     swiftlint(
       mode: :lint,
-      output_file: "#{ENV["FASTLANE_REPORTS_DIR"]}/swiftlint.html",
+      output_file: "#{FASTLANE_REPORTS_DIR}/swiftlint.html",
       raise_if_swiftlint_error: false,
       reporter: "html",
       ignore_exit_status: true
