@@ -26,6 +26,39 @@ platform :ios do
   end
 
   # ========================
+  # Code Quality
+  # ========================
+
+  desc "Run SwiftLint"
+  lane :lint do
+    UI.message("🔍 Running SwiftLint...")
+
+    # Ensure SwiftLint is installed
+    begin
+      swiftlint_path = sh("command -v swiftlint", log: false).strip
+      UI.message("✅ SwiftLint found at: #{swiftlint_path}")
+    rescue => exception
+      UI.message("⚠️  SwiftLint not found, installing via Homebrew...")
+      sh("brew install swiftlint")
+      UI.success("✅ SwiftLint installed successfully")
+    end
+
+    # Create reports directory
+    sh("mkdir -p reports")
+
+    # Run SwiftLint with default reporter (will fail if issues found)
+    swiftlint(
+      mode: :lint,
+      output_file: "fastlane/reports/swiftlint.html",
+      raise_if_swiftlint_error: false,
+      reporter: "html",
+      ignore_exit_status: true
+    )
+
+    UI.success("✅ SwiftLint passed")
+  end
+
+  # ========================
   # Error Handling
   # ========================
 
