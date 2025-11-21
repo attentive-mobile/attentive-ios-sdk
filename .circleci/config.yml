@@ -80,6 +80,25 @@ jobs:
           paths:
             - .
 
+  # -----------------------
+  # Lint
+  # -----------------------
+  lint:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run SwiftLint via Fastlane
+          command: bundle exec fastlane ios lint
+
+      - store_artifacts:
+          path: fastlane/reports/swiftlint.html
+          destination: lint-results/swiftlint.html
+
 # ========================
 # Workflows
 # ========================
