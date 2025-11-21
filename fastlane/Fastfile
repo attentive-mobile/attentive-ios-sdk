@@ -49,7 +49,7 @@ platform :ios do
     # Run SwiftLint with default reporter (will fail if issues found)
     swiftlint(
       mode: :lint,
-      output_file: "fastlane/reports/swiftlint.html",
+      output_file: "#{ENV["FASTLANE_REPORTS_DIR"]}/swiftlint.html",
       raise_if_swiftlint_error: false,
       reporter: "html",
       ignore_exit_status: true

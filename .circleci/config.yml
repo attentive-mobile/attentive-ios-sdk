@@ -96,7 +96,7 @@ jobs:
           command: bundle exec fastlane ios lint
 
       - store_artifacts:
-          path: fastlane/reports/swiftlint.html
+          path: $FASTLANE_REPORTS_DIR/swiftlint.html
           destination: lint-results/swiftlint.html
 
 # ========================
@@ -109,3 +109,8 @@ workflows:
   build-test:
     jobs:
       - checkout-and-setup
+
+  # Run these in parallel after setup
+      - lint:
+          requires:
+            - checkout-and-setup
