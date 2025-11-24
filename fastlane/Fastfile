@@ -73,7 +73,7 @@ platform :ios do
       scheme: "attentive-ios-sdk-framework",
       device: "iPhone 16 Pro",
       output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
-      output_types: "html",
+      output_types: "html,junit",
       result_bundle: true
     )
 
