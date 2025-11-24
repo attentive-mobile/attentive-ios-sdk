@@ -2,6 +2,7 @@
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
 FASTLANE_REPORTS_DIR="fastlane/reports"
+FASTLANE_TEST_OUTPUT_DIR="fastlane/test_output"
 
 default_platform(:ios)
 
@@ -58,6 +59,25 @@ platform :ios do
     )
 
     UI.success("✅ SwiftLint passed")
+  end
+
+  # ========================
+  # Testing
+  # ========================
+
+  desc "Run unit tests"
+  lane :unit_test do
+    UI.message("🧪 Running unit tests...")
+    run_tests(
+      project: "attentive-ios-sdk.xcodeproj",
+      scheme: "attentive-ios-sdk-framework",
+      device: "iPhone 16 Pro",
+      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
+      output_types: "html",
+      result_bundle: true
+    )
+
+    UI.success("✅ Unit tests passed")
   end
 
   # ========================
