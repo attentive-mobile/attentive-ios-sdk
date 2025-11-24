@@ -31,6 +31,14 @@ Setup dependencies and environment
 
 Run SwiftLint
 
+### ios unit_test
+
+```sh
+[bundle exec] fastlane ios unit_test
+```
+
+Run unit tests
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

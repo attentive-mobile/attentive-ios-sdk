@@ -102,6 +102,28 @@ jobs:
           path: fastlane/reports
           destination: lint-results
 
+  # -----------------------
+  # Unit Tests
+  # -----------------------
+  unit-tests:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run Unit Tests via Fastlane
+          command: bundle exec fastlane unit_test
+
+      - store_test_results:
+          path: fastlane/test_output
+
+      - store_artifacts:
+          path: fastlane/test_output
+          destination: test-results
+
 # ========================
 # Workflows
 # ========================
@@ -115,5 +137,9 @@ workflows:
 
   # Run these in parallel after setup
       - lint:
+          requires:
+            - checkout-and-setup
+
+      - unit-tests:
           requires:
             - checkout-and-setup
