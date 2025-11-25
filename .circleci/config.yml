@@ -93,11 +93,14 @@ jobs:
 
       - run:
           name: Run SwiftLint via Fastlane
-          command: bundle exec fastlane ios lint
+          command: bundle exec fastlane lint
+
+      - store_test_results:
+          path: fastlane/reports
 
       - store_artifacts:
-          path: fastlane/reports/swiftlint.html
-          destination: lint-results/swiftlint.html
+          path: fastlane/reports
+          destination: lint-results
 
 # ========================
 # Workflows
