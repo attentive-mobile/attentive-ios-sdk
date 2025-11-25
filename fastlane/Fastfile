@@ -48,12 +48,12 @@ platform :ios do
     # Create reports directory
     sh("mkdir -p reports")
 
-    # Run SwiftLint with default reporter (will fail if issues found)
+    # Run SwiftLint
     swiftlint(
       mode: :lint,
-      output_file: "#{FASTLANE_REPORTS_DIR}/swiftlint.html",
+      output_file: "#{FASTLANE_REPORTS_DIR}/swiftlint.xml",
       raise_if_swiftlint_error: false,
-      reporter: "html",
+      reporter: "junit",
       ignore_exit_status: true
     )
 
