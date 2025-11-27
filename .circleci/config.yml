@@ -21,6 +21,14 @@ orbs:
   macos: circleci/macos@2
 
 # ========================
+# Constants
+# ========================
+fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
+fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
+
+node_image: &node_image cimg/node:18.17
+
+# ========================
 # Commands (Reusable)
 # ========================
 commands:
@@ -96,10 +104,10 @@ jobs:
           command: bundle exec fastlane lint
 
       - store_test_results:
-          path: fastlane/reports
+          path: *fastlane_reports_dir
 
       - store_artifacts:
-          path: fastlane/reports
+          path: *fastlane_reports_dir
           destination: lint-results
 
   # -----------------------
@@ -118,11 +126,39 @@ jobs:
           command: bundle exec fastlane unit_test
 
       - store_test_results:
-          path: fastlane/test_output
+          path: *fastlane_test_output_dir
 
       - store_artifacts:
-          path: fastlane/test_output
+          path: *fastlane_test_output_dir
           destination: test-results
+
+  # -----------------------
+  # UI Tests
+  # -----------------------
+  ui-tests:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Run UI Tests via Fastlane
+          command: bundle exec fastlane ui_test
+          no_output_timeout: 20m
+
+      - store_test_results:
+          path: *fastlane_test_output_dir
+
+      - store_artifacts:
+          path: *fastlane_test_output_dir
+          destination: ui-test-results
+
+      - store_artifacts:
+          path: ~/Library/Logs/DiagnosticReports
+          destination: crash-reports
+          when: on_fail
 
 # ========================
 # Workflows
@@ -143,3 +179,13 @@ workflows:
       - unit-tests:
           requires:
             - checkout-and-setup
+
+      # UI tests only on main and release branches
+      - ui-tests:
+          requires:
+            - checkout-and-setup
+          # filters:
+          #   branches:
+          #     only:
+          #       - main
+          #       - /release\/.*/
