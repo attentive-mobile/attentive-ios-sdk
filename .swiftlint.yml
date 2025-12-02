@@ -19,5 +19,4 @@ nesting:
     error: 10
 excluded:
   - Example
-  - ExampleSwift
   - Tests
