@@ -1,8 +1,9 @@
 # Fastfile for Attentive iOS SDK
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
-FASTLANE_REPORTS_DIR="fastlane/reports"
-FASTLANE_TEST_OUTPUT_DIR="fastlane/test_output"
+FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
+FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
+FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
 
 default_platform(:ios)
 
@@ -11,7 +12,7 @@ platform :ios do
   # Setup and Dependencies
   # ========================
   before_all do
-    setup_circle_ci
+    setup_ci if ENV['CI']
   end
 
   desc "Setup dependencies and environment"
@@ -71,7 +72,7 @@ platform :ios do
     run_tests(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
-      device: "iPhone 16 Pro",
+      device: "#{FASTLANE_TEST_DEVICE}",
       output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
       output_types: "html,junit",
       result_bundle: true
