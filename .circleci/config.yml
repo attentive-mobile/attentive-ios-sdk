@@ -6,7 +6,7 @@ version: 2.1
 executors:
   macos-xcode:
     macos:
-      xcode: "26.0.1"
+      xcode: "26.1.1"
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -19,6 +19,12 @@ executors:
 # ========================
 orbs:
   macos: circleci/macos@2
+
+# ========================
+# Constants
+# ========================
+fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
+fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
 
 # ========================
 # Commands (Reusable)
@@ -96,10 +102,10 @@ jobs:
           command: bundle exec fastlane lint
 
       - store_test_results:
-          path: fastlane/reports
+          path: *fastlane_reports_dir
 
       - store_artifacts:
-          path: fastlane/reports
+          path: *fastlane_reports_dir
           destination: lint-results
 
   # -----------------------
@@ -118,10 +124,10 @@ jobs:
           command: bundle exec fastlane unit_test
 
       - store_test_results:
-          path: fastlane/test_output
+          path: *fastlane_test_output_dir
 
       - store_artifacts:
-          path: fastlane/test_output
+          path: *fastlane_test_output_dir
           destination: test-results
 
 # ========================
