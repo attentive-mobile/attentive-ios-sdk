@@ -10,15 +10,15 @@ import XCTest
 
 final class ATTNEventTrackerTests: XCTestCase {
 
-  override func tearDown() {
-    ATTNEventTracker.destroy()
-    super.tearDown()
-  }
+    override func tearDown() {
+        ATTNEventTracker.destroy()
+        super.tearDown()
+    }
 
-  func testGetSharedInstance_notSetup_throws() {
-    let sdkMock = ATTNSDK(domain: "domain")
-    ATTNEventTracker.setup(with: sdkMock)
+    func testGetSharedInstance_notSetup_throws() {
+        let sdkMock = ATTNSDK(domain: "domain")
+        ATTNEventTracker.setup(with: sdkMock)
 
-    XCTAssertNoThrow(ATTNEventTracker.sharedInstance())
-  }
+        XCTAssertNoThrow(ATTNEventTracker.sharedInstance())
+    }
 }

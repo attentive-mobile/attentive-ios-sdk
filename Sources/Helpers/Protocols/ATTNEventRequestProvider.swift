@@ -8,5 +8,5 @@
 import Foundation
 
 protocol ATTNEventRequestProvider where Self: ATTNEvent {
-  var eventRequests: [ATTNEventRequest] { get }
+    var eventRequests: [ATTNEventRequest] { get }
 }

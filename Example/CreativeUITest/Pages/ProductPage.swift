@@ -8,27 +8,27 @@
 import XCTest
 
 struct ProductPage: Page {
-  private init() { }
+    private init() { }
 
-  @discardableResult
-  static func navigateToMain() -> Self.Type {
-    homeTabItem.tapOnElement()
-    return self
-  }
+    @discardableResult
+    static func navigateToMain() -> Self.Type {
+        homeTabItem.tapOnElement()
+        return self
+    }
 
-  @discardableResult
-  static func tapOnAddToCart() -> Self.Type {
-    addToCartButton.tapOnElement()
-    return self
-  }
+    @discardableResult
+    static func tapOnAddToCart() -> Self.Type {
+        addToCartButton.tapOnElement()
+        return self
+    }
 }
 
 fileprivate extension ProductPage {
-  static var addToCartButton: XCUIElement {
-    app.buttons["Add To Cart"]
-  }
+    static var addToCartButton: XCUIElement {
+        app.buttons["Add To Cart"]
+    }
 
-  static var homeTabItem: XCUIElement {
-    app.tabBars.buttons["Main"]
-  }
+    static var homeTabItem: XCUIElement {
+        app.tabBars.buttons["Main"]
+    }
 }

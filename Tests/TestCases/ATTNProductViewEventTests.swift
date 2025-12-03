@@ -11,19 +11,19 @@ import XCTest
 @testable import ATTNSDKFramework
 
 final class ATTNProductViewEventTests: XCTestCase {
-  func testProductView_GivenData_ShouldBuildURL() {
-    let item = ATTNTestEventUtils.buildItem()
-    let productView = ATTNProductViewEvent(items: [item])
-    XCTAssertFalse(productView.eventRequests.isEmpty)
-    XCTAssertNil(productView.eventRequests.first?.deeplink)
-  }
+    func testProductView_GivenData_ShouldBuildURL() {
+        let item = ATTNTestEventUtils.buildItem()
+        let productView = ATTNProductViewEvent(items: [item])
+        XCTAssertFalse(productView.eventRequests.isEmpty)
+        XCTAssertNil(productView.eventRequests.first?.deeplink)
+    }
 
-  func testProductView_GivenData_ShouldBuildURLWithRequestURL() {
-    let item = ATTNTestEventUtils.buildItem()
-    let productView = ATTNProductViewEvent(items: [item], deeplink: "https://mydeeplink.com/products/32432423")
-    XCTAssertFalse(productView.eventRequests.isEmpty)
-    let requestURL = productView.eventRequests.first?.deeplink as? String
-    XCTAssertNotNil(requestURL)
-    XCTAssertFalse(requestURL?.isEmpty ?? true)
-  }
+    func testProductView_GivenData_ShouldBuildURLWithRequestURL() {
+        let item = ATTNTestEventUtils.buildItem()
+        let productView = ATTNProductViewEvent(items: [item], deeplink: "https://mydeeplink.com/products/32432423")
+        XCTAssertFalse(productView.eventRequests.isEmpty)
+        let requestURL = productView.eventRequests.first?.deeplink as? String
+        XCTAssertNotNil(requestURL)
+        XCTAssertFalse(requestURL?.isEmpty ?? true)
+    }
 }

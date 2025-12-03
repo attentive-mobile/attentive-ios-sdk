@@ -9,5 +9,5 @@ import Foundation
 @testable import ATTNSDKFramework
 
 class ATTNUserAgentBuilderMock: ATTNUserAgentBuilderProtocol {
-  func buildUserAgent() -> String { "fakeUserAgent" }
+    func buildUserAgent() -> String { "fakeUserAgent" }
 }

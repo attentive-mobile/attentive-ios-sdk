@@ -8,9 +8,9 @@
 import Foundation
 
 extension Dictionary {
-  mutating func addEntryIfNotNil(key: Key, value: Value?) {
-    if let value = value {
-      self[key] = value
+    mutating func addEntryIfNotNil(key: Key, value: Value?) {
+        if let value = value {
+            self[key] = value
+        }
     }
-  }
 }

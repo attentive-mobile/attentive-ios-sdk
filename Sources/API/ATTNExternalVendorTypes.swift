@@ -8,8 +8,8 @@
 import Foundation
 
 enum ATTNExternalVendorTypes {
-  static var shopify: String { "0" }
-  static var klaviyo: String { "1" }
-  static var clientUser: String { "2" }
-  static var customUser: String { "6" }
+    static var shopify: String { "0" }
+    static var klaviyo: String { "1" }
+    static var clientUser: String { "2" }
+    static var customUser: String { "6" }
 }

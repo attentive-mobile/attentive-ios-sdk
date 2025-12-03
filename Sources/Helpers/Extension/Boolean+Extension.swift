@@ -8,7 +8,7 @@
 import Foundation
 
 extension Bool {
-  var stringValue: String {
-    self ? "true" : "false"
-  }
+    var stringValue: String {
+        self ? "true" : "false"
+    }
 }

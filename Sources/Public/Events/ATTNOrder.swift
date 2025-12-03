@@ -9,14 +9,14 @@ import Foundation
 
 @objc(ATTNOrder)
 public final class ATTNOrder: NSObject {
-  @objc public var orderId: String
+    @objc public var orderId: String
 
-  @objc(initWithOrderId:)
-  public init(orderId: String) {
-    self.orderId = orderId
-  }
+    @objc(initWithOrderId:)
+    public init(orderId: String) {
+        self.orderId = orderId
+    }
 
-  private override init() {
-    fatalError("init() has not been implemented")
-  }
+    private override init() {
+        fatalError("init() has not been implemented")
+    }
 }

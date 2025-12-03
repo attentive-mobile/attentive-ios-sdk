@@ -8,9 +8,9 @@
 import Foundation
 
 extension ATTNInfoEvent: ATTNEventRequestProvider {
-  var eventRequests: [ATTNEventRequest] {
-    [
-      .init(metadata: [String: Any](), eventNameAbbreviation: ATTNEventTypes.info)
-    ]
-  }
+    var eventRequests: [ATTNEventRequest] {
+        [
+            .init(metadata: [String: Any](), eventNameAbbreviation: ATTNEventTypes.info)
+        ]
+    }
 }

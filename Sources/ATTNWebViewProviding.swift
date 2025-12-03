@@ -8,12 +8,12 @@
 import WebKit
 
 protocol ATTNWebViewProviding: NSObjectProtocol {
-  var parentView: UIView? { get set }
-  var webView: WKWebView? { get set }
-  var skipFatigueOnCreative: Bool { get set }
-  var triggerHandler: ATTNCreativeTriggerCompletionHandler? { get set }
+    var parentView: UIView? { get set }
+    var webView: WKWebView? { get set }
+    var skipFatigueOnCreative: Bool { get set }
+    var triggerHandler: ATTNCreativeTriggerCompletionHandler? { get set }
 
-  func getDomain() -> String
-  func getMode() -> ATTNSDKMode
-  func getUserIdentity() -> ATTNUserIdentity
+    func getDomain() -> String
+    func getMode() -> ATTNSDKMode
+    func getUserIdentity() -> ATTNUserIdentity
 }

@@ -9,22 +9,22 @@ import XCTest
 @testable import ATTNSDKFramework
 
 final class ATTNUserAgentBuilderTests: XCTestCase {
-  private var appInfoMock: ATTNAppInfoMock!
-  private var sut: ATTNUserAgentBuilder!
+    private var appInfoMock: ATTNAppInfoMock!
+    private var sut: ATTNUserAgentBuilder!
 
-  override func setUp() {
-    super.setUp()
-    appInfoMock = ATTNAppInfoMock()
-    sut = ATTNUserAgentBuilder(appInfo: appInfoMock)
-  }
+    override func setUp() {
+        super.setUp()
+        appInfoMock = ATTNAppInfoMock()
+        sut = ATTNUserAgentBuilder(appInfo: appInfoMock)
+    }
 
-  override func tearDown() {
-    appInfoMock = nil
-    sut = nil
-    super.tearDown()
-  }
+    override func tearDown() {
+        appInfoMock = nil
+        sut = nil
+        super.tearDown()
+    }
 
-  func testBuildUserAgent_appInfoReturnsAllValues_userAgentIsFormattedCorrectly() {
-    XCTAssertEqual("appName-Value/appVersionValue.appBuildValue (deviceModelNameValue; devicePlatformValue deviceOsVersionValue) sdkNameValue/sdkVersionValue", sut.buildUserAgent())
-  }
+    func testBuildUserAgent_appInfoReturnsAllValues_userAgentIsFormattedCorrectly() {
+        XCTAssertEqual("appName-Value/appVersionValue.appBuildValue (deviceModelNameValue; devicePlatformValue deviceOsVersionValue) sdkNameValue/sdkVersionValue", sut.buildUserAgent())
+    }
 }

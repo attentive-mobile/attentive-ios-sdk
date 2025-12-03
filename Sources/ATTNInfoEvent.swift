@@ -8,5 +8,5 @@
 import Foundation
 
 final class ATTNInfoEvent: NSObject, ATTNEvent {
-  override init() {}
+    override init() {}
 }
