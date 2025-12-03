@@ -11,37 +11,37 @@ import Foundation
 /// Note: This will be refactored to an actor in a future swift concurrency migration
 ///
 enum CreativeState {
-  case closed
-  case launching
-  case open
+    case closed
+    case launching
+    case open
 }
 
 final class ATTNCreativeStateManager {
 
-  static let shared = ATTNCreativeStateManager()
-  private var state: CreativeState = .closed
-  private let queue = DispatchQueue(label: "com.attentive.creativeStateQueue", attributes: .concurrent)
+    static let shared = ATTNCreativeStateManager()
+    private var state: CreativeState = .closed
+    private let queue = DispatchQueue(label: "com.attentive.creativeStateQueue", attributes: .concurrent)
 
-  func getState() -> CreativeState {
-    return queue.sync { state }
-  }
-
-  func updateState(_ newState: CreativeState) {
-    queue.async(flags: .barrier) {
-      self.state = newState
+    func getState() -> CreativeState {
+        return queue.sync { state }
     }
-  }
 
-  /// Atomically set state from `expected` to `newState`. Returns true iff it succeeded.
-  @discardableResult
-  func compareAndSet(from expected: CreativeState, to newState: CreativeState) -> Bool {
-    var didSet = false
-    queue.sync(flags: .barrier) {
-      if self.state == expected {
-        self.state = newState
-        didSet = true
-      }
+    func updateState(_ newState: CreativeState) {
+        queue.async(flags: .barrier) {
+            self.state = newState
+        }
     }
-    return didSet
-  }
+
+    /// Atomically set state from `expected` to `newState`. Returns true iff it succeeded.
+    @discardableResult
+    func compareAndSet(from expected: CreativeState, to newState: CreativeState) -> Bool {
+        var didSet = false
+        queue.sync(flags: .barrier) {
+            if self.state == expected {
+                self.state = newState
+                didSet = true
+            }
+        }
+        return didSet
+    }
 }

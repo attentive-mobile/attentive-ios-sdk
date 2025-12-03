@@ -9,13 +9,13 @@ import Foundation
 import XCTest
 
 class NSURLSessionDataTaskMock: URLSessionDataTask {
-  let completionHandler: (Data?, URLResponse?, Error?) -> Void
+    let completionHandler: (Data?, URLResponse?, Error?) -> Void
 
-  init(completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) {
-    self.completionHandler = completionHandler
-  }
+    init(completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) {
+        self.completionHandler = completionHandler
+    }
 
-  override func resume() {
-    completionHandler(nil, nil, nil)
-  }
+    override func resume() {
+        completionHandler(nil, nil, nil)
+    }
 }

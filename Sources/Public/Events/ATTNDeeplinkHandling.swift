@@ -8,5 +8,5 @@
 import Foundation
 
 protocol ATTNDeeplinkHandling {
-  var deeplink: String? { get set }
+    var deeplink: String? { get set }
 }

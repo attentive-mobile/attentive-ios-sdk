@@ -8,27 +8,27 @@
 import Foundation
 
 class ATTNLaunchManager {
-  static let shared = ATTNLaunchManager()
+    static let shared = ATTNLaunchManager()
 
-  private let queue = DispatchQueue(label: "com.attentive.launchmanager", attributes: .concurrent)
-  private var _launchedFromPush = false
+    private let queue = DispatchQueue(label: "com.attentive.launchmanager", attributes: .concurrent)
+    private var _launchedFromPush = false
 
-  var launchedFromPush: Bool {
-    get {
-      return queue.sync { _launchedFromPush }
+    var launchedFromPush: Bool {
+        get {
+            return queue.sync { _launchedFromPush }
+        }
+        set {
+            queue.async(flags: .barrier) { self._launchedFromPush = newValue }
+        }
     }
-    set {
-      queue.async(flags: .barrier) { self._launchedFromPush = newValue }
-    }
-  }
 
-  func resetPushLaunchFlag() -> Bool {
-    return queue.sync {
-      if _launchedFromPush {
-        _launchedFromPush = false
-        return true
-      }
-      return false
+    func resetPushLaunchFlag() -> Bool {
+        return queue.sync {
+            if _launchedFromPush {
+                _launchedFromPush = false
+                return true
+            }
+            return false
+        }
     }
-  }
 }

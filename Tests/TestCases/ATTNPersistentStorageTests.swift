@@ -10,80 +10,80 @@ import XCTest
 
 final class ATTNPersistentStorageTests: XCTestCase {
 
-  private var persistentStorage: ATTNPersistentStorage!
-  private let KEY = "savedKey"
-  private let VALUE = "savedValue"
+    private var persistentStorage: ATTNPersistentStorage!
+    private let KEY = "savedKey"
+    private let VALUE = "savedValue"
 
-  override func setUp() {
-    super.setUp()
-    resetUserDefaults()
-    persistentStorage = ATTNPersistentStorage()
-  }
-
-  func resetUserDefaults() {
-    if let domainName = Bundle.main.bundleIdentifier {
-      UserDefaults.standard.removePersistentDomain(forName: domainName)
+    override func setUp() {
+        super.setUp()
+        resetUserDefaults()
+        persistentStorage = ATTNPersistentStorage()
     }
-  }
 
-  override func tearDown() {
-    resetUserDefaults()
-    super.tearDown()
-  }
+    func resetUserDefaults() {
+        if let domainName = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domainName)
+        }
+    }
 
-  func testSaveObject() {
-    persistentStorage.save("savedValue" as NSObject, forKey: "someKey")
+    override func tearDown() {
+        resetUserDefaults()
+        super.tearDown()
+    }
 
-    XCTAssertEqual("savedValue", persistentStorage.readString(forKey: "someKey"))
-  }
+    func testSaveObject() {
+        persistentStorage.save("savedValue" as NSObject, forKey: "someKey")
 
-  func testSaveObject_givenValidString_saves() {
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+        XCTAssertEqual("savedValue", persistentStorage.readString(forKey: "someKey"))
+    }
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
-  }
+    func testSaveObject_givenValidString_saves() {
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-  func testSaveObject_overwriteWithSameValue_saves() {
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    }
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    func testSaveObject_overwriteWithSameValue_saves() {
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
-  }
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-  func testSaveObject_overwriteWithDifferentValue_savesDifferentValue() {
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    }
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    func testSaveObject_overwriteWithDifferentValue_savesDifferentValue() {
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-    persistentStorage.save("newValue" as NSObject, forKey: KEY)
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
 
-    XCTAssertEqual("newValue", persistentStorage.readString(forKey: KEY))
-  }
+        persistentStorage.save("newValue" as NSObject, forKey: KEY)
 
-  func testReadStringForKey_noPreviousObjectSaved_returnsNil() {
-    XCTAssertNil(persistentStorage.readString(forKey: KEY))
-  }
+        XCTAssertEqual("newValue", persistentStorage.readString(forKey: KEY))
+    }
 
-  func testReadStringForKey_previousObjectSaved_returnsObject() {
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+    func testReadStringForKey_noPreviousObjectSaved_returnsNil() {
+        XCTAssertNil(persistentStorage.readString(forKey: KEY))
+    }
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
-  }
+    func testReadStringForKey_previousObjectSaved_returnsObject() {
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-  func testDeleteObjectForKey_noPreviousObjectSaved_noop() {
-    XCTAssertNoThrow(persistentStorage.delete(forKey: KEY))
-  }
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    }
 
-  func testDeleteObjectForKey_previousObjectSaved_deletes() {
-    persistentStorage.save(VALUE as NSObject, forKey: KEY)
+    func testDeleteObjectForKey_noPreviousObjectSaved_noop() {
+        XCTAssertNoThrow(persistentStorage.delete(forKey: KEY))
+    }
 
-    XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
+    func testDeleteObjectForKey_previousObjectSaved_deletes() {
+        persistentStorage.save(VALUE as NSObject, forKey: KEY)
 
-    persistentStorage.delete(forKey: KEY)
+        XCTAssertEqual(VALUE, persistentStorage.readString(forKey: KEY))
 
-    XCTAssertNil(persistentStorage.readString(forKey: KEY))
-  }
+        persistentStorage.delete(forKey: KEY)
+
+        XCTAssertNil(persistentStorage.readString(forKey: KEY))
+    }
 }

@@ -8,13 +8,13 @@
 import Foundation
 
 extension ATTNCustomEvent: ATTNEventRequestProvider {
-  var eventRequests: [ATTNEventRequest] {
-    var eventRequests = [ATTNEventRequest]()
-    var customEventMetadata = [String: Any]()
-    customEventMetadata["type"] = type
-    customEventMetadata["properties"] =  try? ATTNJsonUtils.convertObjectToJson(properties) ?? "{}"
+    var eventRequests: [ATTNEventRequest] {
+        var eventRequests = [ATTNEventRequest]()
+        var customEventMetadata = [String: Any]()
+        customEventMetadata["type"] = type
+        customEventMetadata["properties"] =  try? ATTNJsonUtils.convertObjectToJson(properties) ?? "{}"
 
-    eventRequests.append(ATTNEventRequest(metadata: customEventMetadata, eventNameAbbreviation: ATTNEventTypes.customEvent))
-    return eventRequests
-  }
+        eventRequests.append(ATTNEventRequest(metadata: customEventMetadata, eventNameAbbreviation: ATTNEventTypes.customEvent))
+        return eventRequests
+    }
 }

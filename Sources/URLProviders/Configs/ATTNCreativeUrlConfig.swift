@@ -8,9 +8,9 @@
 import Foundation
 
 struct ATTNCreativeUrlConfig {
-  let domain: String
-  let creativeId: String?
-  let skipFatigue: Bool
-  let mode: String
-  let userIdentity: ATTNUserIdentity
+    let domain: String
+    let creativeId: String?
+    let skipFatigue: Bool
+    let mode: String
+    let userIdentity: ATTNUserIdentity
 }

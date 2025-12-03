@@ -10,17 +10,17 @@ import Foundation
 import XCTest
 
 final class ATTNCreativeUrlProviderSpy: ATTNCreativeUrlProviding {
-  private(set) var buildCompanyCreativeUrlWasCalled = false
-  private(set) var usedDomain: String?
-  private(set) var usedCreativeId: String?
+    private(set) var buildCompanyCreativeUrlWasCalled = false
+    private(set) var usedDomain: String?
+    private(set) var usedCreativeId: String?
 
-  var buildCompanyCreativeUrlExpectation: XCTestExpectation?
+    var buildCompanyCreativeUrlExpectation: XCTestExpectation?
 
-  func buildCompanyCreativeUrl(configuration: ATTNSDKFramework.ATTNCreativeUrlConfig) -> String {
-    buildCompanyCreativeUrlWasCalled = true
-    usedDomain = configuration.domain
-    usedCreativeId = configuration.creativeId
-    buildCompanyCreativeUrlExpectation?.fulfill()
-    return "https://example.com/creative"
-  }
+    func buildCompanyCreativeUrl(configuration: ATTNSDKFramework.ATTNCreativeUrlConfig) -> String {
+        buildCompanyCreativeUrlWasCalled = true
+        usedDomain = configuration.domain
+        usedCreativeId = configuration.creativeId
+        buildCompanyCreativeUrlExpectation?.fulfill()
+        return "https://example.com/creative"
+    }
 }

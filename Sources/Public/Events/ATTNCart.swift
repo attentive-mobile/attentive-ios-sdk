@@ -9,15 +9,15 @@ import Foundation
 
 @objc(ATTNCart)
 public final class ATTNCart: NSObject {
-  @objc public var cartId: String?
-  @objc public var cartCoupon: String?
+    @objc public var cartId: String?
+    @objc public var cartCoupon: String?
 
-  @objc
-  public override init() { }
+    @objc
+    public override init() { }
 
-  @objc
-  public init(cartId: String? = nil, cartCoupon: String? = nil) {
-    self.cartId = cartId
-    self.cartCoupon = cartCoupon
-  }
+    @objc
+    public init(cartId: String? = nil, cartCoupon: String? = nil) {
+        self.cartId = cartId
+        self.cartCoupon = cartCoupon
+    }
 }

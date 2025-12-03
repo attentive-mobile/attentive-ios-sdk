@@ -9,12 +9,12 @@ import XCTest
 @testable import ATTNSDKFramework
 
 final class ATTNCustomEventTests: XCTestCase {
-  func testConstructor() {
-    XCTAssertNoThrow(ATTNCustomEvent(type: "]", properties: ["k": "v"]))
-    XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: ["k]": "v"]))
+    func testConstructor() {
+        XCTAssertNoThrow(ATTNCustomEvent(type: "]", properties: ["k": "v"]))
+        XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: ["k]": "v"]))
 
-    XCTAssertNoThrow(ATTNCustomEvent(type: "", properties: ["k": "v"]))
-    XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: [:]))
-    XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: ["k": "v"]))
-  }
+        XCTAssertNoThrow(ATTNCustomEvent(type: "", properties: ["k": "v"]))
+        XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: [:]))
+        XCTAssertNoThrow(ATTNCustomEvent(type: "good", properties: ["k": "v"]))
+    }
 }

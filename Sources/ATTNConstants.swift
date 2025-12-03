@@ -8,8 +8,8 @@
 import Foundation
 
 struct ATTNConstants {
-  private init() { }
+    private init() { }
 
-  static let sdkVersion = "2.0.8"
-  static let skipFatigueEnvKey = "SKIP_FATIGUE_ON_CREATIVE"
+    static let sdkVersion = "2.0.8"
+    static let skipFatigueEnvKey = "SKIP_FATIGUE_ON_CREATIVE"
 }

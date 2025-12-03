@@ -9,6 +9,6 @@ import Foundation
 
 /// Define initialization mode for SDK
 public enum ATTNSDKMode: String {
-  case debug
-  case production
+    case debug
+    case production
 }

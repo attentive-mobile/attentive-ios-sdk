@@ -8,41 +8,41 @@
 import Foundation
 
 struct ATTNVisitorService {
-  private enum Constants {
-    static var visitorIdKey: String { "visitorId" }
-  }
-
-  private let persistentStorage: ATTNPersistentStorageProtocol
-
-  init(persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage()) {
-    self.persistentStorage = persistentStorage
-  }
-
-  func getVisitorId() -> String {
-    guard let existingVisitorId = persistentStorage.readString(forKey: Constants.visitorIdKey) else {
-      return createNewVisitorId()
+    private enum Constants {
+        static var visitorIdKey: String { "visitorId" }
     }
 
-    Loggers.event.info("Obtained existing visitor id: \(existingVisitorId)")
+    private let persistentStorage: ATTNPersistentStorageProtocol
 
-    return existingVisitorId
-  }
+    init(persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage()) {
+        self.persistentStorage = persistentStorage
+    }
 
-  func createNewVisitorId() -> String {
-    let newVisitorId = generateVisitorId()
-    persistentStorage.save(newVisitorId as NSObject, forKey: Constants.visitorIdKey)
+    func getVisitorId() -> String {
+        guard let existingVisitorId = persistentStorage.readString(forKey: Constants.visitorIdKey) else {
+            return createNewVisitorId()
+        }
 
-    Loggers.event.info("Generated new visitor id: \(newVisitorId)")
+        Loggers.event.info("Obtained existing visitor id: \(existingVisitorId)")
 
-    return newVisitorId
-  }
+        return existingVisitorId
+    }
+
+    func createNewVisitorId() -> String {
+        let newVisitorId = generateVisitorId()
+        persistentStorage.save(newVisitorId as NSObject, forKey: Constants.visitorIdKey)
+
+        Loggers.event.info("Generated new visitor id: \(newVisitorId)")
+
+        return newVisitorId
+    }
 
 }
 
 fileprivate extension ATTNVisitorService {
-  func generateVisitorId() -> String {
-    UUID()
-      .uuidString
-      .replacingOccurrences(of: "-", with: "")
-  }
+    func generateVisitorId() -> String {
+        UUID()
+            .uuidString
+            .replacingOccurrences(of: "-", with: "")
+    }
 }

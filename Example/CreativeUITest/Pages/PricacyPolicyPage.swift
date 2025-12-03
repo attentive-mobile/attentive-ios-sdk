@@ -8,24 +8,24 @@
 import XCTest
 
 struct PricacyPolicyPage: Page {
-  private init() {}
+    private init() {}
 
-  @discardableResult
-  static func verifyContent() -> Self.Type {
-    XCTAssertTrue(
-      privacyPolicy.elementExists()
-      || messagingPrivacyPolicy.elementExists()
-    )
-    return self
-  }
+    @discardableResult
+    static func verifyContent() -> Self.Type {
+        XCTAssertTrue(
+            privacyPolicy.elementExists()
+            || messagingPrivacyPolicy.elementExists()
+        )
+        return self
+    }
 }
 
 fileprivate extension PricacyPolicyPage {
-  static var privacyPolicy: XCUIElement {
-    safariApp.staticTexts["Privacy Policy"]
-  }
+    static var privacyPolicy: XCUIElement {
+        safariApp.staticTexts["Privacy Policy"]
+    }
 
-  static var messagingPrivacyPolicy: XCUIElement {
-    safariApp.staticTexts["Messaging Privacy Policy"]
-  }
+    static var messagingPrivacyPolicy: XCUIElement {
+        safariApp.staticTexts["Messaging Privacy Policy"]
+    }
 }
