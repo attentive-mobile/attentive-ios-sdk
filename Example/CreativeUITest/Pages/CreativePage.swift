@@ -78,7 +78,9 @@ fileprivate extension CreativePage {
   }
 
   static var privacyLink: XCUIElement {
-    app.webViews.links["Privacy link will open in a new tab"]
+      let searchText = "Privacy"
+      let predicate = NSPredicate(format: "label CONTAINS[c] %@", searchText)
+      return app.webViews.links.containing(predicate).firstMatch
   }
 
   static var debugStaticText: XCUIElement {

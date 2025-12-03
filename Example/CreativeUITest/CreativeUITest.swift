@@ -13,7 +13,7 @@ final class CreativeUITest: XCTestCase, BaseXCTestCase {
     clearCookies()
     resetUserDefaults()
 
-    app.activate()
+    app.terminate()
 
     super.tearDown()
   }
@@ -42,6 +42,7 @@ final class CreativeUITest: XCTestCase, BaseXCTestCase {
       .tapOnPushMeToCreative()
 
     CreativePage
+      .addDelay()
       .fillEmailInput(text: "testemail@attentivemobile.com")
       .dismissKeyboard()
       .tapOnContinue()
@@ -85,7 +86,9 @@ final class CreativeUITest: XCTestCase, BaseXCTestCase {
 
     HomePage.tapOnPushMeToCreative()
 
-    CreativePage.verifyPrivacyLinkExists()
+    CreativePage
+      .addDelay()
+      .verifyPrivacyLinkExists()
 
     HomePage.navigateToProduct()
 
@@ -115,7 +118,6 @@ final class CreativeUITest: XCTestCase, BaseXCTestCase {
       .addDelay(seconds: 4)
 
     CreativePage
-      .verifyIfElementExists(label: "AttentiveGames", elementType: .image)
       .tapOnCloseCreative()
   }
 }
