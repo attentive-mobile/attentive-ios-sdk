@@ -7,19 +7,13 @@ let package = Package(
     name: "ATTNSDKFramework",
     platforms: [.iOS(.v14)],
     products: [
-        .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework", "ATTNSDKFrameworkObjc"])
+        .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
     ],
     targets: [
-        .target(
+        .binaryTarget(
             name: "ATTNSDKFramework",
-            path: "Sources",
-            resources: [ .process("Resources") ]
-        ),
-        .target(
-            name: "ATTNSDKFrameworkObjc",
-            dependencies: [],
-            path: "Objc",
-            publicHeadersPath: "include"
+            url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/2.0.9-beta/ATTNSDKFramework.xcframework.zip",
+            checksum: "3669570103935280b891dc63adcb1dfc2f67a8a77cfb0b1f310346f5ddd488ab"
         )
     ]
 )
