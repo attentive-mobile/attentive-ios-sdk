@@ -92,6 +92,8 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         lastPushTokenSendTime = now
 
+        Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Auth Status: \(authorizationStatus.rawValue)")
+
         getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
             guard let self = self else { return }
             if let error = error {
@@ -165,6 +167,8 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
+            Loggers.network.debug("Sending app events - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Subscription Status: \(subscriptionStatus)")
+
             let deviceInfo: [String: Any] = [
                 "c": domain,
                 "v": "mobile-app-\(ATTNConstants.sdkVersion)",
@@ -213,6 +217,8 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
+            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email), Phone: \(phone)")
+
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else { return }
 
@@ -286,6 +292,8 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
+            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email), Phone: \(phone)")
+
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else { return }
 
@@ -359,6 +367,8 @@ final class ATTNAPI: ATTNAPIProtocol {
         phone: String? = nil,
         callback: ATTNAPICallback? = nil
     ) {
+        Loggers.network.debug("Updating user - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken)")
+
         var meta: [String: Any] = [:]
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
             meta["email"] = email
@@ -427,7 +437,7 @@ fileprivate extension ATTNAPI {
             return
         }
 
-        Loggers.event.debug("Building Event URL: \(url)")
+        Loggers.event.debug("Building Event URL for '\(request.eventNameAbbreviation)' - Visitor ID: \(userIdentity.visitorId), URL: \(url)")
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -453,7 +463,7 @@ fileprivate extension ATTNAPI {
             return
         }
 
-        Loggers.event.debug("Building Identity Event URL: \(url)")
+        Loggers.event.debug("Building Identity Event URL - Visitor ID: \(userIdentity.visitorId), URL: \(url)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

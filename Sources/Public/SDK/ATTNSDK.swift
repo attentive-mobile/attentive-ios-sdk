@@ -365,7 +365,7 @@ public final class ATTNSDK: NSObject {
         let phone = normalize(phone)
 
         guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-in: missing email/phone")
+            Loggers.event.error("Opt-in failed: missing both email and phone number. At least one must be present to opt in.")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
             return
         }
