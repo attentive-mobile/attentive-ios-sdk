@@ -49,11 +49,14 @@ final class ATTNAPI: ATTNAPIProtocol {
     func send(userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoAdjustedDomain, error in
             if let error = error {
-                Loggers.network.error("Error sending user identity: \(error.localizedDescription)")
+                Loggers.network.error("Error sending user identity: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
                 return
             }
 
-            guard let geoAdjustedDomain = geoAdjustedDomain else { return }
+            guard let geoAdjustedDomain = geoAdjustedDomain else {
+                Loggers.network.error("Failed to send user identity: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId)")
+                return
+            }
             self?.sendUserIdentityInternal(userIdentity: userIdentity, domain: geoAdjustedDomain, callback: callback)
         }
     }
@@ -65,11 +68,14 @@ final class ATTNAPI: ATTNAPIProtocol {
     func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoAdjustedDomain, error in
             if let error = error {
-                Loggers.network.error("Error sending event: \(error.localizedDescription)")
+                Loggers.network.error("Error sending event: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
                 return
             }
 
-            guard let geoAdjustedDomain = geoAdjustedDomain else { return }
+            guard let geoAdjustedDomain = geoAdjustedDomain else {
+                Loggers.network.error("Failed to send event: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId)")
+                return
+            }
             Loggers.network.debug("Successfully returned geoAdjustedDomain: \(geoAdjustedDomain, privacy: .public)")
             self?.sendEventInternal(event: event, userIdentity: userIdentity, domain: geoAdjustedDomain, callback: callback)
         }
@@ -95,12 +101,18 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Auth Status: \(authorizationStatus.rawValue)")
 
         getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
-            guard let self = self else { return }
-            if let error = error {
-                Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription)")
+            guard let self = self else {
+                Loggers.network.error("sendPushToken aborted: self is nil - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
                 return
             }
-            guard let geoDomain = geoDomain else { return }
+            if let error = error {
+                Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription) - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
+                return
+            }
+            guard let geoDomain = geoDomain else {
+                Loggers.network.error("Failed to send push token: geoAdjustedDomain is nil - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
+                return
+            }
 
             guard let url = self.eventUrlProvider.buildPushTokenUrl(
                 for: userIdentity,
@@ -220,15 +232,19 @@ final class ATTNAPI: ATTNAPIProtocol {
             Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
-                guard let self = self else { return }
+                guard let self = self else {
+                    Loggers.network.error("sendOptInMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                    callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+                    return
+                }
 
                 if let geoError = geoError {
-                    Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription)")
+                    Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
                     callback?(nil, nil, nil, geoError)
                     return
                 }
                 guard let geoDomain = geoDomain else {
-                    Loggers.network.error("Opt-in: geo domain missing")
+                    Loggers.network.error("Opt-in: geo domain missing - Visitor ID: \(userIdentity.visitorId)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
@@ -297,15 +313,19 @@ final class ATTNAPI: ATTNAPIProtocol {
             Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
-                guard let self = self else { return }
+                guard let self = self else {
+                    Loggers.network.error("sendOptOutMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                    callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
+                    return
+                }
 
                 if let geoError = geoError {
-                    Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription)")
+                    Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
                     callback?(nil, nil, nil, geoError)
                     return
                 }
                 guard let geoDomain = geoDomain else {
-                    Loggers.network.error("Opt-out: geo domain missing")
+                    Loggers.network.error("Opt-out: geo domain missing - Visitor ID: \(userIdentity.visitorId)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
@@ -585,10 +605,14 @@ extension ATTNAPI {
         callback: ATTNAPICallback? = nil
     ) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
-            guard let self = self else { return }
+            guard let self = self else {
+                Loggers.network.error("sendNewEvent aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                callback?(nil, nil, nil, ATTNError.badURL)
+                return
+            }
 
             if let error = error {
-                Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription)")
+                Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
                 callback?(nil, nil, nil, error)
                 return
             }
@@ -599,7 +623,7 @@ extension ATTNAPI {
                             userIdentity: userIdentity,
                             domain: geoDomain
                         ) else {
-                Loggers.network.error("Invalid /mobile event URL")
+                Loggers.network.error("Invalid /mobile event URL - Visitor ID: \(userIdentity.visitorId)")
                 callback?(nil, nil, nil, ATTNError.badURL)
                 return
             }

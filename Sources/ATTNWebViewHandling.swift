@@ -78,14 +78,17 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         creativeId: String? = nil,
         handler: ATTNCreativeTriggerCompletionHandler? = nil
     ) {
+        let creativeIdLog = creativeId ?? "default"
+        Loggers.creative.debug("Launching creative - Visitor ID: \(userIdentity.visitorId), Creative ID: \(creativeIdLog), Domain: \(domain)")
+
         guard stateManager.compareAndSet(from: .closed, to: .launching) else {
-            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
+            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(userIdentity.visitorId)")
             return
         }
 
         creativeQueue.async { [self] in
             guard let webViewProvider = webViewProvider else {
-                Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
+                Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId)")
                 webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
                 return
             }
@@ -93,7 +96,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             webViewProvider.parentView = view
             webViewProvider.triggerHandler = handler
 
-            Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
+            Loggers.creative.debug("Showing creative - Visitor ID: \(self.userIdentity.visitorId), Domain: \(self.domain, privacy: .public)")
 
             // Time out logic in case creative doesn't launch
             let timeoutInterval: TimeInterval = 5.0
@@ -123,12 +126,12 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
 
             guard let url = URL(string: creativePageUrl) else {
-                Loggers.creative.debug("URL could not be created.")
+                Loggers.creative.error("Failed to create URL from creative page URL string - Visitor ID: \(self.userIdentity.visitorId), URL String: \(creativePageUrl)")
                 stateManager.updateState(.closed)
                 return
             }
 
-            Loggers.creative.debug("Setting up WebView for creative")
+            Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId)")
 
             DispatchQueue.main.async {
                 let request = URLRequest(url: url)
@@ -189,7 +192,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         creativeQueue.async { [self] in
             stateManager.updateState(.closed)
             self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-            Loggers.creative.debug("Successfully closed creative")
+            Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId)")
         }
     }
 }
@@ -248,21 +251,26 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
+            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(userIdentity.visitorId)")
             decisionHandler(.cancel)
             return
         }
 
         if url.scheme == "sms" {
+            Loggers.creative.debug("Opening SMS URL externally: \(url) - Visitor ID: \(userIdentity.visitorId)")
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
         } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             if navigationAction.targetFrame == nil {
+                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url) - Visitor ID: \(userIdentity.visitorId)")
                 UIApplication.shared.open(url)
                 decisionHandler(.cancel)
             } else {
+                Loggers.creative.debug("Allowing navigation to URL: \(url) - Visitor ID: \(userIdentity.visitorId)")
                 decisionHandler(.allow)
             }
         } else {
+            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(userIdentity.visitorId)")
             decisionHandler(.allow)
         }
     }
