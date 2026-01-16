@@ -217,7 +217,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email), Phone: \(phone)")
+            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else { return }
@@ -272,6 +272,8 @@ final class ATTNAPI: ATTNAPIProtocol {
                         Loggers.network.debug("Headers: \(http.allHeaderFields)")
                         if http.statusCode >= 400 {
                             Loggers.network.error("Opt-in API returned status \(http.statusCode)")
+                        } else {
+                            Loggers.network.debug("Opt-in successful: opted in email: \(email ?? "nil"), phone: \(phone ?? "nil")")
                         }
                     }
                     if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
@@ -292,7 +294,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email), Phone: \(phone)")
+            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else { return }
@@ -347,6 +349,8 @@ final class ATTNAPI: ATTNAPIProtocol {
                         Loggers.network.debug("Headers: \(http.allHeaderFields)")
                         if http.statusCode >= 400 {
                             Loggers.network.error("Opt-out API returned status \(http.statusCode)")
+                        } else {
+                            Loggers.network.debug("Opt-out successful: opted out email: \(email ?? "nil"), phone: \(phone ?? "nil")")
                         }
                     }
                     if let data = data, let bodyStr = String(data: data, encoding: .utf8) {

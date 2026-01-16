@@ -49,7 +49,7 @@ public final class ATTNSDK: NSObject {
     @objc public var skipFatigueOnCreative: Bool = false
 
     public init(domain: String, mode: ATTNSDKMode) {
-        Loggers.creative.debug("Init ATTNSDKFramework v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
+        Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
 
         self.domain = domain
         self.mode = mode
@@ -70,6 +70,8 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
+
+        Loggers.creative.debug("ATTNSDK initialization successful - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Domain: \(domain, privacy: .public)")
     }
 
     @objc(initWithDomain:)
@@ -93,8 +95,10 @@ public final class ATTNSDK: NSObject {
                 let setupSucceeded = sdk.webViewHandler != nil
                 DispatchQueue.main.async {
                     if setupSucceeded {
+                        Loggers.creative.debug("ATTNSDK async initialization successful - Visitor ID: \(sdk.userIdentity.visitorId, privacy: .public)")
                         completion(.success(sdk))
                     } else {
+                        Loggers.creative.error("ATTNSDK async initialization failed - webViewHandler setup unsuccessful")
                         completion(.failure(ATTNSDKError.initializationFailed))
                     }
                 }
@@ -104,9 +108,10 @@ public final class ATTNSDK: NSObject {
     // MARK: Public API
     @objc(identify:)
     public func identify(_ userIdentifiers: [String: Any]) {
+        Loggers.event.debug("Identifying user - Visitor ID: \(self.userIdentity.visitorId), Identifiers: \(userIdentifiers)")
         userIdentity.mergeIdentifiers(userIdentifiers)
         api.send(userIdentity: userIdentity)
-        Loggers.event.debug("Send User Identifiers: \(userIdentifiers)")
+        Loggers.event.debug("User identity sent successfully - Visitor ID: \(self.userIdentity.visitorId)")
     }
 
     @objc(trigger:)
@@ -131,18 +136,23 @@ public final class ATTNSDK: NSObject {
 
     @objc(clearUser)
     public func clearUser() {
+        let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
-        Loggers.creative.debug("Clear user. New visitor id: \(self.userIdentity.visitorId, privacy: .public)")
+        Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
     @objc(updateDomain:)
     public func update(domain: String) {
-        guard self.domain != domain else { return }
+        guard self.domain != domain else {
+            Loggers.creative.debug("Domain update skipped - requested domain matches current domain: \(domain)")
+            return
+        }
+        let oldDomain = self.domain
         self.domain = domain
         api.update(domain: domain)
-        Loggers.creative.debug("Updated SDK with new domain: \(domain)")
+        Loggers.creative.debug("Domain updated successfully - Old Domain: \(oldDomain), New Domain: \(domain), Visitor ID: \(self.userIdentity.visitorId)")
         api.send(userIdentity: userIdentity)
-        Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
+        Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain), Visitor ID: \(self.userIdentity.visitorId)")
     }
 
     // MARK: Push Permissions & Token
@@ -173,7 +183,17 @@ public final class ATTNSDK: NSObject {
     public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
     ) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        Loggers.event.debug("APNs device‐token: \(tokenString), auth status raw value: \(authorizationStatus.rawValue)")
+        let authStatusString: String = {
+            switch authorizationStatus {
+            case .notDetermined: return "notDetermined"
+            case .denied:        return "denied"
+            case .authorized:    return "authorized"
+            case .provisional:   return "provisional"
+            case .ephemeral:     return "ephemeral"
+            @unknown default:    return "unknown"
+            }
+        }()
+        Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(tokenString), Auth Status: \(authStatusString)")
         pushTokenStore.token = tokenString
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -184,12 +204,17 @@ public final class ATTNSDK: NSObject {
             if let http = response as? HTTPURLResponse {
                 Loggers.event.debug("Status Code: \(http.statusCode)")
                 Loggers.event.debug("Headers: \(http.allHeaderFields)")
+                if http.statusCode >= 200 && http.statusCode < 300 {
+                    Loggers.event.debug("Device token registration successful - Push Token: \(tokenString)")
+                } else if http.statusCode >= 400 {
+                    Loggers.event.error("Device token registration failed with status code: \(http.statusCode)")
+                }
             }
             if let d = data, let body = String(data: d, encoding: .utf8) {
                 Loggers.event.debug("Response Body:\n\(body)")
             }
             if let error = error {
-                Loggers.event.error("Error:\n\(error.localizedDescription)")
+                Loggers.event.error("Device token registration error: \(error.localizedDescription)")
             }
 
             callback?(data, url, response, error)
