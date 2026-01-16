@@ -329,7 +329,7 @@ public final class ATTNSDK: NSObject {
             @unknown default:    return "unknown"
             }
         }()
-        Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
         let callbackData = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
@@ -371,7 +371,7 @@ public final class ATTNSDK: NSObject {
             @unknown default:    return "unknown"
             }
         }()
-        Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
         ATTNLaunchManager.shared.launchedFromPush = true
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
@@ -430,12 +430,12 @@ public final class ATTNSDK: NSObject {
         let phone = normalize(phone)
 
         guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-in failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken)")
+            Loggers.event.error("Opt-in failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken)")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
             return
         }
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
         api.sendOptInMarketingSubscription(
             pushToken: currentPushToken,
@@ -472,12 +472,12 @@ public final class ATTNSDK: NSObject {
         let phone = normalize(phone)
 
         guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-out failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken)")
+            Loggers.event.error("Opt-out failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken)")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
             return
         }
 
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
         api.sendOptOutMarketingSubscription(
             pushToken: currentPushToken,

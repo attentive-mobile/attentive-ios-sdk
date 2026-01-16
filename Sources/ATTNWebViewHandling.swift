@@ -86,10 +86,10 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             return
         }
 
-        creativeQueue.async { [self] in
-            guard let webViewProvider = webViewProvider else {
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let webViewProvider = self.webViewProvider else {
                 Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId)")
-                webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
                 return
             }
 
@@ -133,7 +133,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
 
             Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId)")
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 let request = URLRequest(url: url)
                 let configuration = WKWebViewConfiguration()
                 configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
@@ -178,7 +179,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     }
 
     func closeCreative() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             if let webView = self.webViewProvider?.webView {
                 webView.navigationDelegate = nil
                 webView.removeFromSuperview()
@@ -189,7 +191,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             self.webViewProvider?.webView = nil
         }
 
-        creativeQueue.async { [self] in
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
             stateManager.updateState(.closed)
             self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
             Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId)")
