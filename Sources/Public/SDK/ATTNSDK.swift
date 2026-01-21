@@ -33,6 +33,8 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
+    private var inbox: Inbox?
+
     // MARK: Instance Properties
     var parentView: UIView?
     var triggerHandler: ATTNCreativeTriggerCompletionHandler?
@@ -70,6 +72,9 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
+        Task {
+            inbox = await Self.getMockInbox()
+        }
     }
 
     @objc(initWithDomain:)
@@ -143,6 +148,70 @@ public final class ATTNSDK: NSObject {
         Loggers.creative.debug("Updated SDK with new domain: \(domain)")
         api.send(userIdentity: userIdentity)
         Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
+    }
+    
+    // MARK: Inbox
+    
+    public var allMessages: [Message] {
+        get async {
+            // This is to simulate a loading scenario. We will remove this during production.
+            try? await Task.sleep(nanoseconds: 1000000000)
+            guard let inbox else {
+                return []
+            }
+            return Array(inbox.messages.values)
+        }
+    }
+    
+    public var unreadCount: Int {
+        inbox.map(\.unreadCount) ?? 0
+    }
+    
+    private static func getMockInbox() async -> Inbox {
+        Inbox(
+            messages: [
+                "1": Message(
+                    id: "1",
+                    title: "Welcome to Attentive!",
+                    body: "Thanks for joining us. Check out our latest offers.",
+                    timestamp: Date().advanced(by: -86400000),
+                    isRead: false,
+                    imageURL: "https://picsum.photos/200",
+                ),
+                "2": Message(
+                    id: "2",
+                    title: "New Sale Alert",
+                    body: "50% off on all items this weekend!",
+                    timestamp: Date().advanced(by: -172800000),
+                    isRead: false,
+                    imageURL: "https://picsum.photos/200",
+                ),
+                "3": Message(
+                    id: "3",
+                    title: "Your Order Has Shipped",
+                    body: "Your order #12345 is on its way!",
+                    timestamp: Date().advanced(by: -259200000),
+                    isRead: false,
+                    actionURL: "https://example.com/track/12345"
+                )
+            ]
+        )
+    }
+
+    public func markRead(for messageID: Message.ID) {
+        mark(isRead: true, for: messageID)
+    }
+
+    public func markUnread(for messageID: Message.ID) {
+        mark(isRead: false, for: messageID)
+    }
+
+    private func mark(isRead: Bool, for messageID: Message.ID) {
+        inbox?.messages[messageID]?.isRead = isRead
+    }
+
+    public func delete(messageID: Message.ID) {
+        inbox?.messages.removeValue(forKey: messageID)
     }
 
     // MARK: Push Permissions & Token
