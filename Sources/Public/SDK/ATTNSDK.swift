@@ -149,9 +149,9 @@ public final class ATTNSDK: NSObject {
         api.send(userIdentity: userIdentity)
         Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
     }
-    
+
     // MARK: Inbox
-    
+
     public var allMessages: [Message] {
         get async {
             // This is to simulate a loading scenario. We will remove this during production.
@@ -162,11 +162,11 @@ public final class ATTNSDK: NSObject {
             return Array(inbox.messages.values)
         }
     }
-    
+
     public var unreadCount: Int {
         inbox.map(\.unreadCount) ?? 0
     }
-    
+
     private static func getMockInbox() async -> Inbox {
         Inbox(
             messages: [
