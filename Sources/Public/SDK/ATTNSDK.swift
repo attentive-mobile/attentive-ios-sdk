@@ -20,6 +20,19 @@ public enum ATTNSDKError: Error {
     case missingPushToken
 }
 
+extension UNAuthorizationStatus {
+    var stringValue: String {
+        switch self {
+        case .notDetermined: return "notDetermined"
+        case .denied:        return "denied"
+        case .authorized:    return "authorized"
+        case .provisional:   return "provisional"
+        case .ephemeral:     return "ephemeral"
+        @unknown default:    return "unknown"
+        }
+    }
+}
+
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
@@ -183,17 +196,7 @@ public final class ATTNSDK: NSObject {
     public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
     ) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        let authStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(tokenString), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(tokenString), Auth Status: \(authorizationStatus.stringValue)")
         pushTokenStore.token = tokenString
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -268,17 +271,7 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handleRegularOpen(pushToken: String? = nil, authorizationStatus: UNAuthorizationStatus) {
-        let authStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
 
         // checks and resets push launch flag
         guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
@@ -305,31 +298,11 @@ public final class ATTNSDK: NSObject {
                 "message_subtype": ""
             ]
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
     }
 
     @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
-        let authStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
         let callbackData = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
@@ -340,18 +313,8 @@ public final class ATTNSDK: NSObject {
             "ist": "o",
             "data": escapedData
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
 
-        registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
 
         guard let linkString = escapedData["attentive_open_action_url"] as? String else {
             Loggers.network.debug("No deep link URL found in push notification")
@@ -361,17 +324,7 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
-        let authStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
         ATTNLaunchManager.shared.launchedFromPush = true
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
@@ -389,17 +342,7 @@ public final class ATTNSDK: NSObject {
             "ist": "o",
             "data": escapedData
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
 
         guard let linkString = escapedData["attentive_open_action_url"] as? String else {
             Loggers.network.debug("No deep link URL found in push notification")

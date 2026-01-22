@@ -134,7 +134,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId)")
 
             DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 let request = URLRequest(url: url)
                 let configuration = WKWebViewConfiguration()
                 configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
@@ -273,7 +273,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 decisionHandler(.allow)
             }
         } else {
-            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(self.self.userIdentity.visitorId)")
+            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(self.userIdentity.visitorId)")
             decisionHandler(.allow)
         }
     }
