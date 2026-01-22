@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A83DEAE2F21A1AA003FD456 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAB2F21A1AA003FD456 /* Inbox.swift */; };
+		0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAC2F21A1AA003FD456 /* Message.swift */; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
@@ -112,6 +114,8 @@
 
 /* Begin PBXFileReference section */
 		0A812DF42F1827C50082B133 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		0A83DEAB2F21A1AA003FD456 /* Inbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inbox.swift; sourceTree = "<group>"; };
+		0A83DEAC2F21A1AA003FD456 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -242,6 +246,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0A83DEAD2F21A1AA003FD456 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0A83DEAB2F21A1AA003FD456 /* Inbox.swift */,
+				0A83DEAC2F21A1AA003FD456 /* Message.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		58332EB9292EC18800B1ECF3 = {
 			isa = PBXGroup;
 			children = (
@@ -511,6 +524,7 @@
 		FBA9FA042C0A77AB00C65024 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				0A83DEAD2F21A1AA003FD456 /* Models */,
 				FB35C1812C0E1F85009FA048 /* Helpers */,
 				FB60AF092C12119F00C61537 /* URLProviders */,
 				FBA9F9E62C0A77AB00C65024 /* API */,
@@ -741,6 +755,8 @@
 				FBA9FA152C0A77AB00C65024 /* ATTNOrder.swift in Sources */,
 				FBA9FA1A2C0A77AB00C65024 /* ATTNSDK.swift in Sources */,
 				FBA9FA0E2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift in Sources */,
+				0A83DEAE2F21A1AA003FD456 /* Inbox.swift in Sources */,
+				0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */,
 				FBA9FA0C2C0A77AB00C65024 /* ATTNParameterValidation.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
