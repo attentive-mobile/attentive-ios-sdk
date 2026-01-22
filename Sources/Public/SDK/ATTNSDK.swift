@@ -278,7 +278,7 @@ public final class ATTNSDK: NSObject {
             @unknown default:    return "unknown"
             }
         }()
-        Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(currentPushToken), Auth Status: \(authStatusString)")
+        Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authStatusString)")
 
         // checks and resets push launch flag
         guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {

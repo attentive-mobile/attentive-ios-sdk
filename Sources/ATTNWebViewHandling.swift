@@ -79,10 +79,10 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         handler: ATTNCreativeTriggerCompletionHandler? = nil
     ) {
         let creativeIdLog = creativeId ?? "default"
-        Loggers.creative.debug("Launching creative - Visitor ID: \(userIdentity.visitorId), Creative ID: \(creativeIdLog), Domain: \(domain)")
+        Loggers.creative.debug("Launching creative - Visitor ID: \(self.userIdentity.visitorId), Creative ID: \(creativeIdLog), Domain: \(self.domain)")
 
         guard stateManager.compareAndSet(from: .closed, to: .launching) else {
-            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(userIdentity.visitorId)")
+            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(self.userIdentity.visitorId)")
             return
         }
 
@@ -254,26 +254,26 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
-            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(userIdentity.visitorId)")
+            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(self.userIdentity.visitorId)")
             decisionHandler(.cancel)
             return
         }
 
         if url.scheme == "sms" {
-            Loggers.creative.debug("Opening SMS URL externally: \(url) - Visitor ID: \(userIdentity.visitorId)")
+            Loggers.creative.debug("Opening SMS URL externally: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
         } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             if navigationAction.targetFrame == nil {
-                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url) - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url) - Visitor ID: \(self.userIdentity.visitorId)")
                 UIApplication.shared.open(url)
                 decisionHandler(.cancel)
             } else {
-                Loggers.creative.debug("Allowing navigation to URL: \(url) - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.creative.debug("Allowing navigation to URL: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
                 decisionHandler(.allow)
             }
         } else {
-            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(userIdentity.visitorId)")
+            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(self.self.userIdentity.visitorId)")
             decisionHandler(.allow)
         }
     }
