@@ -9,7 +9,7 @@ import Foundation
 import os
 
 enum Loggers {
-    private static var subsystem: String { Bundle.main.bundleIdentifier ?? "com.attentive.attentive-ios-sdk-local" }
+    private static var subsystem: String { "com.attentive.attentive-ios-sdk" }
 
     static var network = Logger(subsystem: subsystem, category: "network")
     static var event = Logger(subsystem: subsystem, category: "event")
