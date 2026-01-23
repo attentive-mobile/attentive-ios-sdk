@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Message: Codable, Identifiable {
+public struct Message: Codable, Identifiable, Sendable {
     // swiftlint:disable:next type_name
     public typealias ID = String
 

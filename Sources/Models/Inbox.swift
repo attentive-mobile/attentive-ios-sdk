@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Inbox: Codable {
+public struct Inbox: Codable, Sendable {
     public var messages: [Message.ID: Message]
     public var unreadCount: Int {
         messages.filter {
