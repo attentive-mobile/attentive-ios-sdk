@@ -4,6 +4,9 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
+### iOS Version
+We support iOS 15.0+ due to the benefits of Swift Concurrency only available on that version and higher.
+
 ### Cocoapods
 
 The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
