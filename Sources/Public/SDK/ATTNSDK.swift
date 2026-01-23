@@ -20,6 +20,19 @@ public enum ATTNSDKError: Error {
     case missingPushToken
 }
 
+extension UNAuthorizationStatus {
+    var stringValue: String {
+        switch self {
+        case .notDetermined: return "notDetermined"
+        case .denied:        return "denied"
+        case .authorized:    return "authorized"
+        case .provisional:   return "provisional"
+        case .ephemeral:     return "ephemeral"
+        @unknown default:    return "unknown"
+        }
+    }
+}
+
 @objc(ATTNSDK)
 public final class ATTNSDK: NSObject {
 
@@ -49,7 +62,7 @@ public final class ATTNSDK: NSObject {
     @objc public var skipFatigueOnCreative: Bool = false
 
     public init(domain: String, mode: ATTNSDKMode) {
-        Loggers.creative.debug("Init ATTNSDKFramework v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
+        Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
 
         self.domain = domain
         self.mode = mode
@@ -70,6 +83,8 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
+
+        Loggers.creative.debug("ATTNSDK initialization successful - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Domain: \(domain, privacy: .public)")
     }
 
     @objc(initWithDomain:)
@@ -93,8 +108,10 @@ public final class ATTNSDK: NSObject {
                 let setupSucceeded = sdk.webViewHandler != nil
                 DispatchQueue.main.async {
                     if setupSucceeded {
+                        Loggers.creative.debug("ATTNSDK async initialization successful - Visitor ID: \(sdk.userIdentity.visitorId, privacy: .public)")
                         completion(.success(sdk))
                     } else {
+                        Loggers.creative.error("ATTNSDK async initialization failed - webViewHandler setup unsuccessful")
                         completion(.failure(ATTNSDKError.initializationFailed))
                     }
                 }
@@ -104,9 +121,10 @@ public final class ATTNSDK: NSObject {
     // MARK: Public API
     @objc(identify:)
     public func identify(_ userIdentifiers: [String: Any]) {
+        Loggers.event.debug("Identifying user - Visitor ID: \(self.userIdentity.visitorId), Identifiers: \(userIdentifiers)")
         userIdentity.mergeIdentifiers(userIdentifiers)
         api.send(userIdentity: userIdentity)
-        Loggers.event.debug("Send User Identifiers: \(userIdentifiers)")
+        Loggers.event.debug("User identity sent successfully - Visitor ID: \(self.userIdentity.visitorId)")
     }
 
     @objc(trigger:)
@@ -131,18 +149,23 @@ public final class ATTNSDK: NSObject {
 
     @objc(clearUser)
     public func clearUser() {
+        let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
-        Loggers.creative.debug("Clear user. New visitor id: \(self.userIdentity.visitorId, privacy: .public)")
+        Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
     @objc(updateDomain:)
     public func update(domain: String) {
-        guard self.domain != domain else { return }
+        guard self.domain != domain else {
+            Loggers.creative.debug("Domain update skipped - requested domain matches current domain: \(domain)")
+            return
+        }
+        let oldDomain = self.domain
         self.domain = domain
         api.update(domain: domain)
-        Loggers.creative.debug("Updated SDK with new domain: \(domain)")
+        Loggers.creative.debug("Domain updated successfully - Old Domain: \(oldDomain), New Domain: \(domain), Visitor ID: \(self.userIdentity.visitorId)")
         api.send(userIdentity: userIdentity)
-        Loggers.creative.debug("Retrigger Identity Event with new domain '\(domain)'")
+        Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain), Visitor ID: \(self.userIdentity.visitorId)")
     }
 
     // MARK: Push Permissions & Token
@@ -173,7 +196,7 @@ public final class ATTNSDK: NSObject {
     public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
     ) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        Loggers.event.debug("APNs device‐token: \(tokenString), auth status raw value: \(authorizationStatus.rawValue)")
+        Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(tokenString), Auth Status: \(authorizationStatus.stringValue)")
         pushTokenStore.token = tokenString
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -184,12 +207,17 @@ public final class ATTNSDK: NSObject {
             if let http = response as? HTTPURLResponse {
                 Loggers.event.debug("Status Code: \(http.statusCode)")
                 Loggers.event.debug("Headers: \(http.allHeaderFields)")
+                if http.statusCode >= 200 && http.statusCode < 300 {
+                    Loggers.event.debug("Device token registration successful - Push Token: \(tokenString)")
+                } else if http.statusCode >= 400 {
+                    Loggers.event.error("Device token registration failed with status code: \(http.statusCode)")
+                }
             }
             if let d = data, let body = String(data: d, encoding: .utf8) {
                 Loggers.event.debug("Response Body:\n\(body)")
             }
             if let error = error {
-                Loggers.event.error("Error:\n\(error.localizedDescription)")
+                Loggers.event.error("Device token registration error: \(error.localizedDescription)")
             }
 
             callback?(data, url, response, error)
@@ -212,10 +240,11 @@ public final class ATTNSDK: NSObject {
         callback: ATTNAPICallback? = nil
     ) {
         if pushToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            Loggers.event.error("registerAppEvents aborted: missing push token.")
+            Loggers.event.error("registerAppEvents aborted: missing push token - Visitor ID: \(self.userIdentity.visitorId)")
             callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
+        Loggers.event.debug("Registering app events - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(pushToken), Subscription Status: \(subscriptionStatus), Event Count: \(events.count)")
         api.sendAppEvents(pushToken: pushToken, subscriptionStatus: subscriptionStatus, transport: transport, events: events, userIdentity: userIdentity) { data, url, response, error in
             Loggers.event.debug("----- App Open Events Request Result -----")
             if let url = url {
@@ -224,12 +253,17 @@ public final class ATTNSDK: NSObject {
             if let http = response as? HTTPURLResponse {
                 Loggers.event.debug("Status Code: \(http.statusCode)")
                 Loggers.event.debug("Headers: \(http.allHeaderFields)")
+                if http.statusCode >= 200 && http.statusCode < 300 {
+                    Loggers.event.debug("App events sent successfully")
+                } else if http.statusCode >= 400 {
+                    Loggers.event.error("App events failed with status code: \(http.statusCode)")
+                }
             }
             if let d = data, let body = String(data: d, encoding: .utf8) {
                 Loggers.event.debug("Response Body:\n\(body)")
             }
             if let error = error {
-                Loggers.event.error("Error:\n\(error.localizedDescription)")
+                Loggers.event.error("App events error: \(error.localizedDescription)")
             }
 
             callback?(data, url, response, error)
@@ -237,6 +271,8 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handleRegularOpen(pushToken: String? = nil, authorizationStatus: UNAuthorizationStatus) {
+        Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
+
         // checks and resets push launch flag
         guard !ATTNLaunchManager.shared.resetPushLaunchFlag() else {
             Loggers.event.debug("Skipping regular open handler as push launch flag is set to true")
@@ -262,20 +298,11 @@ public final class ATTNSDK: NSObject {
                 "message_subtype": ""
             ]
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([alEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
     }
 
     @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
+        Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
         let callbackData = (userInfo["attentiveCallbackData"] as? [String: Any]) ?? [:]
@@ -286,18 +313,8 @@ public final class ATTNSDK: NSObject {
             "ist": "o",
             "data": escapedData
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
 
-        registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
 
         guard let linkString = escapedData["attentive_open_action_url"] as? String else {
             Loggers.network.debug("No deep link URL found in push notification")
@@ -307,6 +324,7 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
+        Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Auth Status: \(authorizationStatus.stringValue)")
         ATTNLaunchManager.shared.launchedFromPush = true
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo)")
@@ -324,17 +342,7 @@ public final class ATTNSDK: NSObject {
             "ist": "o",
             "data": escapedData
         ]
-        let authorizationStatusString: String = {
-            switch authorizationStatus {
-            case .notDetermined: return "notDetermined"
-            case .denied:        return "denied"
-            case .authorized:    return "authorized"
-            case .provisional:   return "provisional"
-            case .ephemeral:     return "ephemeral"
-            @unknown default:    return "unknown"
-            }
-        }()
-        registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatusString)
+        registerAppEvents([alEvent, oEvent], pushToken: currentPushToken, subscriptionStatus: authorizationStatus.stringValue)
 
         guard let linkString = escapedData["attentive_open_action_url"] as? String else {
             Loggers.network.debug("No deep link URL found in push notification")
@@ -365,10 +373,12 @@ public final class ATTNSDK: NSObject {
         let phone = normalize(phone)
 
         guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-in: missing email/phone")
+            Loggers.event.error("Opt-in failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken)")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
             return
         }
+
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
         api.sendOptInMarketingSubscription(
             pushToken: currentPushToken,
@@ -405,10 +415,12 @@ public final class ATTNSDK: NSObject {
         let phone = normalize(phone)
 
         guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-out: missing email/phone")
+            Loggers.event.error("Opt-out failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken)")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
             return
         }
+
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId), Push Token: \(self.currentPushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
 
         api.sendOptOutMarketingSubscription(
             pushToken: currentPushToken,
@@ -439,15 +451,17 @@ public final class ATTNSDK: NSObject {
     public func updateUser(email: String? = nil,
                                                  phone: String? = nil,
                                                  callback: ATTNAPICallback? = nil) {
+        Loggers.event.debug("Attempting to update user - Current Visitor ID: \(self.userIdentity.visitorId), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
         : (UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "")
         guard !pushToken.isEmpty else {
-            Loggers.event.error("updateUser aborted: missing push token.")
+            Loggers.event.error("updateUser aborted: missing push token - Tried in-memory token: '\(trimmedPushToken)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "nil")', Visitor ID: \(self.userIdentity.visitorId)")
             callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
+        Loggers.event.debug("Updating user with push token: \(pushToken)")
         clearUser()
         api.updateUser(
             pushToken: pushToken,
@@ -571,7 +585,7 @@ public final class ATTNSDK: NSObject {
         }
 
         guard let validURL = candidateURL else {
-            Loggers.network.error("SDK: Unable to form URL from string: '\(trimmed)'")
+            Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed)' - Visitor ID: \(self.userIdentity.visitorId)")
             return
         }
 
@@ -582,6 +596,7 @@ public final class ATTNSDK: NSObject {
             object: nil,
             userInfo: ["attentivePushDeeplinkUrl": validURL]
         )
+        Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL)")
     }
 
     private func setupProvisionalPush() async {

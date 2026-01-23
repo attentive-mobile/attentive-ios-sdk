@@ -78,22 +78,25 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         creativeId: String? = nil,
         handler: ATTNCreativeTriggerCompletionHandler? = nil
     ) {
+        let creativeIdLog = creativeId ?? "default"
+        Loggers.creative.debug("Launching creative - Visitor ID: \(self.userIdentity.visitorId), Creative ID: \(creativeIdLog), Domain: \(self.domain)")
+
         guard stateManager.compareAndSet(from: .closed, to: .launching) else {
-            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action.")
+            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(self.userIdentity.visitorId)")
             return
         }
 
-        creativeQueue.async { [self] in
-            guard let webViewProvider = webViewProvider else {
-                Loggers.creative.debug("Not showing the Attentive creative because the iOS version is too old.")
-                webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let webViewProvider = self.webViewProvider else {
+                Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId)")
                 return
             }
 
             webViewProvider.parentView = view
             webViewProvider.triggerHandler = handler
 
-            Loggers.creative.debug("Called showWebView in creativeSDK with domain: \(self.domain, privacy: .public)")
+            Loggers.creative.debug("Showing creative - Visitor ID: \(self.userIdentity.visitorId), Domain: \(self.domain, privacy: .public)")
 
             // Time out logic in case creative doesn't launch
             let timeoutInterval: TimeInterval = 5.0
@@ -123,14 +126,15 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
 
             guard let url = URL(string: creativePageUrl) else {
-                Loggers.creative.debug("URL could not be created.")
+                Loggers.creative.error("Failed to create URL from creative page URL string - Visitor ID: \(self.userIdentity.visitorId), URL String: \(creativePageUrl)")
                 stateManager.updateState(.closed)
                 return
             }
 
-            Loggers.creative.debug("Setting up WebView for creative")
+            Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId)")
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
                 let request = URLRequest(url: url)
                 let configuration = WKWebViewConfiguration()
                 configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
@@ -175,7 +179,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     }
 
     func closeCreative() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             if let webView = self.webViewProvider?.webView {
                 webView.navigationDelegate = nil
                 webView.removeFromSuperview()
@@ -186,10 +191,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             self.webViewProvider?.webView = nil
         }
 
-        creativeQueue.async { [self] in
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
             stateManager.updateState(.closed)
             self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-            Loggers.creative.debug("Successfully closed creative")
+            Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId)")
         }
     }
 }
@@ -248,21 +254,26 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
+            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(self.userIdentity.visitorId)")
             decisionHandler(.cancel)
             return
         }
 
         if url.scheme == "sms" {
+            Loggers.creative.debug("Opening SMS URL externally: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
         } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             if navigationAction.targetFrame == nil {
+                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url) - Visitor ID: \(self.userIdentity.visitorId)")
                 UIApplication.shared.open(url)
                 decisionHandler(.cancel)
             } else {
+                Loggers.creative.debug("Allowing navigation to URL: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
                 decisionHandler(.allow)
             }
         } else {
+            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(self.userIdentity.visitorId)")
             decisionHandler(.allow)
         }
     }
