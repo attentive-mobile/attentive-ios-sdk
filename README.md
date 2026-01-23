@@ -497,6 +497,9 @@ attentiveSdk.optOutMarketingSubscription(email: "user@example.com", phone: "+155
 }
 ```
 
+> [!IMPORTANT]
+> Please do not include a static/hard-coded SMS or email while testing as this will cause all push tokens to associate to the same user profile.
+
 #### Objective-C
 ```
 ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
