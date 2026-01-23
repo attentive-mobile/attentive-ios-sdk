@@ -176,7 +176,7 @@ public final class ATTNSDK: NSObject {
                     body: "Thanks for joining us. Check out our latest offers.",
                     timestamp: Date().advanced(by: -86400000),
                     isRead: false,
-                    imageURL: "https://picsum.photos/200",
+                    imageURLString: "https://picsum.photos/200",
                 ),
                 "2": Message(
                     id: "2",
@@ -184,7 +184,7 @@ public final class ATTNSDK: NSObject {
                     body: "50% off on all items this weekend!",
                     timestamp: Date().advanced(by: -172800000),
                     isRead: false,
-                    imageURL: "https://picsum.photos/200",
+                    imageURLString: "https://picsum.photos/200",
                 ),
                 "3": Message(
                     id: "3",
@@ -192,7 +192,7 @@ public final class ATTNSDK: NSObject {
                     body: "Your order #12345 is on its way!",
                     timestamp: Date().advanced(by: -259200000),
                     isRead: false,
-                    actionURL: "https://example.com/track/12345"
+                    actionURLString: "https://example.com/track/12345"
                 )
             ]
         )
