@@ -80,10 +80,7 @@ public final class ATTNSDK: NSObject {
         Task {
             // Artificial delay to simulate delayed network response
             try? await Task.sleep(nanoseconds: 100000000)
-            let messagesByID = Self.getMockMessages().reduce(into: [Message.ID: Message]()) {
-                $0[$1.id] = $1
-            }
-            await inbox.updateMessages(messagesByID)
+            await inbox.updateMessages(Self.getMockMessages())
         }
     }
 
