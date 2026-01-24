@@ -6,8 +6,8 @@
 //
 
 import SwiftUI
-import UserNotifications
 import WebKit
+import UserNotifications
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
