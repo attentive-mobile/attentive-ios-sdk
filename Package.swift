@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "ATTNSDKFramework",
-    platforms: [.iOS(.v14)],
+    platforms: [.iOS(.v15)],
     products: [
         .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework", "ATTNSDKFrameworkObjc"])
     ],
