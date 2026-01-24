@@ -5,6 +5,7 @@
 //  Created by Umair Sharif on 1/22/26.
 //
 
+import Combine
 import Foundation
 
 class InboxViewModel: ObservableObject {
@@ -17,24 +18,24 @@ class InboxViewModel: ObservableObject {
     @Published
     var state: State = .loading
 
-    private var messages: [Message.ID: Message] = [:]
-    private var sortedMessages: [Message] {
-        messages.values.sorted(by: { $0.timestamp > $1.timestamp })
-    }
+    private let inbox: Inbox
+    private var allMessagesCancellable: AnyCancellable?
 
-    private let sdk: ATTNSDK
-
-    init(sdk: ATTNSDK) {
-        self.sdk = sdk
+    init(inbox: Inbox) {
+        self.inbox = inbox
         loadInbox()
+    }
+    
+    deinit {
+        allMessagesCancellable?.cancel()
     }
 
     private func loadInbox() {
         state = .loading
-        Task {
-            let messages = await sdk.allMessages
-            self.messages = messages.reduce(into: [:]) { $0[$1.id] = $1 }
-            state = .loaded(sortedMessages)
+        allMessagesCancellable = inbox.allMessagesPublisher.sink { [weak self] messages in
+            guard let self else { return }
+            let sortedMessages = messages.sorted(by: { $0.timestamp > $1.timestamp })
+            self.state = .loaded(sortedMessages)
         }
     }
 
@@ -43,20 +44,20 @@ class InboxViewModel: ObservableObject {
     }
 
     func markAsRead(_ messageID: Message.ID) {
-        messages[messageID]?.isRead = true
-        sdk.markRead(for: messageID)
-        state = .loaded(sortedMessages)
+        Task {
+            await inbox.markRead(messageID)
+        }
     }
 
     func markUnread(_ messageID: Message.ID) {
-        messages[messageID]?.isRead = false
-        sdk.markUnread(for: messageID)
-        state = .loaded(sortedMessages)
+        Task {
+            await inbox.markUnread(messageID)
+        }
     }
 
     func delete(_ messageID: Message.ID) {
-        messages.removeValue(forKey: messageID)
-        sdk.delete(messageID: messageID)
-        state = .loaded(sortedMessages)
+        Task {
+            await inbox.delete(messageID)
+        }
     }
 }

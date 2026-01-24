@@ -52,8 +52,8 @@ struct InboxMessageRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            if let imageURL = message.imageURL, let url = URL(string: imageURL) {
-                AsyncImage(url: url) { image in
+            if let imageURL = message.imageURL {
+                AsyncImage(url: imageURL) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
