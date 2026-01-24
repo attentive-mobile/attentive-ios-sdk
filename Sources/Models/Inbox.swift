@@ -8,47 +8,44 @@
 import Combine
 import Foundation
 
-public actor Inbox {
-    private var messages: [Message.ID: Message]
+actor Inbox {
+    private var messagesByID: [Message.ID: Message] = [:]
 
-    private nonisolated(unsafe) let messagesSubject: CurrentValueSubject<[Message], Never>
+    private nonisolated(unsafe) let messagesSubject = CurrentValueSubject<[Message], Never>([])
 
-    public nonisolated var allMessagesPublisher: AnyPublisher<[Message], Never> {
+    nonisolated var allMessagesPublisher: AnyPublisher<[Message], Never> {
         messagesSubject.eraseToAnyPublisher()
     }
 
-    public var allMessages: [Message] {
-        Array(messages.values)
+    var allMessages: [Message] {
+        Array(messagesByID.values)
     }
 
-    public var unreadCount: Int {
-        messages.filter {
+    var unreadCount: Int {
+        messagesByID.filter {
             !$0.value.isRead
         }.count
     }
 
-    public init(messages: [Message.ID: Message] = [:]) {
-        self.messages = messages
-        self.messagesSubject = CurrentValueSubject(Array(messages.values))
+    func updateMessages(_ messages: [Message]) {
+        self.messagesByID = messages.reduce(into: [Message.ID: Message]()) {
+            $0[$1.id] = $1
+        }
+        messagesSubject.send(messages)
     }
 
-    public func updateMessages(_ newMessages: [Message.ID: Message]) {
-        self.messages = newMessages
-        messagesSubject.send(Array(newMessages.values))
+    func markRead(_ messageID: Message.ID) {
+        messagesByID[messageID]?.isRead = true
+        messagesSubject.send(Array(messagesByID.values))
     }
 
-    public func markRead(_ messageID: Message.ID) {
-        messages[messageID]?.isRead = true
-        messagesSubject.send(Array(messages.values))
+    func markUnread(_ messageID: Message.ID) {
+        messagesByID[messageID]?.isRead = false
+        messagesSubject.send(Array(messagesByID.values))
     }
 
-    public func markUnread(_ messageID: Message.ID) {
-        messages[messageID]?.isRead = false
-        messagesSubject.send(Array(messages.values))
-    }
-
-    public func delete(_ messageID: Message.ID) {
-        messages.removeValue(forKey: messageID)
-        messagesSubject.send(Array(messages.values))
+    func delete(_ messageID: Message.ID) {
+        messagesByID.removeValue(forKey: messageID)
+        messagesSubject.send(Array(messagesByID.values))
     }
 }
