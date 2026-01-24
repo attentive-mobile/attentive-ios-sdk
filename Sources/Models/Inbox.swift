@@ -5,9 +5,11 @@
 //  Created by Umair Sharif on 1/15/26.
 //
 
+import Combine
 import Foundation
 
-public struct Inbox: Codable, Sendable {
+public class Inbox: ObservableObject {
+    @Published
     public var messages: [Message.ID: Message]
     public var unreadCount: Int {
         messages.filter {
@@ -15,7 +17,7 @@ public struct Inbox: Codable, Sendable {
         }.count
     }
 
-    public init(messages: [Message.ID: Message]) {
+    public init(messages: [Message.ID: Message] = [:]) {
         self.messages = messages
     }
 }
