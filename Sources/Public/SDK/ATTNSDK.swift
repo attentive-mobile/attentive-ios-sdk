@@ -5,9 +5,10 @@
 //  Created by Vladimir - Work on 2024-05-27.
 //
 
+import Combine
 import Foundation
-import WebKit
 import UserNotifications
+import WebKit
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
@@ -33,7 +34,7 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
-    private var inbox: Inbox?
+    private let inbox = Inbox()
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -72,8 +73,17 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
+        loadMockInbox()
+    }
+
+    private func loadMockInbox() {
         Task {
-            inbox = await Self.getMockInbox()
+            // Artificial delay to simulate delayed network response
+            try? await Task.sleep(nanoseconds: 100000000)
+            let messagesByID = Self.getMockMessages().reduce(into: [Message.ID: Message]()) {
+                $0[$1.id] = $1
+            }
+            await inbox.updateMessages(messagesByID)
         }
     }
 
@@ -152,66 +162,64 @@ public final class ATTNSDK: NSObject {
 
     // MARK: Inbox
 
+    /// Publisher that emits the current messages immediately, then emits on any change.
+    public var allMessagesPublisher: AnyPublisher<[Message], Never> {
+        inbox.allMessagesPublisher
+    }
+
+    /// Async accessor for all messages.
     public var allMessages: [Message] {
         get async {
-            // This is to simulate a loading scenario. We will remove this during production.
-            try? await Task.sleep(nanoseconds: 1000000000)
-            guard let inbox else {
-                return []
-            }
-            return Array(inbox.messages.values)
+            await inbox.allMessages
         }
     }
 
+    /// Async accessor for unread count.
     public var unreadCount: Int {
-        inbox.map(\.unreadCount) ?? 0
+        get async {
+            await inbox.unreadCount
+        }
     }
 
-    private static func getMockInbox() async -> Inbox {
-        Inbox(
-            messages: [
-                "1": Message(
-                    id: "1",
-                    title: "Welcome to Attentive!",
-                    body: "Thanks for joining us. Check out our latest offers.",
-                    timestamp: Date().advanced(by: -86400000),
-                    isRead: false,
-                    imageURLString: "https://picsum.photos/200",
-                ),
-                "2": Message(
-                    id: "2",
-                    title: "New Sale Alert",
-                    body: "50% off on all items this weekend!",
-                    timestamp: Date().advanced(by: -172800000),
-                    isRead: false,
-                    imageURLString: "https://picsum.photos/200",
-                ),
-                "3": Message(
-                    id: "3",
-                    title: "Your Order Has Shipped",
-                    body: "Your order #12345 is on its way!",
-                    timestamp: Date().advanced(by: -259200000),
-                    isRead: false,
-                    actionURLString: "https://example.com/track/12345"
-                )
-            ]
-        )
+    private static func getMockMessages() -> [Message] {
+        [
+            Message(
+                id: "1",
+                title: "Welcome to Attentive!",
+                body: "Thanks for joining us. Check out our latest offers.",
+                timestamp: Date().advanced(by: -86400000),
+                isRead: false,
+                imageURLString: "https://picsum.photos/200"
+            ),
+            Message(
+                id: "2",
+                title: "New Sale Alert",
+                body: "50% off on all items this weekend!",
+                timestamp: Date().advanced(by: -172800000),
+                isRead: false,
+                imageURLString: "https://picsum.photos/200"
+            ),
+            Message(
+                id: "3",
+                title: "Your Order Has Shipped",
+                body: "Your order #12345 is on its way!",
+                timestamp: Date().advanced(by: -259200000),
+                isRead: false,
+                actionURLString: "https://example.com/track/12345"
+            )
+        ]
     }
 
-    public func markRead(for messageID: Message.ID) {
-        mark(isRead: true, for: messageID)
+    public func markRead(for messageID: Message.ID) async {
+        await inbox.markRead(messageID)
     }
 
-    public func markUnread(for messageID: Message.ID) {
-        mark(isRead: false, for: messageID)
+    public func markUnread(for messageID: Message.ID) async {
+        await inbox.markUnread(messageID)
     }
 
-    private func mark(isRead: Bool, for messageID: Message.ID) {
-        inbox?.messages[messageID]?.isRead = isRead
-    }
-
-    public func delete(messageID: Message.ID) {
-        inbox?.messages.removeValue(forKey: messageID)
+    public func delete(messageID: Message.ID) async {
+        await inbox.delete(messageID)
     }
 
     // MARK: Push Permissions & Token
