@@ -73,15 +73,6 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
-        loadMockInbox()
-    }
-
-    private func loadMockInbox() {
-        Task {
-            // Artificial delay to simulate delayed network response
-            try? await Task.sleep(nanoseconds: 100000000)
-            await inbox.updateMessages(Self.getMockMessages())
-        }
     }
 
     @objc(initWithDomain:)
@@ -160,7 +151,7 @@ public final class ATTNSDK: NSObject {
     // MARK: Inbox
 
     /// Publisher that emits the current messages immediately, then emits on any change.
-    public var allMessagesPublisher: AnyPublisher<[Message], Never> {
+    public var allMessagesPublisher: AnyPublisher<InboxState, Never> {
         inbox.allMessagesPublisher
     }
 
@@ -176,35 +167,6 @@ public final class ATTNSDK: NSObject {
         get async {
             await inbox.unreadCount
         }
-    }
-
-    private static func getMockMessages() -> [Message] {
-        [
-            Message(
-                id: "1",
-                title: "Welcome to Attentive!",
-                body: "Thanks for joining us. Check out our latest offers.",
-                timestamp: Date().advanced(by: -86400000),
-                isRead: false,
-                imageURLString: "https://picsum.photos/200"
-            ),
-            Message(
-                id: "2",
-                title: "New Sale Alert",
-                body: "50% off on all items this weekend!",
-                timestamp: Date().advanced(by: -172800000),
-                isRead: false,
-                imageURLString: "https://picsum.photos/200"
-            ),
-            Message(
-                id: "3",
-                title: "Your Order Has Shipped",
-                body: "Your order #12345 is on its way!",
-                timestamp: Date().advanced(by: -259200000),
-                isRead: false,
-                actionURLString: "https://example.com/track/12345"
-            )
-        ]
     }
 
     public func markRead(for messageID: Message.ID) async {
@@ -510,9 +472,11 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc(updateUserWithEmail:phone:callback:)
-    public func updateUser(email: String? = nil,
-                                                 phone: String? = nil,
-                                                 callback: ATTNAPICallback? = nil) {
+    public func updateUser(
+        email: String? = nil,
+        phone: String? = nil,
+        callback: ATTNAPICallback? = nil
+    ) {
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
@@ -679,8 +643,7 @@ public final class ATTNSDK: NSObject {
             if let strValue = value as? String {
                 if key == "attentive_message_title" || key == "attentive_message_body" {
                         escapedDict[key] = strValue
-                }
-                else {
+                } else {
                     escapedDict[key] = strValue
                 }
             } else if let nestedDict = value as? [String: Any] {
