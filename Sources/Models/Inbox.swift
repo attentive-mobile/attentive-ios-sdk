@@ -18,10 +18,10 @@ actor Inbox {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
 
-    private nonisolated let inboxStateSubject = CurrentValueSubject<InboxState, Never>(.loading)
+    private nonisolated let stateSubject = CurrentValueSubject<InboxState, Never>(.loading)
 
-    nonisolated var inboxStatePublisher: AnyPublisher<InboxState, Never> {
-        inboxStateSubject.eraseToAnyPublisher()
+    nonisolated var statePublisher: AnyPublisher<InboxState, Never> {
+        stateSubject.eraseToAnyPublisher()
     }
 
     var allMessages: [Message] {
@@ -46,19 +46,19 @@ actor Inbox {
     func markRead(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = true
         updateCachedMessage(messageID)
-        inboxStateSubject.send(.loaded(allMessages))
+        stateSubject.send(.loaded(allMessages))
     }
 
     func markUnread(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = false
         updateCachedMessage(messageID)
-        inboxStateSubject.send(.loaded(allMessages))
+        stateSubject.send(.loaded(allMessages))
     }
 
     func delete(_ messageID: Message.ID) {
         messagesByID.removeValue(forKey: messageID)
         invalidateCache()
-        inboxStateSubject.send(.loaded(allMessages))
+        stateSubject.send(.loaded(allMessages))
     }
 
     func refresh() async {
@@ -70,7 +70,7 @@ actor Inbox {
             $0[$1.id] = $1
         }
         invalidateCache()
-        inboxStateSubject.send(.loaded(allMessages))
+        stateSubject.send(.loaded(allMessages))
     }
 
     private func invalidateCache() {
