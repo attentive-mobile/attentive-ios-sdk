@@ -8,39 +8,31 @@
 import Combine
 import Foundation
 
+@MainActor
 class InboxViewModel: ObservableObject {
-    enum State {
-        case loading
-        case loaded([Message])
-        case error
-    }
-
     @Published
-    var state: State = .loading
+    var state: InboxState = .loading
 
     private let inbox: Inbox
     private var allMessagesCancellable: AnyCancellable?
 
     init(inbox: Inbox) {
         self.inbox = inbox
-        loadInbox()
+        state = .loading
+        allMessagesCancellable = inbox.allMessagesPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] inboxState in
+                guard let self else { return }
+                state = inboxState
+            }
     }
-    
+
     deinit {
         allMessagesCancellable?.cancel()
     }
 
-    private func loadInbox() {
-        state = .loading
-        allMessagesCancellable = inbox.allMessagesPublisher.sink { [weak self] messages in
-            guard let self else { return }
-            let sortedMessages = messages.sorted(by: { $0.timestamp > $1.timestamp })
-            self.state = .loaded(sortedMessages)
-        }
-    }
-
-    func refresh() {
-        loadInbox()
+    func refresh() async {
+        await inbox.refresh()
     }
 
     func markAsRead(_ messageID: Message.ID) {

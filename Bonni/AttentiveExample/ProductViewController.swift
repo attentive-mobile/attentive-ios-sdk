@@ -58,6 +58,14 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     }()
     
     private let viewModel = ProductListViewModel()
+
+    private var inboxButton: UIButton!
+    private var inboxBadgeView: UIView!
+    private var inboxBadgeLabel: UILabel!
+
+    private var sdk: ATTNSDK? {
+        (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
+    }
     
     // MARK: - View Lifecycle
     
@@ -69,6 +77,13 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         setupCollectionView()
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        Task {
+            await updateInboxBadge()
+        }
+    }
+
     // MARK: - Navigation Bar Setup
     
     private func setupNavigationBar() {
@@ -90,11 +105,13 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         settingsButtonItem.tintColor = .black
         navigationItem.leftBarButtonItem = settingsButtonItem
         
-        // Right bar button: cart using "Shopping cart" image.
+        // Right bar buttons: inbox and cart
         let cartImage = UIImage(named: "Shopping cart")
         let cartButtonItem = UIBarButtonItem(image: cartImage, style: .plain, target: self, action: #selector(cartButtonTapped))
         cartButtonItem.tintColor = .black
-        navigationItem.rightBarButtonItem = cartButtonItem
+
+        let inboxButtonItem = createInboxBarButtonItem()
+        navigationItem.rightBarButtonItems = [cartButtonItem, inboxButtonItem]
         
         // Center the logo in the navigation bar.
         let logoImageView = UIImageView(image: UIImage(named: "Union.svg"))
@@ -129,8 +146,79 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         productsCollectionView.register(ProductCollectionViewCell.self, forCellWithReuseIdentifier: "ProductCell")
     }
     
+    // MARK: - Inbox Button Setup
+
+    private func createInboxBarButtonItem() -> UIBarButtonItem {
+        // Create container view for inbox button and badge (extra height for badge)
+        let containerView = UIView(frame: CGRect(x: 0, y: 0, width: 36, height: 36))
+        containerView.clipsToBounds = false
+
+        // Create inbox button (centered vertically with some top padding for badge)
+        inboxButton = UIButton(type: .system)
+        inboxButton.frame = CGRect(x: 0, y: 6, width: 30, height: 30)
+        inboxButton.setImage(UIImage(systemName: "envelope"), for: .normal)
+        inboxButton.tintColor = .black
+        inboxButton.addTarget(self, action: #selector(inboxButtonTapped), for: .touchUpInside)
+        containerView.addSubview(inboxButton)
+
+        // Create badge view (red circle background) - positioned at top right
+        inboxBadgeView = UIView()
+        inboxBadgeView.backgroundColor = .systemRed
+        inboxBadgeView.layer.cornerRadius = 8
+        inboxBadgeView.frame = CGRect(x: 18, y: 0, width: 16, height: 16)
+        inboxBadgeView.isHidden = true
+        containerView.addSubview(inboxBadgeView)
+
+        // Create badge label (white text)
+        inboxBadgeLabel = UILabel()
+        inboxBadgeLabel.textColor = .white
+        inboxBadgeLabel.font = UIFont.systemFont(ofSize: 10, weight: .bold)
+        inboxBadgeLabel.textAlignment = .center
+        inboxBadgeLabel.frame = inboxBadgeView.bounds
+        inboxBadgeView.addSubview(inboxBadgeLabel)
+
+        // Defer initial badge update to ensure SDK is ready
+        Task { @MainActor in
+            await self.updateInboxBadge()
+        }
+
+        return UIBarButtonItem(customView: containerView)
+    }
+
+    private func updateInboxBadge() async {
+        guard let sdk = sdk else {
+            inboxBadgeView.isHidden = true
+            return
+        }
+
+        let unreadCount = await sdk.unreadCount
+
+        if unreadCount > 0 {
+            // Update badge view
+            let badgeWidth: CGFloat = unreadCount > 9 ? 20 : 16
+            inboxBadgeView.frame = CGRect(x: 36 - badgeWidth, y: 0, width: badgeWidth, height: 16)
+            inboxBadgeView.layer.cornerRadius = 8
+            inboxBadgeView.backgroundColor = .systemRed
+            inboxBadgeView.isHidden = false
+
+            // Update badge label
+            inboxBadgeLabel.frame = inboxBadgeView.bounds
+            inboxBadgeLabel.text = "\(unreadCount)"
+        } else {
+            inboxBadgeView.isHidden = true
+        }
+    }
+
     // MARK: - Button Actions
-    
+
+    @objc private func inboxButtonTapped() {
+        guard let sdk else { return }
+        navigationController?.pushViewController(
+            sdk.uiKitInboxViewController,
+            animated: true
+        )
+    }
+
     @objc private func cartButtonTapped() {
         let cartVC = CartViewController(viewModel: viewModel)
         navigationController?.pushViewController(cartVC, animated: true)

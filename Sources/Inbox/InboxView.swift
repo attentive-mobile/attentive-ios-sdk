@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct InboxView: View {
+    @ObservedObject
     var viewModel: InboxViewModel
 
     var body: some View {
@@ -24,24 +25,23 @@ struct InboxView: View {
                         Button(role: .destructive) {
                             viewModel.delete(message.id)
                         } label: {
-                            Label("Delete", systemImage: "trash.fill")
+                            Label("Delete", systemImage: "trash")
                         }
-                        
-                        if !message.isRead {
-                            Button {
-                                viewModel.markAsRead(message.id)
-                            } label: {
-                                Label("Read", systemImage: "envelope.open")
-                            }
-                            .tint(.blue)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            message.isRead ? viewModel.markUnread(message.id) : viewModel.markAsRead(message.id)
+                        } label: {
+                            message.isRead ? Label("Unread", systemImage: "envelope") : Label("Read", systemImage: "envelope.open")
                         }
+                        .tint(.blue)
                     }
             }
             .listStyle(.plain)
             .navigationTitle("Inbox")
             .navigationBarTitleDisplayMode(.inline)
             .refreshable {
-                viewModel.refresh()
+                await viewModel.refresh()
             }
         }
     }

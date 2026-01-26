@@ -172,6 +172,16 @@ public final class ATTNSDK: NSObject {
         }
     }
 
+    @MainActor
+    public var swiftUIInboxView: some View {
+        InboxView(viewModel: InboxViewModel(inbox: inbox))
+    }
+
+    @MainActor
+    public var uiKitInboxViewController: UIViewController {
+        UIHostingController(rootView: swiftUIInboxView)
+    }
+
     public func markRead(for messageID: Message.ID) async {
         await inbox.markRead(messageID)
     }
