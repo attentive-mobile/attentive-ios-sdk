@@ -18,7 +18,7 @@ actor Inbox {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
 
-    private nonisolated(unsafe) let messagesSubject = CurrentValueSubject<InboxState, Never>(.loading)
+    private let messagesSubject = CurrentValueSubject<InboxState, Never>(.loading)
 
     nonisolated var allMessagesPublisher: AnyPublisher<InboxState, Never> {
         messagesSubject.eraseToAnyPublisher()
