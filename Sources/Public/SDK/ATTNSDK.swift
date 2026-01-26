@@ -150,9 +150,9 @@ public final class ATTNSDK: NSObject {
 
     // MARK: Inbox
 
-    /// Publisher that emits the current messages immediately, then emits on any change.
-    public var allMessagesPublisher: AnyPublisher<InboxState, Never> {
-        inbox.allMessagesPublisher
+    /// Publisher that emits the `InboxState` immediately, then emits on any change.
+    public var inboxStatePublisher: AnyPublisher<InboxState, Never> {
+        inbox.inboxStatePublisher.eraseToAnyPublisher()
     }
 
     /// Async accessor for all messages.
