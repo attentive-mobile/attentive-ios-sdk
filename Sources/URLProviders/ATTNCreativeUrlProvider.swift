@@ -90,7 +90,7 @@ fileprivate extension ATTNCreativeUrlProvider {
             let jsonData = try JSONSerialization.data(withJSONObject: customIdentifiers, options: [])
             return String(data: jsonData, encoding: .utf8)
         } catch {
-            Loggers.creative.error("Could not parse custom identifiers to json \(error.localizedDescription)")
+            Loggers.creative.error("Could not parse custom identifiers to json \(error.localizedDescription, privacy: .public)")
         }
         return "{}"
     }
