@@ -152,7 +152,7 @@ public final class ATTNSDK: NSObject {
 
     /// Publisher that emits the `InboxState` immediately, then emits on any change.
     public var inboxStatePublisher: AnyPublisher<InboxState, Never> {
-        inbox.inboxStatePublisher.eraseToAnyPublisher()
+        inbox.statePublisher.eraseToAnyPublisher()
     }
 
     /// Async accessor for all messages.
