@@ -9,6 +9,7 @@ import UIKit
 import ATTNSDKFramework
 import WebKit
 import os.log
+import Combine
 
 class ProductViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     
@@ -62,6 +63,8 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     private var inboxButton: UIButton!
     private var inboxBadgeView: UIView!
     private var inboxBadgeLabel: UILabel!
+    
+    private var inboxStateCancellable: AnyCancellable?
 
     private var sdk: ATTNSDK? {
         (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
@@ -75,6 +78,12 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         setupNavigationBar()
         setupUI()
         setupCollectionView()
+        
+        inboxStateCancellable = sdk!.inboxStatePublisher.sink { [weak self] state in
+            Task {
+                await self?.updateInboxBadge()
+            }
+        }
     }
     
     override func viewDidAppear(_ animated: Bool) {

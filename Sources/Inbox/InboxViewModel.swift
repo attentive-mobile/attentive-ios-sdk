@@ -14,12 +14,12 @@ class InboxViewModel: ObservableObject {
     var state: InboxState = .loading
 
     private let inbox: Inbox
-    private var allMessagesCancellable: AnyCancellable?
+    private var inboxStateCancellable: AnyCancellable?
 
     init(inbox: Inbox) {
         self.inbox = inbox
         state = .loading
-        allMessagesCancellable = inbox.allMessagesPublisher
+        inboxStateCancellable = inbox.inboxStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] inboxState in
                 guard let self else { return }
@@ -28,7 +28,7 @@ class InboxViewModel: ObservableObject {
     }
 
     deinit {
-        allMessagesCancellable?.cancel()
+        inboxStateCancellable?.cancel()
     }
 
     func refresh() async {
