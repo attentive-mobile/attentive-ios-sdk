@@ -19,7 +19,7 @@ class InboxViewModel: ObservableObject {
     init(inbox: Inbox) {
         self.inbox = inbox
         state = .loading
-        inboxStateCancellable = inbox.inboxStatePublisher
+        inboxStateCancellable = inbox.statePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] inboxState in
                 guard let self else { return }
