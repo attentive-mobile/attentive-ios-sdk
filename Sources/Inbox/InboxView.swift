@@ -98,19 +98,11 @@ struct InboxMessageRow: View {
                     .foregroundColor(.secondary)
                     .lineLimit(2)
 
-                Text(message.formattedDate)
+                Text(message.timestamp, style: .relative)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
         }
         .padding(.vertical, 8)
-    }
-}
-
-extension Message {
-    var formattedDate: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: timestamp, relativeTo: Date())
     }
 }
