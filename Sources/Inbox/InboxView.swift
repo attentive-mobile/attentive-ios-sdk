@@ -30,7 +30,7 @@ struct InboxView: View {
             }
         case .loaded(let messages):
             List(messages) { message in
-                InboxMessageRow(message: message)
+                InboxMessageRow(message: message, style: viewModel.style)
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
                             viewModel.delete(message.id)
@@ -59,50 +59,64 @@ struct InboxView: View {
 
 struct InboxMessageRow: View {
     var message: Message
+    var style: InboxViewStyle
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            if let imageURL = message.imageURL {
-                AsyncImage(url: imageURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } placeholder: {
-                    Image(systemName: "photo")
-                        .aspectRatio(contentMode: .fit)
-                }
-                .frame(width: 60, height: 60)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            if !message.isRead {
+                Circle()
+                    .fill(.blue)
+                    .frame(width: 8, height: 8)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(message.title)
-                        .font(.headline)
-                        .fontWeight(message.isRead ? .regular : .bold)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    if !message.isRead {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 8, height: 8)
-                    } else {
-                        EmptyView()
-                    }
+            switch style {
+            case .small:
+                buildAsyncImageView(for: style)
+                buildTextStackView()
+            case .large:
+                VStack(alignment: .leading, spacing: 4) {
+                    buildAsyncImageView(for: style)
+                    buildTextStackView()
                 }
-
-                Text(message.body)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-
-                Text(message.timestamp, style: .relative)
-                    .font(.caption)
-                    .foregroundColor(.gray)
             }
         }
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func buildAsyncImageView(for style: InboxViewStyle) -> some View {
+        if let imageURL = message.imageURL {
+            let asyncImage = AsyncImage(url: imageURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } placeholder: {
+                Image(systemName: "photo")
+                    .aspectRatio(contentMode: .fit)
+            }.clipShape(RoundedRectangle(cornerRadius: 8))
+            
+            switch style {
+            case .large: asyncImage.frame(maxWidth: .infinity)
+            case .small: asyncImage.frame(width: 60, height: 60)
+            }
+        }
+    }
+    
+    private func buildTextStackView() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(message.title)
+                .font(.headline)
+                .fontWeight(message.isRead ? .regular : .bold)
+                .lineLimit(1)
+
+            Text(message.body)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+
+            Text(message.timestamp, style: .relative)
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
     }
 }

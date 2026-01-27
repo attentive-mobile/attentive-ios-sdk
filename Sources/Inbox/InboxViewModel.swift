@@ -7,6 +7,11 @@
 
 import Foundation
 
+public enum InboxViewStyle {
+    case small
+    case large
+}
+
 @MainActor
 class InboxViewModel: ObservableObject {
     enum State {
@@ -19,10 +24,13 @@ class InboxViewModel: ObservableObject {
     @Published
     var state: State = .loading
 
+    let style: InboxViewStyle
+
     private let inbox: Inbox
 
-    init(inbox: Inbox) {
+    init(inbox: Inbox, style: InboxViewStyle) {
         self.inbox = inbox
+        self.style = style
         state = .loading
         Task {
             for await state in await inbox.stateStream {
