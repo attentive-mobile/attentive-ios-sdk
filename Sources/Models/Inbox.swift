@@ -130,7 +130,7 @@ fileprivate extension Inbox {
                 id: "1",
                 title: "Welcome to Attentive!",
                 body: "Thanks for joining us. Check out our latest offers.",
-                timestamp: Date().advanced(by: -86400000),
+                timestamp: Date().advanced(by: -86400),
                 isRead: false,
                 imageURLString: "https://picsum.photos/200"
             ),
@@ -138,7 +138,7 @@ fileprivate extension Inbox {
                 id: "2",
                 title: "New Sale Alert",
                 body: "50% off on all items this weekend!",
-                timestamp: Date().advanced(by: -172800000),
+                timestamp: Date().advanced(by: -172800),
                 isRead: false,
                 imageURLString: "https://picsum.photos/200"
             ),
@@ -146,7 +146,7 @@ fileprivate extension Inbox {
                 id: "3",
                 title: "Your Order Has Shipped",
                 body: "Your order #12345 is on its way!",
-                timestamp: Date().advanced(by: -259200000),
+                timestamp: Date().advanced(by: -259200),
                 isRead: false,
                 actionURLString: "https://example.com/track/12345"
             )
