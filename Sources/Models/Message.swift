@@ -28,8 +28,12 @@ public struct Message: Codable, Identifiable, Sendable {
         case imageURLString = "image_url"
         case actionURLString = "action_url"
     }
-    
+
     public var imageURL: URL? {
         imageURLString.flatMap(URL.init(string:))
+    }
+
+    public var actionURL: URL? {
+        actionURLString.flatMap(URL.init(string:))
     }
 }
