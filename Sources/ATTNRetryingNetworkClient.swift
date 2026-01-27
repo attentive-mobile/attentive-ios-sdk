@@ -79,7 +79,7 @@ final class ATTNRetryingNetworkClient {
         cumulativeDelay: TimeInterval,
         callback: ATTNAPICallback?
     ) {
-        Loggers.network.debug("Attempt \(attemptCount + 1) → \(url)")
+        Loggers.network.debug("Attempt \(attemptCount + 1, privacy: .public) → \(url, privacy: .public)")
 
         let task = session.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
@@ -105,15 +105,15 @@ final class ATTNRetryingNetworkClient {
 
                 if nextCumulative > self.config.maxCumulativeDelay {
                     Loggers.network.error(
-                        "Exceeded max cumulative delay (\(self.config.maxCumulativeDelay)s). Aborting retries."
+                        "Exceeded max cumulative delay (\(self.config.maxCumulativeDelay, privacy: .public)s). Aborting retries."
                     )
                     DispatchQueue.main.async {
                         callback?(data, url, response, error)
                     }
                 } else {
-                    Loggers.network.error("retrying soon with backoff: \(backoff)")
+                    Loggers.network.error("retrying soon with backoff: \(backoff, privacy: .public)")
                     Loggers.network.error(
-                        "Failed (status \(statusCode), error: \(error?.localizedDescription ?? "–")) Retrying in \(String(format: "%.2fs", backoff))…"
+                        "Failed (status \(statusCode, privacy: .public), error: \(error?.localizedDescription ?? "–", privacy: .public)) Retrying in \(String(format: "%.2fs", backoff), privacy: .public)…"
                     )
                     // Schedule the next retry on retryQueue
                     retryQueue.asyncAfter(deadline: .now() + backoff) { [weak self] in
@@ -130,10 +130,10 @@ final class ATTNRetryingNetworkClient {
             } else {
                 if isNetworkError || isRetryableHTTP {
                     Loggers.network.error(
-                        "Permanent failure after \(attemptCount + 1) attempts (status \(statusCode))."
+                        "Permanent failure after \(attemptCount + 1, privacy: .public) attempts (status \(statusCode, privacy: .public))."
                     )
                 } else {
-                    Loggers.network.debug("Success on attempt \(attemptCount + 1)")
+                    Loggers.network.debug("Success on attempt \(attemptCount + 1, privacy: .public)")
                 }
                 DispatchQueue.main.async {
                     callback?(data, url, response, error)

@@ -18,7 +18,7 @@ struct ATTNJsonUtils: ATTNJsonUtilsProtocol {
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
             guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-                Loggers.event.error("Could not encode JSON data to a string. Function:\(function), File:\(file)")
+                Loggers.event.error("Could not encode JSON data to a string. Function:\(function, privacy: .public), File:\(file, privacy: .public)")
                 return nil
             }
             return jsonString
