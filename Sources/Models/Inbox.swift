@@ -57,17 +57,6 @@ actor Inbox {
         }
     }
 
-    private func removeContinuation(id: UUID) {
-        continuations.removeValue(forKey: id)
-    }
-
-    private func send(_ state: InboxState) {
-        currentState = state
-        for continuation in continuations.values {
-            continuation.yield(state)
-        }
-    }
-
     func markRead(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = true
         updateCachedMessage(messageID)
@@ -89,6 +78,21 @@ actor Inbox {
     func refresh() async {
         send(.loading)
         await updateMessages(Self.getMockMessages())
+    }
+}
+
+// MARK: - Private methods
+
+extension Inbox {
+    private func removeContinuation(id: UUID) {
+        continuations.removeValue(forKey: id)
+    }
+
+    private func send(_ state: InboxState) {
+        currentState = state
+        for continuation in continuations.values {
+            continuation.yield(state)
+        }
     }
 
     private func updateMessages(_ messages: [Message]) {
