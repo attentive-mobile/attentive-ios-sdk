@@ -49,12 +49,12 @@ final class ATTNAPI: ATTNAPIProtocol {
     func send(userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoAdjustedDomain, error in
             if let error = error {
-                Loggers.network.error("Error sending user identity: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Error sending user identity: \(error.localizedDescription, privacy: .public) - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
 
             guard let geoAdjustedDomain = geoAdjustedDomain else {
-                Loggers.network.error("Failed to send user identity: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Failed to send user identity: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
             self?.sendUserIdentityInternal(userIdentity: userIdentity, domain: geoAdjustedDomain, callback: callback)
@@ -68,12 +68,12 @@ final class ATTNAPI: ATTNAPIProtocol {
     func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoAdjustedDomain, error in
             if let error = error {
-                Loggers.network.error("Error sending event: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Error sending event: \(error.localizedDescription, privacy: .public) - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
 
             guard let geoAdjustedDomain = geoAdjustedDomain else {
-                Loggers.network.error("Failed to send event: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Failed to send event: geoAdjustedDomain is nil - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
             Loggers.network.debug("Successfully returned geoAdjustedDomain: \(geoAdjustedDomain, privacy: .public)")
@@ -98,19 +98,19 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         lastPushTokenSendTime = now
 
-        Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Auth Status: \(authorizationStatus.rawValue)")
+        Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Auth Status: \(authorizationStatus.rawValue, privacy: .public)")
 
         getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
             guard let self = self else {
-                Loggers.network.error("sendPushToken aborted: self is nil - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("sendPushToken aborted: self is nil - Push Token: \(pushToken, privacy: .public), Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
             if let error = error {
-                Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription) - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Failed to get geo domain for push token: \(error.localizedDescription, privacy: .public) - Push Token: \(pushToken, privacy: .public), Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
             guard let geoDomain = geoDomain else {
-                Loggers.network.error("Failed to send push token: geoAdjustedDomain is nil - Push Token: \(pushToken), Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Failed to send push token: geoAdjustedDomain is nil - Push Token: \(pushToken, privacy: .public), Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 return
             }
 
@@ -156,13 +156,13 @@ final class ATTNAPI: ATTNAPIProtocol {
             request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
             request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
-            Loggers.network.debug("POST /token payload: \(payload)")
+            Loggers.network.debug("POST /token payload: \(payload, privacy: .public)")
 
             retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
                 if let error = error {
-                    Loggers.network.error("Error sending push token: \(error.localizedDescription)")
+                    Loggers.network.error("Error sending push token: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-                    Loggers.network.error("Push-token API returned status \(http.statusCode)")
+                    Loggers.network.error("Push-token API returned status \(http.statusCode, privacy: .public)")
                 } else {
                     Loggers.network.debug("Successfully sent push token")
                 }
@@ -179,7 +179,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending app events - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Subscription Status: \(subscriptionStatus)")
+            Loggers.network.debug("Sending app events - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Subscription Status: \(subscriptionStatus, privacy: .public)")
 
             let deviceInfo: [String: Any] = [
                 "c": domain,
@@ -206,13 +206,13 @@ final class ATTNAPI: ATTNAPIProtocol {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
-            Loggers.network.debug("POST app open events payload: \(payload)")
+            Loggers.network.debug("POST app open events payload: \(payload, privacy: .public)")
 
             retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
                 if let error = error {
-                    Loggers.network.error("Error sending app events: \(error.localizedDescription)")
+                    Loggers.network.error("Error sending app events: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-                    Loggers.network.error("AppEvents API returned status \(http.statusCode)")
+                    Loggers.network.error("AppEvents API returned status \(http.statusCode, privacy: .public)")
                 } else {
                     Loggers.network.debug("Successfully sent app events")
                 }
@@ -229,22 +229,22 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
+            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else {
-                    Loggers.network.error("sendOptInMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("sendOptInMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
 
                 if let geoError = geoError {
-                    Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("Opt-in: geo domain error: \(geoError.localizedDescription, privacy: .public) - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, geoError)
                     return
                 }
                 guard let geoDomain = geoDomain else {
-                    Loggers.network.error("Opt-in: geo domain missing - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("Opt-in: geo domain missing - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
@@ -277,23 +277,23 @@ final class ATTNAPI: ATTNAPIProtocol {
                 request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
                 request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
-                Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload)")
+                Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload, privacy: .public)")
 
                 let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
-                        Loggers.network.error("Opt-in error: \(error.localizedDescription)")
+                        Loggers.network.error("Opt-in error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
                         Loggers.network.debug("----- Opt-In Subscriptions Result -----")
-                        Loggers.network.debug("Status Code: \(http.statusCode)")
-                        Loggers.network.debug("Headers: \(http.allHeaderFields)")
+                        Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
+                        Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                         if http.statusCode >= 400 {
-                            Loggers.network.error("Opt-in API returned status \(http.statusCode)")
+                            Loggers.network.error("Opt-in API returned status \(http.statusCode, privacy: .public)")
                         } else {
-                            Loggers.network.debug("Opt-in successful: opted in email: \(email ?? "nil"), phone: \(phone ?? "nil")")
+                            Loggers.network.debug("Opt-in successful: opted in email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
                         }
                     }
                     if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
-                        Loggers.network.debug("Response Body:\n\(bodyStr)")
+                        Loggers.network.debug("Response Body:\n\(bodyStr, privacy: .public)")
                     }
                     callback?(data, url, response, error)
                 }
@@ -310,22 +310,22 @@ final class ATTNAPI: ATTNAPIProtocol {
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken), Email: \(email ?? "nil"), Phone: \(phone ?? "nil")")
+            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
             getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, geoError in
                 guard let self = self else {
-                    Loggers.network.error("sendOptOutMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("sendOptOutMarketingSubscription aborted: self is nil - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
 
                 if let geoError = geoError {
-                    Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("Opt-out: geo domain error: \(geoError.localizedDescription, privacy: .public) - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, geoError)
                     return
                 }
                 guard let geoDomain = geoDomain else {
-                    Loggers.network.error("Opt-out: geo domain missing - Visitor ID: \(userIdentity.visitorId)")
+                    Loggers.network.error("Opt-out: geo domain missing - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                     callback?(nil, nil, nil, ATTNError.geoDomainUnavailable)
                     return
                 }
@@ -358,23 +358,23 @@ final class ATTNAPI: ATTNAPIProtocol {
                 request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
                 request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
-                Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload)")
+                Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload, privacy: .public)")
 
                 let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
-                        Loggers.network.error("Opt-out error: \(error.localizedDescription)")
+                        Loggers.network.error("Opt-out error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
                         Loggers.network.debug("----- Opt-Out Subscriptions Result -----")
-                        Loggers.network.debug("Status Code: \(http.statusCode)")
-                        Loggers.network.debug("Headers: \(http.allHeaderFields)")
+                        Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
+                        Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                         if http.statusCode >= 400 {
-                            Loggers.network.error("Opt-out API returned status \(http.statusCode)")
+                            Loggers.network.error("Opt-out API returned status \(http.statusCode, privacy: .public)")
                         } else {
-                            Loggers.network.debug("Opt-out successful: opted out email: \(email ?? "nil"), phone: \(phone ?? "nil")")
+                            Loggers.network.debug("Opt-out successful: opted out email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
                         }
                     }
                     if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
-                        Loggers.network.debug("Response Body:\n\(bodyStr)")
+                        Loggers.network.debug("Response Body:\n\(bodyStr, privacy: .public)")
                     }
                     callback?(data, url, response, error)
                 }
@@ -391,7 +391,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         phone: String? = nil,
         callback: ATTNAPICallback? = nil
     ) {
-        Loggers.network.debug("Updating user - Visitor ID: \(userIdentity.visitorId), Push Token: \(pushToken)")
+        Loggers.network.debug("Updating user - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
         var meta: [String: Any] = [:]
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
@@ -423,21 +423,21 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
-        Loggers.network.debug("POST /update_user payload: \(payload)")
+        Loggers.network.debug("POST /update_user payload: \(payload, privacy: .public)")
 
         let task = self.urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
-                Loggers.network.error("Update User error: \(error.localizedDescription)")
+                Loggers.network.error("Update User error: \(error.localizedDescription, privacy: .public)")
             } else if let http = response as? HTTPURLResponse {
                 Loggers.network.debug("----- Update User Result -----")
-                Loggers.network.debug("Status Code: \(http.statusCode)")
-                Loggers.network.debug("Headers: \(http.allHeaderFields)")
+                Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
+                Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                 if http.statusCode >= 400 {
-                    Loggers.network.error("UpdateUser API returned status \(http.statusCode)")
+                    Loggers.network.error("UpdateUser API returned status \(http.statusCode, privacy: .public)")
                 }
             }
             if let data = data, let bodyStr = String(data: data, encoding: .utf8) {
-                Loggers.network.debug("Response Body:\n\(bodyStr)")
+                Loggers.network.debug("Response Body:\n\(bodyStr, privacy: .public)")
             }
             callback?(data, url, response, error)
         }
@@ -461,18 +461,18 @@ fileprivate extension ATTNAPI {
             return
         }
 
-        Loggers.event.debug("Building Event URL for '\(request.eventNameAbbreviation)' - Visitor ID: \(userIdentity.visitorId), URL: \(url)")
+        Loggers.event.debug("Building Event URL for '\(request.eventNameAbbreviation, privacy: .public)' - Visitor ID: \(userIdentity.visitorId, privacy: .public), URL: \(url, privacy: .public)")
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
 
         let task = urlSession.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
-                Loggers.event.error("Error sending for event '\(request.eventNameAbbreviation)'. Error: '\(error.localizedDescription)'")
+                Loggers.event.error("Error sending for event '\(request.eventNameAbbreviation, privacy: .public)'. Error: '\(error.localizedDescription, privacy: .public)'")
             } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
-                Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode)'")
+                Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
             } else {
-                Loggers.event.debug("Successfully sent event of type '\(request.eventNameAbbreviation)'")
+                Loggers.event.debug("Successfully sent event of type '\(request.eventNameAbbreviation, privacy: .public)'")
             }
 
             callback?(data, url, response, error)
@@ -487,16 +487,16 @@ fileprivate extension ATTNAPI {
             return
         }
 
-        Loggers.event.debug("Building Identity Event URL - Visitor ID: \(userIdentity.visitorId), URL: \(url)")
+        Loggers.event.debug("Building Identity Event URL - Visitor ID: \(userIdentity.visitorId, privacy: .public), URL: \(url, privacy: .public)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
         let task = urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
-                Loggers.event.error("Error sending user identity. Error: '\(error.localizedDescription)'")
+                Loggers.event.error("Error sending user identity. Error: '\(error.localizedDescription, privacy: .public)'")
             } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
-                Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode)'")
+                Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
             } else {
                 Loggers.event.debug("Successfully sent user identity event")
             }
@@ -529,10 +529,10 @@ fileprivate extension ATTNAPI {
             }
 
             let regionalizedDomain = String(tag[range])
-            Loggers.creative.debug("Identified regionalized attentive domain: \(regionalizedDomain)")
+            Loggers.creative.debug("Identified regionalized attentive domain: \(regionalizedDomain, privacy: .public)")
             return regionalizedDomain
         } catch {
-            Loggers.creative.debug("Error building the domain regex. Error: '\(error.localizedDescription)'")
+            Loggers.creative.debug("Error building the domain regex. Error: '\(error.localizedDescription, privacy: .public)'")
             return nil
         }
     }
@@ -546,11 +546,11 @@ extension ATTNAPI {
             return
         }
 
-        Loggers.network.debug("Getting the geoAdjustedDomain for domain '\(domain)'...")
+        Loggers.network.debug("Getting the geoAdjustedDomain for domain '\(domain, privacy: .public)'...")
 
         let urlString = String(format: RequestConstants.dtagUrlFormat, domain)
         guard let url = URL(string: urlString) else {
-            Loggers.network.debug("Invalid URL format for domain '\(domain)'")
+            Loggers.network.debug("Invalid URL format for domain '\(domain, privacy: .public)'")
             completionHandler(nil, NSError(domain: "com.attentive.API", code: NSURLErrorBadURL, userInfo: nil))
             return
         }
@@ -558,7 +558,7 @@ extension ATTNAPI {
         let request = URLRequest(url: url)
         let task = urlSession.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
-                Loggers.network.error("Error getting the geo-adjusted domain for \(domain). Error: '\(error.localizedDescription)'")
+                Loggers.network.error("Error getting the geo-adjusted domain for \(domain, privacy: .public). Error: '\(error.localizedDescription, privacy: .public)'")
                 completionHandler(nil, error)
                 return
             }
@@ -570,7 +570,7 @@ extension ATTNAPI {
             }
 
             guard (200...299).contains(httpResponse.statusCode), let data = data else {
-                Loggers.network.error("Error getting the geo-adjusted domain for \(domain). Incorrect status code: '\(httpResponse.statusCode)'")
+                Loggers.network.error("Error getting the geo-adjusted domain for \(domain, privacy: .public). Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
                 completionHandler(nil, NSError(domain: "com.attentive.API", code: NSURLErrorBadServerResponse, userInfo: nil))
                 return
             }
@@ -606,13 +606,13 @@ extension ATTNAPI {
     ) {
         getGeoAdjustedDomain(domain: domain) { [weak self] geoDomain, error in
             guard let self = self else {
-                Loggers.network.error("sendNewEvent aborted: self is nil - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("sendNewEvent aborted: self is nil - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 callback?(nil, nil, nil, ATTNError.badURL)
                 return
             }
 
             if let error = error {
-                Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription) - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Error fetching geo domain for /mobile event: \(error.localizedDescription, privacy: .public) - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 callback?(nil, nil, nil, error)
                 return
             }
@@ -623,7 +623,7 @@ extension ATTNAPI {
                             userIdentity: userIdentity,
                             domain: geoDomain
                         ) else {
-                Loggers.network.error("Invalid /mobile event URL - Visitor ID: \(userIdentity.visitorId)")
+                Loggers.network.error("Invalid /mobile event URL - Visitor ID: \(userIdentity.visitorId, privacy: .public)")
                 callback?(nil, nil, nil, ATTNError.badURL)
                 return
             }
@@ -655,26 +655,26 @@ extension ATTNAPI {
 
                 Loggers.network.debug("""
                                     ---- Sending /mobile Event ----
-                                    URL: \(url.absoluteString)
-                                    JSON Payload: \(jsonString)
-                                    Request Body: \(requestBody)
+                                    URL: \(url.absoluteString, privacy: .public)
+                                    JSON Payload: \(jsonString, privacy: .public)
+                                    Request Body: \(requestBody, privacy: .public)
                                     --------------------------------
                                     """)
 
                 let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
-                        Loggers.network.error("New event send error: \(error.localizedDescription)")
+                        Loggers.network.error("New event send error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
-                        Loggers.network.debug("New event status code: \(http.statusCode)")
+                        Loggers.network.debug("New event status code: \(http.statusCode, privacy: .public)")
                         if http.statusCode >= 400 {
-                            Loggers.network.error("New event failed with HTTP status code \(http.statusCode)")
+                            Loggers.network.error("New event failed with HTTP status code \(http.statusCode, privacy: .public)")
                         }
                     }
                     callback?(data, url, response, error)
                 }
                 task.resume()
             } catch {
-                Loggers.network.error("Encoding error for /mobile event: \(error.localizedDescription)")
+                Loggers.network.error("Encoding error for /mobile event: \(error.localizedDescription, privacy: .public)")
                 callback?(nil, url, nil, error)
             }
         }
