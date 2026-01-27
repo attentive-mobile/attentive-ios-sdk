@@ -79,17 +79,17 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         handler: ATTNCreativeTriggerCompletionHandler? = nil
     ) {
         let creativeIdLog = creativeId ?? "default"
-        Loggers.creative.debug("Launching creative - Visitor ID: \(self.userIdentity.visitorId), Creative ID: \(creativeIdLog), Domain: \(self.domain)")
+        Loggers.creative.debug("Launching creative - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Creative ID: \(creativeIdLog, privacy: .public), Domain: \(self.domain, privacy: .public)")
 
         guard stateManager.compareAndSet(from: .closed, to: .launching) else {
-            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.debug("Attempted to trigger creative, but creative is already launching or open. Taking no action - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
         }
 
         creativeQueue.async { [weak self] in
             guard let self = self else { return }
             guard let webViewProvider = self.webViewProvider else {
-                Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId)")
+                Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
                 return
             }
 
@@ -123,15 +123,15 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 )
             )
 
-            Loggers.creative.debug("Requesting creative page url: \(creativePageUrl)" )
+            Loggers.creative.debug("Requesting creative page url: \(creativePageUrl, privacy: .public)" )
 
             guard let url = URL(string: creativePageUrl) else {
-                Loggers.creative.error("Failed to create URL from creative page URL string - Visitor ID: \(self.userIdentity.visitorId), URL String: \(creativePageUrl)")
+                Loggers.creative.error("Failed to create URL from creative page URL string - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), URL String: \(creativePageUrl, privacy: .public)")
                 stateManager.updateState(.closed)
                 return
             }
 
-            Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.debug("Setting up WebView for creative - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
 
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
@@ -195,7 +195,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             guard let self = self else { return }
             stateManager.updateState(.closed)
             self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-            Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
         }
     }
 }
@@ -245,7 +245,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 Loggers.creative.error("Creative timed out. Not showing WebView.")
                 webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
             case .unknown(let statusString):
-                Loggers.creative.error("Received unknown status: \(statusString). Not showing WebView")
+                Loggers.creative.error("Received unknown status: \(statusString, privacy: .public). Not showing WebView")
                 webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
             default: break
             }
@@ -254,26 +254,26 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
-            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.error("Navigation policy decision: URL is nil, canceling navigation - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             decisionHandler(.cancel)
             return
         }
 
         if url.scheme == "sms" {
-            Loggers.creative.debug("Opening SMS URL externally: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.debug("Opening SMS URL externally: \(url, privacy: .public) - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
         } else if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             if navigationAction.targetFrame == nil {
-                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url) - Visitor ID: \(self.userIdentity.visitorId)")
+                Loggers.creative.debug("Opening URL in external browser (no target frame): \(url, privacy: .public) - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
                 UIApplication.shared.open(url)
                 decisionHandler(.cancel)
             } else {
-                Loggers.creative.debug("Allowing navigation to URL: \(url) - Visitor ID: \(self.userIdentity.visitorId)")
+                Loggers.creative.debug("Allowing navigation to URL: \(url, privacy: .public) - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
                 decisionHandler(.allow)
             }
         } else {
-            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown") - Visitor ID: \(self.userIdentity.visitorId)")
+            Loggers.creative.debug("Allowing navigation with scheme: \(url.scheme ?? "unknown", privacy: .public) - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             decisionHandler(.allow)
         }
     }
@@ -282,7 +282,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 extension ATTNWebViewHandler: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let messageBody = message.body as? String ?? "Empty"
-        Loggers.creative.debug("Web event message: \(messageBody). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO")")
+        Loggers.creative.debug("Web event message: \(messageBody, privacy: .public). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO", privacy: .public)")
 
         if messageBody == "CLOSE" {
             closeCreative()
@@ -332,7 +332,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
                 DispatchQueue.main.async {
                     if let customWebView = self.webViewProvider?.webView as? CustomWebView {
                         customWebView.updateInteractiveHitArea(fallbackArea)
-                        Loggers.creative.debug("Creative interactive area updated to fullscreen fallback: \(fallbackArea.width)x\(fallbackArea.height)")
+                        Loggers.creative.debug("Creative interactive area updated to fullscreen fallback: \(fallbackArea.width, privacy: .public)x\(fallbackArea.height, privacy: .public)")
                     }
                 }
                 return
@@ -345,12 +345,12 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
 
             // 100 is a magic number that helps determine if a creative is full screen
             let isFullscreen = height >= 100
-            Loggers.creative.debug("Resizing creative to \(isFullscreen ? "fullscreen" : "bubble")")
+            Loggers.creative.debug("Resizing creative to \(isFullscreen ? "fullscreen" : "bubble", privacy: .public)")
 
             DispatchQueue.main.async {
                 if let customWebView = self.webViewProvider?.webView as? CustomWebView {
                     customWebView.updateInteractiveHitArea(newArea)
-                    Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX), y: \(newArea.minY), width: \(newArea.width), height: \(newArea.height)")
+                    Loggers.creative.debug("Creative interactive area updated to: x: \(newArea.minX, privacy: .public), y: \(newArea.minY, privacy: .public), width: \(newArea.width, privacy: .public), height: \(newArea.height, privacy: .public)")
                 }
             }
 
@@ -408,7 +408,7 @@ class CustomWebView: WKWebView {
 
     @objc private func handleDidBecomeActive() {
         updateScrollBehavior()
-        Loggers.creative.debug("handleDidBecomeActive: lastKnownHitArea width and height: \(self.lastKnownHitArea.width)x\(self.lastKnownHitArea.height)")
+        Loggers.creative.debug("handleDidBecomeActive: lastKnownHitArea width and height: \(self.lastKnownHitArea.width, privacy: .public)x\(self.lastKnownHitArea.height, privacy: .public)")
     }
 
     deinit {

@@ -15,7 +15,7 @@ extension ATTNSDK {
     func initializeSkipFatigueOnCreatives() {
         if let skipFatigueValue = ProcessInfo.processInfo.environment[ATTNConstants.skipFatigueEnvKey] {
             self.skipFatigueOnCreative = skipFatigueValue.booleanValue
-            Loggers.creative.info("SKIP_FATIGUE_ON_CREATIVE: \(skipFatigueValue)")
+            Loggers.creative.info("SKIP_FATIGUE_ON_CREATIVE: \(skipFatigueValue, privacy: .public)")
         } else {
             self.skipFatigueOnCreative = false
         }
@@ -99,7 +99,7 @@ extension ATTNSDK {
             metadata: [:],
             eventNameAbbreviation: eventNameAbbreviation
         )
-        Loggers.event.debug("Sending v2 \(eventType.rawValue) event: \(eventRequest)")
+        Loggers.event.debug("Sending v2 \(eventType.rawValue, privacy: .public) event: \(eventRequest, privacy: .public)")
 
         // Send via API
         api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity, callback: nil)

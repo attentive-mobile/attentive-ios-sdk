@@ -32,7 +32,7 @@ class ATTNUserAgentBuilder: ATTNUserAgentBuilderProtocol {
             appInfo.getSdkVersion()
         )
 
-        Loggers.event.debug("Created User Agent: \(userAgent)")
+        Loggers.event.debug("Created User Agent: \(userAgent, privacy: .public)")
 
         return userAgent
     }
