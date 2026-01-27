@@ -5,10 +5,7 @@
 //  Created by Umair Sharif on 1/15/26.
 //
 
-import Combine
-import Foundation
-
-public enum InboxState {
+public enum InboxState: Sendable {
     case loading
     case loaded([Message])
     case error(Error)
@@ -17,12 +14,8 @@ public enum InboxState {
 actor Inbox {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
-
-    private nonisolated let stateSubject = CurrentValueSubject<InboxState, Never>(.loading)
-
-    nonisolated var statePublisher: AnyPublisher<InboxState, Never> {
-        stateSubject.eraseToAnyPublisher()
-    }
+    private var currentState: InboxState = .loading
+    private var continuations: [UUID: AsyncStream<InboxState>.Continuation] = [:]
 
     var allMessages: [Message] {
         if let cached = cachedSortedMessages {
@@ -37,31 +30,64 @@ actor Inbox {
         messagesByID.values.filter { !$0.isRead }.count
     }
 
+    /// Returns an AsyncStream that immediately emits the current state,
+    /// then emits all subsequent state changes.
+    var stateStream: AsyncStream<InboxState> {
+        let currentState = self.currentState
+        return AsyncStream { continuation in
+            let id = UUID()
+            // Emit current state immediately
+            continuation.yield(currentState)
+
+            // Register for future updates
+            self.continuations[id] = continuation
+
+            continuation.onTermination = { [weak self] _ in
+                Task { [weak self] in
+                    await self?.removeContinuation(id: id)
+                }
+            }
+        }
+    }
+
     init() {
         Task {
+            await send(.loading)
             await updateMessages(Self.getMockMessages())
+        }
+    }
+
+    private func removeContinuation(id: UUID) {
+        continuations.removeValue(forKey: id)
+    }
+
+    private func send(_ state: InboxState) {
+        currentState = state
+        for continuation in continuations.values {
+            continuation.yield(state)
         }
     }
 
     func markRead(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = true
         updateCachedMessage(messageID)
-        stateSubject.send(.loaded(allMessages))
+        send(.loaded(allMessages))
     }
 
     func markUnread(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = false
         updateCachedMessage(messageID)
-        stateSubject.send(.loaded(allMessages))
+        send(.loaded(allMessages))
     }
 
     func delete(_ messageID: Message.ID) {
         messagesByID.removeValue(forKey: messageID)
         invalidateCache()
-        stateSubject.send(.loaded(allMessages))
+        send(.loaded(allMessages))
     }
 
     func refresh() async {
+        send(.loading)
         await updateMessages(Self.getMockMessages())
     }
 
@@ -70,7 +96,7 @@ actor Inbox {
             $0[$1.id] = $1
         }
         invalidateCache()
-        stateSubject.send(.loaded(allMessages))
+        send(.loaded(allMessages))
     }
 
     private func invalidateCache() {

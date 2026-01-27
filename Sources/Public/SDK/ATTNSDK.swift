@@ -5,8 +5,6 @@
 //  Created by Vladimir - Work on 2024-05-27.
 //
 
-import Combine
-import Foundation
 import UserNotifications
 import WebKit
 
@@ -150,9 +148,13 @@ public final class ATTNSDK: NSObject {
 
     // MARK: Inbox
 
-    /// Publisher that emits the `InboxState` immediately, then emits on any change.
-    public var inboxStatePublisher: AnyPublisher<InboxState, Never> {
-        inbox.statePublisher.eraseToAnyPublisher()
+    /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
+    /// then emits on any subsequent change.
+    /// Usage: `for await state in await sdk.inboxStateStream { ... }`
+    public var inboxStateSteam: AsyncStream<InboxState> {
+        get async {
+            await inbox.stateStream
+        }
     }
 
     /// Async accessor for all messages.
