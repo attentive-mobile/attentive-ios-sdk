@@ -78,13 +78,15 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         setupUI()
         setupCollectionView()
         
-        inboxStateCancellable = sdk?.inboxStatePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task {
-                    await self?.updateInboxBadge()
-                }
+        guard let sdk else {
+            return
+        }
+        
+        Task {
+            for await _ in await sdk.inboxStateSteam {
+                await updateInboxBadge()
             }
+        }
     }
 
     // MARK: - Navigation Bar Setup
