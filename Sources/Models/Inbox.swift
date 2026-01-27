@@ -5,6 +5,8 @@
 //  Created by Umair Sharif on 1/15/26.
 //
 
+import Foundation
+
 public enum InboxState: Sendable {
     case loading
     case loaded([Message])

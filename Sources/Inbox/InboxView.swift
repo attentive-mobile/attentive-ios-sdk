@@ -18,6 +18,16 @@ struct InboxView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .error:
             Text("Error")
+        case .empty:
+            List {
+                Text("No messages")
+            }
+            .listStyle(.plain)
+            .navigationTitle("Inbox")
+            .navigationBarTitleDisplayMode(.inline)
+            .refreshable {
+                await viewModel.refresh()
+            }
         case .loaded(let messages):
             List(messages) { message in
                 InboxMessageRow(message: message)

@@ -5,30 +5,30 @@
 //  Created by Umair Sharif on 1/22/26.
 //
 
-import Combine
 import Foundation
 
 @MainActor
 class InboxViewModel: ObservableObject {
+    enum State {
+        case loading
+        case empty
+        case loaded([Message])
+        case error(Error)
+    }
+    
     @Published
-    var state: InboxState = .loading
+    var state: State = .loading
 
     private let inbox: Inbox
-    private var inboxStateCancellable: AnyCancellable?
 
     init(inbox: Inbox) {
         self.inbox = inbox
         state = .loading
-        inboxStateCancellable = inbox.statePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] inboxState in
-                guard let self else { return }
-                state = inboxState
+        Task {
+            for await state in await inbox.stateStream {
+                self.state = state.viewState
             }
-    }
-
-    deinit {
-        inboxStateCancellable?.cancel()
+        }
     }
 
     func refresh() async {
@@ -50,6 +50,16 @@ class InboxViewModel: ObservableObject {
     func delete(_ messageID: Message.ID) {
         Task {
             await inbox.delete(messageID)
+        }
+    }
+}
+
+extension InboxState {
+    var viewState: InboxViewModel.State {
+        switch self {
+        case .loading: .loading
+        case .loaded(let messages): messages.isEmpty ? .empty : .loaded(messages)
+        case .error(let error): .error(error)
         }
     }
 }
