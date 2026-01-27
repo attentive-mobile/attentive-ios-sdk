@@ -5,11 +5,10 @@
 //  Created by Adela Gao on 3/4/25.
 //
 
-import UIKit
 import ATTNSDKFramework
-import WebKit
-import os.log
 import Combine
+import UIKit
+import WebKit
 
 class ProductViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     
@@ -60,12 +59,12 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     
     private let viewModel = ProductListViewModel()
 
-    private var inboxButton: UIButton!
-    private var inboxBadgeView: UIView!
-    private var inboxBadgeLabel: UILabel!
+    private var inboxButton = UIButton()
+    private var inboxBadgeView = UIView()
+    private var inboxBadgeLabel = UILabel()
     
     private var inboxStateCancellable: AnyCancellable?
-
+    
     private var sdk: ATTNSDK? {
         (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
     }
@@ -79,18 +78,13 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         setupUI()
         setupCollectionView()
         
-        inboxStateCancellable = sdk!.inboxStatePublisher.sink { [weak self] state in
-            Task {
-                await self?.updateInboxBadge()
+        inboxStateCancellable = sdk?.inboxStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task {
+                    await self?.updateInboxBadge()
+                }
             }
-        }
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        Task {
-            await updateInboxBadge()
-        }
     }
 
     // MARK: - Navigation Bar Setup
@@ -186,21 +180,11 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         inboxBadgeLabel.frame = inboxBadgeView.bounds
         inboxBadgeView.addSubview(inboxBadgeLabel)
 
-        // Defer initial badge update to ensure SDK is ready
-        Task { @MainActor in
-            await self.updateInboxBadge()
-        }
-
         return UIBarButtonItem(customView: containerView)
     }
 
     private func updateInboxBadge() async {
-        guard let sdk = sdk else {
-            inboxBadgeView.isHidden = true
-            return
-        }
-
-        let unreadCount = await sdk.unreadCount
+        let unreadCount = await sdk?.unreadCount ?? 0
 
         if unreadCount > 0 {
             // Update badge view
@@ -221,11 +205,10 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     // MARK: - Button Actions
 
     @objc private func inboxButtonTapped() {
-        guard let sdk else { return }
-        navigationController?.pushViewController(
-            sdk.uiKitInboxViewController,
-            animated: true
-        )
+        guard let inboxViewController = sdk?.inboxViewController else {
+            return
+        }
+        navigationController?.pushViewController(inboxViewController, animated: true)
     }
 
     @objc private func cartButtonTapped() {

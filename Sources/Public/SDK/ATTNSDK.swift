@@ -173,13 +173,13 @@ public final class ATTNSDK: NSObject {
     }
 
     @MainActor
-    public var swiftUIInboxView: some View {
+    public var inboxView: some View {
         InboxView(viewModel: InboxViewModel(inbox: inbox))
     }
 
     @MainActor
-    public var uiKitInboxViewController: UIViewController {
-        UIHostingController(rootView: swiftUIInboxView)
+    public var inboxViewController: UIViewController {
+        UIHostingController(rootView: inboxView)
     }
 
     public func markRead(for messageID: Message.ID) async {
