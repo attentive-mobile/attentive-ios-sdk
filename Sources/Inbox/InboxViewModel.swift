@@ -19,13 +19,13 @@ class InboxViewModel: ObservableObject {
     @Published
     var state: State = .loading
 
-    let messageRowStyle: InboxMessageRowViewStyle
+    let style: InboxStyle
 
     private let inbox: Inbox
 
-    init(inbox: Inbox, messageRowStyle: InboxMessageRowViewStyle) {
+    init(inbox: Inbox, style: InboxStyle) {
         self.inbox = inbox
-        self.messageRowStyle = messageRowStyle
+        self.style = style
         state = .loading
         Task {
             for await state in await inbox.stateStream {
