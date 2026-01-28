@@ -76,7 +76,6 @@ actor Inbox {
     }
 
     func refresh() async {
-        send(.loading)
         await updateMessages(Self.getMockMessages())
     }
 }
