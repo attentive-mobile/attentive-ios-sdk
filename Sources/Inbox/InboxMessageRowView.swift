@@ -13,16 +13,14 @@ struct InboxMessageRowView: View {
 
     var body: some View {
         HStack(alignment: .titleCenter, spacing: 12) {
-            if !message.isRead {
-                Circle()
-                    .fill(.blue)
-                    .frame(width: 8, height: 8)
-                    .alignmentGuide(.titleCenter) { d in
-                        // Offset to keep dot vertically centered with title
-                        // while alignment line is at title top
-                        d[VerticalAlignment.top] - 6
-                    }
-            }
+            Circle()
+                .fill(message.isRead ? .clear : .blue)
+                .frame(width: 8, height: 8)
+                .alignmentGuide(.titleCenter) { d in
+                    // Offset to keep dot vertically centered with title
+                    // while alignment line is at title top
+                    d[VerticalAlignment.top] - 6
+                }
 
             switch style {
             case .small:
