@@ -5,6 +5,8 @@
 //  Created by Umair Sharif on 1/15/26.
 //
 
+import Foundation
+
 public enum InboxState: Sendable {
     case loading
     case loaded([Message])
@@ -126,25 +128,28 @@ fileprivate extension Inbox {
         return [
             Message(
                 id: "1",
+                style: .small,
                 title: "Welcome to Attentive!",
                 body: "Thanks for joining us. Check out our latest offers.",
-                timestamp: Date().advanced(by: -86400000),
+                timestamp: Date().advanced(by: -86400),
                 isRead: false,
                 imageURLString: "https://picsum.photos/200"
             ),
             Message(
                 id: "2",
+                style: .large,
                 title: "New Sale Alert",
                 body: "50% off on all items this weekend!",
-                timestamp: Date().advanced(by: -172800000),
+                timestamp: Date().advanced(by: -172800),
                 isRead: false,
-                imageURLString: "https://picsum.photos/200"
+                imageURLString: "https://picsum.photos/200/120"
             ),
             Message(
                 id: "3",
+                style: .small,
                 title: "Your Order Has Shipped",
                 body: "Your order #12345 is on its way!",
-                timestamp: Date().advanced(by: -259200000),
+                timestamp: Date().advanced(by: -259200),
                 isRead: false,
                 actionURLString: "https://example.com/track/12345"
             )

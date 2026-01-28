@@ -8,10 +8,16 @@
 import Foundation
 
 public struct Message: Codable, Identifiable, Sendable {
+    public enum Style: Codable {
+        case small
+        case large
+    }
+    
     // swiftlint:disable:next type_name
     public typealias ID = String
 
     public var id: ID
+    public var style: Style
     public var title: String
     public var body: String
     public var timestamp: Date
@@ -21,6 +27,7 @@ public struct Message: Codable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case style
         case title
         case body
         case timestamp

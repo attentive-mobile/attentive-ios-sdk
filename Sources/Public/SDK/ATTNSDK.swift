@@ -5,8 +5,9 @@
 //  Created by Vladimir - Work on 2024-05-27.
 //
 
-import UserNotifications
+import SwiftUI
 import WebKit
+import UserNotifications
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
@@ -169,6 +170,16 @@ public final class ATTNSDK: NSObject {
         get async {
             await inbox.unreadCount
         }
+    }
+
+    @MainActor
+    public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
+        InboxView(viewModel: InboxViewModel(inbox: inbox, style: style))
+    }
+
+    @MainActor
+    public func inboxViewController(style: InboxStyle = InboxStyle()) -> UIViewController {
+        UIHostingController(rootView: inboxView(style: style))
     }
 
     public func markRead(for messageID: Message.ID) async {
