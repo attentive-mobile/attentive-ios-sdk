@@ -6,9 +6,7 @@
 //
 
 import ATTNSDKFramework
-import Combine
 import UIKit
-import WebKit
 
 class ProductViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     
@@ -62,8 +60,6 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     private var inboxButton = UIButton()
     private var inboxBadgeView = UIView()
     private var inboxBadgeLabel = UILabel()
-    
-    private var inboxStateCancellable: AnyCancellable?
     
     private var sdk: ATTNSDK? {
         (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
