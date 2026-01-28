@@ -7,14 +7,9 @@
 
 import SwiftUI
 
-public enum InboxMessageRowViewStyle {
-    case small
-    case large
-}
-
 struct InboxMessageRowView: View {
     var message: Message
-    var style: InboxMessageRowViewStyle
+    var style: InboxStyle
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -22,13 +17,13 @@ struct InboxMessageRowView: View {
                 .fill(message.isRead ? .clear : .blue)
                 .frame(width: 8, height: 8)
 
-            switch style {
+            switch style.row {
             case .small:
-                buildAsyncImageView(for: style)
+                buildAsyncImageView()
                 buildTextStackView()
             case .large:
                 VStack(alignment: .leading, spacing: 4) {
-                    buildAsyncImageView(for: style)
+                    buildAsyncImageView()
                     buildTextStackView()
                 }
             }
@@ -36,7 +31,7 @@ struct InboxMessageRowView: View {
     }
 
     @ViewBuilder
-    private func buildAsyncImageView(for style: InboxMessageRowViewStyle) -> some View {
+    private func buildAsyncImageView() -> some View {
         if let imageURL = message.imageURL {
             let asyncImage = AsyncImage(url: imageURL) { image in
                 image
@@ -47,7 +42,7 @@ struct InboxMessageRowView: View {
                     .aspectRatio(contentMode: .fit)
             }.clipShape(RoundedRectangle(cornerRadius: 8))
 
-            switch style {
+            switch style.row {
             case .large: asyncImage.frame(maxWidth: .infinity)
             case .small: asyncImage.frame(width: 60, height: 60)
             }
@@ -57,17 +52,19 @@ struct InboxMessageRowView: View {
     private func buildTextStackView() -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(message.title)
-                .font(.headline)
+                .font(style.title.font)
+                .foregroundColor(style.title.color)
                 .fontWeight(message.isRead ? .regular : .bold)
                 .lineLimit(1)
 
             Text(message.body)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(style.body.font)
+                .foregroundColor(style.body.color)
                 .lineLimit(2)
 
             Text(message.timestamp, style: .relative)
-                .font(.caption)
+                .font(style.timestamp.font)
+                .foregroundColor(style.timestamp.color)
                 .foregroundColor(.gray)
         }
     }

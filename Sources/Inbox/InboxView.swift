@@ -25,7 +25,7 @@ struct InboxView: View {
         case .loaded(let messages):
             buildListView {
                 ForEach(messages) { message in
-                    InboxMessageRowView(message: message, style: viewModel.messageRowStyle)
+                    InboxMessageRowView(message: message, style: viewModel.style)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 viewModel.delete(message.id)

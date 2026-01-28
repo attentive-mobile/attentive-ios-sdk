@@ -13,6 +13,7 @@
 		0A83DEB42F22C48C003FD456 /* InboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB32F22C488003FD456 /* InboxViewModel.swift */; };
 		0A8BDC8C2F298C5D00138567 /* InboxMessageRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */; };
 		0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */; };
+		0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
@@ -124,6 +125,7 @@
 		0A83DEB32F22C488003FD456 /* InboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViewModel.swift; sourceTree = "<group>"; };
 		0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxMessageRowView.swift; sourceTree = "<group>"; };
 		0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Strings.swift"; sourceTree = "<group>"; };
+		0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStyle.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -266,6 +268,7 @@
 		0A83DEB02F22C26E003FD456 /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
+				0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */,
 				0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */,
 				0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */,
 				0A83DEB32F22C488003FD456 /* InboxViewModel.swift */,
@@ -742,6 +745,7 @@
 				FB35C18B2C0E3F27009FA048 /* ATTNEvent+Extension.swift in Sources */,
 				FB60AF0B2C1211C700C61537 /* ATTNEventURLProvider.swift in Sources */,
 				FBA9FA132C0A77AB00C65024 /* ATTNEvent.swift in Sources */,
+				0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */,
 				FBA9FA142C0A77AB00C65024 /* ATTNItem.swift in Sources */,
 				FBA9FA1C2C0A77AB00C65024 /* ATTNUserIdentity.swift in Sources */,
 				FB35C1972C0E52F3009FA048 /* ATTNProductViewEvent+Extension.swift in Sources */,

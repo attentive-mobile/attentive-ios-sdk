@@ -203,7 +203,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     // MARK: - Button Actions
 
     @objc private func inboxButtonTapped() {
-        guard let inboxViewController = sdk?.inboxViewController(messageRowStyle: .large) else {
+        guard let inboxViewController = sdk?.inboxViewController() else {
             return
         }
         navigationController?.pushViewController(inboxViewController, animated: true)
