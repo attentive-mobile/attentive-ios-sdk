@@ -19,40 +19,38 @@ struct InboxView: View {
         case .error:
             Text("Error")
         case .empty:
-            List {
+            buildListView {
                 Text("No messages")
             }
-            .listStyle(.plain)
-            .navigationTitle("Inbox")
-            .navigationBarTitleDisplayMode(.inline)
-            .refreshable {
-                await viewModel.refresh()
-            }
         case .loaded(let messages):
-            List(messages) { message in
-                InboxMessageRowView(message: message, style: viewModel.messageRowStyle)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            viewModel.delete(message.id)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+            buildListView {
+                ForEach(messages) { message in
+                    InboxMessageRowView(message: message, style: viewModel.messageRowStyle)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                viewModel.delete(message.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            message.isRead ? viewModel.markUnread(message.id) : viewModel.markAsRead(message.id)
-                        } label: {
-                            message.isRead ? Label("Unread", systemImage: "envelope") : Label("Read", systemImage: "envelope.open")
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                message.isRead ? viewModel.markUnread(message.id) : viewModel.markAsRead(message.id)
+                            } label: {
+                                message.isRead ? Label("Unread", systemImage: "envelope") : Label("Read", systemImage: "envelope.open")
+                            }
+                            .tint(.blue)
                         }
-                        .tint(.blue)
-                    }
-            }
-            .listStyle(.plain)
-            .navigationTitle("Inbox")
-            .navigationBarTitleDisplayMode(.inline)
-            .refreshable {
-                await viewModel.refresh()
+                }
             }
         }
+    }
+
+    private func buildListView<Content: View>(content: () -> Content) -> some View {
+        List(content: content)
+            .listStyle(.plain)
+            .navigationTitle("Inbox")
+            .navigationBarTitleDisplayMode(.inline)
+            .refreshable(action: viewModel.refresh)
     }
 }
