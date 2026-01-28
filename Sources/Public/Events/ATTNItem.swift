@@ -47,4 +47,22 @@ extension ATTNItem {
             dictionary["name"] = name
         }
     }
+
+    /// Converts a legacy ATTNItem to the new ATTNProduct format for v2 API
+    func toV2Product() -> ATTNProduct {
+        // Extract category as an array if present
+        let categories: [String]? = category != nil ? [category!] : nil
+
+        return ATTNProduct(
+            productId: productId,
+            variantId: productVariantId,
+            name: name ?? "Unknown Product",
+            variantName: nil,
+            imageUrl: productImage,
+            categories: categories,
+            price: price.price.stringValue,
+            quantity: quantity,
+            productUrl: nil
+        )
+    }
 }

@@ -9,7 +9,19 @@ import Foundation
 
 extension ATTNSDK {
     func send(event: ATTNEvent) {
-        api.send(event: event, userIdentity: userIdentity)
+        // Automatically convert legacy events to v2 format
+        if let addToCartEvent = event as? ATTNAddToCartEvent {
+            sendLegacyAddToCartAsV2(addToCartEvent)
+        } else if let productViewEvent = event as? ATTNProductViewEvent {
+            sendLegacyProductViewAsV2(productViewEvent)
+        } else if let purchaseEvent = event as? ATTNPurchaseEvent {
+            sendLegacyPurchaseAsV2(purchaseEvent)
+        } else if let customEvent = event as? ATTNCustomEvent {
+            sendLegacyCustomEventAsV2(customEvent)
+        } else {
+            // Fallback to legacy API for unknown event types
+            api.send(event: event, userIdentity: userIdentity)
+        }
     }
 
     func initializeSkipFatigueOnCreatives() {
@@ -103,5 +115,80 @@ extension ATTNSDK {
 
         // Send via API
         api.sendNewEvent(event: event, eventRequest: eventRequest, userIdentity: userIdentity, callback: nil)
+    }
+
+    // MARK: - Legacy to V2 Conversion Methods
+
+    private func sendLegacyAddToCartAsV2(_ event: ATTNAddToCartEvent) {
+        guard let firstItem = event.items.first else {
+            Loggers.event.error("AddToCartEvent has no items, cannot convert to v2")
+            return
+        }
+
+        let product = firstItem.toV2Product()
+        sendAddToCartEvent(product: product, currency: firstItem.price.currency)
+
+        if event.items.count > 1 {
+            Loggers.event.info("AddToCartEvent had \(event.items.count) items, v2 API only supports single product per event. Only first item was sent.")
+        }
+    }
+
+    private func sendLegacyProductViewAsV2(_ event: ATTNProductViewEvent) {
+        guard let firstItem = event.items.first else {
+            Loggers.event.error("ProductViewEvent has no items, cannot convert to v2")
+            return
+        }
+
+        let product = firstItem.toV2Product()
+        sendProductViewEvent(product: product, currency: firstItem.price.currency)
+
+        if event.items.count > 1 {
+            Loggers.event.info("ProductViewEvent had \(event.items.count) items, v2 API only supports single product per event. Only first item was sent.")
+        }
+    }
+
+    private func sendLegacyPurchaseAsV2(_ event: ATTNPurchaseEvent) {
+        guard !event.items.isEmpty else {
+            Loggers.event.error("PurchaseEvent has no items, cannot convert to v2")
+            return
+        }
+
+        // Convert all items to v2 products
+        let products = event.items.map { $0.toV2Product() }
+
+        // Calculate order total from items
+        let orderTotal = event.items.reduce(NSDecimalNumber.zero) { total, item in
+            total.adding(item.price.price.multiplying(by: NSDecimalNumber(value: item.quantity)))
+        }
+
+        // Get currency from first item (all items should have same currency)
+        let currency = event.items.first?.price.currency ?? "USD"
+
+        // Convert cart if present
+        let cartPayload: ATTNCartPayload?
+        if let legacyCart = event.cart {
+            cartPayload = ATTNCartPayload(
+                from: legacyCart,
+                total: orderTotal.stringValue,
+                discount: nil
+            )
+        } else {
+            cartPayload = nil
+        }
+
+        sendPurchaseEvent(
+            orderId: event.order.orderId,
+            currency: currency,
+            orderTotal: orderTotal.stringValue,
+            cart: cartPayload,
+            products: products
+        )
+    }
+
+    private func sendLegacyCustomEventAsV2(_ event: ATTNCustomEvent) {
+        // For custom events, we pass the properties directly
+        // The type field from legacy custom event is not used in v2 as all custom events
+        // use the "MobileCustomEvent" type
+        sendCustomEvent(customProperties: event.properties)
     }
 }
