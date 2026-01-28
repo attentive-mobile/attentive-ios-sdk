@@ -7,11 +7,6 @@
 
 import Foundation
 
-public enum InboxMessageRowViewStyle {
-    case small
-    case large
-}
-
 @MainActor
 class InboxViewModel: ObservableObject {
     enum State {
