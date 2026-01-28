@@ -1,3 +1,7 @@
+## [2.0.9](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.8...2.0.9) (2026-01-28)
+### Features
+Added comprehensive logging.
+ 
 ## [2.0.8](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.7...2.0.8) (2025-11-20)
 ### Bug Fixes
 Minor bugfix around string encoding in push notifications where question marks were incorrectly escaped.
