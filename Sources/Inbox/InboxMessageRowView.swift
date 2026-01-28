@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+public enum InboxMessageRowViewStyle {
+    case small
+    case large
+}
+
 struct InboxMessageRowView: View {
     var message: Message
     var style: InboxMessageRowViewStyle
