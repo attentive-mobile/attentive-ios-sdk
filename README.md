@@ -37,6 +37,10 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/m
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
 
+### SDK Logging
+
+In addition to the SDK’s standard logging (e.g., Xcode’s debug console), Attentive iOS SDK logs are also emitted to Apple’s unified logging system. To view them in Console.app, run your app on a simulator or device, open Console, and filter for **attentive-ios-sdk** to see all SDK log output.
+
 ## Step 1 - SDK initialization
 
 ### Initialize the SDK
