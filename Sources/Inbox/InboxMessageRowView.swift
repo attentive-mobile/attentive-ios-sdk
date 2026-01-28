@@ -17,7 +17,7 @@ struct InboxMessageRowView: View {
                 .fill(message.isRead ? .clear : .blue)
                 .frame(width: 8, height: 8)
 
-            switch style.row {
+            switch message.style {
             case .small:
                 buildAsyncImageView()
                 buildTextStackView()
@@ -42,7 +42,7 @@ struct InboxMessageRowView: View {
                     .aspectRatio(contentMode: .fit)
             }.clipShape(RoundedRectangle(cornerRadius: 8))
 
-            switch style.row {
+            switch message.style {
             case .large: asyncImage.frame(maxWidth: .infinity)
             case .small: asyncImage.frame(width: 60, height: 60)
             }
