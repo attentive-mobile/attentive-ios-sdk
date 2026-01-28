@@ -17,10 +17,10 @@ struct InboxView: View {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .error:
-            Text("Error")
+            Text(String.somethingWentWrong)
         case .empty:
             buildListView {
-                Text("No messages")
+                Text(String.noMessages)
             }
         case .loaded(let messages):
             buildListView {
@@ -30,14 +30,14 @@ struct InboxView: View {
                             Button(role: .destructive) {
                                 viewModel.delete(message.id)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(String.delete, systemImage: "trash")
                             }
                         }
                         .swipeActions(edge: .leading) {
                             Button {
                                 message.isRead ? viewModel.markUnread(message.id) : viewModel.markAsRead(message.id)
                             } label: {
-                                message.isRead ? Label("Unread", systemImage: "envelope") : Label("Read", systemImage: "envelope.open")
+                                message.isRead ? Label(String.unread, systemImage: "envelope") : Label(String.read, systemImage: "envelope.open")
                             }
                             .tint(.blue)
                         }
@@ -49,7 +49,7 @@ struct InboxView: View {
     private func buildListView<Content: View>(content: () -> Content) -> some View {
         List(content: content)
             .listStyle(.plain)
-            .navigationTitle("Inbox")
+            .navigationTitle(String.inbox)
             .navigationBarTitleDisplayMode(.inline)
             .refreshable(action: viewModel.refresh)
     }
