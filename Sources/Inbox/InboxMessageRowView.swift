@@ -17,20 +17,14 @@ struct InboxMessageRowView: View {
     var style: InboxMessageRowViewStyle
 
     var body: some View {
-        HStack(alignment: .titleCenter, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Circle()
                 .fill(message.isRead ? .clear : .blue)
                 .frame(width: 8, height: 8)
-                .alignmentGuide(.titleCenter) { d in
-                    // Offset to keep dot vertically centered with title
-                    // while alignment line is at title top
-                    d[VerticalAlignment.top] - 6
-                }
 
             switch style {
             case .small:
                 buildAsyncImageView(for: style)
-                    .alignmentGuide(.titleCenter) { d in d[VerticalAlignment.top] }
                 buildTextStackView()
             case .large:
                 VStack(alignment: .leading, spacing: 4) {
@@ -66,7 +60,6 @@ struct InboxMessageRowView: View {
                 .font(.headline)
                 .fontWeight(message.isRead ? .regular : .bold)
                 .lineLimit(1)
-                .alignmentGuide(.titleCenter) { d in d[VerticalAlignment.top] }
 
             Text(message.body)
                 .font(.subheadline)
@@ -78,16 +71,4 @@ struct InboxMessageRowView: View {
                 .foregroundColor(.gray)
         }
     }
-}
-
-// MARK: - Custom Alignment
-
-extension VerticalAlignment {
-    private enum TitleCenter: AlignmentID {
-        static func defaultValue(in context: ViewDimensions) -> CGFloat {
-            context[VerticalAlignment.center]
-        }
-    }
-
-    static let titleCenter = VerticalAlignment(TitleCenter.self)
 }
