@@ -128,6 +128,7 @@ fileprivate extension Inbox {
         return [
             Message(
                 id: "1",
+                style: .small,
                 title: "Welcome to Attentive!",
                 body: "Thanks for joining us. Check out our latest offers.",
                 timestamp: Date().advanced(by: -86400),
@@ -136,14 +137,16 @@ fileprivate extension Inbox {
             ),
             Message(
                 id: "2",
+                style: .large,
                 title: "New Sale Alert",
                 body: "50% off on all items this weekend!",
                 timestamp: Date().advanced(by: -172800),
                 isRead: false,
-                imageURLString: "https://picsum.photos/200"
+                imageURLString: "https://picsum.photos/200/120"
             ),
             Message(
                 id: "3",
+                style: .small,
                 title: "Your Order Has Shipped",
                 body: "Your order #12345 is on its way!",
                 timestamp: Date().advanced(by: -259200),
