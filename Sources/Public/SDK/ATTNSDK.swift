@@ -174,7 +174,7 @@ public final class ATTNSDK: NSObject {
 
     @MainActor
     public var inboxView: some View {
-        InboxView(viewModel: InboxViewModel(inbox: inbox, style: .small))
+        InboxView(viewModel: InboxViewModel(inbox: inbox, messageRowStyle: .small))
     }
 
     @MainActor
