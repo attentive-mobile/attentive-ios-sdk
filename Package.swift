@@ -12,8 +12,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "ATTNSDKFramework",
-            url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/2.0.9-beta/ATTNSDKFramework.xcframework.zip",
-            checksum: "3669570103935280b891dc63adcb1dfc2f67a8a77cfb0b1f310346f5ddd488ab"
+            url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/2.0.10/ATTNSDKFramework.xcframework.zip",
+            checksum: "4022229aabb0d73b5238e5edf22595a5f4b6325504d5feb48e8d67abc1140472"
         )
     ]
 )
