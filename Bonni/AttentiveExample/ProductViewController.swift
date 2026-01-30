@@ -79,7 +79,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         }
         
         Task {
-            for await _ in await sdk.inboxStateSteam {
+            for await _ in await sdk.inboxStateStream {
                 await updateInboxBadge()
             }
         }
