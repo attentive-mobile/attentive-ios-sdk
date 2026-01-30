@@ -181,6 +181,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         return UIBarButtonItem(customView: containerView)
     }
 
+    @MainActor
     private func updateInboxBadge() async {
         let unreadCount = await sdk?.unreadCount ?? 0
 
