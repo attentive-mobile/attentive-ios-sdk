@@ -152,7 +152,7 @@ public final class ATTNSDK: NSObject {
     /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
     /// then emits on any subsequent change.
     /// Usage: `for await state in await sdk.inboxStateStream { ... }`
-    public var inboxStateSteam: AsyncStream<InboxState> {
+    public var inboxStateStream: AsyncStream<InboxState> {
         get async {
             await inbox.stateStream
         }
