@@ -60,29 +60,38 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     private var inboxButton = UIButton()
     private var inboxBadgeView = UIView()
     private var inboxBadgeLabel = UILabel()
+    private var inboxObservationTask: Task<Void, Never>?
     
     private var sdk: ATTNSDK? {
         (UIApplication.shared.delegate as? AppDelegate)?.attentiveSdk
     }
     
     // MARK: - View Lifecycle
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         setupNavigationBar()
         setupUI()
         setupCollectionView()
-        
-        guard let sdk else {
-            return
-        }
-        
-        Task {
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+
+        guard let sdk else { return }
+
+        inboxObservationTask = Task {
             for await _ in await sdk.inboxStateStream {
                 await updateInboxBadge()
             }
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        inboxObservationTask?.cancel()
+        inboxObservationTask = nil
     }
 
     // MARK: - Navigation Bar Setup
