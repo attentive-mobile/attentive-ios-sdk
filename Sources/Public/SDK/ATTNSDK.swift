@@ -497,9 +497,11 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc(updateUserWithEmail:phone:callback:)
-    public func updateUser(email: String? = nil,
-                                                 phone: String? = nil,
-                                                 callback: ATTNAPICallback? = nil) {
+    public func updateUser(
+        email: String? = nil,
+        phone: String? = nil,
+        callback: ATTNAPICallback? = nil
+    ) {
         Loggers.event.debug("Attempting to update user - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
