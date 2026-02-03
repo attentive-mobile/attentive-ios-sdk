@@ -46,7 +46,7 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
-    private let inbox = Inbox()
+    private let inboxManager = InboxManager()
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -177,27 +177,27 @@ public final class ATTNSDK: NSObject {
     /// Usage: `for await state in await sdk.inboxStateStream { ... }`
     public var inboxStateStream: AsyncStream<InboxState> {
         get async {
-            await inbox.stateStream
+            await inboxManager.stateStream
         }
     }
 
     /// Async accessor for all messages.
     public var allMessages: [Message] {
         get async {
-            await inbox.allMessages
+            await inboxManager.allMessages
         }
     }
 
     /// Async accessor for unread count.
     public var unreadCount: Int {
         get async {
-            await inbox.unreadCount
+            await inboxManager.unreadCount
         }
     }
 
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
-        InboxView(viewModel: InboxViewModel(inbox: inbox, style: style))
+        InboxView(viewModel: InboxViewModel(inboxManager: inboxManager, style: style))
     }
 
     @MainActor
@@ -206,15 +206,15 @@ public final class ATTNSDK: NSObject {
     }
 
     public func markRead(for messageID: Message.ID) async {
-        await inbox.markRead(messageID)
+        await inboxManager.markRead(messageID)
     }
 
     public func markUnread(for messageID: Message.ID) async {
-        await inbox.markUnread(messageID)
+        await inboxManager.markUnread(messageID)
     }
 
     public func delete(messageID: Message.ID) async {
-        await inbox.delete(messageID)
+        await inboxManager.delete(messageID)
     }
 
     // MARK: Push Permissions & Token

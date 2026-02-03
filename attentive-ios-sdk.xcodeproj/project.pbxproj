@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0A83DEAE2F21A1AA003FD456 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAB2F21A1AA003FD456 /* Inbox.swift */; };
+		0A411B432F31DE0400563599 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A411B422F31DDFA00563599 /* Inbox.swift */; };
+		0A83DEAE2F21A1AA003FD456 /* InboxManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */; };
 		0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAC2F21A1AA003FD456 /* Message.swift */; };
 		0A83DEB22F22C309003FD456 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB12F22C2F9003FD456 /* InboxView.swift */; };
 		0A83DEB42F22C48C003FD456 /* InboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB32F22C488003FD456 /* InboxViewModel.swift */; };
@@ -118,8 +119,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0A411B422F31DDFA00563599 /* Inbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inbox.swift; sourceTree = "<group>"; };
 		0A812DF42F1827C50082B133 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
-		0A83DEAB2F21A1AA003FD456 /* Inbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inbox.swift; sourceTree = "<group>"; };
+		0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManager.swift; sourceTree = "<group>"; };
 		0A83DEAC2F21A1AA003FD456 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		0A83DEB12F22C2F9003FD456 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		0A83DEB32F22C488003FD456 /* InboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViewModel.swift; sourceTree = "<group>"; };
@@ -256,10 +258,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0A411B452F31E13400563599 /* View */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
 		0A83DEAD2F21A1AA003FD456 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				0A83DEAB2F21A1AA003FD456 /* Inbox.swift */,
+				0A411B422F31DDFA00563599 /* Inbox.swift */,
 				0A83DEAC2F21A1AA003FD456 /* Message.swift */,
 			);
 			path = Models;
@@ -268,11 +277,14 @@
 		0A83DEB02F22C26E003FD456 /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
+				0A83DEAD2F21A1AA003FD456 /* Models */,
+				0A411B452F31E13400563599 /* View */,
 				0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */,
 				0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */,
 				0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */,
 				0A83DEB32F22C488003FD456 /* InboxViewModel.swift */,
 				0A83DEB12F22C2F9003FD456 /* InboxView.swift */,
+				0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */,
 			);
 			path = Inbox;
 			sourceTree = "<group>";
@@ -547,7 +559,6 @@
 			isa = PBXGroup;
 			children = (
 				0A83DEB02F22C26E003FD456 /* Inbox */,
-				0A83DEAD2F21A1AA003FD456 /* Models */,
 				FB35C1812C0E1F85009FA048 /* Helpers */,
 				FB60AF092C12119F00C61537 /* URLProviders */,
 				FBA9F9E62C0A77AB00C65024 /* API */,
@@ -739,6 +750,7 @@
 				FB35C1932C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift in Sources */,
 				FB35C18D2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift in Sources */,
 				FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */,
+				0A411B432F31DE0400563599 /* Inbox.swift in Sources */,
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,
@@ -783,7 +795,7 @@
 				FBA9FA152C0A77AB00C65024 /* ATTNOrder.swift in Sources */,
 				FBA9FA1A2C0A77AB00C65024 /* ATTNSDK.swift in Sources */,
 				FBA9FA0E2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift in Sources */,
-				0A83DEAE2F21A1AA003FD456 /* Inbox.swift in Sources */,
+				0A83DEAE2F21A1AA003FD456 /* InboxManager.swift in Sources */,
 				0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */,
 				FBA9FA0C2C0A77AB00C65024 /* ATTNParameterValidation.swift in Sources */,
 			);
