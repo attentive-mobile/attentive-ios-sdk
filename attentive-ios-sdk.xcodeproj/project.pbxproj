@@ -258,11 +258,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0A411B452F31E13400563599 /* View */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
 		0A83DEAD2F21A1AA003FD456 /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				0A411B422F31DDFA00563599 /* Inbox.swift */,
-				0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */,
 				0A83DEAC2F21A1AA003FD456 /* Message.swift */,
 			);
 			path = Models;
@@ -271,11 +277,14 @@
 		0A83DEB02F22C26E003FD456 /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
+				0A83DEAD2F21A1AA003FD456 /* Models */,
+				0A411B452F31E13400563599 /* View */,
 				0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */,
 				0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */,
 				0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */,
 				0A83DEB32F22C488003FD456 /* InboxViewModel.swift */,
 				0A83DEB12F22C2F9003FD456 /* InboxView.swift */,
+				0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */,
 			);
 			path = Inbox;
 			sourceTree = "<group>";
@@ -550,7 +559,6 @@
 			isa = PBXGroup;
 			children = (
 				0A83DEB02F22C26E003FD456 /* Inbox */,
-				0A83DEAD2F21A1AA003FD456 /* Models */,
 				FB35C1812C0E1F85009FA048 /* Helpers */,
 				FB60AF092C12119F00C61537 /* URLProviders */,
 				FBA9F9E62C0A77AB00C65024 /* API */,
