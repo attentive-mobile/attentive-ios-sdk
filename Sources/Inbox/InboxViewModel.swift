@@ -15,44 +15,44 @@ class InboxViewModel: ObservableObject {
         case loaded([Message])
         case error(Error)
     }
-    
+
     @Published
     var state: State = .loading
 
     let style: InboxStyle
 
-    private let inbox: Inbox
+    private let inboxManager: InboxManager
 
-    init(inbox: Inbox, style: InboxStyle) {
-        self.inbox = inbox
+    init(inboxManager: InboxManager, style: InboxStyle) {
+        self.inboxManager = inboxManager
         self.style = style
         state = .loading
         Task {
-            for await state in await inbox.stateStream {
+            for await state in await inboxManager.stateStream {
                 self.state = state.viewState
             }
         }
     }
 
     func refresh() async {
-        await inbox.refresh()
+        await inboxManager.refresh()
     }
 
     func markAsRead(_ messageID: Message.ID) {
         Task {
-            await inbox.markRead(messageID)
+            await inboxManager.markRead(messageID)
         }
     }
 
     func markUnread(_ messageID: Message.ID) {
         Task {
-            await inbox.markUnread(messageID)
+            await inboxManager.markUnread(messageID)
         }
     }
 
     func delete(_ messageID: Message.ID) {
         Task {
-            await inbox.delete(messageID)
+            await inboxManager.delete(messageID)
         }
     }
 }
