@@ -472,17 +472,14 @@ class SettingsViewController: UIViewController {
     }
 
     @objc private func cartDeepLinkTapped() {
-        guard let navController = navigationController,
-              let appDelegate = UIApplication.shared.delegate as? AppDelegate,
-              let viewModel = appDelegate.productListViewModel else {
-            showToast(with: "Unable to navigate to cart")
+        // Test deep link routing with hard-coded URL
+        guard let deepLinkURL = URL(string: "bonni://cart") else {
+            showToast(with: "Invalid deep link URL")
             return
         }
 
-        // Navigate to cart via deep link simulation
-        let cartVC = CartViewController(viewModel: viewModel)
-        navController.pushViewController(cartVC, animated: true)
-        showToast(with: "Navigated to cart via deep link")
+        let success = DeepLinkRouter.shared.handle(url: deepLinkURL)
+        showToast(with: success ? "Deep link handled: bonni://cart" : "Deep link failed")
     }
 
     @objc private func clearUserTapped() {
