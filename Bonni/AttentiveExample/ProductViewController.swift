@@ -64,6 +64,12 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+
+        // Store the viewModel in AppDelegate for deep link access
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.productListViewModel = viewModel
+        }
+
         setupNavigationBar()
         setupUI()
         setupCollectionView()

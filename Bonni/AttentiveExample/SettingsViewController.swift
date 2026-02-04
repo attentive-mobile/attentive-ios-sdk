@@ -102,6 +102,13 @@ class SettingsViewController: UIViewController {
         return button
     }()
 
+    private let cartDeepLinkButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Cart Deep Link", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
     private let clearUserButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Clear User", for: .normal)
@@ -255,6 +262,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(sendLocalPushNotification)
         stackView.addArrangedSubview(sendCustomEventButton)
         // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
+        stackView.addArrangedSubview(cartDeepLinkButton)
         stackView.addArrangedSubview(clearUserButton)
         stackView.addArrangedSubview(clearCookiesButton)
         stackView.addArrangedSubview(devicetokenLabel)
@@ -269,6 +277,7 @@ class SettingsViewController: UIViewController {
                 sendLocalPushNotification,
                 sendCustomEventButton,
                 identifyUserButton,
+                cartDeepLinkButton,
                 clearUserButton,
                 clearCookiesButton,
                 copyDeviceTokenButton
@@ -316,6 +325,7 @@ class SettingsViewController: UIViewController {
         sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
         sendCustomEventButton.addTarget(self, action: #selector(sendCustomEventTapped), for: .touchUpInside)
         identifyUserButton.addTarget(self, action: #selector(identifyUserTapped), for: .touchUpInside)
+        cartDeepLinkButton.addTarget(self, action: #selector(cartDeepLinkTapped), for: .touchUpInside)
         clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
         clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
 
@@ -459,6 +469,20 @@ class SettingsViewController: UIViewController {
 
     @objc private func identifyUserTapped() {
         // TODO: Identify the user & show results on debug view
+    }
+
+    @objc private func cartDeepLinkTapped() {
+        guard let navController = navigationController,
+              let appDelegate = UIApplication.shared.delegate as? AppDelegate,
+              let viewModel = appDelegate.productListViewModel else {
+            showToast(with: "Unable to navigate to cart")
+            return
+        }
+
+        // Navigate to cart via deep link simulation
+        let cartVC = CartViewController(viewModel: viewModel)
+        navController.pushViewController(cartVC, animated: true)
+        showToast(with: "Navigated to cart via deep link")
     }
 
     @objc private func clearUserTapped() {
