@@ -103,6 +103,71 @@ platform :ios do
     version
   end
 
+  # ========================
+  # iOS Deployment Target Management
+  # ========================
+
+  desc "Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0"
+  lane :sync_ios_target do |options|
+    root_dir = File.expand_path("..", Dir.pwd)
+    target_file = File.join(root_dir, ".ios-deployment-target")
+
+    # If target provided, update .ios-deployment-target file first
+    if options[:target]
+      File.write(target_file, options[:target])
+      UI.message("Updated .ios-deployment-target file to: #{options[:target]}")
+    end
+
+    # Read target from file
+    target = File.read(target_file).strip
+    UI.user_error!(".ios-deployment-target file is empty") if target.empty?
+
+    UI.message("Syncing iOS deployment target: #{target}")
+
+    # 1. Update Shared.xcconfig
+    xcconfig_file = File.join(root_dir, "Shared.xcconfig")
+    if File.exist?(xcconfig_file)
+      content = File.read(xcconfig_file)
+      content.gsub!(/IPHONEOS_DEPLOYMENT_TARGET = .*/, "IPHONEOS_DEPLOYMENT_TARGET = #{target}")
+      File.write(xcconfig_file, content)
+      UI.success("Updated Shared.xcconfig")
+    end
+
+    # 2. Update Package.swift (platform version)
+    package_file = File.join(root_dir, "Package.swift")
+    if File.exist?(package_file)
+      content = File.read(package_file)
+      # Convert "14.0" to "v14" format for Swift Package Manager
+      major_version = target.split('.').first
+      content.gsub!(/\.iOS\(\.v\d+\)/, ".iOS(.v#{major_version})")
+      File.write(package_file, content)
+      UI.success("Updated Package.swift")
+    end
+
+    UI.success("")
+    UI.success("iOS deployment target sync complete: #{target}")
+    UI.message("")
+    UI.message("Files updated:")
+    UI.message("  - .ios-deployment-target (source of truth)")
+    UI.message("  - Shared.xcconfig")
+    UI.message("  - Package.swift")
+    UI.message("")
+    UI.message("Files that read dynamically from .ios-deployment-target:")
+    UI.message("  - ATTNSDKFramework.podspec")
+    UI.message("  - attentive-ios-sdk.podspec")
+
+    target
+  end
+
+  desc "Get current iOS deployment target"
+  lane :get_ios_target do
+    root_dir = File.expand_path("..", Dir.pwd)
+    target_file = File.join(root_dir, ".ios-deployment-target")
+    target = File.read(target_file).strip
+    UI.message("Current iOS deployment target: #{target}")
+    target
+  end
+
   desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
   lane :bump_version do |options|
     root_dir = File.expand_path("..", Dir.pwd)

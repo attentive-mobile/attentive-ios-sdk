@@ -1,4 +1,7 @@
 // Shared build configuration for Attentive iOS SDK
 // This file is used by both attentive-ios-sdk and Bonni projects
+//
+// Note: IPHONEOS_DEPLOYMENT_TARGET is managed by .ios-deployment-target
+// Run `fastlane sync_ios_target` to update this value
 
 IPHONEOS_DEPLOYMENT_TARGET = 14.0
