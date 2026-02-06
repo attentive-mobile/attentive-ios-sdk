@@ -16,7 +16,7 @@ The Attentive IOS SDK provides the functionality to render Attentive signup unit
   s.author           = { 'Ivan Loughman-Pawelko' => 'iloughman@attentivemobile.com' }
   s.source           = { :git => 'https://github.com/attentive-mobile/attentive-ios-sdk.git', :tag => s.version.to_s }
 
-  s.ios.deployment_target = '14.0'
+  s.ios.deployment_target = File.read(File.join(__dir__, '.ios-deployment-target')).strip
   s.swift_versions = ['5']
   s.source_files = 'Sources/**/*.swift', 'Objc/**/*'
   s.resource_bundles = {'ATTNSDKFramework' => ['Sources/Resources/PrivacyInfo.xcprivacy']}

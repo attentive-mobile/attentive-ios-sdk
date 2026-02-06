@@ -39,6 +39,22 @@ Sync version across all files. Usage: fastlane sync_version version:2.0.11
 
 Get current version from .version file
 
+### ios sync_ios_target
+
+```sh
+[bundle exec] fastlane ios sync_ios_target
+```
+
+Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0
+
+### ios get_ios_target
+
+```sh
+[bundle exec] fastlane ios get_ios_target
+```
+
+Get current iOS deployment target
+
 ### ios bump_version
 
 ```sh
