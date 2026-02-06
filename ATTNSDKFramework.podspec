@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'ATTNSDKFramework'
-  s.version          = '2.0.8'
+  s.version          = File.read(File.join(__dir__, '.version')).strip
   s.summary          = 'Attentive IOS SDK'
 
 # This description is used to generate tags and improve search results.

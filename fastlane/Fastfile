@@ -30,6 +30,111 @@ platform :ios do
   end
 
   # ========================
+  # Version Management
+  # ========================
+
+  desc "Sync version across all files. Usage: fastlane sync_version version:2.0.11"
+  lane :sync_version do |options|
+    root_dir = File.expand_path("..", Dir.pwd)
+    version_file = File.join(root_dir, ".version")
+
+    # If version provided, update .version file first
+    if options[:version]
+      File.write(version_file, options[:version])
+      UI.message("📝 Updated .version file to: #{options[:version]}")
+    end
+
+    # Read version from file
+    version = File.read(version_file).strip
+    UI.user_error!(".version file is empty") if version.empty?
+
+    UI.message("🔄 Syncing version: #{version}")
+
+    # 1. Update ATTNConstants.swift
+    constants_file = File.join(root_dir, "Sources/ATTNConstants.swift")
+    if File.exist?(constants_file)
+      content = File.read(constants_file)
+      content.gsub!(/static let sdkVersion = ".*"/, "static let sdkVersion = \"#{version}\"")
+      File.write(constants_file, content)
+      UI.success("✓ Updated ATTNConstants.swift")
+    end
+
+    # 2. Update Package.swift (the URL version)
+    package_file = File.join(root_dir, "Package.swift")
+    if File.exist?(package_file)
+      content = File.read(package_file)
+      content.gsub!(%r{releases/download/[0-9.]+[^/]*/}, "releases/download/#{version}/")
+      File.write(package_file, content)
+      UI.success("✓ Updated Package.swift")
+    end
+
+    # 3. Update README.md pod versions
+    readme_file = File.join(root_dir, "README.md")
+    if File.exist?(readme_file)
+      content = File.read(readme_file)
+      content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
+      content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
+      File.write(readme_file, content)
+      UI.success("✓ Updated README.md")
+    end
+
+    UI.success("")
+    UI.success("✅ Version sync complete: #{version}")
+    UI.message("")
+    UI.message("Files updated:")
+    UI.message("  - .version (source of truth)")
+    UI.message("  - ATTNSDKFramework.podspec (reads from .version)")
+    UI.message("  - attentive-ios-sdk.podspec (reads from .version)")
+    UI.message("  - Sources/ATTNConstants.swift")
+    UI.message("  - Package.swift")
+    UI.message("  - README.md")
+    UI.message("")
+    UI.important("Note: Package.swift checksum must be updated manually after uploading xcframework")
+
+    version
+  end
+
+  desc "Get current version from .version file"
+  lane :get_version do
+    root_dir = File.expand_path("..", Dir.pwd)
+    version_file = File.join(root_dir, ".version")
+    version = File.read(version_file).strip
+    UI.message("Current version: #{version}")
+    version
+  end
+
+  desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
+  lane :bump_version do |options|
+    root_dir = File.expand_path("..", Dir.pwd)
+    version_file = File.join(root_dir, ".version")
+    current_version = File.read(version_file).strip
+
+    parts = current_version.split('.').map(&:to_i)
+    UI.user_error!("Invalid version format: #{current_version}") if parts.length != 3
+
+    bump_type = options[:type] || "patch"
+
+    case bump_type
+    when "major"
+      parts[0] += 1
+      parts[1] = 0
+      parts[2] = 0
+    when "minor"
+      parts[1] += 1
+      parts[2] = 0
+    when "patch"
+      parts[2] += 1
+    else
+      UI.user_error!("Invalid bump type: #{bump_type}. Use: major, minor, or patch")
+    end
+
+    new_version = parts.join('.')
+    UI.message("Bumping version: #{current_version} → #{new_version}")
+
+    sync_version(version: new_version)
+  end
+
+  # ========================
   # Code Quality
   # ========================
 

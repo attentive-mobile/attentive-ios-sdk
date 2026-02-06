@@ -23,6 +23,30 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Setup dependencies and environment
 
+### ios sync_version
+
+```sh
+[bundle exec] fastlane ios sync_version
+```
+
+Sync version across all files. Usage: fastlane sync_version version:2.0.11
+
+### ios get_version
+
+```sh
+[bundle exec] fastlane ios get_version
+```
+
+Get current version from .version file
+
+### ios bump_version
+
+```sh
+[bundle exec] fastlane ios bump_version
+```
+
+Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)
+
 ### ios lint
 
 ```sh
