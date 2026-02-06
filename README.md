@@ -26,6 +26,8 @@ pod install
 We also support adding the dependency via Swift Package Manager.
 SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI.
 
+Universal `XCFramework` is supported for consumers on Xcode 26.1.1+.
+
 
 ## Usage
 
