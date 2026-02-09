@@ -38,6 +38,10 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
+    private let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
+    private var pendingMarketingRequests: [PendingMarketingRequest] = []
+    private var pendingMarketingExpiryTimer: DispatchSourceTimer?
+    private let pendingMarketingTTL: TimeInterval = 60
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
     private var pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
@@ -85,6 +89,12 @@ public final class ATTNSDK: NSObject {
         self.initializeSkipFatigueOnCreatives()
 
         Loggers.creative.debug("ATTNSDK initialization successful - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Domain: \(domain, privacy: .public)")
+    }
+
+    deinit {
+        pendingMarketingExpiryTimer?.cancel()
+        pendingMarketingExpiryTimer = nil
+        pendingMarketingRequests.removeAll()
     }
 
     @objc(initWithDomain:)
@@ -198,6 +208,7 @@ public final class ATTNSDK: NSObject {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
+        flushPendingMarketingRequests(with: tokenString)
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
             Loggers.event.debug("----- Push-Token Request Result -----")
@@ -378,6 +389,18 @@ public final class ATTNSDK: NSObject {
             return
         }
 
+        let token = currentPushToken
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            enqueueMarketingRequest(.init(
+                kind: .optIn,
+                email: email,
+                phone: phone,
+                callback: callback,
+                createdAt: Date()
+            ))
+            return
+        }
+
         Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
@@ -417,6 +440,18 @@ public final class ATTNSDK: NSObject {
         guard email != nil || phone != nil else {
             Loggers.event.error("Opt-out failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public)")
             callback?(nil, nil, nil, ATTNError.missingContactInfo)
+            return
+        }
+
+        let token = currentPushToken
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            enqueueMarketingRequest(.init(
+                kind: .optOut,
+                email: email,
+                phone: phone,
+                callback: callback,
+                createdAt: Date()
+            ))
             return
         }
 
@@ -612,6 +647,93 @@ public final class ATTNSDK: NSObject {
         }
     }
 
+    private func enqueueMarketingRequest(_ request: PendingMarketingRequest) {
+        marketingQueue.async { [weak self] in
+            guard let self else { return }
+            let expiresAt = request.createdAt.addingTimeInterval(self.pendingMarketingTTL)
+            Loggers.event.debug("Queueing marketing request until push token is available - Kind: \(request.kind.rawValue, privacy: .public), Expires: \(expiresAt, privacy: .public)")
+            self.pendingMarketingRequests.append(request)
+            self.scheduleMarketingExpiryTimer()
+        }
+    }
+
+    private func flushPendingMarketingRequests(with token: String) {
+        marketingQueue.async { [weak self] in
+            guard let self else { return }
+            let now = Date()
+            let (valid, expired) = self.pendingMarketingRequests.partitioned { now.timeIntervalSince($0.createdAt) <= self.pendingMarketingTTL }
+            self.pendingMarketingRequests = []
+            self.cancelMarketingExpiryTimerIfNeeded()
+
+            for request in expired {
+                Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
+                request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
+            }
+
+            for request in valid {
+                self.sendMarketingRequest(request, pushToken: token)
+            }
+        }
+    }
+
+    private func scheduleMarketingExpiryTimer() {
+        guard !pendingMarketingRequests.isEmpty else {
+            cancelMarketingExpiryTimerIfNeeded()
+            return
+        }
+        let nextExpiry = pendingMarketingRequests
+            .map { $0.createdAt.addingTimeInterval(pendingMarketingTTL) }
+            .min() ?? Date().addingTimeInterval(pendingMarketingTTL)
+        let delay = max(0, nextExpiry.timeIntervalSinceNow)
+        cancelMarketingExpiryTimerIfNeeded()
+        let timer = DispatchSource.makeTimerSource(queue: marketingQueue)
+        timer.schedule(deadline: .now() + delay, repeating: .never)
+        timer.setEventHandler { [weak self] in
+            self?.expirePendingMarketingRequests()
+        }
+        pendingMarketingExpiryTimer = timer
+        timer.resume()
+    }
+
+    private func cancelMarketingExpiryTimerIfNeeded() {
+        pendingMarketingExpiryTimer?.cancel()
+        pendingMarketingExpiryTimer = nil
+    }
+
+    private func expirePendingMarketingRequests() {
+        let now = Date()
+        let (valid, expired) = pendingMarketingRequests.partitioned { now.timeIntervalSince($0.createdAt) <= pendingMarketingTTL }
+        pendingMarketingRequests = valid
+        scheduleMarketingExpiryTimer()
+        for request in expired {
+            Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
+            request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
+        }
+    }
+
+    private func sendMarketingRequest(_ request: PendingMarketingRequest, pushToken: String) {
+        switch request.kind {
+        case .optIn:
+            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
+            api.sendOptInMarketingSubscription(
+                pushToken: pushToken,
+                email: request.email,
+                phone: request.phone,
+                userIdentity: userIdentity,
+                callback: request.callback
+            )
+        case .optOut:
+            Loggers.event.debug("Sending queued opt-out marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
+            api.sendOptOutMarketingSubscription(
+                pushToken: pushToken,
+                email: request.email,
+                phone: request.phone,
+                userIdentity: userIdentity,
+                callback: request.callback
+            )
+        }
+    }
+
     /// Recursively escapes quotes and slashes only in attentive_message_title and attentive_message_body fields.
     func escapeJSONDictionary(_ dictionary: [String: Any]) -> [String: Any] {
         var escapedDict: [String: Any] = [:]
@@ -715,5 +837,35 @@ extension ATTNSDK {
         self.api = api
         guard let urlBuilder = urlBuilder else { return }
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self, creativeUrlBuilder: urlBuilder)
+    }
+}
+
+private struct PendingMarketingRequest {
+    enum Kind: String {
+        case optIn
+        case optOut
+    }
+
+    let kind: Kind
+    let email: String?
+    let phone: String?
+    let callback: ATTNAPICallback?
+    let createdAt: Date
+}
+
+private extension Array {
+    func partitioned(by isIncluded: (Element) -> Bool) -> ([Element], [Element]) {
+        var included: [Element] = []
+        var excluded: [Element] = []
+        included.reserveCapacity(count)
+        excluded.reserveCapacity(count)
+        for element in self {
+            if isIncluded(element) {
+                included.append(element)
+            } else {
+                excluded.append(element)
+            }
+        }
+        return (included, excluded)
     }
 }
