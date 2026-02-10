@@ -57,13 +57,31 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         return collectionView
     }()
     
-    private let viewModel = ProductListViewModel()
+    private let viewModel: ProductListViewModel
+
+    // MARK: - Initialization
+
+    init(viewModel: ProductListViewModel = ProductListViewModel()) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.viewModel = ProductListViewModel()
+        super.init(coder: coder)
+    }
     
     // MARK: - View Lifecycle
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+
+        // Store the viewModel in AppDelegate for deep link access
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.productListViewModel = viewModel
+        }
+
         setupNavigationBar()
         setupUI()
         setupCollectionView()

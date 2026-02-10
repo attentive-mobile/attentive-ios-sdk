@@ -12,6 +12,17 @@
 		<string>DegularDisplay-Bold.otf</string>
 		<string>DegularDisplay-Black.otf</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>bonni</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.attentive.bonni</string>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
