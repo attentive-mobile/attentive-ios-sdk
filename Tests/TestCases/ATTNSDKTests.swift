@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import UserNotifications
 @testable import ATTNSDKFramework
 
 final class ATTNSDKTests: XCTestCase {
@@ -18,6 +19,7 @@ final class ATTNSDKTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
         creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
         apiSpy = ATTNAPISpy(domain: testDomain)
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
@@ -29,6 +31,7 @@ final class ATTNSDKTests: XCTestCase {
         ATTNEventTracker.destroy()
 
         ProcessInfo.restoreOriginalEnvironment()
+        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
 
         creativeUrlProviderSpy = nil
         sut = nil
@@ -341,5 +344,37 @@ final class ATTNSDKTests: XCTestCase {
             XCTAssertEqual(escaped["double"] as? Double, 1.5)
         }
 
-}
+    func testOptIn_withoutPushToken_isQueuedAndSentAfterTokenRegistration() {
+        sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
 
+        XCTAssertFalse(apiSpy.sendOptInWasCalled, "Opt-in should be queued without a push token")
+
+        let deviceToken = Data([0x01, 0x02, 0x03])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        XCTAssertTrue(waitForCondition({ self.apiSpy.sendOptInWasCalled }))
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+    }
+
+    func testOptOut_withoutPushToken_isQueuedAndSentAfterTokenRegistration() {
+        sut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertFalse(apiSpy.sendOptOutWasCalled, "Opt-out should be queued without a push token")
+
+        let deviceToken = Data([0x0a, 0x0b, 0x0c])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        XCTAssertTrue(waitForCondition({ self.apiSpy.sendOptOutWasCalled }))
+        XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
+    }
+
+    private func waitForCondition(_ condition: @escaping () -> Bool, timeout: TimeInterval = 0.25) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        return condition()
+    }
+
+}
