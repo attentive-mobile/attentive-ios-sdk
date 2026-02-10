@@ -71,19 +71,21 @@ class DeepLinkRouter {
     }
 
     private func navigateToCart(from navigationController: UINavigationController) -> Bool {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
-              let viewModel = appDelegate.productListViewModel else {
+        guard let viewModel = makeProductListViewModel() else {
             return false
         }
 
         let cartVC = CartViewController(viewModel: viewModel)
 
-        if Thread.isMainThread {
-            navigationController.pushViewController(cartVC, animated: true)
-        } else {
-            DispatchQueue.main.sync {
+        runOnMain {
+            if navigationController.viewControllers.contains(where: { $0 is ProductViewController }) {
                 navigationController.pushViewController(cartVC, animated: true)
+                return
             }
+
+            let productVC = ProductViewController(viewModel: viewModel)
+            navigationController.pushViewController(productVC, animated: false)
+            navigationController.pushViewController(cartVC, animated: true)
         }
 
         return true
@@ -140,5 +142,27 @@ class DeepLinkRouter {
         }
 
         return topController
+    }
+
+    private func makeProductListViewModel() -> ProductListViewModel? {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+            return nil
+        }
+
+        if let existing = appDelegate.productListViewModel {
+            return existing
+        }
+
+        let viewModel = ProductListViewModel()
+        appDelegate.productListViewModel = viewModel
+        return viewModel
+    }
+
+    private func runOnMain(_ work: @escaping () -> Void) {
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.async(execute: work)
+        }
     }
 }

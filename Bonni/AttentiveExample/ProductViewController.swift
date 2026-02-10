@@ -57,7 +57,19 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
         return collectionView
     }()
     
-    private let viewModel = ProductListViewModel()
+    private let viewModel: ProductListViewModel
+
+    // MARK: - Initialization
+
+    init(viewModel: ProductListViewModel = ProductListViewModel()) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.viewModel = ProductListViewModel()
+        super.init(coder: coder)
+    }
     
     // MARK: - View Lifecycle
     
