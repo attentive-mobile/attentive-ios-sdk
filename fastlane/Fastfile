@@ -112,13 +112,11 @@ platform :ios do
     root_dir = File.expand_path("..", Dir.pwd)
     target_file = File.join(root_dir, ".ios-deployment-target")
 
-    # If target provided, update .ios-deployment-target file first
     if options[:target]
       File.write(target_file, options[:target])
       UI.message("Updated .ios-deployment-target file to: #{options[:target]}")
     end
 
-    # Read target from file
     target = File.read(target_file).strip
     UI.user_error!(".ios-deployment-target file is empty") if target.empty?
 
@@ -137,7 +135,6 @@ platform :ios do
     package_file = File.join(root_dir, "Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
-      # Convert "14.0" to "v14" format for Swift Package Manager
       major_version = target.split('.').first
       content.gsub!(/\.iOS\(\.v\d+\)/, ".iOS(.v#{major_version})")
       File.write(package_file, content)
@@ -274,7 +271,6 @@ platform :ios do
 
   desc "Build Bonni"
   lane :build_bonni do
-    # Build Bonni App
     UI.message("Building Bonni...")
     xcodebuild(
       project: "Bonni/Bonni.xcodeproj",
@@ -345,14 +341,14 @@ platform :ios do
     # Build for device
     UI.message "=== [1/3] Build iOS device framework ==="
     build_ios_app(
-      project: "#{project}",
-      scheme: "#{scheme}",
-      configuration: "#{configuration}",
+      project: project,
+      scheme: scheme,
+      configuration: configuration,
       skip_package_ipa: true,
       skip_archive: true,
       destination: "generic/platform=iOS",
       derived_data_path: "#{output_root}/DerivedData-ios",
-      xcargs: "#{xcargs}"
+      xcargs: xcargs
     )
 
     ios_framework = "#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos/#{framework}.framework"
@@ -369,14 +365,14 @@ platform :ios do
     # Build for simulator
     UI.message "=== [2/3] Build iOS simulator framework ==="
     build_ios_app(
-      project: "#{project}",
-      scheme: "#{scheme}",
-      configuration: "#{configuration}",
+      project: project,
+      scheme: scheme,
+      configuration: configuration,
       skip_package_ipa: true,
       skip_archive: true,
       destination: "generic/platform=iOS Simulator",
       derived_data_path: "#{output_root}/DerivedData-sim",
-      xcargs: "#{xcargs}"
+      xcargs: xcargs
     )
 
     sim_framework = "#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator/#{framework}.framework"
@@ -433,8 +429,8 @@ platform :ios do
     run_tests(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
-      device: "#{FASTLANE_TEST_DEVICE}",
-      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
+      device: FASTLANE_TEST_DEVICE,
+      output_directory: FASTLANE_TEST_OUTPUT_DIR,
       output_types: "html,junit",
       result_bundle: true
     )
@@ -459,8 +455,8 @@ platform :ios do
     scan(
       workspace: "attentive-ios-sdk.xcworkspace",
       scheme: "CreativeUITest",
-      device: "#{FASTLANE_TEST_DEVICE}",
-      output_directory: "#{FASTLANE_TEST_OUTPUT_DIR}",
+      device: FASTLANE_TEST_DEVICE,
+      output_directory: FASTLANE_TEST_OUTPUT_DIR,
       output_types: "html,junit",
       result_bundle: true
     )
@@ -476,7 +472,6 @@ platform :ios do
   lane :validate_podspec do
     UI.message("Validating CocoaPods podspec...")
 
-    # Ensure CocoaPods is installed
     unless sh("command -v pod", log: false).strip.empty?
       UI.message("CocoaPods already installed")
     else
@@ -510,10 +505,8 @@ platform :ios do
   lane :beta do
     UI.message("Preparing TestFlight distribution...")
 
-    # Setup CI environment if running on CI
     setup_ci if ENV['CI']
 
-    # Sync code signing
     UI.message("Syncing code signing certificates...")
     match(
       type: "appstore",
@@ -522,14 +515,12 @@ platform :ios do
       app_identifier: ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example"
     )
 
-    # Increment build number based on CI build
     if ENV["CIRCLE_BUILD_NUM"]
       increment_build_number(
         build_number: ENV["CIRCLE_BUILD_NUM"]
       )
     end
 
-    # Build the app
     UI.message("Building app for App Store...")
     gym(
       scheme: "Example - Local",
@@ -544,7 +535,6 @@ platform :ios do
       clean: true
     )
 
-    # Upload to TestFlight
     UI.message("Uploading to TestFlight...")
     pilot(
       skip_waiting_for_build_processing: true,
@@ -603,7 +593,5 @@ platform :ios do
   error do |lane, exception|
     UI.error("Lane #{lane} failed with error:")
     UI.error(exception.message)
-
-    # Add custom error handling here (Slack notifications, etc.)
   end
 end
