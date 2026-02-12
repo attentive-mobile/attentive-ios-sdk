@@ -111,6 +111,22 @@ Build framework for device and simulator
 
 Build example apps
 
+### ios build_xcframework
+
+```sh
+[bundle exec] fastlane ios build_xcframework
+```
+
+Build XCFramework for distribution
+
+### ios unit_test
+
+```sh
+[bundle exec] fastlane ios unit_test
+```
+
+Run unit tests
+
 ### ios validate_podspec
 
 ```sh

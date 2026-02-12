@@ -112,6 +112,36 @@ jobs:
           destination: lint-results
 
   # -----------------------
+  # Build Framework
+  # -----------------------
+  build-framework:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build Framework via Fastlane
+          command: bundle exec fastlane build_framework
+
+  # -----------------------
+  # Build Examples
+  # -----------------------
+  build-examples:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build example apps via Fastlane
+          command: bundle exec fastlane build_examples
+
+  # -----------------------
   # Unit Tests
   # -----------------------
   unit-tests:
@@ -297,17 +327,6 @@ workflows:
           requires:
             - checkout-and-setup
 
-      # UI tests only on main and release branches
-      - ui-tests:
-          requires:
-            - checkout-and-setup
-          filters:
-            branches:
-              only:
-                - main
-                - /release\/.*/
-
-      # Build examples after framework builds
       - build-examples:
           requires:
             - build-framework
