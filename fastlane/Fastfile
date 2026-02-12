@@ -277,7 +277,15 @@ platform :ios do
     )
 
     ios_framework = "#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos/#{framework}.framework"
+    ios_dsym = "#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos/#{framework}.framework.dSYM"
     UI.user_error!("iOS device framework not found at #{ios_framework}") unless File.directory?(ios_framework)
+
+    # Strip nested Frameworks directory if present (should not exist with correct build settings)
+    nested_frameworks_ios = "#{ios_framework}/Frameworks"
+    if File.directory?(nested_frameworks_ios)
+      UI.important("Stripping nested Frameworks directory from iOS device framework")
+      FileUtils.rm_rf(nested_frameworks_ios)
+    end
 
     # Build for simulator
     UI.message "=== [2/3] Build iOS simulator framework ==="
@@ -293,16 +301,39 @@ platform :ios do
     )
 
     sim_framework = "#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator/#{framework}.framework"
+    sim_dsym = "#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator/#{framework}.framework.dSYM"
     UI.user_error!("Simulator framework not found at #{sim_framework}") unless File.directory?(sim_framework)
+
+    # Strip nested Frameworks directory if present (should not exist with correct build settings)
+    nested_frameworks_sim = "#{sim_framework}/Frameworks"
+    if File.directory?(nested_frameworks_sim)
+      UI.important("Stripping nested Frameworks directory from simulator framework")
+      FileUtils.rm_rf(nested_frameworks_sim)
+    end
 
     # Create universal framework
     UI.message "=== [3/3] Create universal XCFramework (device + sim) ==="
     universal_xcframework = "#{output_root}/#{framework}.xcframework"
+
+    # Include dSYMs if available
+    frameworks_with_dsyms = {}
+    if File.directory?(ios_dsym)
+      frameworks_with_dsyms[ios_framework] = { dsyms: ios_dsym }
+      UI.message "Including iOS device dSYM: #{ios_dsym}"
+    else
+      frameworks_with_dsyms[ios_framework] = {}
+      UI.important "iOS device dSYM not found at #{ios_dsym}, building without it"
+    end
+    if File.directory?(sim_dsym)
+      frameworks_with_dsyms[sim_framework] = { dsyms: sim_dsym }
+      UI.message "Including simulator dSYM: #{sim_dsym}"
+    else
+      frameworks_with_dsyms[sim_framework] = {}
+      UI.important "Simulator dSYM not found at #{sim_dsym}, building without it"
+    end
+
     create_xcframework(
-      frameworks: [
-        "#{ios_framework}",
-        "#{sim_framework}"
-      ],
+      frameworks_with_dsyms: frameworks_with_dsyms,
       output: "#{universal_xcframework}"
     )
     UI.success "Universal XCFramework -> #{universal_xcframework}"
