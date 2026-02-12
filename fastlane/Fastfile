@@ -12,7 +12,7 @@ platform :ios do
   # Setup and Dependencies
   # ========================
   before_all do
-    setup_ci if ENV['CI']
+    setup_circle_ci if is_ci
   end
 
   desc "Setup dependencies and environment"
@@ -235,12 +235,12 @@ platform :ios do
 
   desc "Build framework for device and simulator"
   lane :build_framework do
-    UI.message("Building framework...")
-
     project       = "attentive-ios-sdk.xcodeproj"
     scheme        = "attentive-ios-sdk-framework"
     configuration = "Release"
     xcargs        = "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+
+    UI.message("🏗️  Building framework...")
 
     # Build for iOS Device
     UI.message("Building for iOS Device...")
@@ -269,24 +269,12 @@ platform :ios do
     UI.success("Framework built successfully")
   end
 
-  desc "Build Bonni"
-  lane :build_bonni do
-    UI.message("Building Bonni...")
-    xcodebuild(
-      project: "Bonni/Bonni.xcodeproj",
-      scheme: "AttentiveExample",
-      destination: "generic/platform=iOS Simulator",
-      configuration: "Debug",
-      clean: true,
-      build: true,
-      xcargs: "CODE_SIGNING_ALLOWED=NO"
-    )
-
-    UI.success("Bonni built successfully")
-  end
-
   desc "Build example apps"
   lane :build_examples do
+    destination   = "generic/platform=iOS Simulator"
+    configuration = "Debug"
+    xcargs        = "CODE_SIGNING_ALLOWED=NO"
+
     UI.message("Building example apps...")
 
     # Build Example App (Local)
@@ -294,38 +282,26 @@ platform :ios do
     xcodebuild(
       workspace: "attentive-ios-sdk.xcworkspace",
       scheme: "Example - Local",
-      destination: "generic/platform=iOS Simulator",
-      configuration: "Debug",
+      destination: destination,
+      configuration: configuration,
       clean: true,
       build: true,
-      xcargs: "CODE_SIGNING_ALLOWED=NO"
-    )
-
-    # Build ExampleSwift App (SPM)
-    UI.message("Building ExampleSwift - SPM...")
-    xcodebuild(
-      workspace: "attentive-ios-sdk.xcworkspace",
-      scheme: "ExampleSwift - SPM",
-      destination: "generic/platform=iOS Simulator",
-      configuration: "Debug",
-      clean: true,
-      build: true,
-      xcargs: "CODE_SIGNING_ALLOWED=NO"
+      xcargs: xcargs
     )
 
     # Build Bonni App
-    UI.message("Building Bonni/AttentiveExample...")
+    UI.message("Building Bonni...")
     xcodebuild(
       project: "Bonni/Bonni.xcodeproj",
       scheme: "AttentiveExample",
-      destination: "generic/platform=iOS Simulator",
-      configuration: "Debug",
+      destination: destination,
+      configuration: configuration,
       clean: true,
       build: true,
-      xcargs: "CODE_SIGNING_ALLOWED=NO"
+      xcargs: xcargs
     )
 
-    UI.success("All example apps built successfully")
+    UI.success("Example apps built successfully")
   end
 
   lane :build_xcframework do
@@ -492,7 +468,12 @@ platform :ios do
     UI.message("Validating Swift Package...")
 
     spm(command: "resolve")
-    sh("cd .. && xcodebuild -scheme attentive-ios-sdk-framework -destination 'generic/platform=iOS Simulator' build")
+    xcodebuild(
+      workspace: ".swiftpm/xcode/package.xcworkspace",
+      scheme: "ATTNSDKFramework",
+      destination: "generic/platform=iOS Simulator",
+      build: true
+    )
 
     UI.success("SPM validation passed")
   end
@@ -505,14 +486,11 @@ platform :ios do
   lane :beta do
     UI.message("Preparing TestFlight distribution...")
 
-    setup_ci if ENV['CI']
-
+    # Sync code signing
     UI.message("Syncing code signing certificates...")
-    match(
+    sync_code_signing(
       type: "appstore",
-      readonly: true,
-      git_url: ENV["MATCH_GIT_URL"],
-      app_identifier: ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example"
+      readonly: true
     )
 
     if ENV["CIRCLE_BUILD_NUM"]
@@ -521,21 +499,25 @@ platform :ios do
       )
     end
 
+    # Build the app
     UI.message("Building app for App Store...")
-    gym(
-      scheme: "Example - Local",
-      workspace: "attentive-ios-sdk.xcworkspace",
+    build_ios_app(
+      project: "Bonni/Bonni.xcodeproj",
+      scheme: "AttentiveExample",
+      configuration: "Release",
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
           ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
         }
       },
-      output_directory: "build/",
+      output_directory: "./build",
       clean: true
     )
 
+    # Upload to TestFlight
     UI.message("Uploading to TestFlight...")
+    upload_to_testflight
     pilot(
       skip_waiting_for_build_processing: true,
       changelog: "Build #{ENV['CIRCLE_BUILD_NUM'] || 'local'} - #{ENV['CIRCLE_BRANCH'] || 'development'}",
