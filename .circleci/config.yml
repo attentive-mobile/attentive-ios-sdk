@@ -126,6 +126,10 @@ jobs:
           name: Build Framework via Fastlane
           command: bundle exec fastlane build_framework
 
+      - store_artifacts:
+          path: build/
+          destination: framework-builds
+
   # -----------------------
   # Build Examples
   # -----------------------
@@ -138,7 +142,7 @@ jobs:
       - setup-fastlane
 
       - run:
-          name: Build example apps via Fastlane
+          name: Build Example Apps via Fastlane
           command: bundle exec fastlane build_examples
 
   # -----------------------
@@ -190,40 +194,6 @@ jobs:
           path: ~/Library/Logs/DiagnosticReports
           destination: crash-reports
           when: on_fail
-
-  # -----------------------
-  # Build Framework
-  # -----------------------
-  build-framework:
-    executor: macos-xcode
-    steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
-      - run:
-          name: Build Framework via Fastlane
-          command: bundle exec fastlane build_framework
-
-      - store_artifacts:
-          path: build/
-          destination: framework-builds
-
-  # -----------------------
-  # Build Example Apps
-  # -----------------------
-  build-examples:
-    executor: macos-xcode
-    steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
-      - run:
-          name: Build Example Apps via Fastlane
-          command: bundle exec fastlane build_examples
 
   # -----------------------
   # Validate CocoaPods Spec
