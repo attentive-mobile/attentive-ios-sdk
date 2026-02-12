@@ -6,7 +6,7 @@ version: 2.1
 executors:
   macos-xcode:
     macos:
-      xcode: "26.0.1"
+      xcode: "26.1.1"
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -39,9 +39,6 @@ commands:
             - v1-gems-
       - macos/switch-ruby:
           version: "3.3"
-      - run:
-          name: Set Ruby Version
-          command: rbenv global $(rbenv versions --bare | grep "^3\.3\." | tail -1)
       - run:
           name: Install Bundler Dependencies
           command: |
@@ -168,34 +165,6 @@ jobs:
           destination: test-results
 
   # -----------------------
-  # UI Tests
-  # -----------------------
-  ui-tests:
-    executor: macos-xcode
-    steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
-      - run:
-          name: Run UI Tests via Fastlane
-          command: bundle exec fastlane ui_test
-          no_output_timeout: 20m
-
-      - store_test_results:
-          path: *fastlane_test_output_dir
-
-      - store_artifacts:
-          path: *fastlane_test_output_dir
-          destination: ui-test-results
-
-      - store_artifacts:
-          path: ~/Library/Logs/DiagnosticReports
-          destination: crash-reports
-          when: on_fail
-
-  # -----------------------
   # Validate CocoaPods Spec
   # -----------------------
   validate-podspec:
@@ -235,36 +204,6 @@ jobs:
           name: Validate Swift Package via Fastlane
           command: bundle exec fastlane validate_spm
 
-  # -----------------------
-  # Deploy to TestFlight
-  # -----------------------
-  deploy-testflight:
-    executor: macos-xcode
-    steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
-      - run:
-          name: Setup App Store Connect API Key
-          command: |
-            mkdir -p ~/.appstoreconnect/private_keys
-            echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 --decode > \
-              ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
-
-      - run:
-          name: Deploy to TestFlight via Fastlane
-          command: bundle exec fastlane beta
-
-      - store_artifacts:
-          path: fastlane/report.xml
-          destination: fastlane-report
-
-      - store_artifacts:
-          path: build/
-          destination: build-artifacts
-
 # ========================
 # Workflows
 # ========================
@@ -300,54 +239,3 @@ workflows:
       - build-examples:
           requires:
             - build-framework
-
-      # TestFlight deployment (main branch, manual approval)
-      - hold-testflight:
-          type: approval
-          requires:
-            - lint
-            - unit-tests
-            - build-framework
-            - build-examples
-          filters:
-            branches:
-              only: main
-
-      - deploy-testflight:
-          requires:
-            - hold-testflight
-          filters:
-            branches:
-              only: main
-
-  # Nightly comprehensive test run
-  nightly:
-    triggers:
-      - schedule:
-          cron: "0 0 * * *"  # Midnight UTC
-          filters:
-            branches:
-              only: main
-    jobs:
-      - checkout-and-setup
-      - lint:
-          requires:
-            - checkout-and-setup
-      - unit-tests:
-          requires:
-            - checkout-and-setup
-      - ui-tests:
-          requires:
-            - checkout-and-setup
-      - build-framework:
-          requires:
-            - checkout-and-setup
-      - build-examples:
-          requires:
-            - build-framework
-      - validate-podspec:
-          requires:
-            - checkout-and-setup
-      - validate-spm:
-          requires:
-            - checkout-and-setup

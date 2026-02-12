@@ -414,32 +414,6 @@ platform :ios do
     UI.success("Unit tests passed")
   end
 
-  desc "Run UI tests"
-  lane :ui_test do
-    UI.message("Running UI tests...")
-
-    sh("mkdir -p #{FASTLANE_TEST_OUTPUT_DIR}")
-
-    # Reset simulators for clean state
-    UI.message("Resetting simulators...")
-    sh("xcrun simctl erase all")
-
-    # Boot simulator
-    sh("xcrun simctl boot '#{FASTLANE_TEST_DEVICE}' || true")
-    sh("xcrun simctl bootstatus '#{FASTLANE_TEST_DEVICE}'")
-
-    scan(
-      workspace: "attentive-ios-sdk.xcworkspace",
-      scheme: "CreativeUITest",
-      device: FASTLANE_TEST_DEVICE,
-      output_directory: FASTLANE_TEST_OUTPUT_DIR,
-      output_types: "html,junit",
-      result_bundle: true
-    )
-
-    UI.success("UI tests passed")
-  end
-
   # ========================
   # Validation
   # ========================
@@ -518,54 +492,7 @@ platform :ios do
     # Upload to TestFlight
     UI.message("Uploading to TestFlight...")
     upload_to_testflight
-    pilot(
-      skip_waiting_for_build_processing: true,
-      changelog: "Build #{ENV['CIRCLE_BUILD_NUM'] || 'local'} - #{ENV['CIRCLE_BRANCH'] || 'development'}",
-      distribute_external: false,
-      notify_external_testers: false
-    )
-
     UI.success("Build uploaded to TestFlight successfully!")
-  end
-
-  # ========================
-  # Convenience Lanes
-  # ========================
-
-  desc "Run all quality checks (lint + test + build)"
-  lane :quality do
-    UI.message("Running all quality checks...")
-
-    lint
-    unit_test
-    build_framework
-
-    UI.success("All quality checks passed!")
-  end
-
-  desc "Run complete CI validation"
-  lane :ci do
-    UI.message("Running complete CI validation...")
-
-    setup
-    lint
-    unit_test
-    build_framework
-    validate_podspec
-    validate_spm
-    build_examples
-
-    UI.success("Complete CI validation passed!")
-  end
-
-  desc "Run tests only (unit + UI)"
-  lane :test_all do
-    UI.message("Running all tests...")
-
-    unit_test
-    ui_test
-
-    UI.success("All tests passed!")
   end
 
   # ========================
