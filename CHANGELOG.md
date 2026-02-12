@@ -1,4 +1,8 @@
-## [2.0.12](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.9...2.0.12) (2026-02-12)
+## [2.0.12](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.11...2.0.12) (2026-02-12)
+### Bug fixes
+Fixed and issue where the XCFramework was not being built correctly, leading to archiving issues and missing dSYMs.
+
+## [2.0.11](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.9...2.0.11) (2026-02-11)
 ### Bug fixes
 Fixed an issue where marketing subscription requests could proceed with an empty token if the push token was unavailable; requests are now queued and retried once the token is available.
 
