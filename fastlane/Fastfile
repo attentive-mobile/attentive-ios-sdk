@@ -455,6 +455,49 @@ platform :ios do
   end
 
   # ========================
+  # Distribution
+  # ========================
+
+  desc "Upload a new build to TestFlight"
+  lane :beta do
+    UI.message("🔧 Preparing TestFlight distribution...")
+
+    # Sync code signing
+    UI.message("🔄 Syncing code signing certificates...")
+    sync_code_signing(
+      type: "appstore",
+      readonly: true
+    )
+
+    # if ENV["CIRCLE_BUILD_NUM"]
+    #   increment_build_number(
+    #     build_number: ENV["CIRCLE_BUILD_NUM"]
+    #   )
+    # end
+
+    # # Build the app
+    # UI.message("🏗️ Building app for App Store...")
+    # build_ios_app(
+    #   project: "Bonni/Bonni.xcodeproj",
+    #   scheme: "AttentiveExample",
+    #   configuration: "Release",
+    #   export_method: "app-store",
+    #   export_options: {
+    #     provisioningProfiles: {
+    #       ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
+    #     }
+    #   },
+    #   output_directory: "./build",
+    #   clean: true
+    # )
+
+    # # Upload to TestFlight
+    # UI.message("Uploading to TestFlight...")
+    # upload_to_testflight
+    # UI.success("Build uploaded to TestFlight successfully!")
+  end
+
+  # ========================
   # Error Handling
   # ========================
 
