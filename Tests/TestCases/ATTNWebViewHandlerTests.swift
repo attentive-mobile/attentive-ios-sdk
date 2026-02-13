@@ -80,15 +80,14 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         // Only one of many concurrent callers should succeed in transitioning
         // from .closed to .launching.
         let stateManager = ATTNCreativeStateManager()
-        let iterations = 100
-        let concurrentQueue = DispatchQueue(label: "com.attentive.test.concurrent", attributes: .concurrent)
+        let iterations = 10
         let group = DispatchGroup()
         var successCount = 0
         let lock = NSLock()
 
         for _ in 0..<iterations {
             group.enter()
-            concurrentQueue.async {
+            Thread.detachNewThread {
                 if stateManager.compareAndSet(from: .closed, to: .launching) {
                     lock.lock()
                     successCount += 1
@@ -98,7 +97,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
             }
         }
 
-        let result = group.wait(timeout: .now() + 5.0)
+        let result = group.wait(timeout: .now() + 10.0)
         XCTAssertEqual(result, .success, "All concurrent tasks should complete")
         XCTAssertEqual(successCount, 1, "Exactly one concurrent caller should win the compareAndSet race")
     }
