@@ -3,7 +3,7 @@
 
 FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
-FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 16 Pro"
+FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
 
 default_platform(:ios)
 
@@ -17,7 +17,7 @@ platform :ios do
 
   desc "Setup dependencies and environment"
   lane :setup do
-    UI.message("Setting up dependencies...")
+    UI.message("🔧 Setting up dependencies...")
 
     # Resolve Swift Package Manager dependencies
     xcodebuild(
@@ -26,7 +26,7 @@ platform :ios do
       xcargs: "-resolvePackageDependencies"
     )
 
-    UI.success("Dependencies resolved successfully")
+    UI.success("✅ Dependencies resolved successfully")
   end
 
   # ========================
@@ -41,14 +41,14 @@ platform :ios do
     # If version provided, update .version file first
     if options[:version]
       File.write(version_file, options[:version])
-      UI.message("Updated .version file to: #{options[:version]}")
+      UI.message("📝 Updated .version file to: #{options[:version]}")
     end
 
     # Read version from file
     version = File.read(version_file).strip
     UI.user_error!(".version file is empty") if version.empty?
 
-    UI.message("Syncing version: #{version}")
+    UI.message("🔄 Syncing version: #{version}")
 
     # 1. Update ATTNConstants.swift
     constants_file = File.join(root_dir, "Sources/ATTNConstants.swift")
@@ -56,7 +56,7 @@ platform :ios do
       content = File.read(constants_file)
       content.gsub!(/static let sdkVersion = ".*"/, "static let sdkVersion = \"#{version}\"")
       File.write(constants_file, content)
-      UI.success("Updated ATTNConstants.swift")
+      UI.success("✓ Updated ATTNConstants.swift")
     end
 
     # 2. Update Package.swift (the URL version)
@@ -65,7 +65,7 @@ platform :ios do
       content = File.read(package_file)
       content.gsub!(%r{releases/download/[0-9.]+[^/]*/}, "releases/download/#{version}/")
       File.write(package_file, content)
-      UI.success("Updated Package.swift")
+      UI.success("✓ Updated Package.swift")
     end
 
     # 3. Update README.md pod versions
@@ -75,11 +75,11 @@ platform :ios do
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
       content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
       File.write(readme_file, content)
-      UI.success("Updated README.md")
+      UI.success("✓ Updated README.md")
     end
 
     UI.success("")
-    UI.success("Version sync complete: #{version}")
+    UI.success("✅ Version sync complete: #{version}")
     UI.message("")
     UI.message("Files updated:")
     UI.message("  - .version (source of truth)")
@@ -89,7 +89,7 @@ platform :ios do
     UI.message("  - Package.swift")
     UI.message("  - README.md")
     UI.message("")
-    UI.important("Note: Package.swift checksum must be updated manually after uploading xcframework")
+    UI.important("⚠️ Note: Package.swift checksum must be updated manually after uploading xcframework")
 
     version
   end
@@ -112,15 +112,17 @@ platform :ios do
     root_dir = File.expand_path("..", Dir.pwd)
     target_file = File.join(root_dir, ".ios-deployment-target")
 
+    # If target provided, update .ios-deployment-target file first
     if options[:target]
       File.write(target_file, options[:target])
-      UI.message("Updated .ios-deployment-target file to: #{options[:target]}")
+      UI.message("✓ Updated .ios-deployment-target file to: #{options[:target]}")
     end
 
+    # Read target from file
     target = File.read(target_file).strip
     UI.user_error!(".ios-deployment-target file is empty") if target.empty?
 
-    UI.message("Syncing iOS deployment target: #{target}")
+    UI.message("🔄 Syncing iOS deployment target: #{target}")
 
     # 1. Update Shared.xcconfig
     xcconfig_file = File.join(root_dir, "Shared.xcconfig")
@@ -128,21 +130,22 @@ platform :ios do
       content = File.read(xcconfig_file)
       content.gsub!(/IPHONEOS_DEPLOYMENT_TARGET = .*/, "IPHONEOS_DEPLOYMENT_TARGET = #{target}")
       File.write(xcconfig_file, content)
-      UI.success("Updated Shared.xcconfig")
+      UI.success("✓ Updated Shared.xcconfig")
     end
 
     # 2. Update Package.swift (platform version)
     package_file = File.join(root_dir, "Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
+      # Convert "14.0" to "v14" format for Swift Package Manager
       major_version = target.split('.').first
       content.gsub!(/\.iOS\(\.v\d+\)/, ".iOS(.v#{major_version})")
       File.write(package_file, content)
-      UI.success("Updated Package.swift")
+      UI.success("✓ Updated Package.swift")
     end
 
     UI.success("")
-    UI.success("iOS deployment target sync complete: #{target}")
+    UI.success("✅ iOS deployment target sync complete: #{target}")
     UI.message("")
     UI.message("Files updated:")
     UI.message("  - .ios-deployment-target (source of truth)")
@@ -172,7 +175,7 @@ platform :ios do
     current_version = File.read(version_file).strip
 
     parts = current_version.split('.').map(&:to_i)
-    UI.user_error!("Invalid version format: #{current_version}") if parts.length != 3
+    UI.user_error!("❌ Invalid version format: #{current_version}") if parts.length != 3
 
     bump_type = options[:type] || "patch"
 
@@ -187,11 +190,11 @@ platform :ios do
     when "patch"
       parts[2] += 1
     else
-      UI.user_error!("Invalid bump type: #{bump_type}. Use: major, minor, or patch")
+      UI.user_error!("❌ Invalid bump type: #{bump_type}. Use: major, minor, or patch")
     end
 
     new_version = parts.join('.')
-    UI.message("Bumping version: #{current_version} -> #{new_version}")
+    UI.message("📝 Bumping version: #{current_version} → #{new_version}")
 
     sync_version(version: new_version)
   end
@@ -202,16 +205,16 @@ platform :ios do
 
   desc "Run SwiftLint"
   lane :lint do
-    UI.message("Running SwiftLint...")
+    UI.message("🔍 Running SwiftLint...")
 
     # Ensure SwiftLint is installed
     begin
       swiftlint_path = sh("command -v swiftlint", log: false).strip
-      UI.message("SwiftLint found at: #{swiftlint_path}")
+      UI.message("✅ SwiftLint found at: #{swiftlint_path}")
     rescue => exception
-      UI.message("SwiftLint not found, installing via Homebrew...")
+      UI.message("⚠️ SwiftLint not found, installing via Homebrew...")
       sh("brew install swiftlint")
-      UI.success("SwiftLint installed successfully")
+      UI.success("✅ SwiftLint installed successfully")
     end
 
     # Create reports directory
@@ -226,7 +229,7 @@ platform :ios do
       ignore_exit_status: true
     )
 
-    UI.success("SwiftLint passed")
+    UI.success("✅ SwiftLint passed")
   end
 
   # ========================
@@ -266,7 +269,7 @@ platform :ios do
       xcargs: xcargs
     )
 
-    UI.success("Framework built successfully")
+    UI.success("✅ Framework built successfully")
   end
 
   desc "Build example apps"
@@ -275,7 +278,7 @@ platform :ios do
     configuration = "Debug"
     xcargs        = "CODE_SIGNING_ALLOWED=NO"
 
-    UI.message("Building example apps...")
+    UI.message("🏗️ Building example apps...")
 
     # Build Example App (Local)
     UI.message("Building Example - Local...")
@@ -301,7 +304,7 @@ platform :ios do
       xcargs: xcargs
     )
 
-    UI.success("Example apps built successfully")
+    UI.success("✅ Example apps built successfully")
   end
 
   lane :build_xcframework do
@@ -312,10 +315,10 @@ platform :ios do
     output_root   = File.expand_path("Build/XCFramework")
     xcargs        = "SKIP_INSTALL=NO, BUILD_LIBRARY_FOR_DISTRIBUTION=YES"
 
-    UI.message "=== Building #{framework} XCFrameworks (scheme: #{scheme}, config: #{configuration}) ==="
+    UI.message("🏗️ Building #{framework} XCFrameworks (scheme: #{scheme}, config: #{configuration})")
 
     # Build for device
-    UI.message "=== [1/3] Build iOS device framework ==="
+    UI.message("[1/3] Build iOS device framework")
     build_ios_app(
       project: project,
       scheme: scheme,
@@ -339,7 +342,7 @@ platform :ios do
     end
 
     # Build for simulator
-    UI.message "=== [2/3] Build iOS simulator framework ==="
+    UI.message("[2/3] Build iOS simulator framework")
     build_ios_app(
       project: project,
       scheme: scheme,
@@ -363,36 +366,36 @@ platform :ios do
     end
 
     # Create universal framework
-    UI.message "=== [3/3] Create universal XCFramework (device + sim) ==="
+    UI.message("[3/3] Create universal XCFramework (device + sim)")
     universal_xcframework = "#{output_root}/#{framework}.xcframework"
 
     # Include dSYMs if available
     frameworks_with_dsyms = {}
     if File.directory?(ios_dsym)
       frameworks_with_dsyms[ios_framework] = { dsyms: ios_dsym }
-      UI.message "Including iOS device dSYM: #{ios_dsym}"
+      UI.message("Including iOS device dSYM: #{ios_dsym}")
     else
       frameworks_with_dsyms[ios_framework] = {}
-      UI.important "iOS device dSYM not found at #{ios_dsym}, building without it"
+      UI.important("iOS device dSYM not found at #{ios_dsym}, building without it")
     end
     if File.directory?(sim_dsym)
       frameworks_with_dsyms[sim_framework] = { dsyms: sim_dsym }
-      UI.message "Including simulator dSYM: #{sim_dsym}"
+      UI.message("Including simulator dSYM: #{sim_dsym}")
     else
       frameworks_with_dsyms[sim_framework] = {}
-      UI.important "Simulator dSYM not found at #{sim_dsym}, building without it"
+      UI.important("Simulator dSYM not found at #{sim_dsym}, building without it")
     end
 
     create_xcframework(
       frameworks_with_dsyms: frameworks_with_dsyms,
       output: "#{universal_xcframework}"
     )
-    UI.success "Universal XCFramework -> #{universal_xcframework}"
+    UI.success("Universal XCFramework → #{universal_xcframework}")
 
     sh("find #{output_root}/#{framework}.xcframework -name '*.swiftsourceinfo' -delete")
     sh("find #{output_root}/#{framework}.xcframework -type d -name 'Project' -empty -delete")
 
-    UI.success "Done building attentive-ios-sdk XCFrameworks"
+    UI.success("✅ Done building #{framework}")
   end
 
   # ========================
@@ -401,7 +404,7 @@ platform :ios do
 
   desc "Run unit tests"
   lane :unit_test do
-    UI.message("Running unit tests...")
+    UI.message("🧪 Running unit tests...")
     run_tests(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
@@ -411,7 +414,7 @@ platform :ios do
       result_bundle: true
     )
 
-    UI.success("Unit tests passed")
+    UI.success("✅ Unit tests passed")
   end
 
   # ========================
@@ -420,7 +423,7 @@ platform :ios do
 
   desc "Validate CocoaPods podspec"
   lane :validate_podspec do
-    UI.message("Validating CocoaPods podspec...")
+    UI.message("🔎 Validating CocoaPods podspec...")
 
     unless sh("command -v pod", log: false).strip.empty?
       UI.message("CocoaPods already installed")
@@ -434,12 +437,12 @@ platform :ios do
       allow_warnings: true
     )
 
-    UI.success("Podspec validation passed")
+    UI.success("✅ Podspec validation passed")
   end
 
   desc "Validate Swift Package Manager"
   lane :validate_spm do
-    UI.message("Validating Swift Package...")
+    UI.message("🔎 Validating Swift Package...")
 
     spm(command: "resolve")
     xcodebuild(
@@ -449,50 +452,7 @@ platform :ios do
       build: true
     )
 
-    UI.success("SPM validation passed")
-  end
-
-  # ========================
-  # Distribution
-  # ========================
-
-  desc "Upload a new build to TestFlight"
-  lane :beta do
-    UI.message("Preparing TestFlight distribution...")
-
-    # Sync code signing
-    UI.message("Syncing code signing certificates...")
-    sync_code_signing(
-      type: "appstore",
-      readonly: true
-    )
-
-    if ENV["CIRCLE_BUILD_NUM"]
-      increment_build_number(
-        build_number: ENV["CIRCLE_BUILD_NUM"]
-      )
-    end
-
-    # Build the app
-    UI.message("Building app for App Store...")
-    build_ios_app(
-      project: "Bonni/Bonni.xcodeproj",
-      scheme: "AttentiveExample",
-      configuration: "Release",
-      export_method: "app-store",
-      export_options: {
-        provisioningProfiles: {
-          ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
-        }
-      },
-      output_directory: "./build",
-      clean: true
-    )
-
-    # Upload to TestFlight
-    UI.message("Uploading to TestFlight...")
-    upload_to_testflight
-    UI.success("Build uploaded to TestFlight successfully!")
+    UI.success("✅ SPM validation passed")
   end
 
   # ========================
@@ -500,7 +460,7 @@ platform :ios do
   # ========================
 
   error do |lane, exception|
-    UI.error("Lane #{lane} failed with error:")
+    UI.error("❌ Lane #{lane} failed with error:")
     UI.error(exception.message)
   end
 end
