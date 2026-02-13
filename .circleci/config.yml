@@ -235,3 +235,23 @@ workflows:
       - build-examples:
           requires:
             - build-framework
+
+      - hold-testflight:
+          type: approval
+          requires:
+            - lint
+            - unit-tests
+            - build-framework
+            - validate-podspec
+            - validate-spm
+            - build-examples
+          filters:
+            branches:
+              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight
+
+      - deploy-testflight:
+          requires:
+            - hold-testflight
+          filters:
+            branches:
+              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight
