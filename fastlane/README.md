@@ -119,14 +119,6 @@ Validate CocoaPods podspec
 
 Validate Swift Package Manager
 
-### ios beta
-
-```sh
-[bundle exec] fastlane ios beta
-```
-
-Upload a new build to TestFlight
-
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
