@@ -207,7 +207,7 @@ workflows:
   version: 2
 
   # Main workflow for all branches
-  build-test:
+  lint-validate-build-test:
     jobs:
       - checkout-and-setup
 
