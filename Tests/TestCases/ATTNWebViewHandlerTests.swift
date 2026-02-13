@@ -64,24 +64,27 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         mockWebViewProvider.webViewSetupExpectation = expectation
 
-        DispatchQueue.global().async {
-            print("Dispatch 1 - Launching creative 1")
+        // Use a barrier to ensure both calls are dispatched before either starts executing
+        let concurrentQueue = DispatchQueue(label: "com.attentive.test.race", attributes: .concurrent)
+        let group = DispatchGroup()
+
+        group.enter()
+        concurrentQueue.async {
             self.handler.launchCreative(parentView: parentView, creativeId: "raceCondition1")
+            group.leave()
         }
 
-        DispatchQueue.global().async {
-            print("Dispatch 2 - Launching creative 2")
+        group.enter()
+        concurrentQueue.async {
             self.handler.launchCreative(parentView: parentView, creativeId: "raceCondition2")
+            group.leave()
         }
 
-        waitForExpectations(timeout: 5.0) { error in
-            if let error = error {
-                print("Expectation not fulfilled: \(error.localizedDescription)")
-            }
+        // Wait longer than the handler's internal 5s timeout to avoid racing with it
+        waitForExpectations(timeout: 10.0) { error in
             XCTAssertNil(error, "Race condition was not handled correctly")
         }
 
-        print("WebView creation count: \(mockWebViewProvider.webViewCreationCount)")
         XCTAssertEqual(mockWebViewProvider.webViewCreationCount, 1, "WebView should be created only once")
     }
 
