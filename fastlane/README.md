@@ -71,30 +71,6 @@ Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)
 
 Run SwiftLint
 
-### ios unit_test
-
-```sh
-[bundle exec] fastlane ios unit_test
-```
-
-Run unit tests
-
-### ios ui_test
-
-```sh
-[bundle exec] fastlane ios ui_test
-```
-
-Run UI tests
-
-### ios build_xcframework
-
-```sh
-[bundle exec] fastlane ios build_xcframework
-```
-
-Build XCFramework for distribution
-
 ### ios build_framework
 
 ```sh
@@ -117,7 +93,7 @@ Build example apps
 [bundle exec] fastlane ios build_xcframework
 ```
 
-Build XCFramework for distribution
+
 
 ### ios unit_test
 
@@ -150,30 +126,6 @@ Validate Swift Package Manager
 ```
 
 Upload a new build to TestFlight
-
-### ios quality
-
-```sh
-[bundle exec] fastlane ios quality
-```
-
-Run all quality checks (lint + test + build)
-
-### ios ci
-
-```sh
-[bundle exec] fastlane ios ci
-```
-
-Run complete CI validation
-
-### ios test_all
-
-```sh
-[bundle exec] fastlane ios test_all
-```
-
-Run tests only (unit + UI)
 
 ----
 
