@@ -255,16 +255,15 @@ workflows:
 
       - build-examples:
           requires:
-            - build-framework
-
-      - hold-testflight:
-          type: approval
-          requires:
             - lint
             - unit-tests
             - build-framework
             - validate-podspec
             - validate-spm
+
+      - hold-testflight:
+          type: approval
+          requires:
             - build-examples
           filters:
             branches:
