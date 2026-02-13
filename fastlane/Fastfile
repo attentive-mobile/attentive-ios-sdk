@@ -423,9 +423,10 @@ platform :ios do
   lane :validate_podspec do
     UI.message("🔎 Validating CocoaPods podspec...")
 
-    unless sh("command -v pod", log: false).strip.empty?
+    begin
+      sh("command -v pod", log: false)
       UI.message("CocoaPods already installed")
-    else
+    rescue
       UI.message("Installing CocoaPods...")
       sh("sudo gem install cocoapods")
     end
