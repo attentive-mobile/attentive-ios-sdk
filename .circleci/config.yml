@@ -219,7 +219,7 @@ jobs:
 
       - run:
           name: Deploy to TestFlight via Fastlane
-          command: bundle exec fastlane testflight
+          command: bundle exec fastlane deploy_testflight
 
 # ========================
 # Workflows
