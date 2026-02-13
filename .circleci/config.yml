@@ -123,10 +123,6 @@ jobs:
           name: Build Framework via Fastlane
           command: bundle exec fastlane build_framework
 
-      - store_artifacts:
-          path: build/
-          destination: framework-builds
-
   # -----------------------
   # Build Examples
   # -----------------------
