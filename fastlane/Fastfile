@@ -459,7 +459,7 @@ platform :ios do
   # ========================
 
   desc "Upload a new build to TestFlight"
-  lane :beta do
+  lane :testflight do
     UI.message("🔧 Preparing TestFlight distribution...")
 
     # Sync code signing

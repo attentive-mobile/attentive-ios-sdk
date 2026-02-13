@@ -200,6 +200,26 @@ jobs:
           name: Validate Swift Package via Fastlane
           command: bundle exec fastlane validate_spm
 
+  # -----------------------
+  # Deploy to TestFlight
+  # -----------------------
+  deploy-testflight:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - aws-cli/setup:
+          region: AWS_REGION
+          role_arn: 'arn:aws:iam::026393418737:role/circleci'
+          role_session_name: $CIRCLE_JOB-<< pipeline.number >>
+
+      - setup-fastlane
+
+      - run:
+          name: Deploy to TestFlight via Fastlane
+          command: bundle exec fastlane testflight
+
 # ========================
 # Workflows
 # ========================
