@@ -460,6 +460,8 @@ platform :ios do
 
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
+    project = "Bonni/Bonni.xcodeproj"
+
     UI.message("🔧 Preparing TestFlight distribution...")
 
     # Sync code signing
@@ -469,30 +471,31 @@ platform :ios do
       readonly: true
     )
 
-    # if ENV["CIRCLE_BUILD_NUM"]
-    #   increment_build_number(
-    #     build_number: ENV["CIRCLE_BUILD_NUM"]
-    #   )
-    # end
+    if ENV["CIRCLE_BUILD_NUM"]
+      increment_build_number(
+        build_number: ENV["CIRCLE_BUILD_NUM"],
+        xcodeproj: project
+      )
+    end
 
-    # # Build the app
-    # UI.message("🏗️ Building app for App Store...")
-    # build_ios_app(
-    #   project: "Bonni/Bonni.xcodeproj",
-    #   scheme: "AttentiveExample",
-    #   configuration: "Release",
-    #   export_method: "app-store",
-    #   export_options: {
-    #     provisioningProfiles: {
-    #       ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
-    #     }
-    #   },
-    #   output_directory: "./build",
-    #   clean: true
-    # )
+    # Build the app
+    UI.message("🏗️ Building app for App Store...")
+    build_ios_app(
+      project: "Bonni/Bonni.xcodeproj",
+      scheme: "AttentiveExample",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
+        }
+      },
+      output_directory: "./build",
+      clean: true
+    )
 
     # # Upload to TestFlight
-    # UI.message("Uploading to TestFlight...")
+    # UI.message("🚀 Uploading to TestFlight...")
     # upload_to_testflight
     # UI.success("Build uploaded to TestFlight successfully!")
   end
