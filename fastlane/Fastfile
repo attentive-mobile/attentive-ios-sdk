@@ -487,7 +487,8 @@ platform :ios do
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
-          "com.attentive.bonniexample" => "match AppStore com.attentive.bonniexample"
+          "com.attentive.bonniexample" => "match AppStore com.attentive.bonniexample",
+          "com.attentive.bonniexample.ATTNNotificationService" => "match AppStore com.attentive.bonniexample.ATTNNotificationService"
         }
       },
       output_directory: "./build",
