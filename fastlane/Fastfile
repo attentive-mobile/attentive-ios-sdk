@@ -487,16 +487,23 @@ platform :ios do
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
-          ENV["APP_IDENTIFIER"] || "com.attentive.sdk.example" => "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.attentive.sdk.example'}"
+          "com.attentive.bonniexample" => "match AppStore com.attentive.bonniexample"
         }
       },
       output_directory: "./build",
       clean: true
     )
 
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+
     # # Upload to TestFlight
     # UI.message("🚀 Uploading to TestFlight...")
-    # upload_to_testflight
+    # upload_to_testflight(api_key: api_key)
     # UI.success("Build uploaded to TestFlight successfully!")
   end
 
