@@ -460,7 +460,7 @@ platform :ios do
 
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
-    project = "Bonni/Bonni.xcodeproj"
+    project_path = "Bonni/Bonni.xcodeproj"
 
     UI.message("🔧 Preparing TestFlight distribution...")
 
@@ -474,40 +474,59 @@ platform :ios do
     if ENV["CIRCLE_BUILD_NUM"]
       increment_build_number(
         build_number: ENV["CIRCLE_BUILD_NUM"],
-        xcodeproj: project
+        xcodeproj: project_path
       )
     end
 
-    # Configure manual signing for each target
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Bonni/Bonni.xcodeproj",
-      targets: ["AttentiveExample"],
-      profile_name: ENV["sigh_com.attentive.bonniexample_appstore_profile-name"],
-      code_sign_identity: "Apple Distribution"
-    )
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Bonni/Bonni.xcodeproj",
-      targets: ["ATTNNotificationService"],
-      profile_name: ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"],
-      code_sign_identity: "Apple Distribution"
-    )
+    app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
+    notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
+    code_sign_identity = "Apple Distribution"
+
+    # # Configure manual signing for each target
+    # update_code_signing_settings(
+    #   use_automatic_signing: false,
+    #   path: project_path,
+    #   targets: ["AttentiveExample"],
+    #   profile_name: app_profile_name,
+    #   code_sign_identity: code_sign_identity
+    # )
+    # update_code_signing_settings(
+    #   use_automatic_signing: false,
+    #   path: project_path,
+    #   targets: ["ATTNNotificationService"],
+    #   profile_name: notification_service_profile_name,
+    #   code_sign_identity: code_sign_identity
+    # )
+
+    {                                                                                                                
+      "AttentiveExample" => app_profile_name,
+      "ATTNNotificationService" => notification_service_profile_name
+    }.each do |target, profile|
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: project_path,
+        targets: [target],
+        profile_name: profile,
+        code_sign_identity: code_sign_identity
+        )
+    end
+
+    output_directory = "./build"
 
     # Build the app
     UI.message("🏗️ Building app for App Store...")
     build_ios_app(
-      project: "Bonni/Bonni.xcodeproj",
+      project: project_path,
       scheme: "AttentiveExample",
       configuration: "Release",
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
-          "com.attentive.bonniexample" => "match AppStore com.attentive.bonniexample",
-          "com.attentive.bonniexample.ATTNNotificationService" => "match AppStore com.attentive.bonniexample.ATTNNotificationService"
+          "com.attentive.bonniexample" => app_profile_name,
+          "com.attentive.bonniexample.ATTNNotificationService" => notification_service_profile_name
         }
       },
-      output_directory: "./build",
+      output_directory: output_directory,
       clean: true
     )
 
@@ -520,8 +539,11 @@ platform :ios do
 
     # # Upload to TestFlight
     # UI.message("🚀 Uploading to TestFlight...")
-    # upload_to_testflight(api_key: api_key)
-    # UI.success("Build uploaded to TestFlight successfully!")
+    # upload_to_testflight(
+    #   api_key: api_key
+    #   ipa: output_directory
+    # )
+    # UI.success("✅ Build uploaded to TestFlight successfully!")
   end
 
   # ========================
