@@ -2,7 +2,7 @@
 # Configuration for code signing certificate management
 
 # App identifier
-app_identifier("com.attentive.bonniexample")
+app_identifier(["com.attentive.bonniexample", "com.attentive.bonniexample.ATTNNotificationService"])
 
 # Your Apple Developer Portal username
 username(ENV.fetch("APPLE_ID"))
