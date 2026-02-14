@@ -478,6 +478,22 @@ platform :ios do
       )
     end
 
+    # Configure manual signing for each target
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Bonni/Bonni.xcodeproj",
+      targets: ["AttentiveExample"],
+      profile_name: ENV["sigh_com.attentive.bonniexample_appstore_profile-name"],
+      code_sign_identity: "Apple Distribution"
+    )
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Bonni/Bonni.xcodeproj",
+      targets: ["ATTNNotificationService"],
+      profile_name: ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"],
+      code_sign_identity: "Apple Distribution"
+    )
+
     # Build the app
     UI.message("🏗️ Building app for App Store...")
     build_ios_app(
@@ -492,8 +508,7 @@ platform :ios do
         }
       },
       output_directory: "./build",
-      clean: true,
-      xcargs: "CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='' CODE_SIGN_IDENTITY='Apple Distribution'"
+      clean: true
     )
 
     api_key = app_store_connect_api_key(
