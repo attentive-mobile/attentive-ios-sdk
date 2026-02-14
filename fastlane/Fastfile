@@ -492,7 +492,8 @@ platform :ios do
         }
       },
       output_directory: "./build",
-      clean: true
+      clean: true,
+      xcargs: "CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='' CODE_SIGN_IDENTITY='Apple Distribution'"
     )
 
     api_key = app_store_connect_api_key(
