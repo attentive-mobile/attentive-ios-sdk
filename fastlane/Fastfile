@@ -2,6 +2,7 @@
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
 FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
+FASTLANE_BUILD_OUTPUT_DIR=ENV['FASTLANE_BUILD_OUTPUT_DIR'] || "fastlane/build"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
 FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
 
@@ -103,6 +104,37 @@ platform :ios do
     version
   end
 
+  desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
+  lane :bump_version do |options|
+    root_dir = File.expand_path("..", Dir.pwd)
+    version_file = File.join(root_dir, ".version")
+    current_version = File.read(version_file).strip
+
+    parts = current_version.split('.').map(&:to_i)
+    UI.user_error!("❌ Invalid version format: #{current_version}") if parts.length != 3
+
+    bump_type = options[:type] || "patch"
+
+    case bump_type
+    when "major"
+      parts[0] += 1
+      parts[1] = 0
+      parts[2] = 0
+    when "minor"
+      parts[1] += 1
+      parts[2] = 0
+    when "patch"
+      parts[2] += 1
+    else
+      UI.user_error!("❌ Invalid bump type: #{bump_type}. Use: major, minor, or patch")
+    end
+
+    new_version = parts.join('.')
+    UI.message("📝 Bumping version: #{current_version} → #{new_version}")
+
+    sync_version(version: new_version)
+  end
+
   # ========================
   # iOS Deployment Target Management
   # ========================
@@ -166,37 +198,6 @@ platform :ios do
     target = File.read(target_file).strip
     UI.message("Current iOS deployment target: #{target}")
     target
-  end
-
-  desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
-  lane :bump_version do |options|
-    root_dir = File.expand_path("..", Dir.pwd)
-    version_file = File.join(root_dir, ".version")
-    current_version = File.read(version_file).strip
-
-    parts = current_version.split('.').map(&:to_i)
-    UI.user_error!("❌ Invalid version format: #{current_version}") if parts.length != 3
-
-    bump_type = options[:type] || "patch"
-
-    case bump_type
-    when "major"
-      parts[0] += 1
-      parts[1] = 0
-      parts[2] = 0
-    when "minor"
-      parts[1] += 1
-      parts[2] = 0
-    when "patch"
-      parts[2] += 1
-    else
-      UI.user_error!("❌ Invalid bump type: #{bump_type}. Use: major, minor, or patch")
-    end
-
-    new_version = parts.join('.')
-    UI.message("📝 Bumping version: #{current_version} → #{new_version}")
-
-    sync_version(version: new_version)
   end
 
   # ========================
@@ -307,6 +308,60 @@ platform :ios do
     UI.success("✅ Example apps built successfully")
   end
 
+  desc "Build Bonni for release"
+  lane :build_bonni_release do
+    # Sync code signing
+    UI.message("🔄 Syncing code signing certificates...")
+    sync_code_signing(
+      type: "appstore",
+      readonly: true
+    )
+
+    project_path = "Bonni/Bonni.xcodeproj"
+    if ENV["CIRCLE_BUILD_NUM"]
+      increment_build_number(
+        build_number: ENV["CIRCLE_BUILD_NUM"],
+        xcodeproj: project_path
+      )
+    end
+
+    app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
+    notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
+    code_sign_identity = "Apple Distribution"
+
+    # Configure manual signing for each target
+    {                                                                                                                
+      "AttentiveExample" => app_profile_name,
+      "ATTNNotificationService" => notification_service_profile_name
+    }.each do |target, profile|
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: project_path,
+        targets: [target],
+        profile_name: profile,
+        code_sign_identity: code_sign_identity
+        )
+    end
+
+    # Build the app
+    UI.message("🏗️ Building app for App Store...")
+    build_ios_app(
+      project: project_path,
+      scheme: "AttentiveExample",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.attentive.bonniexample" => app_profile_name,
+          "com.attentive.bonniexample.ATTNNotificationService" => notification_service_profile_name
+        }
+      },
+      output_directory: FASTLANE_BUILD_OUTPUT_DIR,
+      clean: true
+    )
+  end
+
+  desc "Build XCFramework"
   lane :build_xcframework do
     project       = "attentive-ios-sdk.xcodeproj"
     scheme        = "attentive-ios-sdk-framework"
@@ -460,75 +515,7 @@ platform :ios do
 
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
-    project_path = "Bonni/Bonni.xcodeproj"
-
     UI.message("🔧 Preparing TestFlight distribution...")
-
-    # Sync code signing
-    UI.message("🔄 Syncing code signing certificates...")
-    sync_code_signing(
-      type: "appstore",
-      readonly: true
-    )
-
-    if ENV["CIRCLE_BUILD_NUM"]
-      increment_build_number(
-        build_number: ENV["CIRCLE_BUILD_NUM"],
-        xcodeproj: project_path
-      )
-    end
-
-    app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
-    notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
-    code_sign_identity = "Apple Distribution"
-
-    # # Configure manual signing for each target
-    # update_code_signing_settings(
-    #   use_automatic_signing: false,
-    #   path: project_path,
-    #   targets: ["AttentiveExample"],
-    #   profile_name: app_profile_name,
-    #   code_sign_identity: code_sign_identity
-    # )
-    # update_code_signing_settings(
-    #   use_automatic_signing: false,
-    #   path: project_path,
-    #   targets: ["ATTNNotificationService"],
-    #   profile_name: notification_service_profile_name,
-    #   code_sign_identity: code_sign_identity
-    # )
-
-    {                                                                                                                
-      "AttentiveExample" => app_profile_name,
-      "ATTNNotificationService" => notification_service_profile_name
-    }.each do |target, profile|
-      update_code_signing_settings(
-        use_automatic_signing: false,
-        path: project_path,
-        targets: [target],
-        profile_name: profile,
-        code_sign_identity: code_sign_identity
-        )
-    end
-
-    output_directory = "./build"
-
-    # Build the app
-    UI.message("🏗️ Building app for App Store...")
-    build_ios_app(
-      project: project_path,
-      scheme: "AttentiveExample",
-      configuration: "Release",
-      export_method: "app-store",
-      export_options: {
-        provisioningProfiles: {
-          "com.attentive.bonniexample" => app_profile_name,
-          "com.attentive.bonniexample.ATTNNotificationService" => notification_service_profile_name
-        }
-      },
-      output_directory: output_directory,
-      clean: true
-    )
 
     api_key = app_store_connect_api_key(
       key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
@@ -537,13 +524,13 @@ platform :ios do
       is_key_content_base64: true
     )
 
-    # # Upload to TestFlight
-    # UI.message("🚀 Uploading to TestFlight...")
-    # upload_to_testflight(
-    #   api_key: api_key
-    #   ipa: output_directory
-    # )
-    # UI.success("✅ Build uploaded to TestFlight successfully!")
+    # Upload to TestFlight
+    UI.message("🚀 Uploading to TestFlight...")
+    upload_to_testflight(
+      api_key: api_key
+      ipa: FASTLANE_BUILD_OUTPUT_DIR
+    )
+    UI.success("✅ Build uploaded to TestFlight successfully!")
   end
 
   # ========================
