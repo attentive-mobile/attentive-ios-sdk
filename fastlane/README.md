@@ -39,6 +39,14 @@ Sync version across all files. Usage: fastlane sync_version version:2.0.11
 
 Get current version from .version file
 
+### ios bump_version
+
+```sh
+[bundle exec] fastlane ios bump_version
+```
+
+Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)
+
 ### ios sync_ios_target
 
 ```sh
@@ -54,14 +62,6 @@ Sync iOS deployment target across all files. Usage: fastlane sync_ios_target tar
 ```
 
 Get current iOS deployment target
-
-### ios bump_version
-
-```sh
-[bundle exec] fastlane ios bump_version
-```
-
-Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)
 
 ### ios lint
 
@@ -87,13 +87,21 @@ Build framework for device and simulator
 
 Build example apps
 
+### ios build_bonni_release
+
+```sh
+[bundle exec] fastlane ios build_bonni_release
+```
+
+Build Bonni for release
+
 ### ios build_xcframework
 
 ```sh
 [bundle exec] fastlane ios build_xcframework
 ```
 
-
+Build XCFramework
 
 ### ios unit_test
 
@@ -118,6 +126,14 @@ Validate CocoaPods podspec
 ```
 
 Validate Swift Package Manager
+
+### ios deploy_testflight
+
+```sh
+[bundle exec] fastlane ios deploy_testflight
+```
+
+Upload a new build to TestFlight
 
 ----
 
