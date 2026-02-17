@@ -25,6 +25,7 @@ orbs:
 # Constants
 # ========================
 fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
+fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
 
 # ========================
@@ -105,10 +106,6 @@ jobs:
       - store_test_results:
           path: *fastlane_reports_dir
 
-      - store_artifacts:
-          path: *fastlane_reports_dir
-          destination: lint-results
-
   # -----------------------
   # Build Framework
   # -----------------------
@@ -124,6 +121,9 @@ jobs:
           name: Build Framework via Fastlane
           command: bundle exec fastlane build_framework
 
+      - store_artifacts:
+          path: *fastlane_build_output_dir
+
   # -----------------------
   # Build Examples
   # -----------------------
@@ -138,6 +138,27 @@ jobs:
       - run:
           name: Build Example Apps via Fastlane
           command: bundle exec fastlane build_examples
+
+      - store_artifacts:
+          path: *fastlane_build_output_dir
+
+  # -----------------------
+  # Build Bonni release
+  # -----------------------
+  build-bonni:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build Bonni release via Fastlane
+          command: bundle exec fastlane build_bonni_release
+
+      - store_artifacts:
+          path: *fastlane_build_output_dir
 
   # -----------------------
   # Unit Tests
@@ -159,7 +180,6 @@ jobs:
 
       - store_artifacts:
           path: *fastlane_test_output_dir
-          destination: test-results
 
   # -----------------------
   # Validate CocoaPods Spec
@@ -261,17 +281,24 @@ workflows:
             - validate-podspec
             - validate-spm
 
-      - hold-testflight:
-          type: approval
+      - build-bonni-release:
           requires:
             - build-examples
           filters:
             branches:
-              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight
+              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
+
+      - hold-testflight:
+          type: approval
+          requires:
+            - build-bonni-release
+          filters:
+            branches:
+              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
 
       - deploy-testflight:
           requires:
             - hold-testflight
           filters:
             branches:
-              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight
+              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
