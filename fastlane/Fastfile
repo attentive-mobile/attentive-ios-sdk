@@ -527,7 +527,7 @@ platform :ios do
     # Upload to TestFlight
     UI.message("🚀 Uploading to TestFlight...")
     upload_to_testflight(
-      api_key: api_key
+      api_key: api_key,
       ipa: FASTLANE_BUILD_OUTPUT_DIR
     )
     UI.success("✅ Build uploaded to TestFlight successfully!")
