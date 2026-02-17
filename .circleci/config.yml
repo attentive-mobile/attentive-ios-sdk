@@ -145,7 +145,7 @@ jobs:
   # -----------------------
   # Build Bonni release
   # -----------------------
-  build-bonni:
+  build-bonni-release:
     executor: macos-xcode
     steps:
       - attach_workspace:
