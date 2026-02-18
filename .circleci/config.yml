@@ -125,6 +125,24 @@ jobs:
           path: *fastlane_build_output_dir
 
   # -----------------------
+  # Assemble XCFramework
+  # -----------------------
+  assemble-xcframework:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Assemble XCFramework via Fastlane
+          command: bundle exec fastlane assemble_xcframework
+
+      - store_artifacts:
+          path: *fastlane_build_output_dir
+
+  # -----------------------
   # Build Examples
   # -----------------------
   build-examples:
@@ -273,11 +291,15 @@ workflows:
           requires:
             - checkout-and-setup
 
+      - assemble-xcframework:
+          requires:
+            - build-framework
+
       - build-examples:
           requires:
             - lint
             - unit-tests
-            - build-framework
+            - assemble-xcframework
             - validate-podspec
             - validate-spm
 
