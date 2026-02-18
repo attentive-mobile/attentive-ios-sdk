@@ -286,6 +286,7 @@ platform :ios do
       scheme: "Example - Local",
       configuration: configuration,
       destination: destination,
+      skip_package_ipa: true,
       xcargs: xcargs
     )
 
@@ -296,6 +297,7 @@ platform :ios do
       scheme: "AttentiveExample",
       configuration: configuration,
       destination: destination,
+      skip_package_ipa: true,
       xcargs: xcargs
     )
 
