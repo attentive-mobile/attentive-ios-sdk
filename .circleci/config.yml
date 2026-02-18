@@ -317,7 +317,7 @@ workflows:
             - build-examples
           filters:
             branches:
-              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
+              only: main
 
       - hold-testflight:
           type: approval
@@ -325,11 +325,11 @@ workflows:
             - build-bonni-release
           filters:
             branches:
-              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
+              only: main
 
       - deploy-testflight:
           requires:
             - hold-testflight
           filters:
             branches:
-              only: umair/MSDK-241-MSDK-242-MSDK-243-testflight # this will need to change to `main`
+              only: main
