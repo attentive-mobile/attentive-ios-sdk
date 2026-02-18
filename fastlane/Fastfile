@@ -339,7 +339,7 @@ platform :ios do
     sh("find #{xcframework_path} -name '*.swiftsourceinfo' -delete")
     sh("find #{xcframework_path} -type d -name 'Project' -empty -delete")
 
-    UI.success("✅ Done building #{framework}")
+    UI.success("✅ Done assembling #{framework}")
   end
 
   desc "Build XCFramework"
