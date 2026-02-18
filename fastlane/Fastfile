@@ -1,11 +1,16 @@
 # Fastfile for Attentive iOS SDK
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
-REPO_ROOT = File.expand_path('..', __dir__)
 FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
 FASTLANE_BUILD_OUTPUT_DIR=ENV['FASTLANE_BUILD_OUTPUT_DIR'] || "fastlane/build"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
 FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
+
+def repo_root
+  root = `git rev-parse --show-toplevel 2>/dev/null`.strip
+  raise "Not inside a git repository" if root.empty?
+  root
+end
 
 default_platform(:ios)
 
@@ -37,8 +42,7 @@ platform :ios do
 
   desc "Sync version across all files. Usage: fastlane sync_version version:2.0.11"
   lane :sync_version do |options|
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = File.join(repo_root, ".version")
 
     # If version provided, update .version file first
     if options[:version]
@@ -53,7 +57,7 @@ platform :ios do
     UI.message("🔄 Syncing version: #{version}")
 
     # 1. Update ATTNConstants.swift
-    constants_file = File.join(root_dir, "Sources/ATTNConstants.swift")
+    constants_file = File.join(repo_root, "Sources/ATTNConstants.swift")
     if File.exist?(constants_file)
       content = File.read(constants_file)
       content.gsub!(/static let sdkVersion = ".*"/, "static let sdkVersion = \"#{version}\"")
@@ -62,7 +66,7 @@ platform :ios do
     end
 
     # 2. Update Package.swift (the URL version)
-    package_file = File.join(root_dir, "Package.swift")
+    package_file = File.join(repo_root, "Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
       content.gsub!(%r{releases/download/[0-9.]+[^/]*/}, "releases/download/#{version}/")
@@ -71,7 +75,7 @@ platform :ios do
     end
 
     # 3. Update README.md pod versions
-    readme_file = File.join(root_dir, "README.md")
+    readme_file = File.join(repo_root, "README.md")
     if File.exist?(readme_file)
       content = File.read(readme_file)
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
@@ -98,8 +102,7 @@ platform :ios do
 
   desc "Get current version from .version file"
   lane :get_version do
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = File.join(repo_root, ".version")
     version = File.read(version_file).strip
     UI.message("Current version: #{version}")
     version
@@ -107,8 +110,7 @@ platform :ios do
 
   desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
   lane :bump_version do |options|
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = File.join(repo_root, ".version")
     current_version = File.read(version_file).strip
 
     parts = current_version.split('.').map(&:to_i)
@@ -142,8 +144,7 @@ platform :ios do
 
   desc "Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0"
   lane :sync_ios_target do |options|
-    root_dir = REPO_ROOT
-    target_file = File.join(root_dir, ".ios-deployment-target")
+    target_file = File.join(repo_root, ".ios-deployment-target")
 
     # If target provided, update .ios-deployment-target file first
     if options[:target]
@@ -158,7 +159,7 @@ platform :ios do
     UI.message("🔄 Syncing iOS deployment target: #{target}")
 
     # 1. Update Shared.xcconfig
-    xcconfig_file = File.join(root_dir, "Shared.xcconfig")
+    xcconfig_file = File.join(repo_root, "Shared.xcconfig")
     if File.exist?(xcconfig_file)
       content = File.read(xcconfig_file)
       content.gsub!(/IPHONEOS_DEPLOYMENT_TARGET = .*/, "IPHONEOS_DEPLOYMENT_TARGET = #{target}")
@@ -167,7 +168,7 @@ platform :ios do
     end
 
     # 2. Update Package.swift (platform version)
-    package_file = File.join(root_dir, "Package.swift")
+    package_file = File.join(repo_root, "Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
       # Convert "14.0" to "v14" format for Swift Package Manager
@@ -194,8 +195,7 @@ platform :ios do
 
   desc "Get current iOS deployment target"
   lane :get_ios_target do
-    root_dir = REPO_ROOT
-    target_file = File.join(root_dir, ".ios-deployment-target")
+    target_file = File.join(repo_root, ".ios-deployment-target")
     target = File.read(target_file).strip
     UI.message("Current iOS deployment target: #{target}")
     target
@@ -280,8 +280,8 @@ platform :ios do
     configuration       = "Release"
     framework           = "ATTNSDKFramework"
     output_root         = FASTLANE_BUILD_OUTPUT_DIR
-    ios_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos"
-    sim_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator"
+    ios_framework_path  = "#{repo_root}/#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos"
+    sim_framework_path  = "#{repo_root}/#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator"
 
     UI.message("🧱 Assembling #{framework} XCFramework (scheme: #{scheme}, config: #{configuration})")
 
