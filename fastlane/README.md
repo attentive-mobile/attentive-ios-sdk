@@ -79,6 +79,22 @@ Run SwiftLint
 
 Build framework for device and simulator
 
+### ios assemble_xcframework
+
+```sh
+[bundle exec] fastlane ios assemble_xcframework
+```
+
+Assemble XCFramework
+
+### ios build_xcframework
+
+```sh
+[bundle exec] fastlane ios build_xcframework
+```
+
+Build XCFramework
+
 ### ios build_examples
 
 ```sh
@@ -94,14 +110,6 @@ Build example apps
 ```
 
 Build Bonni for release
-
-### ios build_xcframework
-
-```sh
-[bundle exec] fastlane ios build_xcframework
-```
-
-Build XCFramework
 
 ### ios unit_test
 
