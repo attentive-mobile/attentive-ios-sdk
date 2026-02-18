@@ -121,8 +121,10 @@ jobs:
           name: Build Framework via Fastlane
           command: bundle exec fastlane build_framework
 
-      - store_artifacts:
-          path: *fastlane_build_output_dir
+      - persist_to_workspace:
+          root: .
+          paths:
+            - *fastlane_build_output_dir
 
   # -----------------------
   # Assemble XCFramework
@@ -138,6 +140,11 @@ jobs:
       - run:
           name: Assemble XCFramework via Fastlane
           command: bundle exec fastlane assemble_xcframework
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - *fastlane_build_output_dir
 
       - store_artifacts:
           path: *fastlane_build_output_dir
@@ -156,9 +163,6 @@ jobs:
       - run:
           name: Build Example Apps via Fastlane
           command: bundle exec fastlane build_examples
-
-      - store_artifacts:
-          path: *fastlane_build_output_dir
 
   # -----------------------
   # Build Bonni release
@@ -179,6 +183,11 @@ jobs:
       - run:
           name: Build Bonni release via Fastlane
           command: bundle exec fastlane build_bonni_release
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - *fastlane_build_output_dir
 
       - store_artifacts:
           path: *fastlane_build_output_dir
