@@ -1,6 +1,7 @@
 # Fastfile for Attentive iOS SDK
 # This file contains the fastlane lanes for building, testing, and deploying the iOS SDK
 
+REPO_ROOT = File.expand_path('..', __dir__)
 FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
 FASTLANE_BUILD_OUTPUT_DIR=ENV['FASTLANE_BUILD_OUTPUT_DIR'] || "fastlane/build"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
@@ -36,7 +37,7 @@ platform :ios do
 
   desc "Sync version across all files. Usage: fastlane sync_version version:2.0.11"
   lane :sync_version do |options|
-    root_dir = File.expand_path("..", Dir.pwd)
+    root_dir = REPO_ROOT
     version_file = File.join(root_dir, ".version")
 
     # If version provided, update .version file first
@@ -97,7 +98,7 @@ platform :ios do
 
   desc "Get current version from .version file"
   lane :get_version do
-    root_dir = File.expand_path("..", Dir.pwd)
+    root_dir = REPO_ROOT
     version_file = File.join(root_dir, ".version")
     version = File.read(version_file).strip
     UI.message("Current version: #{version}")
@@ -106,7 +107,7 @@ platform :ios do
 
   desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
   lane :bump_version do |options|
-    root_dir = File.expand_path("..", Dir.pwd)
+    root_dir = REPO_ROOT
     version_file = File.join(root_dir, ".version")
     current_version = File.read(version_file).strip
 
@@ -141,7 +142,7 @@ platform :ios do
 
   desc "Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0"
   lane :sync_ios_target do |options|
-    root_dir = File.expand_path("..", Dir.pwd)
+    root_dir = REPO_ROOT
     target_file = File.join(root_dir, ".ios-deployment-target")
 
     # If target provided, update .ios-deployment-target file first
@@ -193,7 +194,7 @@ platform :ios do
 
   desc "Get current iOS deployment target"
   lane :get_ios_target do
-    root_dir = File.expand_path("..", Dir.pwd)
+    root_dir = REPO_ROOT
     target_file = File.join(root_dir, ".ios-deployment-target")
     target = File.read(target_file).strip
     UI.message("Current iOS deployment target: #{target}")
@@ -242,7 +243,8 @@ platform :ios do
     project       = "attentive-ios-sdk.xcodeproj"
     scheme        = "attentive-ios-sdk-framework"
     configuration = "Release"
-    xcargs        = "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+    output_root   = FASTLANE_BUILD_OUTPUT_DIR
+    xcargs        = "CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES"
 
     UI.message("🏗️  Building framework...")
 
@@ -251,10 +253,10 @@ platform :ios do
     xcodebuild(
       project: project,
       scheme: scheme,
-      destination: "generic/platform=iOS",
       configuration: configuration,
-      xcargs: xcargs,
-      output_directory: FASTLANE_BUILD_OUTPUT_DIR
+      destination: "generic/platform=iOS",
+      derivedDataPath: "#{output_root}/DerivedData-ios",
+      xcargs: xcargs
     )
 
     # Build for iOS Simulator
@@ -262,13 +264,88 @@ platform :ios do
     xcodebuild(
       project: project,
       scheme: scheme,
-      destination: "generic/platform=iOS Simulator",
       configuration: configuration,
-      xcargs: xcargs,
-      output_directory: FASTLANE_BUILD_OUTPUT_DIR
+      destination: "generic/platform=iOS Simulator",
+      derivedDataPath: "#{output_root}/DerivedData-sim",
+      xcargs: xcargs
     )
 
     UI.success("✅ Framework built successfully")
+  end
+
+  desc "Assemble XCFramework"
+  lane :assemble_xcframework do
+    project             = "attentive-ios-sdk.xcodeproj"
+    scheme              = "attentive-ios-sdk-framework"
+    configuration       = "Release"
+    framework           = "ATTNSDKFramework"
+    output_root         = FASTLANE_BUILD_OUTPUT_DIR
+    ios_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos"
+    sim_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator"
+
+    UI.message("🧱 Assembling #{framework} XCFramework (scheme: #{scheme}, config: #{configuration})")
+
+    ios_framework = "#{ios_framework_path}/#{framework}.framework"
+    ios_dsym = "#{ios_framework_path}/#{framework}.framework.dSYM"
+    UI.user_error!("iOS device framework not found at #{ios_framework}") unless File.directory?(ios_framework)
+
+    # Strip nested Frameworks directory if present (should not exist with correct build settings)
+    nested_frameworks_ios = "#{ios_framework}/Frameworks"
+    if File.directory?(nested_frameworks_ios)
+      UI.important("Stripping nested Frameworks directory from iOS device framework")
+      FileUtils.rm_rf(nested_frameworks_ios)
+    end
+
+    sim_framework = "#{sim_framework_path}/#{framework}.framework"
+    sim_dsym = "#{sim_framework_path}/#{framework}.framework.dSYM"
+    UI.user_error!("Simulator framework not found at #{sim_framework}") unless File.directory?(sim_framework)
+
+    # Strip nested Frameworks directory if present (should not exist with correct build settings)
+    nested_frameworks_sim = "#{sim_framework}/Frameworks"
+    if File.directory?(nested_frameworks_sim)
+      UI.important("Stripping nested Frameworks directory from simulator framework")
+      FileUtils.rm_rf(nested_frameworks_sim)
+    end
+
+    # Create universal framework
+    UI.message("🎨 Creating universal XCFramework (device + sim)")
+    universal_xcframework = "#{output_root}/#{framework}.xcframework"
+
+    # Include dSYMs if available
+    frameworks_with_dsyms = {}
+    if File.directory?(ios_dsym)
+      frameworks_with_dsyms[ios_framework] = { dsyms: ios_dsym }
+      UI.message("Including iOS device dSYM: #{ios_dsym}")
+    else
+      frameworks_with_dsyms[ios_framework] = {}
+      UI.important("iOS device dSYM not found at #{ios_dsym}, building without it")
+    end
+
+    if File.directory?(sim_dsym)
+      frameworks_with_dsyms[sim_framework] = { dsyms: sim_dsym }
+      UI.message("Including simulator dSYM: #{sim_dsym}")
+    else
+      frameworks_with_dsyms[sim_framework] = {}
+      UI.important("Simulator dSYM not found at #{sim_dsym}, building without it")
+    end
+
+    create_xcframework(
+      frameworks_with_dsyms: frameworks_with_dsyms,
+      output: "#{universal_xcframework}"
+    )
+    UI.success("Universal XCFramework → #{universal_xcframework}")
+
+    xcframework_path = File.join("#{REPO_ROOT}/#{output_root}", "#{framework}.xcframework")
+    sh("find #{xcframework_path} -name '*.swiftsourceinfo' -delete")
+    sh("find #{xcframework_path} -type d -name 'Project' -empty -delete")
+
+    UI.success("✅ Done building #{framework}")
+  end
+
+  desc "Build XCFramework"
+  lane :build_xcframework do
+    build_framework
+    assemble_xcframework
   end
 
   desc "Build example apps"
@@ -325,7 +402,7 @@ platform :ios do
     notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
 
     # Configure manual signing for each target
-    {                                                                                                                
+    {
       "AttentiveExample" => app_profile_name,
       "ATTNNotificationService" => notification_service_profile_name
     }.each do |target, profile|
@@ -354,96 +431,6 @@ platform :ios do
       output_directory: FASTLANE_BUILD_OUTPUT_DIR,
       clean: true
     )
-  end
-
-  desc "Build XCFramework"
-  lane :build_xcframework do
-    project       = "attentive-ios-sdk.xcodeproj"
-    scheme        = "attentive-ios-sdk-framework"
-    configuration = "Release"
-    framework     = "ATTNSDKFramework"
-    output_root   = File.expand_path("Build/XCFramework")
-    xcargs        = "SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES"
-
-    UI.message("🏗️ Building #{framework} XCFrameworks (scheme: #{scheme}, config: #{configuration})")
-
-    # Build for device
-    UI.message("[1/3] Build iOS device framework")
-    xcodebuild(
-      project: project,
-      scheme: scheme,
-      configuration: configuration,
-      build: true,
-      destination: "generic/platform=iOS",
-      derivedDataPath: "#{output_root}/DerivedData-ios",
-      xcargs: xcargs
-    )
-
-    ios_framework = "#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos/#{framework}.framework"
-    ios_dsym = "#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos/#{framework}.framework.dSYM"
-    UI.user_error!("iOS device framework not found at #{ios_framework}") unless File.directory?(ios_framework)
-
-    # Strip nested Frameworks directory if present (should not exist with correct build settings)
-    nested_frameworks_ios = "#{ios_framework}/Frameworks"
-    if File.directory?(nested_frameworks_ios)
-      UI.important("Stripping nested Frameworks directory from iOS device framework")
-      FileUtils.rm_rf(nested_frameworks_ios)
-    end
-
-    # Build for simulator
-    UI.message("[2/3] Build iOS simulator framework")
-    xcodebuild(
-      project: project,
-      scheme: scheme,
-      configuration: configuration,
-      build: true,
-      destination: "generic/platform=iOS Simulator",
-      derivedDataPath: "#{output_root}/DerivedData-sim",
-      xcargs: xcargs
-    )
-
-    sim_framework = "#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator/#{framework}.framework"
-    sim_dsym = "#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator/#{framework}.framework.dSYM"
-    UI.user_error!("Simulator framework not found at #{sim_framework}") unless File.directory?(sim_framework)
-
-    # Strip nested Frameworks directory if present (should not exist with correct build settings)
-    nested_frameworks_sim = "#{sim_framework}/Frameworks"
-    if File.directory?(nested_frameworks_sim)
-      UI.important("Stripping nested Frameworks directory from simulator framework")
-      FileUtils.rm_rf(nested_frameworks_sim)
-    end
-
-    # Create universal framework
-    UI.message("[3/3] Create universal XCFramework (device + sim)")
-    universal_xcframework = "#{output_root}/#{framework}.xcframework"
-
-    # Include dSYMs if available
-    frameworks_with_dsyms = {}
-    if File.directory?(ios_dsym)
-      frameworks_with_dsyms[ios_framework] = { dsyms: ios_dsym }
-      UI.message("Including iOS device dSYM: #{ios_dsym}")
-    else
-      frameworks_with_dsyms[ios_framework] = {}
-      UI.important("iOS device dSYM not found at #{ios_dsym}, building without it")
-    end
-    if File.directory?(sim_dsym)
-      frameworks_with_dsyms[sim_framework] = { dsyms: sim_dsym }
-      UI.message("Including simulator dSYM: #{sim_dsym}")
-    else
-      frameworks_with_dsyms[sim_framework] = {}
-      UI.important("Simulator dSYM not found at #{sim_dsym}, building without it")
-    end
-
-    create_xcframework(
-      frameworks_with_dsyms: frameworks_with_dsyms,
-      output: "#{universal_xcframework}"
-    )
-    UI.success("Universal XCFramework → #{universal_xcframework}")
-
-    sh("find #{output_root}/#{framework}.xcframework -name '*.swiftsourceinfo' -delete")
-    sh("find #{output_root}/#{framework}.xcframework -type d -name 'Project' -empty -delete")
-
-    UI.success("✅ Done building #{framework}")
   end
 
   # ========================
