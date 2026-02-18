@@ -253,9 +253,8 @@ platform :ios do
       scheme: scheme,
       destination: "generic/platform=iOS",
       configuration: configuration,
-      clean: true,
-      build: true,
-      xcargs: xcargs
+      xcargs: xcargs,
+      output_directory: FASTLANE_BUILD_OUTPUT_DIR
     )
 
     # Build for iOS Simulator
@@ -265,9 +264,8 @@ platform :ios do
       scheme: scheme,
       destination: "generic/platform=iOS Simulator",
       configuration: configuration,
-      clean: true,
-      build: true,
-      xcargs: xcargs
+      xcargs: xcargs,
+      output_directory: FASTLANE_BUILD_OUTPUT_DIR
     )
 
     UI.success("✅ Framework built successfully")
@@ -283,25 +281,21 @@ platform :ios do
 
     # Build Example App (Local)
     UI.message("Building Example - Local...")
-    xcodebuild(
+    build_ios_app(
       workspace: "attentive-ios-sdk.xcworkspace",
       scheme: "Example - Local",
-      destination: destination,
       configuration: configuration,
-      clean: true,
-      build: true,
+      destination: destination,
       xcargs: xcargs
     )
 
     # Build Bonni App
     UI.message("Building Bonni...")
-    xcodebuild(
+    build_ios_app(
       project: "Bonni/Bonni.xcodeproj",
       scheme: "AttentiveExample",
-      destination: destination,
       configuration: configuration,
-      clean: true,
-      build: true,
+      destination: destination,
       xcargs: xcargs
     )
 
@@ -327,7 +321,6 @@ platform :ios do
 
     app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
     notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
-    code_sign_identity = "Apple Distribution"
 
     # Configure manual signing for each target
     {                                                                                                                
@@ -339,7 +332,7 @@ platform :ios do
         path: project_path,
         targets: [target],
         profile_name: profile,
-        code_sign_identity: code_sign_identity
+        code_sign_identity: "Apple Distribution"
         )
     end
 
