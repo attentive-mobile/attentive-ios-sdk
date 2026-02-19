@@ -2,4 +2,3 @@ app_identifier([
 	"com.attentive.bonniexample",
 	"com.attentive.bonniexample.ATTNNotificationService"
 ])
-team_id(ENV.fetch("APPLE_TEAM_ID"))
