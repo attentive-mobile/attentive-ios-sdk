@@ -1,15 +1,7 @@
 # Matchfile for Fastlane Match
 # Configuration for code signing certificate management
 
-# App identifier
-app_identifier(["com.attentive.bonniexample", "com.attentive.bonniexample.ATTNNotificationService"])
-
-# Your Apple Developer Portal username
-username(ENV.fetch("APPLE_ID"))
-team_id(ENV.fetch("APPLE_TEAM_ID"))
-
 type("appstore")
-
 storage_mode("s3")
 s3_bucket(ENV.fetch("MATCH_S3_BUCKET"))
 s3_region(ENV.fetch("MATCH_S3_REGION"))
