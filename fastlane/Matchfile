@@ -1,6 +1,12 @@
 # Matchfile for Fastlane Match
 # Configuration for code signing certificate management
 
+# App identifiers
+app_identifier([
+	"com.attentive.bonniexample", 
+	"com.attentive.bonniexample.ATTNNotificationService"
+])
+
 # Your Apple Developer Portal username
 username(ENV.fetch("APPLE_ID"))
 team_id(ENV.fetch("APPLE_TEAM_ID"))

@@ -1,4 +1,1 @@
-app_identifier([
-	"com.attentive.bonniexample",
-	"com.attentive.bonniexample.ATTNNotificationService"
-])
+app_identifier("com.attentive.bonniexample")
