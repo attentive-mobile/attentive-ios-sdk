@@ -512,7 +512,8 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       ipa: "#{FASTLANE_BUILD_OUTPUT_DIR}/AttentiveExample.ipa",
-      distribute_external: false
+      distribute_external: false,
+      notify_external_testers: false
     )
     UI.success("✅ Build uploaded to TestFlight successfully!")
   end
