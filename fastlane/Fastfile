@@ -114,32 +114,20 @@ platform :ios do
     version
   end
 
-  desc "Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)"
+  desc "Bump version. Usage: fastlane bump_version version:2.1.0"
   lane :bump_version do |options|
     root_dir = REPO_ROOT
     version_file = File.join(root_dir, ".version")
     current_version = File.read(version_file).strip
 
-    parts = current_version.split('.').map(&:to_i)
-    UI.user_error!("❌ Invalid version format: #{current_version}") if parts.length != 3
+    UI.user_error!("version parameter is required. Usage: fastlane bump_version version:2.1.0") unless options[:version]
+    new_version = options[:version].strip
+    UI.user_error!("❌ Invalid version format: #{new_version}. Expected X.Y.Z") unless new_version.match?(/^\d+\.\d+\.\d+$/)
 
-    bump_type = options[:type] || "patch"
+    current_parts = current_version.split('.').map(&:to_i)
+    new_parts = new_version.split('.').map(&:to_i)
+    UI.user_error!("❌ New version #{new_version} must be greater than current version #{current_version}") unless (new_parts <=> current_parts) == 1
 
-    case bump_type
-    when "major"
-      parts[0] += 1
-      parts[1] = 0
-      parts[2] = 0
-    when "minor"
-      parts[1] += 1
-      parts[2] = 0
-    when "patch"
-      parts[2] += 1
-    else
-      UI.user_error!("❌ Invalid bump type: #{bump_type}. Use: major, minor, or patch")
-    end
-
-    new_version = parts.join('.')
     UI.message("📝 Bumping version: #{current_version} → #{new_version}")
 
     sync_version(version: new_version)
@@ -506,6 +494,220 @@ platform :ios do
   # Distribution
   # ========================
 
+  lane :release_test do
+    root_dir        = REPO_ROOT
+    package_file    = File.join(REPO_ROOT, "Package.swift")
+    repository_name = "attentive-mobile/attentive-ios-sdk"
+    current_version = get_version
+    new_version     = options[:version].strip
+    
+    # 1. Set version (updates .version, ATTNConstants.swift, README.md, Package.swift)
+    bump_version(version: new_version)
+
+    # 2. Check if tag already exists
+    tag_exists = git_tag_exists(tag: new_version, remote: true)
+    UI.user_error!("Tag #{new_version} already exists. Aborting release.") unless tag_exists.empty?
+
+    UI.message("Releasing version #{new_version}...")
+
+    # 3. Resolve release notes
+    release_notes = options[:release_notes].to_s.strip
+    if release_notes.empty?
+      release_notes = changelog_from_git_commits(
+        between: ["#{current_version}", "HEAD"],
+        pretty: "* %s"
+      )
+    end
+
+    # 4. Prepend to CHANGELOG.md
+    changelog_filename = "CHANGELOG.md"
+    changelog_file = File.join(root_dir, changelog_filename)
+    date = Time.now.strftime("%Y-%m-%d")
+    changelog_entry = "## [#{new_version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{current_version}...#{new_version}) (#{date})\n#{release_notes}\n\n"
+    existing_changelog = File.exist?(changelog_file) ? File.read(changelog_file) : ""
+    File.write(changelog_file, changelog_entry + existing_changelog)
+
+    # 5. Create version-bump branch and commit version bump
+    version_bump = "version-bump-#{new_version}"
+    # sh("git config user.name 'CI Bot'")
+    # sh("git config user.email 'ci@attentivemobile.com'")
+    sh("git checkout -b #{version_bump}")
+
+    files = [
+        ".version",
+        "Sources/ATTNConstants.swift",
+        "README.md",
+        "Package.swift",
+        "#{changelog_filename}"
+      ]
+
+    git_add(path: files)
+    git_commit(path: files, message: "Version bump #{new_version}")
+
+    # 6. Build XCFramework, zip and compute checksum
+    xcframework_result = build_zip_checksum_xcframework
+    xcframework_zip_path = xcframework_result[:zip_path]
+    xcframework_checksum = xcframework_result[:checksum]
+    UI.message("Checksum: #{checksum}")
+
+    # 7. Swap Package.swift to binary target for the tagged commit
+    source_package = File.read(package_file)
+    platform_line = source_package.match(/platforms: \[(.+)\]/)[1]
+
+    binary_package = <<~SWIFT
+      // swift-tools-version:5.9
+      // The swift-tools-version declares the minimum version of Swift required to build this package.
+
+      import PackageDescription
+
+      let package = Package(
+          name: "ATTNSDKFramework",
+          platforms: [#{platform_line}],
+          products: [
+              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
+          ],
+          targets: [
+              .binaryTarget(
+                  name: "ATTNSDKFramework",
+                  url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{new_version}/ATTNSDKFramework.xcframework.zip",
+                  checksum: "#{checksum}"
+              )
+          ]
+      )
+    SWIFT
+
+    File.write(package_file, binary_package)
+    file = "Package.swift"
+  end
+
+  desc "Build XCFramework, publish, tag, and open PR to main. Usage: fastlane release version:2.1.0"
+  lane :release do |options|
+    root_dir        = REPO_ROOT
+    package_file    = File.join(REPO_ROOT, "Package.swift")
+    repository_name = "attentive-mobile/attentive-ios-sdk"
+    current_version = get_version
+    new_version     = options[:version].strip
+    
+    # 1. Set version (updates .version, ATTNConstants.swift, README.md, Package.swift)
+    bump_version(version: new_version)
+
+    # 2. Check if tag already exists
+    tag_exists = git_tag_exists(tag: new_version, remote: true)
+    UI.user_error!("Tag #{new_version} already exists. Aborting release.") unless tag_exists.empty?
+
+    UI.message("Releasing version #{new_version}...")
+
+    # 3. Resolve release notes
+    release_notes = options[:release_notes].to_s.strip
+    if release_notes.empty?
+      release_notes = changelog_from_git_commits(
+        between: ["#{current_version}", "HEAD"],
+        pretty: "* %s"
+      )
+    end
+
+    # 4. Prepend to CHANGELOG.md
+    changelog_filename = "CHANGELOG.md"
+    changelog_file = File.join(root_dir, changelog_filename)
+    date = Time.now.strftime("%Y-%m-%d")
+    changelog_entry = "## [#{new_version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{current_version}...#{new_version}) (#{date})\n#{release_notes}\n\n"
+    existing_changelog = File.exist?(changelog_file) ? File.read(changelog_file) : ""
+    File.write(changelog_file, changelog_entry + existing_changelog)
+
+    # 5. Create version-bump branch and commit version bump
+    version_bump = "version-bump-#{new_version}"
+    # sh("git config user.name 'CI Bot'")
+    # sh("git config user.email 'ci@attentivemobile.com'")
+    sh("git checkout -b #{version_bump}")
+
+    files = [
+        ".version",
+        "Sources/ATTNConstants.swift",
+        "README.md",
+        "Package.swift",
+        "#{changelog_filename}"
+      ]
+
+    git_add(path: files)
+    git_commit(path: files, message: "Version bump #{new_version}")
+
+    # 6. Build XCFramework, zip and compute checksum
+    xcframework_result = build_zip_checksum_xcframework
+    xcframework_zip_path = xcframework_result[:zip_path]
+    xcframework_checksum = xcframework_result[:checksum]
+    UI.message("Checksum: #{checksum}")
+
+    # 7. Swap Package.swift to binary target for the tagged commit
+    source_package = File.read(package_file)
+    platform_line = source_package.match(/platforms: \[(.+)\]/)[1]
+
+    binary_package = <<~SWIFT
+      // swift-tools-version:5.9
+      // The swift-tools-version declares the minimum version of Swift required to build this package.
+
+      import PackageDescription
+
+      let package = Package(
+          name: "ATTNSDKFramework",
+          platforms: [#{platform_line}],
+          products: [
+              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
+          ],
+          targets: [
+              .binaryTarget(
+                  name: "ATTNSDKFramework",
+                  url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{new_version}/ATTNSDKFramework.xcframework.zip",
+                  checksum: "#{checksum}"
+              )
+          ]
+      )
+    SWIFT
+
+    File.write(package_file, binary_package)
+    file = "Package.swift"
+    git_add(path: file)
+    git_commit(path: file, message: "Binary #{file} for #{new_version}")
+
+    # 8. Tag this commit and push only the tag
+    add_git_tag(tag: "#{new_version}")
+    push_git_tags(tag: "#{new_version}")
+
+    # 9. Reset branch back to version bump commit (source Package.swift)
+    sh("git reset --hard HEAD~1")
+
+    # 10. Push the version bump branch
+    push_to_git_remote(
+      local_branch: version_bump
+      tags: false
+    )
+
+    # 11. Create GitHub release with XCFramework attached
+    github_release = set_github_release(
+      repository_name: repository_name,
+      name: "#{new_version}",
+      tag_name: "#{new_version}",
+      description: release_notes,
+      upload_assets: [xcframework_zip_path]
+    )
+
+    # 12. Push to CocoaPods
+    pod_push(
+      path: "ATTNSDKFramework.podspec",
+      allow_warnings: true
+    )
+
+    # 13. Open PR to main
+    create_pull_request(
+      repo: repository_name,
+      title: "[CI/fastlane] Bump version to #{new_version}",
+      head: version_bump
+      base: "main"
+      body: "Automated version bump to #{new_version}"
+    )
+
+    UI.success("Released #{new_version}. PR opened to main.")
+  end
+
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
     UI.message("🚀 Uploading to TestFlight...")
@@ -525,5 +727,22 @@ platform :ios do
   error do |lane, exception|
     UI.error("❌ Lane #{lane} failed with error:")
     UI.error(exception.message)
+  end
+
+  # ========================
+  # Methods
+  # ========================
+
+  def build_zip_checksum_xcframework
+    build_framework
+    assemble_xcframework
+    xcframework_dir = FASTLANE_BUILD_OUTPUT_DIR
+    zip_path = "#{xcframework_dir}/ATTNSDKFramework.xcframework.zip"
+    zip(
+      path: xcframework_dir,
+      output_path: zip_path
+    )
+    checksum = sh("swift package compute-checksum #{REPO_ROOT}/#{zip_path}", log: false).strip
+    { zip_path: zip_path, checksum: checksum }
   end
 end
