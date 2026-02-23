@@ -677,7 +677,7 @@ platform :ios do
 
     # 10. Push the version bump branch
     push_to_git_remote(
-      local_branch: version_bump
+      local_branch: version_bump,
       tags: false
     )
 
@@ -700,8 +700,8 @@ platform :ios do
     create_pull_request(
       repo: repository_name,
       title: "[CI/fastlane] Bump version to #{new_version}",
-      head: version_bump
-      base: "main"
+      head: version_bump,
+      base: "main",
       body: "Automated version bump to #{new_version}"
     )
 
