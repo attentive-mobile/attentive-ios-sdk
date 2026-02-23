@@ -1,6 +1,20 @@
 version: 2.1
 
 # ========================
+# Pipeline Parameters
+# ========================
+parameters:
+  run_release:
+    type: boolean
+    default: false
+  release_version:
+    type: string
+    default: ""
+  release_notes:
+    type: string
+    default: ""
+
+# ========================
 # Executors
 # ========================
 executors:
@@ -20,6 +34,7 @@ executors:
 orbs:
   macos: circleci/macos@2
   aws-cli: circleci/aws-cli@4.0.0
+  github-cli: circleci/github-cli@2.7.2
 
 # ========================
 # Constants
@@ -254,6 +269,23 @@ jobs:
           command: bundle exec fastlane validate_spm
 
   # -----------------------
+  # Release SDK
+  # -----------------------
+  release:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - gh/setup
+
+      - run:
+          name: Release SDK via Fastlane
+          command: bundle exec fastlane release version:"<< pipeline.parameters.release_version >>" release_notes:"<< pipeline.parameters.release_notes >>"
+
+  # -----------------------
   # Deploy to TestFlight
   # -----------------------
   deploy-testflight:
@@ -274,8 +306,59 @@ jobs:
 workflows:
   version: 2
 
+  # Release workflow triggered via API (GitHub Actions)
+  release-sdk:
+    when: << pipeline.parameters.run_release >>
+    jobs:
+      - checkout-and-setup
+
+      - lint:
+          requires:
+            - checkout-and-setup
+
+      - unit-tests:
+          requires:
+            - checkout-and-setup
+
+      - build-framework:
+          requires:
+            - checkout-and-setup
+
+      - validate-podspec:
+          requires:
+            - checkout-and-setup
+
+      - validate-spm:
+          requires:
+            - checkout-and-setup
+
+      - assemble-xcframework:
+          requires:
+            - build-framework
+
+      - build-examples:
+          requires:
+            - lint
+            - unit-tests
+            - assemble-xcframework
+            - validate-podspec
+            - validate-spm
+
+      - build-bonni-release:
+          requires:
+            - build-examples
+
+      - deploy-testflight:
+          requires:
+            - build-bonni-release
+
+      - release:
+          requires:
+            - build-examples
+
   # Main workflow for all branches
   lint-validate-build-test:
+    unless: << pipeline.parameters.run_release >>
     jobs:
       - checkout-and-setup
 
