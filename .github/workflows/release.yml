@@ -1,0 +1,58 @@
+name: Release SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., 2.1.0)"
+        required: true
+        type: string
+      release_notes:
+        description: "Release notes (optional — auto-generated from commits if left blank)"
+        required: false
+        type: string
+
+jobs:
+  trigger-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version must be in semver format (e.g., 2.1.0)"
+            exit 1
+          fi
+
+      - name: Trigger CircleCI release pipeline
+        env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          payload=$(jq -n \
+            --arg version "${{ inputs.version }}" \
+            --arg notes "$RELEASE_NOTES" \
+            '{
+              branch: "main",
+              parameters: {
+                run_release: true,
+                release_version: $version,
+                release_notes: $notes
+              }
+            }')
+
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://circleci.com/api/v2/project/gh/${{ github.repository }}/pipeline" \
+            -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "$body" | jq . 2>/dev/null || echo "$body"
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::CircleCI API returned HTTP $http_code"
+            exit 1
+          fi
+
+          echo "CircleCI pipeline triggered for version ${{ inputs.version }}"
