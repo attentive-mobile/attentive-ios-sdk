@@ -554,35 +554,34 @@ platform :ios do
     git_add(path: file)
     git_commit(path: file, message: "Binary #{file} for #{new_version}")
 
-    # 8. Tag this commit and push only the tag
-    add_git_tag(tag: "#{new_version}")
-    push_git_tags(tag: "#{new_version}")
+    # 8–11. Publish to remote (with rollback on failure)
+    begin
+      add_git_tag(tag: "#{new_version}")
+      push_git_tags(tag: "#{new_version}")
 
-    # 9. Reset branch back to version bump commit (source Package.swift)
-    sh("git reset --hard HEAD~1")
+      sh("git reset --hard HEAD~1")
 
-    # 10. Push the version bump branch
-    push_to_git_remote(
-      local_branch: version_bump,
-      tags: false
-    )
+      push_to_git_remote(
+        local_branch: version_bump,
+        tags: false
+      )
 
-    # 11. Create GitHub release with XCFramework attached
-    github_release = set_github_release(
-      repository_name: repository_name,
-      name: "#{new_version}",
-      tag_name: "#{new_version}",
-      description: release_notes,
-      upload_assets: [xcframework_zip_path]
-    )
+      set_github_release(
+        repository_name: repository_name,
+        name: "#{new_version}",
+        tag_name: "#{new_version}",
+        description: release_notes,
+        upload_assets: [xcframework_zip_path]
+      )
+    rescue => e
+      UI.error("Release failed during publish. Rolling back remote state...")
+      sh("git push --delete origin #{new_version}") rescue nil
+      sh("gh release delete #{new_version} -y") rescue nil
+      sh("git push --delete origin #{version_bump}") rescue nil
+      UI.user_error!("Release failed and rolled back: #{e.message}")
+    end
 
-    # 12. Push to CocoaPods
-    pod_push(
-      path: "ATTNSDKFramework.podspec",
-      allow_warnings: true
-    )
-
-    # 13. Open PR to main
+    # 12. Open PR to main
     create_pull_request(
       repo: repository_name,
       title: "[CI/fastlane] Bump version to #{new_version}",
@@ -590,6 +589,16 @@ platform :ios do
       base: "main",
       body: "Automated version bump to #{new_version}"
     )
+
+    # 13. Push to CocoaPods (SPM + GitHub release already work at this point)
+    begin
+      pod_push(
+        path: "ATTNSDKFramework.podspec",
+        allow_warnings: true
+      )
+    rescue => e
+      UI.user_error!("CocoaPods push failed: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push ATTNSDKFramework.podspec --allow-warnings")
+    end
 
     UI.success("Released #{new_version}. PR opened to main.")
   end
