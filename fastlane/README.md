@@ -45,7 +45,7 @@ Get current version from .version file
 [bundle exec] fastlane ios bump_version
 ```
 
-Bump version. Usage: fastlane bump_version type:patch (patch/minor/major)
+Bump version. Usage: fastlane bump_version version:2.1.0
 
 ### ios sync_ios_target
 
@@ -134,6 +134,14 @@ Validate CocoaPods podspec
 ```
 
 Validate Swift Package Manager
+
+### ios release
+
+```sh
+[bundle exec] fastlane ios release
+```
+
+Build XCFramework, publish, tag, and open PR to main. Usage: fastlane release version:2.1.0
 
 ### ios deploy_testflight
 
