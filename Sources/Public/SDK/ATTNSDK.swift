@@ -605,6 +605,7 @@ public final class ATTNSDK: NSObject {
                     Loggers.event.debug("Deferring handleRegularOpen: push token not yet available. It will be triggered later from AppDelegate after APNs registration completes.")
                     return
                 }
+                self.api.sendPushToken(currentPushToken, userIdentity: userIdentity, authorizationStatus: updated.authorizationStatus, callback: nil)
                 self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
             }
         }
