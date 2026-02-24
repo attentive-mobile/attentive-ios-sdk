@@ -76,6 +76,12 @@ public final class ATTNSDK: NSObject {
 
         super.init()
 
+        if ATTNAPI.isInvalidDomain(domain) {
+            Loggers.creative.error("Invalid domain provided: \(domain, privacy: .public)")
+            Loggers.creative.error("\(ATTNError.invalidDomain.localizedDescription)")
+            return
+        }
+
         // Register app open events for when app is foregrounded
         NotificationCenter.default.addObserver(
             self,
@@ -168,6 +174,11 @@ public final class ATTNSDK: NSObject {
     public func update(domain: String) {
         guard self.domain != domain else {
             Loggers.creative.debug("Domain update skipped - requested domain matches current domain: \(domain, privacy: .public)")
+            return
+        }
+        if ATTNAPI.isInvalidDomain(domain) {
+            Loggers.creative.error("Invalid domain provided: \(domain, privacy: .public)")
+            Loggers.creative.error("\(ATTNError.invalidDomain.localizedDescription)")
             return
         }
         let oldDomain = self.domain
