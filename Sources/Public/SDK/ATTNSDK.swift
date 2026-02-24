@@ -77,8 +77,10 @@ public final class ATTNSDK: NSObject {
         super.init()
 
         if ATTNAPI.isInvalidDomain(domain) {
+            let message = ATTNError.invalidDomain.localizedDescription ?? "Invalid domain"
             Loggers.creative.error("Invalid domain provided: \(domain, privacy: .public)")
-            Loggers.creative.error("\(ATTNError.invalidDomain.localizedDescription)")
+            Loggers.creative.error("\(message)")
+            assertionFailure(message)
             return
         }
 
@@ -177,8 +179,10 @@ public final class ATTNSDK: NSObject {
             return
         }
         if ATTNAPI.isInvalidDomain(domain) {
+            let message = ATTNError.invalidDomain.localizedDescription ?? "Invalid domain"
             Loggers.creative.error("Invalid domain provided: \(domain, privacy: .public)")
-            Loggers.creative.error("\(ATTNError.invalidDomain.localizedDescription)")
+            Loggers.creative.error("\(message)")
+            assertionFailure(message)
             return
         }
         let oldDomain = self.domain
