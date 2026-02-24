@@ -520,12 +520,11 @@ platform :ios do
     end
 
     # 4. Prepend to CHANGELOG.md
-    changelog_filename = "CHANGELOG.md"
-    changelog_file = File.join(root_dir, changelog_filename)
-    date = Time.now.strftime("%Y-%m-%d")
-    changelog_entry = "## [#{new_version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{current_version}...#{new_version}) (#{date})\n#{release_notes}\n\n"
-    existing_changelog = File.exist?(changelog_file) ? File.read(changelog_file) : ""
-    File.write(changelog_file, changelog_entry + existing_changelog)
+    prepend_changelog(
+      version: new_version,
+      previous_version: current_version,
+      notes: release_notes
+    )
 
     # 5. Create version-bump branch and commit version bump
     version_bump = "version-bump-#{new_version}"
@@ -545,38 +544,12 @@ platform :ios do
     git_commit(path: files, message: "Version bump #{new_version}")
 
     # 6. Build XCFramework, zip and compute checksum
-    xcframework_result = build_zip_checksum_xcframework
-    xcframework_zip_path = xcframework_result[:zip_path]
-    xcframework_checksum = xcframework_result[:checksum]
+    xcframework_zip_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework.zip"
+    xcframework_checksum = build_zip_checksum_xcframework(zip_path: xcframework_zip_path)
     UI.message("Checksum: #{xcframework_checksum}")
 
     # 7. Swap Package.swift to binary target for the tagged commit
-    source_package = File.read(package_file)
-    platform_line = source_package.match(/platforms: \[(.+)\]/)[1]
-
-    binary_package = <<~SWIFT
-      // swift-tools-version:5.9
-      // The swift-tools-version declares the minimum version of Swift required to build this package.
-
-      import PackageDescription
-
-      let package = Package(
-          name: "ATTNSDKFramework",
-          platforms: [#{platform_line}],
-          products: [
-              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
-          ],
-          targets: [
-              .binaryTarget(
-                  name: "ATTNSDKFramework",
-                  url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{new_version}/ATTNSDKFramework.xcframework.zip",
-                  checksum: "#{xcframework_checksum}"
-              )
-          ]
-      )
-    SWIFT
-
-    File.write(package_file, binary_package)
+    write_binary_package_swift(package_file: package_file, version: new_version, checksum: xcframework_checksum)
     file = "Package.swift"
     git_add(path: file)
     git_commit(path: file, message: "Binary #{file} for #{new_version}")
@@ -646,16 +619,47 @@ platform :ios do
   # Methods
   # ========================
 
-  def build_zip_checksum_xcframework
+  def prepend_changelog(version:, previous_version:, notes:)
+    changelog_file = File.join(REPO_ROOT, "CHANGELOG.md")
+    date = Time.now.strftime("%Y-%m-%d")
+    entry = "## [#{version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{previous_version}...#{version}) (#{date})\n#{notes}\n\n"
+    existing = File.exist?(changelog_file) ? File.read(changelog_file) : ""
+    File.write(changelog_file, entry + existing)
+  end
+
+  def write_binary_package_swift(package_file:, version:, checksum:)
+    binary_package = <<~SWIFT
+      // swift-tools-version:5.9
+      // The swift-tools-version declares the minimum version of Swift required to build this package.
+
+      import PackageDescription
+
+      let package = Package(
+          name: "ATTNSDKFramework",
+          platforms: [.iOS(.v14)],
+          products: [
+              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
+          ],
+          targets: [
+              .binaryTarget(
+                  name: "ATTNSDKFramework",
+                  url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{version}/ATTNSDKFramework.xcframework.zip",
+                  checksum: "#{checksum}"
+              )
+          ]
+      )
+    SWIFT
+
+    File.write(package_file, binary_package)
+  end
+
+  def build_zip_checksum_xcframework(zip_path:)
     build_framework
     assemble_xcframework
-    xcframework_dir = FASTLANE_BUILD_OUTPUT_DIR
-    zip_path = "#{xcframework_dir}/ATTNSDKFramework.xcframework.zip"
     zip(
-      path: xcframework_dir,
+      path: FASTLANE_BUILD_OUTPUT_DIR,
       output_path: zip_path
     )
-    checksum = sh("swift package compute-checksum #{REPO_ROOT}/#{zip_path}", log: false).strip
-    { zip_path: zip_path, checksum: checksum }
+    sh("swift package compute-checksum #{REPO_ROOT}/#{zip_path}", log: false).strip
   end
 end
