@@ -528,8 +528,8 @@ platform :ios do
 
     # 5. Create version-bump branch and commit version bump
     version_bump = "version-bump-#{new_version}"
-    # sh("git config user.name 'CI Bot'")
-    # sh("git config user.email 'ci@attentivemobile.com'")
+    sh("git config user.name 'CI Bot'")
+    sh("git config user.email 'ci@attentivemobile.com'")
     sh("git checkout -b #{version_bump}")
 
     files = [
