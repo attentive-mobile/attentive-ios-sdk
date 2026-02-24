@@ -12,6 +12,7 @@ public enum ATTNError: Error {
     case missingContactInfo
     case geoDomainUnavailable
     case badURL
+    case invalidDomain
 }
 
 extension ATTNError: LocalizedError {
@@ -25,6 +26,8 @@ extension ATTNError: LocalizedError {
             return "Geo domain unavailable"
         case .badURL:
             return "Invalid URL"
+        case .invalidDomain:
+            return "The provided domain is not recognized. Please verify that the domain matches your Attentive settings."
         }
     }
 }

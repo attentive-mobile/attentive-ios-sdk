@@ -415,6 +415,10 @@ class SettingsViewController: UIViewController {
                 self.showToast(with: "Please enter a valid domain")
                 return
             }
+            guard self.isValidDomain(newDomain) else {
+                self.showToast(with: ATTNError.invalidDomain.localizedDescription)
+                return
+            }
 
             let sdk = self.getAttentiveSdk()
             sdk.update(domain: newDomain)
@@ -426,6 +430,13 @@ class SettingsViewController: UIViewController {
 
     @objc private func showCreativeTapped() {
         self.getAttentiveSdk().trigger(self.view)
+    }
+
+    private func isValidDomain(_ domain: String) -> Bool {
+        let normalized = domain.lowercased()
+        return normalized.contains("attn.tv") == false
+            && normalized.contains("/") == false
+            && normalized.contains(":") == false
     }
 
     @objc private func showPushPermissionTapped() {
