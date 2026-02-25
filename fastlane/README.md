@@ -87,14 +87,6 @@ Build framework for device and simulator
 
 Assemble XCFramework
 
-### ios build_xcframework
-
-```sh
-[bundle exec] fastlane ios build_xcframework
-```
-
-Build XCFramework
-
 ### ios build_examples
 
 ```sh
@@ -135,13 +127,13 @@ Validate CocoaPods podspec
 
 Validate Swift Package Manager
 
-### ios release
+### ios create_release
 
 ```sh
-[bundle exec] fastlane ios release
+[bundle exec] fastlane ios create_release
 ```
 
-Build XCFramework, publish, tag, and open PR to main. Usage: fastlane release version:2.1.0
+Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0
 
 ### ios deploy_testflight
 

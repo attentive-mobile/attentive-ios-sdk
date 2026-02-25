@@ -35,6 +35,7 @@ orbs:
   macos: circleci/macos@2
   aws-cli: circleci/aws-cli@4.0.0
   github-cli: circleci/github-cli@2.7.2
+  attentive: attentive-mobile/circleci-orb@0.0.6
 
 # ========================
 # Constants
@@ -279,11 +280,17 @@ jobs:
 
       - setup-fastlane
 
-      - gh/setup
+      - github-cli/setup
+
+      - attentive/app-based-github-token:
+          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
+          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
 
       - run:
-          name: Release SDK via Fastlane
-          command: bundle exec fastlane release version:"<< pipeline.parameters.release_version >>" release_notes:"<< pipeline.parameters.release_notes >>"
+          name: Create release for SDK via Fastlane
+          command: |
+            export GITHUB_TOKEN="${gh_token}"
+            bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"<< pipeline.parameters.release_notes >>"
 
   # -----------------------
   # Deploy to TestFlight
@@ -348,13 +355,13 @@ workflows:
           requires:
             - build-examples
 
-      - deploy-testflight:
-          requires:
-            - build-bonni-release
-
       - release:
           requires:
             - build-examples
+
+      - deploy-testflight:
+          requires:
+            - build-bonni-release
 
   # Main workflow for all branches
   lint-validate-build-test:

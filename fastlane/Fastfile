@@ -191,9 +191,7 @@ platform :ios do
 
   desc "Get current iOS deployment target"
   lane :get_ios_target do
-    root_dir = REPO_ROOT
-    target_file = File.join(root_dir, ".ios-deployment-target")
-    target = File.read(target_file).strip
+    target = read_ios_target
     UI.message("Current iOS deployment target: #{target}")
     target
   end
@@ -337,12 +335,6 @@ platform :ios do
     sh("find #{xcframework_path} -type d -name 'Project' -empty -delete")
 
     UI.success("✅ Done assembling #{framework}")
-  end
-
-  desc "Build XCFramework"
-  lane :build_xcframework do
-    build_framework
-    assemble_xcframework
   end
 
   desc "Build example apps"
@@ -494,19 +486,23 @@ platform :ios do
   # Distribution
   # ========================
 
-  desc "Build XCFramework, publish, tag, and open PR to main. Usage: fastlane release version:2.1.0"
-  lane :release do |options|
+  desc "Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0"
+  lane :create_release do |options|
+    UI.user_error!("Version parameter is required. Usage: fastlane create_release version:2.1.0") unless options[:version]
+
     root_dir        = REPO_ROOT
-    package_file    = File.join(REPO_ROOT, "Package.swift")
+    package_file    = File.join(root_dir, "Package.swift")
     repository_name = "attentive-mobile/attentive-ios-sdk"
     current_version = get_version
     new_version     = options[:version].strip
-    
-    # 1. Set version (updates .version, ATTNConstants.swift, README.md, Package.swift)
-    bump_version(version: new_version)
+    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
 
-    # 2. Check if tag already exists
+    # 1. Pre-flight checks
+    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(xcframework_path)
     UI.user_error!("Tag #{new_version} already exists. Aborting release.") if git_tag_exists(tag: new_version, remote: true)
+
+    # 2. Set version (updates .version, ATTNConstants.swift, README.md, Package.swift)
+    bump_version(version: new_version)
 
     UI.message("Releasing version #{new_version}...")
 
@@ -537,15 +533,19 @@ platform :ios do
         "Sources/ATTNConstants.swift",
         "README.md",
         "Package.swift",
-        "#{changelog_filename}"
+        "CHANGELOG.md"
       ]
 
     git_add(path: files)
     git_commit(path: files, message: "Version bump #{new_version}")
 
-    # 6. Build XCFramework, zip and compute checksum
-    xcframework_zip_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework.zip"
-    xcframework_checksum = build_zip_checksum_xcframework(zip_path: xcframework_zip_path)
+    # 6. Zip XCFramework and compute checksum
+    xcframework_zip_path = "#{xcframework_path}.zip"
+    zip(
+      path: xcframework_path,
+      output_path: xcframework_zip_path
+    )
+    xcframework_checksum = sh("swift package compute-checksum #{root_dir}/#{xcframework_zip_path}", log: false).strip
     UI.message("Checksum: #{xcframework_checksum}")
 
     # 7. Swap Package.swift to binary target for the tagged commit
@@ -568,6 +568,7 @@ platform :ios do
 
       set_github_release(
         repository_name: repository_name,
+        api_bearer: ENV["GITHUB_TOKEN"],
         name: "#{new_version}",
         tag_name: "#{new_version}",
         description: release_notes,
@@ -584,6 +585,7 @@ platform :ios do
     # 12. Open PR to main
     create_pull_request(
       repo: repository_name,
+      api_bearer: ENV["GITHUB_TOKEN"],
       title: "[CI/fastlane] Bump version to #{new_version}",
       head: version_bump,
       base: "main",
@@ -628,6 +630,10 @@ platform :ios do
   # Methods
   # ========================
 
+  def read_ios_target
+    File.read(File.join(REPO_ROOT, ".ios-deployment-target")).strip
+  end
+
   def prepend_changelog(version:, previous_version:, notes:)
     changelog_file = File.join(REPO_ROOT, "CHANGELOG.md")
     date = Time.now.strftime("%Y-%m-%d")
@@ -637,6 +643,7 @@ platform :ios do
   end
 
   def write_binary_package_swift(package_file:, version:, checksum:)
+    major_version = read_ios_target.split('.').first
     binary_package = <<~SWIFT
       // swift-tools-version:5.9
       // The swift-tools-version declares the minimum version of Swift required to build this package.
@@ -645,7 +652,7 @@ platform :ios do
 
       let package = Package(
           name: "ATTNSDKFramework",
-          platforms: [.iOS(.v14)],
+          platforms: [.iOS(.v#{major_version})],
           products: [
               .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
           ],
@@ -660,15 +667,5 @@ platform :ios do
     SWIFT
 
     File.write(package_file, binary_package)
-  end
-
-  def build_zip_checksum_xcframework(zip_path:)
-    build_framework
-    assemble_xcframework
-    zip(
-      path: FASTLANE_BUILD_OUTPUT_DIR,
-      output_path: zip_path
-    )
-    sh("swift package compute-checksum #{REPO_ROOT}/#{zip_path}", log: false).strip
   end
 end
