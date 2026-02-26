@@ -288,9 +288,12 @@ jobs:
 
       - run:
           name: Create release for SDK via Fastlane
+          environment:
+            RELEASE_VERSION: << pipeline.parameters.release_version >>
+            RELEASE_NOTES: << pipeline.parameters.release_notes >>
           command: |
             export GITHUB_TOKEN="${gh_token}"
-            bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"<< pipeline.parameters.release_notes >>"
+            bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
 
   # -----------------------
   # Deploy to TestFlight
@@ -362,6 +365,7 @@ workflows:
       - deploy-testflight:
           requires:
             - build-bonni-release
+            - release
 
   # Main workflow for all branches
   lint-validate-build-test:
