@@ -285,7 +285,7 @@ jobs:
           command: |
             CLIENT_ID="${GITHUB_APP_CLIENT_ID}"
             KEY_FILE=$(mktemp)
-            echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -D > "$KEY_FILE"
+            echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -d > "$KEY_FILE"
             trap 'rm -f "$KEY_FILE"' EXIT
 
             now=$(date +%s)
