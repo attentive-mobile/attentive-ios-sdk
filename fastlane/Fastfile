@@ -50,8 +50,7 @@ platform :ios do
 
   desc "Sync version across all files. Usage: fastlane sync_version version:2.0.11"
   lane :sync_version do |options|
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = abs_path(".version")
 
     # If version provided, update .version file first
     if options[:version]
@@ -66,7 +65,7 @@ platform :ios do
     UI.message("🔄 Syncing version: #{version}")
 
     # 1. Update ATTNConstants.swift
-    constants_file = File.join(root_dir, "Sources/ATTNConstants.swift")
+    constants_file = abs_path("Sources/ATTNConstants.swift")
     if File.exist?(constants_file)
       content = File.read(constants_file)
       content.gsub!(/static let sdkVersion = ".*"/, "static let sdkVersion = \"#{version}\"")
@@ -75,7 +74,7 @@ platform :ios do
     end
 
     # 2. Update Package.swift (the URL version)
-    package_file = File.join(root_dir, "Package.swift")
+    package_file = abs_path("Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
       content.gsub!(%r{releases/download/[0-9.]+[^/]*/}, "releases/download/#{version}/")
@@ -84,7 +83,7 @@ platform :ios do
     end
 
     # 3. Update README.md pod versions
-    readme_file = File.join(root_dir, "README.md")
+    readme_file = abs_path("README.md")
     if File.exist?(readme_file)
       content = File.read(readme_file)
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
@@ -111,8 +110,7 @@ platform :ios do
 
   desc "Get current version from .version file"
   lane :get_version do
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = abs_path(".version")
     version = File.read(version_file).strip
     UI.message("Current version: #{version}")
     version
@@ -120,8 +118,7 @@ platform :ios do
 
   desc "Bump version. Usage: fastlane bump_version version:2.1.0"
   lane :bump_version do |options|
-    root_dir = REPO_ROOT
-    version_file = File.join(root_dir, ".version")
+    version_file = abs_path(".version")
     current_version = File.read(version_file).strip
 
     UI.user_error!("version parameter is required. Usage: fastlane bump_version version:2.1.0") unless options[:version]
@@ -143,8 +140,7 @@ platform :ios do
 
   desc "Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0"
   lane :sync_ios_target do |options|
-    root_dir = REPO_ROOT
-    target_file = File.join(root_dir, ".ios-deployment-target")
+    target_file = abs_path(".ios-deployment-target")
 
     # If target provided, update .ios-deployment-target file first
     if options[:target]
@@ -159,7 +155,7 @@ platform :ios do
     UI.message("🔄 Syncing iOS deployment target: #{target}")
 
     # 1. Update Shared.xcconfig
-    xcconfig_file = File.join(root_dir, "Shared.xcconfig")
+    xcconfig_file = abs_path("Shared.xcconfig")
     if File.exist?(xcconfig_file)
       content = File.read(xcconfig_file)
       content.gsub!(/IPHONEOS_DEPLOYMENT_TARGET = .*/, "IPHONEOS_DEPLOYMENT_TARGET = #{target}")
@@ -168,7 +164,7 @@ platform :ios do
     end
 
     # 2. Update Package.swift (platform version)
-    package_file = File.join(root_dir, "Package.swift")
+    package_file = abs_path("Package.swift")
     if File.exist?(package_file)
       content = File.read(package_file)
       # Convert "14.0" to "v14" format for Swift Package Manager
@@ -494,15 +490,14 @@ platform :ios do
   lane :create_release do |options|
     UI.user_error!("Version parameter is required. Usage: fastlane create_release version:2.1.0") unless options[:version]
 
-    root_dir        = REPO_ROOT
-    package_file    = File.join(root_dir, "Package.swift")
+    package_file    = abs_path("Package.swift")
     repository_name = "attentive-mobile/attentive-ios-sdk"
     current_version = get_version
     new_version     = options[:version].strip
     xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
 
     # 1. Pre-flight checks
-    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(xcframework_path)
+    UI.user_error!("XCFramework not found at #{abs_path(xcframework_path)}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(abs_path(xcframework_path))
     UI.user_error!("Tag #{new_version} already exists. Aborting release.") if git_tag_exists(tag: new_version, remote: true)
 
     # 2. Set version (updates .version, ATTNConstants.swift, README.md, Package.swift)
@@ -549,7 +544,7 @@ platform :ios do
       path: xcframework_path,
       output_path: xcframework_zip_path
     )
-    xcframework_checksum = sh("swift package compute-checksum #{root_dir}/#{xcframework_zip_path}", log: false).strip
+    xcframework_checksum = sh("swift package compute-checksum #{abs_path(xcframework_zip_path)}", log: false).strip
     UI.message("Checksum: #{xcframework_checksum}")
 
     # 7. Swap Package.swift to binary target for the tagged commit
@@ -613,8 +608,7 @@ platform :ios do
   lane :test_release do |options|
     UI.user_error!("Version parameter is required. Usage: fastlane test_release version:2.1.0") unless options[:version]
 
-    root_dir        = REPO_ROOT
-    package_file    = File.join(root_dir, "Package.swift")
+    package_file    = abs_path("Package.swift")
     current_version = get_version
     new_version     = options[:version].strip
     xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
@@ -664,7 +658,7 @@ platform :ios do
       path: xcframework_path,
       output_path: xcframework_zip_path
     )
-    xcframework_checksum = sh("swift package compute-checksum #{root_dir}/#{xcframework_zip_path}", log: false).strip
+    xcframework_checksum = sh("swift package compute-checksum #{abs_path(xcframework_zip_path)}", log: false).strip
     UI.message("Checksum: #{xcframework_checksum}")
 
     # 7. Swap Package.swift to binary target
@@ -702,11 +696,11 @@ platform :ios do
   # ========================
 
   def read_ios_target
-    File.read(File.join(REPO_ROOT, ".ios-deployment-target")).strip
+    File.read(abs_path(".ios-deployment-target")).strip
   end
 
   def prepend_changelog(version:, previous_version:, notes:)
-    changelog_file = File.join(REPO_ROOT, "CHANGELOG.md")
+    changelog_file = abs_path("CHANGELOG.md")
     date = Time.now.strftime("%Y-%m-%d")
     entry = "## [#{version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{previous_version}...#{version}) (#{date})\n#{notes}\n\n"
     existing = File.exist?(changelog_file) ? File.read(changelog_file) : ""
