@@ -370,6 +370,33 @@ platform :ios do
     UI.success("✅ Example apps built successfully")
   end
 
+  desc "Build Bonni using prebuilt XCFramework to validate binary distribution"
+  lane :build_bonni_with_binary do
+    package_file = File.join(REPO_ROOT, "Package.swift")
+    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
+
+    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework ran first.") unless File.directory?(xcframework_path)
+
+    original_package = File.read(package_file)
+    begin
+      write_local_binary_package_swift(package_file: package_file, xcframework_path: xcframework_path)
+
+      build_ios_app(
+        project: "Bonni/Bonni.xcodeproj",
+        scheme: "AttentiveExample",
+        configuration: "Debug",
+        destination: "generic/platform=iOS Simulator",
+        skip_package_ipa: true,
+        xcargs: "CODE_SIGNING_ALLOWED=NO"
+      )
+
+      UI.success("✅ Bonni built successfully with XCFramework binary")
+    ensure
+      File.write(package_file, original_package)
+      UI.message("Restored original Package.swift")
+    end
+  end
+
   desc "Build Bonni for release"
   lane :build_bonni_release do
     # Sync code signing
@@ -640,6 +667,32 @@ platform :ios do
     entry = "## [#{version}](https://github.com/attentive-mobile/attentive-ios-sdk/compare/#{previous_version}...#{version}) (#{date})\n#{notes}\n\n"
     existing = File.exist?(changelog_file) ? File.read(changelog_file) : ""
     File.write(changelog_file, entry + existing)
+  end
+
+  def write_local_binary_package_swift(package_file:, xcframework_path:)
+    major_version = read_ios_target.split('.').first
+    binary_package = <<~SWIFT
+      // swift-tools-version:5.9
+      // The swift-tools-version declares the minimum version of Swift required to build this package.
+
+      import PackageDescription
+
+      let package = Package(
+          name: "ATTNSDKFramework",
+          platforms: [.iOS(.v#{major_version})],
+          products: [
+              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
+          ],
+          targets: [
+              .binaryTarget(
+                  name: "ATTNSDKFramework",
+                  path: "#{xcframework_path}"
+              )
+          ]
+      )
+    SWIFT
+
+    File.write(package_file, binary_package)
   end
 
   def write_binary_package_swift(package_file:, version:, checksum:)

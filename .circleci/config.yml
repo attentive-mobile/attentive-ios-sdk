@@ -181,6 +181,21 @@ jobs:
           command: bundle exec fastlane build_examples
 
   # -----------------------
+  # Build Bonni with XCFramework
+  # -----------------------
+  build-bonni-with-binary:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Build Bonni with XCFramework via Fastlane
+          command: bundle exec fastlane build_bonni_with_binary
+
+  # -----------------------
   # Build Bonni release
   # -----------------------
   build-bonni-release:
@@ -407,6 +422,10 @@ workflows:
             - validate-podspec
             - validate-spm
 
+      - build-bonni-with-binary:
+          requires:
+            - assemble-xcframework
+
       - build-bonni-release:
           requires:
             - build-examples
@@ -414,6 +433,7 @@ workflows:
       - release:
           requires:
             - build-examples
+            - build-bonni-with-binary
 
       - deploy-testflight:
           requires:
@@ -458,6 +478,10 @@ workflows:
             - assemble-xcframework
             - validate-podspec
             - validate-spm
+
+      - build-bonni-with-binary:
+          requires:
+            - assemble-xcframework
 
       - build-bonni-release:
           requires:
