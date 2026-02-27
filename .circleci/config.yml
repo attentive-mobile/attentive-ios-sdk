@@ -280,11 +280,11 @@ jobs:
 
       - setup-fastlane
 
-      - github-cli/setup
-
       - attentive/app-based-github-token:
           github_app_client_id: ${GITHUB_APP_CLIENT_ID}
           github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+
+      - github-cli/setup
 
       - run:
           name: Create release for SDK via Fastlane
