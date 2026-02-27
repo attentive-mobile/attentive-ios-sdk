@@ -335,6 +335,11 @@ jobs:
       - github-cli/setup
 
       - run:
+          name: Configure git remote for HTTPS push
+          command: |
+            git remote set-url origin "https://x-access-token:${gh_token}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
+
+      - run:
           name: Create release for SDK via Fastlane
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
