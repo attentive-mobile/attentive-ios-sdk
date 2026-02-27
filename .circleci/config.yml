@@ -317,6 +317,7 @@ jobs:
               exit 1
             fi
             echo "export gh_token=${token}" >> $BASH_ENV
+            echo "export GITHUB_TOKEN=${token}" >> $BASH_ENV
 
       - github-cli/setup
 
