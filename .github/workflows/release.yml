@@ -57,29 +57,41 @@ jobs:
           fi
 
           pipeline_id=$(echo "$body" | jq -r '.id')
+          pipeline_number=$(echo "$body" | jq -r '.number')
           if [ -z "$pipeline_id" ] || [ "$pipeline_id" = "null" ]; then
             echo "::error::Could not extract pipeline ID from CircleCI response"
             exit 1
           fi
 
           echo "pipeline_id=$pipeline_id" >> "$GITHUB_OUTPUT"
-          echo "CircleCI pipeline triggered for version ${{ inputs.version }} (pipeline: $pipeline_id)"
+          echo "pipeline_number=$pipeline_number" >> "$GITHUB_OUTPUT"
+          echo "CircleCI pipeline triggered for version ${{ inputs.version }} (pipeline: $pipeline_number)"
 
       - name: Wait for CircleCI pipeline to complete
         run: |
           pipeline_id="${{ steps.trigger.outputs.pipeline_id }}"
+          pipeline_number="${{ steps.trigger.outputs.pipeline_number }}"
           poll_interval=30
           timeout=5400  # 90 minutes
           elapsed=0
 
-          echo "Waiting for CircleCI pipeline $pipeline_id to complete..."
-          echo "Pipeline URL: https://app.circleci.com/pipelines/gh/${{ github.repository }}/${pipeline_id}"
+          echo "Waiting for CircleCI pipeline $pipeline_number to complete..."
+          echo "Pipeline URL: https://app.circleci.com/pipelines/gh/${{ github.repository }}/${pipeline_number}"
 
           while [ "$elapsed" -lt "$timeout" ]; do
-            response=$(curl -s -X GET \
+            api_response=$(curl -s -w "\n%{http_code}" -X GET \
               "https://circleci.com/api/v2/pipeline/${pipeline_id}/workflow" \
               -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
               -H "Content-Type: application/json")
+
+            http_code=$(echo "$api_response" | tail -1)
+            response=$(echo "$api_response" | sed '$d')
+
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              echo "::error::CircleCI API returned HTTP $http_code while polling workflows"
+              echo "$response"
+              exit 1
+            fi
 
             workflow_count=$(echo "$response" | jq '.items | length')
 
@@ -98,7 +110,7 @@ jobs:
               name=$(echo "$response" | jq -r ".items[$i].name")
               status=$(echo "$response" | jq -r ".items[$i].status")
               wf_id=$(echo "$response" | jq -r ".items[$i].id")
-              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/gh/${{ github.repository }}/${pipeline_id}/workflows/${wf_id})\n"
+              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/gh/${{ github.repository }}/${pipeline_number}/workflows/${wf_id})\n"
 
               case "$status" in
                 success) ;;
