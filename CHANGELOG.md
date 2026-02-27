@@ -1,5 +1,9 @@
 ## [2.0.13](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.12...2.0.13) (2026-02-27)
-Bug Fixes & Improvements    - Push token events are now sent on every app foreground, ensuring more reliable push notification delivery (#197)   - Added error logging for invalid domains, making it easier to diagnose configuration issues   - Added assertion failure in debug mode to surface misconfigurations early during development   - Cleaned up unnecessary optional bindings in the SDK
+Bug Fixes & Improvements
+- Push token events are now sent on every app foreground, ensuring more reliable push notification delivery (#197)
+- Added error logging for invalid domains, making it easier to diagnose configuration issues
+- Added assertion failure in debug mode to surface misconfigurations early during development
+- Cleaned up unnecessary optional bindings in the SDK
 
 ## [2.0.12](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.11...2.0.12) (2026-02-12)
 ### Bug fixes
