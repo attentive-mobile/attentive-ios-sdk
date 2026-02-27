@@ -280,9 +280,41 @@ jobs:
 
       - setup-fastlane
 
-      - attentive/app-based-github-token:
-          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
-          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+      - run:
+          name: Generate ephemeral app-based GitHub token
+          command: |
+            CLIENT_ID="${GITHUB_APP_CLIENT_ID}"
+            PRIVATE_KEY="$(echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -D)"
+
+            now=$(date +%s)
+            iat=$((now - 60))
+            exp=$((now + 600))
+
+            b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
+
+            header=$(echo -n '{"typ":"JWT","alg":"RS256"}' | b64enc)
+            payload=$(echo -n "{\"iat\":${iat},\"exp\":${exp},\"iss\":\"${CLIENT_ID}\"}" | b64enc)
+
+            header_payload="${header}.${payload}"
+            signature=$(
+              openssl dgst -sha256 -sign <(echo -n "${PRIVATE_KEY}") \
+              <(echo -n "${header_payload}") | b64enc
+            )
+
+            jwt="${header_payload}.${signature}"
+
+            token_response=$(curl -f --retry 3 --retry-delay 2 --retry-max-time 30 \
+              --request POST \
+              --url "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens" \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${jwt}")
+
+            token=$(echo "$token_response" | jq -r .token)
+            if [ "$token" = "null" ] || [ -z "$token" ]; then
+              echo "ERROR: Failed to parse token from GitHub response."
+              exit 1
+            fi
+            echo "export gh_token=${token}" >> $BASH_ENV
 
       - github-cli/setup
 
