@@ -284,7 +284,9 @@ jobs:
           name: Generate ephemeral app-based GitHub token
           command: |
             CLIENT_ID="${GITHUB_APP_CLIENT_ID}"
-            PRIVATE_KEY="$(echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -D)"
+            KEY_FILE=$(mktemp)
+            echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -D > "$KEY_FILE"
+            trap 'rm -f "$KEY_FILE"' EXIT
 
             now=$(date +%s)
             iat=$((now - 60))
@@ -297,10 +299,10 @@ jobs:
 
             header_payload="${header}.${payload}"
             signature=$(
-              openssl dgst -sha256 -sign <(echo -n "${PRIVATE_KEY}") \
-              <(echo -n "${header_payload}") | b64enc
+              echo -n "${header_payload}" | openssl dgst -sha256 -sign "$KEY_FILE" | b64enc
             )
 
+            rm -f "$KEY_FILE"
             jwt="${header_payload}.${signature}"
 
             token_response=$(curl -f --retry 3 --retry-delay 2 --retry-max-time 30 \
