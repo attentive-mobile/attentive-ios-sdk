@@ -283,39 +283,52 @@ jobs:
       - run:
           name: Generate ephemeral app-based GitHub token
           command: |
+            #!/usr/bin/env sh
+            set -e
+            set -o pipefail
+
             CLIENT_ID="${GITHUB_APP_CLIENT_ID}"
-            KEY_FILE=$(mktemp)
-            echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -d > "$KEY_FILE"
-            trap 'rm -f "$KEY_FILE"' EXIT
+            PRIVATE_KEY="$(echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -d)"
 
             now=$(date +%s)
-            iat=$((now - 60))
-            exp=$((now + 600))
+            iat=$((${now} - 60))
+            exp=$((${now} + 600))
 
             b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
 
-            header=$(echo -n '{"typ":"JWT","alg":"RS256"}' | b64enc)
-            payload=$(echo -n "{\"iat\":${iat},\"exp\":${exp},\"iss\":\"${CLIENT_ID}\"}" | b64enc)
+            header_json='{
+                "typ":"JWT",
+                "alg":"RS256"
+            }'
+            header=$( echo -n "${header_json}" | b64enc )
 
-            header_payload="${header}.${payload}"
+            payload_json="{
+                \"iat\":${iat},
+                \"exp\":${exp},
+                \"iss\":\"${CLIENT_ID}\"
+            }"
+            payload=$( echo -n "${payload_json}" | b64enc )
+
+            header_payload="${header}"."${payload}"
             signature=$(
-              echo -n "${header_payload}" | openssl dgst -sha256 -sign "$KEY_FILE" | b64enc
+                openssl dgst -sha256 -sign <(echo -n "${PRIVATE_KEY}") \
+                <(echo -n "${header_payload}") | b64enc
             )
 
-            rm -f "$KEY_FILE"
             jwt="${header_payload}.${signature}"
 
-            token_response=$(curl -f --retry 3 --retry-delay 2 --retry-max-time 30 \
-              --request POST \
-              --url "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens" \
-              --header "Accept: application/vnd.github+json" \
-              --header "Authorization: Bearer ${jwt}")
-
+            echo "Requesting GitHub access token..."
+            token_response=$(curl -f --retry 3 --retry-delay 2 --retry-max-time 30 --request POST \
+                --url "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens" \
+                --header "Accept: application/vnd.github+json" \
+                --header "Authorization: Bearer ${jwt}")
+            echo "Successfully retrieved GitHub access token response"
             token=$(echo "$token_response" | jq -r .token)
             if [ "$token" = "null" ] || [ -z "$token" ]; then
               echo "ERROR: Failed to parse token from GitHub response."
               exit 1
             fi
+            echo "Successfully extracted token from response"
             echo "export gh_token=${token}" >> $BASH_ENV
             echo "export GITHUB_TOKEN=${token}" >> $BASH_ENV
 
