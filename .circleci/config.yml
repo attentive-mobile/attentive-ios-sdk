@@ -400,6 +400,8 @@ jobs:
       - run:
           name: Verify git push access
           command: |
+            git config user.name "CI Bot"
+            git config user.email "ci@attentivemobile.com"
             git checkout -b test-push-access
             git commit --allow-empty -m "test push access"
             git push origin test-push-access
