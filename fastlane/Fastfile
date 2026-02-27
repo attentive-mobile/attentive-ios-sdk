@@ -605,6 +605,74 @@ platform :ios do
     UI.success("Released #{new_version}. PR opened to main.")
   end
 
+  desc "Test release: runs all local release steps (pre-flight through checksum) without pushing anything to remote. Usage: fastlane test_release version:2.1.0"
+  lane :test_release do |options|
+    UI.user_error!("Version parameter is required. Usage: fastlane test_release version:2.1.0") unless options[:version]
+
+    root_dir        = REPO_ROOT
+    package_file    = File.join(root_dir, "Package.swift")
+    current_version = get_version
+    new_version     = options[:version].strip
+    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
+
+    # 1. Pre-flight checks
+    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(xcframework_path)
+
+    # 2. Set version
+    bump_version(version: new_version)
+    UI.message("Releasing version #{new_version} (dry run)...")
+
+    # 3. Resolve release notes
+    release_notes = options[:release_notes].to_s.strip
+    if release_notes.empty?
+      release_notes = changelog_from_git_commits(
+        between: ["#{current_version}", "HEAD"],
+        pretty: "* %s"
+      )
+    end
+
+    # 4. Prepend to CHANGELOG.md
+    prepend_changelog(
+      version: new_version,
+      previous_version: current_version,
+      notes: release_notes
+    )
+
+    # 5. Create version-bump branch and commit locally
+    version_bump = "version-bump-#{new_version}"
+    sh("git config user.name 'CI Bot'")
+    sh("git config user.email 'ci@attentivemobile.com'")
+    sh("git checkout -b #{version_bump}")
+
+    files = [
+      ".version",
+      "Sources/ATTNConstants.swift",
+      "README.md",
+      "Package.swift",
+      "CHANGELOG.md"
+    ]
+
+    git_add(path: files)
+    git_commit(path: files, message: "Version bump #{new_version}")
+
+    # 6. Zip XCFramework and compute checksum
+    xcframework_zip_path = "#{xcframework_path}.zip"
+    zip(
+      path: xcframework_path,
+      output_path: xcframework_zip_path
+    )
+    xcframework_checksum = sh("swift package compute-checksum #{root_dir}/#{xcframework_zip_path}", log: false).strip
+    UI.message("Checksum: #{xcframework_checksum}")
+
+    # 7. Swap Package.swift to binary target
+    write_binary_package_swift(package_file: package_file, version: new_version, checksum: xcframework_checksum)
+    file = "Package.swift"
+    git_add(path: file)
+    git_commit(path: file, message: "Binary #{file} for #{new_version}")
+
+    UI.success("Dry run complete for #{new_version}. All local steps passed. No remote changes were made.")
+  end
+
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
     UI.message("🚀 Uploading to TestFlight...")

@@ -330,6 +330,19 @@ jobs:
             export GITHUB_TOKEN="${gh_token}"
             bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
 
+  test-release:
+    executor: macos-xcode
+    steps:
+      - attach_workspace:
+          at: .
+
+      - setup-fastlane
+
+      - run:
+          name: Test release (dry run) via Fastlane
+          command: |
+            bundle exec fastlane test_release version:"99.0.0" release_notes:"Test release"
+
   # -----------------------
   # Deploy to TestFlight
   # -----------------------
@@ -401,6 +414,27 @@ workflows:
           requires:
             - build-bonni-release
             - release
+
+  # Test release workflow (dry run, no remote pushes)
+  test-release:
+    unless: << pipeline.parameters.run_release >>
+    jobs:
+      - checkout-and-setup:
+          filters:
+            branches:
+              only: umair/fix-release-test
+
+      - build-framework:
+          requires:
+            - checkout-and-setup
+
+      - assemble-xcframework:
+          requires:
+            - build-framework
+
+      - test-release:
+          requires:
+            - assemble-xcframework
 
   # Main workflow for all branches
   lint-validate-build-test:
