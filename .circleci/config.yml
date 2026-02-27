@@ -398,6 +398,16 @@ jobs:
             git remote set-url origin "https://x-access-token:${gh_token}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
 
       - run:
+          name: Verify git push access
+          command: |
+            git checkout -b test-push-access
+            git commit --allow-empty -m "test push access"
+            git push origin test-push-access
+            git push --delete origin test-push-access
+            git checkout -
+            echo "Git push access verified successfully"
+
+      - run:
           name: Test release (dry run) via Fastlane
           command: |
             bundle exec fastlane test_release version:"99.0.0" release_notes:"Test release"
