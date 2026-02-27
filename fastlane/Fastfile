@@ -7,6 +7,10 @@ FASTLANE_BUILD_OUTPUT_DIR=ENV['FASTLANE_BUILD_OUTPUT_DIR'] || "fastlane/build"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
 FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
 
+def abs_path(relative_path)
+  File.join(REPO_ROOT, relative_path)
+end
+
 def api_key
   app_store_connect_api_key(
     key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
@@ -614,9 +618,8 @@ platform :ios do
     current_version = get_version
     new_version     = options[:version].strip
     xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
-
     # 1. Pre-flight checks
-    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(xcframework_path)
+    UI.user_error!("XCFramework not found at #{abs_path(xcframework_path)}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(abs_path(xcframework_path))
 
     # 2. Set version
     bump_version(version: new_version)
