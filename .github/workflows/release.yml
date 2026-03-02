@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       release_notes:
-        description: "Release notes (optional — auto-generated from commits if left blank)"
+        description: "Release notes (optional — single line only, use gh CLI for multiline. Auto-generated from commits if blank)"
         required: false
         type: string
 
