@@ -588,7 +588,8 @@ platform :ios do
       title: "[CI/fastlane] Bump version to #{new_version}",
       head: version_bump,
       base: "main",
-      body: "Automated version bump to #{new_version}"
+      body: "Automated version bump to #{new_version}",
+      team_reviewers: "team-mobile-sdk"
     )
 
     # 13. Push to CocoaPods (SPM + GitHub release already work at this point)
