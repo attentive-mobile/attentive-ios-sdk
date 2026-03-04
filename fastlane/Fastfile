@@ -372,14 +372,14 @@ platform :ios do
 
   desc "Build Bonni using prebuilt XCFramework to validate binary distribution"
   lane :build_bonni_with_binary do
-    package_file = File.join(REPO_ROOT, "Package.swift")
+    package_file = abs_path("Package.swift")
     xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
 
-    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework ran first.") unless File.directory?(xcframework_path)
+    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework ran first.") unless File.directory?(abs_path(xcframework_path))
 
     original_package = File.read(package_file)
     begin
-      write_local_binary_package_swift(package_file: package_file, xcframework_path: xcframework_path)
+      write_binary_package_swift(package_file: package_file, path: xcframework_path)
 
       build_ios_app(
         project: "Bonni/Bonni.xcodeproj",
@@ -517,11 +517,11 @@ platform :ios do
   lane :create_release do |options|
     UI.user_error!("Version parameter is required. Usage: fastlane create_release version:2.1.0") unless options[:version]
 
-    package_file    = abs_path("Package.swift")
-    repository_name = "attentive-mobile/attentive-ios-sdk"
-    current_version = get_version
-    new_version     = options[:version].strip
-    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
+    package_file      = abs_path("Package.swift")
+    repository_name   = "attentive-mobile/attentive-ios-sdk"
+    current_version   = get_version
+    new_version       = options[:version].strip
+    xcframework_path  = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
 
     # 1. Pre-flight checks
     UI.user_error!("XCFramework not found at #{abs_path(xcframework_path)}. Ensure build-framework and assemble-xcframework jobs ran before this lane.") unless File.directory?(abs_path(xcframework_path))
@@ -669,8 +669,15 @@ platform :ios do
     File.write(changelog_file, entry + existing)
   end
 
-  def write_local_binary_package_swift(package_file:, xcframework_path:)
+  def write_binary_package_swift(package_file:, path: nil, version: nil, checksum: nil)
     major_version = read_ios_target.split('.').first
+
+    target_args = if path
+                    "path: \"#{path}\""
+                  else
+                    "url: \"https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{version}/ATTNSDKFramework.xcframework.zip\",\n              checksum: \"#{checksum}\""
+                  end
+
     binary_package = <<~SWIFT
       // swift-tools-version:5.9
       // The swift-tools-version declares the minimum version of Swift required to build this package.
@@ -686,34 +693,7 @@ platform :ios do
           targets: [
               .binaryTarget(
                   name: "ATTNSDKFramework",
-                  path: "#{xcframework_path}"
-              )
-          ]
-      )
-    SWIFT
-
-    File.write(package_file, binary_package)
-  end
-
-  def write_binary_package_swift(package_file:, version:, checksum:)
-    major_version = read_ios_target.split('.').first
-    binary_package = <<~SWIFT
-      // swift-tools-version:5.9
-      // The swift-tools-version declares the minimum version of Swift required to build this package.
-
-      import PackageDescription
-
-      let package = Package(
-          name: "ATTNSDKFramework",
-          platforms: [.iOS(.v#{major_version})],
-          products: [
-              .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
-          ],
-          targets: [
-              .binaryTarget(
-                  name: "ATTNSDKFramework",
-                  url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{version}/ATTNSDKFramework.xcframework.zip",
-                  checksum: "#{checksum}"
+                  #{target_args}
               )
           ]
       )
