@@ -675,7 +675,7 @@ platform :ios do
     target_args = if path
                     "path: \"#{path}\""
                   else
-                    "url: \"https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{version}/ATTNSDKFramework.xcframework.zip\",\n              checksum: \"#{checksum}\""
+                    "url: \"https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/#{version}/ATTNSDKFramework.xcframework.zip\",\n            checksum: \"#{checksum}\""
                   end
 
     binary_package = <<~SWIFT
