@@ -36,6 +36,7 @@ orbs:
   aws-cli: circleci/aws-cli@4.0.0
   github-cli: circleci/github-cli@2.7.2
   attentive: attentive-mobile/circleci-orb@0.0.6
+  slack: circleci/slack@6.1.3
 
 # ========================
 # Constants
@@ -349,6 +350,25 @@ jobs:
             bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
 
   # -----------------------
+  # Test Slack Notification
+  # -----------------------
+  test-slack-notification:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - run:
+          name: Test Step
+          command: echo "Testing Slack notification"
+      - slack/notify:
+          channel: z-test
+          event: pass
+          template: basic_success_1
+      - slack/notify:
+          channel: z-test
+          event: fail
+          template: basic_fail_1
+
+  # -----------------------
   # Deploy to TestFlight
   # -----------------------
   deploy-testflight:
@@ -419,6 +439,16 @@ workflows:
           requires:
             - build-bonni-release
             - release
+
+  # Test Slack notifications
+  test-slack:
+    unless: << pipeline.parameters.run_release >>
+    jobs:
+      - test-slack-notification:
+          context: org-global
+          filters:
+            branches:
+              only: /test-slack.*/
 
   # Main workflow for all branches
   lint-validate-build-test:
