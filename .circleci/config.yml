@@ -448,7 +448,7 @@ workflows:
           context: org-global
           filters:
             branches:
-              only: /test-slack.*/
+              only: umair/test-slack
 
   # Main workflow for all branches
   lint-validate-build-test:
