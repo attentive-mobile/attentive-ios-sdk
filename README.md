@@ -23,7 +23,7 @@ pod install
 
 ### Swift Package Manager (Recommended)
 
-We also support adding the dependency via Swift Package Manager. SPM resolves a pre-built universal `XCFramework` from the GitHub release and statically links the SDK into your app binary.
+We also support adding the dependency via Swift Package Manager. SPM resolves a pre-built universal `XCFramework` from the GitHub release and automatically handles embedding, code signing, and stripping of non-distributable content (e.g. headers and Swift module metadata) during archiving.
 
 SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI.
 
@@ -43,7 +43,7 @@ A pre-built `ATTNSDKFramework.xcframework` is attached to each [GitHub release](
 >
 > *"Invalid Bundle. The bundle at 'YourApp.app/Frameworks/ATTNSDKFramework.framework' contains disallowed nested bundles."*
 >
-> This happens when the framework's `Headers/` and `Modules/` directories are not stripped during archiving. To avoid this, always add the XCFramework through the **General > Frameworks, Libraries, and Embedded Content** UI with **"Embed & Sign"** — do not manually add it via a Copy Files build phase. Using SPM avoids this entirely because the SDK is statically linked into your app binary.
+> This happens when the framework's `Headers/` and `Modules/` directories are not stripped during archiving. To avoid this, always add the XCFramework through the **General > Frameworks, Libraries, and Embedded Content** UI with **"Embed & Sign"** — do not manually add it via a Copy Files build phase. SPM avoids this entirely because it handles the embedding and stripping automatically.
 
 
 ## Usage
