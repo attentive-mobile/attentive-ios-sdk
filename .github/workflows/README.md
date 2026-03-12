@@ -1,6 +1,18 @@
-# Claude PR Review GitHub Action
+# GitHub Workflows
 
-This workflow automatically reviews pull requests using Claude AI via Attentive's centralized reusable workflow.
+This directory contains automated workflows for the repository.
+
+## 🤖 Claude PR Review (`claude-pr-review.yml`)
+
+Automatically reviews pull requests using Claude AI via Attentive's centralized reusable workflow.
+
+## 💬 Slack PR Notifications (`slack-pr-notification.yml`)
+
+Sends Slack notifications when new pull requests are created.
+
+---
+
+# Claude PR Review
 
 ## Features
 
