@@ -670,6 +670,9 @@ platform :ios do
   end
 
   def write_binary_package_swift(package_file:, path: nil, version: nil, checksum: nil)
+    UI.user_error!("Cannot specify both path and version/checksum") if path && (version || checksum)
+    UI.user_error!("Must provide either path OR both version and checksum") if !path && (!version || !checksum)
+
     major_version = read_ios_target.split('.').first
 
     target_args = if path
