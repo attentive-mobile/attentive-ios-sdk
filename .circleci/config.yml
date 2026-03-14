@@ -35,7 +35,7 @@ orbs:
   macos: circleci/macos@2
   aws-cli: circleci/aws-cli@4.0.0
   github-cli: circleci/github-cli@2.7.2
-  attentive: attentive-mobile/circleci-orb@0.0.6
+  attentive: attentive-mobile/circleci-orb@0.0.10
 
 # ========================
 # Constants
@@ -295,73 +295,23 @@ jobs:
 
       - setup-fastlane
 
-      - run:
-          name: Generate ephemeral app-based GitHub token
-          command: |
-            #!/usr/bin/env sh
-            set -e
-            set -o pipefail
-
-            CLIENT_ID="${GITHUB_APP_CLIENT_ID}"
-            PRIVATE_KEY="$(echo "${GITHUB_APP_PRIVATE_KEY_BASE64}" | base64 -d)"
-
-            now=$(date +%s)
-            iat=$((${now} - 60))
-            exp=$((${now} + 600))
-
-            b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
-
-            header_json='{
-                "typ":"JWT",
-                "alg":"RS256"
-            }'
-            header=$( echo -n "${header_json}" | b64enc )
-
-            payload_json="{
-                \"iat\":${iat},
-                \"exp\":${exp},
-                \"iss\":\"${CLIENT_ID}\"
-            }"
-            payload=$( echo -n "${payload_json}" | b64enc )
-
-            header_payload="${header}"."${payload}"
-            signature=$(
-                openssl dgst -sha256 -sign <(echo -n "${PRIVATE_KEY}") \
-                <(echo -n "${header_payload}") | b64enc
-            )
-
-            jwt="${header_payload}.${signature}"
-
-            echo "Requesting GitHub access token..."
-            token_response=$(curl -f --retry 3 --retry-delay 2 --retry-max-time 30 --request POST \
-                --url "https://api.github.com/app/installations/${GITHUB_APP_INSTALLATION_ID}/access_tokens" \
-                --header "Accept: application/vnd.github+json" \
-                --header "Authorization: Bearer ${jwt}")
-            echo "Successfully retrieved GitHub access token response"
-            token=$(echo "$token_response" | jq -r .token)
-            if [ "$token" = "null" ] || [ -z "$token" ]; then
-              echo "ERROR: Failed to parse token from GitHub response."
-              exit 1
-            fi
-            echo "Successfully extracted token from response"
-            echo "export gh_token=${token}" >> $BASH_ENV
-            echo "export GITHUB_TOKEN=${token}" >> $BASH_ENV
+      - attentive/app-based-github-token:
+          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
+          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+          github_app_installation_id: ${GITHUB_APP_INSTALLATION_ID}
 
       - github-cli/setup
 
       - run:
           name: Configure git remote for HTTPS push
-          command: |
-            git remote set-url origin "https://x-access-token:${gh_token}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
+          command: git remote set-url origin "https://x-access-token:${gh_token}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
 
       - run:
           name: Create release for SDK via Fastlane
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: |
-            export GITHUB_TOKEN="${gh_token}"
-            bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
 
   # -----------------------
   # Deploy to TestFlight
