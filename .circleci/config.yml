@@ -35,7 +35,7 @@ orbs:
   macos: circleci/macos@2
   aws-cli: circleci/aws-cli@4.0.0
   github-cli: circleci/github-cli@2.7.2
-  attentive: attentive-mobile/circleci-orb@0.0.10
+  attentive: attentive-mobile/circleci-orb@0.0.11
 
 # ========================
 # Constants
