@@ -632,6 +632,178 @@ platform :ios do
     UI.success("Released #{new_version}. PR opened to main.")
   end
 
+  desc "Test CI connection to GitHub. Verifies: git checkout, commit, push, tags, releases, and PRs. All actions are reversed at the end."
+  lane :test_release_connection do
+    repository_name = "attentive-mobile/attentive-ios-sdk"
+    timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+    test_branch = "ci-connection-test-#{timestamp}"
+    test_tag = "ci-test-#{timestamp}"
+    test_file = "CI_CONNECTION_TEST.txt"
+    original_branch = sh("git rev-parse --abbrev-ref HEAD", log: false).strip
+
+    # Track what was created so cleanup knows what to revert
+    created_branch = false
+    pushed_branch = false
+    created_tag = false
+    pushed_tag = false
+    created_release = false
+    created_pr = false
+    pr_number = nil
+
+    begin
+      # --- 1. Git config ---
+      UI.message("--- Test 1: Git configuration ---")
+      sh("git config user.name 'CI Bot'")
+      sh("git config user.email 'ci@attentivemobile.com'")
+      UI.success("PASS: Git config set")
+
+      # --- 2. Checkout test branch ---
+      UI.message("--- Test 2: Branch checkout ---")
+      sh("git checkout -b #{test_branch}")
+      created_branch = true
+      UI.success("PASS: Created and checked out branch '#{test_branch}'")
+
+      # --- 3. Create a test commit ---
+      UI.message("--- Test 3: Git commit ---")
+      File.write(abs_path(test_file), "CI connection test at #{timestamp}\n")
+      sh("git -C #{REPO_ROOT} add #{test_file}")
+      sh("git -C #{REPO_ROOT} commit -m 'CI connection test #{timestamp}'")
+      UI.success("PASS: Created test commit")
+
+      # --- 4. Push branch to remote ---
+      UI.message("--- Test 4: Push branch to remote ---")
+      sh("git push origin #{test_branch}")
+      pushed_branch = true
+      UI.success("PASS: Pushed branch '#{test_branch}' to remote")
+
+      # --- 5. Create and push a tag ---
+      UI.message("--- Test 5: Create and push tag ---")
+      sh("git tag #{test_tag}")
+      created_tag = true
+      sh("git push origin #{test_tag}")
+      pushed_tag = true
+      UI.success("PASS: Created and pushed tag '#{test_tag}'")
+
+      # --- 6. Create a GitHub release ---
+      UI.message("--- Test 6: Create GitHub release ---")
+      sh("gh release create #{test_tag} --title 'CI Connection Test #{timestamp}' --notes 'Automated test - will be deleted' --draft --repo #{repository_name}")
+      created_release = true
+      UI.success("PASS: Created draft GitHub release for tag '#{test_tag}'")
+
+      # --- 7. Create a pull request ---
+      UI.message("--- Test 7: Create pull request ---")
+      pr_url = sh("gh pr create --title 'CI Connection Test #{timestamp}' --body 'Automated CI connection test. This PR will be closed and deleted automatically.' --base main --head #{test_branch} --repo #{repository_name}").strip
+      created_pr = true
+      pr_number = pr_url.split('/').last
+      UI.success("PASS: Created pull request ##{pr_number}")
+
+      UI.success("")
+      UI.success("=" * 50)
+      UI.success("ALL TESTS PASSED")
+      UI.success("=" * 50)
+
+    rescue => e
+      UI.error("TEST FAILED: #{e.message}")
+      raise e
+
+    ensure
+      UI.message("")
+      UI.message("=" * 50)
+      UI.message("CLEANUP: Reversing all test actions...")
+      UI.message("=" * 50)
+
+      cleanup_failures = []
+
+      # Close PR
+      if created_pr && pr_number
+        begin
+          UI.message("Closing PR ##{pr_number}...")
+          sh("gh pr close #{pr_number} --repo #{repository_name}")
+          UI.success("Closed PR ##{pr_number}")
+        rescue => e
+          cleanup_failures << "Failed to close PR ##{pr_number}: #{e.message}"
+        end
+      end
+
+      # Delete GitHub release
+      if created_release
+        begin
+          UI.message("Deleting GitHub release for tag '#{test_tag}'...")
+          sh("gh release delete #{test_tag} -y --repo #{repository_name}")
+          UI.success("Deleted GitHub release")
+        rescue => e
+          cleanup_failures << "Failed to delete release '#{test_tag}': #{e.message}"
+        end
+      end
+
+      # Delete remote tag
+      if pushed_tag
+        begin
+          UI.message("Deleting remote tag '#{test_tag}'...")
+          sh("git push --delete origin #{test_tag}")
+          UI.success("Deleted remote tag")
+        rescue => e
+          cleanup_failures << "Failed to delete remote tag '#{test_tag}': #{e.message}"
+        end
+      end
+
+      # Delete local tag
+      if created_tag
+        begin
+          sh("git tag -d #{test_tag}")
+          UI.success("Deleted local tag")
+        rescue => e
+          cleanup_failures << "Failed to delete local tag '#{test_tag}': #{e.message}"
+        end
+      end
+
+      # Delete remote branch
+      if pushed_branch
+        begin
+          UI.message("Deleting remote branch '#{test_branch}'...")
+          sh("git push --delete origin #{test_branch}")
+          UI.success("Deleted remote branch")
+        rescue => e
+          cleanup_failures << "Failed to delete remote branch '#{test_branch}': #{e.message}"
+        end
+      end
+
+      # Switch back to original branch and delete local test branch
+      if created_branch
+        begin
+          UI.message("Switching back to '#{original_branch}' and deleting local branch...")
+          sh("git checkout #{original_branch}")
+          sh("git branch -D #{test_branch}")
+          UI.success("Deleted local branch")
+        rescue => e
+          cleanup_failures << "Failed to delete local branch '#{test_branch}': #{e.message}"
+        end
+      end
+
+      # Delete the test file if it exists on the original branch (it shouldn't, but just in case)
+      if File.exist?(abs_path(test_file))
+        File.delete(abs_path(test_file))
+      end
+
+      if cleanup_failures.any?
+        UI.important("")
+        UI.important("=" * 50)
+        UI.important("CLEANUP ISSUES - Manual action may be required:")
+        UI.important("=" * 50)
+        cleanup_failures.each { |f| UI.important("  - #{f}") }
+        UI.important("")
+        UI.important("Resources to check manually:")
+        UI.important("  Branch: #{test_branch}")
+        UI.important("  Tag: #{test_tag}")
+        UI.important("  PR: ##{pr_number}") if pr_number
+        UI.important("  Release: #{test_tag}")
+      else
+        UI.success("")
+        UI.success("CLEANUP COMPLETE: All test resources removed")
+      end
+    end
+  end
+
   desc "Upload a new build to TestFlight"
   lane :deploy_testflight do
     UI.message("🚀 Uploading to TestFlight...")

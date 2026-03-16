@@ -314,6 +314,31 @@ jobs:
           command: bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
 
   # -----------------------
+  # Test Release Connection
+  # -----------------------
+  test-release-connection:
+    executor: macos-xcode
+    steps:
+      - checkout
+
+      - setup-fastlane
+
+      - attentive/app-based-github-token:
+          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
+          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+          github_app_installation_id: ${GITHUB_APP_INSTALLATION_ID}
+
+      - github-cli/setup
+
+      - run:
+          name: Configure git remote for HTTPS push
+          command: git remote set-url origin "https://x-access-token:${gh_token}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
+
+      - run:
+          name: Test release connection
+          command: bundle exec fastlane test_release_connection
+
+  # -----------------------
   # Deploy to TestFlight
   # -----------------------
   deploy-testflight:
@@ -389,6 +414,15 @@ workflows:
           requires:
             - build-bonni-release
             - release
+
+  # Test release connection (only on umair/clean-up-orb)
+  test-release-connection:
+    unless: << pipeline.parameters.run_release >>
+    jobs:
+      - test-release-connection:
+          filters:
+            branches:
+              only: umair/clean-up-orb-test
 
   # Main workflow for all branches
   lint-validate-build-test:
