@@ -76,7 +76,7 @@ jobs:
           elapsed=0
 
           echo "Waiting for CircleCI pipeline $pipeline_number to complete..."
-          echo "Pipeline URL: https://app.circleci.com/pipelines/circleci/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}"
+          echo "Pipeline URL: https://app.circleci.com/pipelines/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}"
 
           while [ "$elapsed" -lt "$timeout" ]; do
             api_response=$(curl -s -w "\n%{http_code}" -X GET \
@@ -110,7 +110,7 @@ jobs:
               name=$(echo "$response" | jq -r ".items[$i].name")
               status=$(echo "$response" | jq -r ".items[$i].status")
               wf_id=$(echo "$response" | jq -r ".items[$i].id")
-              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/circleci/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}/workflows/${wf_id})\n"
+              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}/workflows/${wf_id})\n"
 
               case "$status" in
                 success) ;;
