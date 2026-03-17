@@ -224,7 +224,7 @@ jobs:
           path: *fastlane_build_output_dir
 
   # -----------------------
-  # Unit Tests
+  # Unit Tests with Code Coverage
   # -----------------------
   unit-tests:
     executor: macos-xcode
@@ -235,14 +235,27 @@ jobs:
       - setup-fastlane
 
       - run:
-          name: Run Unit Tests via Fastlane
+          name: Run Unit Tests with Coverage via Fastlane
           command: bundle exec fastlane unit_test
 
       - store_test_results:
           path: *fastlane_test_output_dir
 
+      # Store test report as artifact
       - store_artifacts:
           path: *fastlane_test_output_dir
+          destination: unit-test-report
+
+      # Store coverage reports as artifact
+      - store_artifacts:
+          path: fastlane/test_output/coverage
+          destination: coverage-report
+
+      # Persist coverage data for potential CI integrations (Codecov, etc.)
+      - persist_to_workspace:
+          root: fastlane/test_output
+          paths:
+            - coverage/coverage.json
 
   # -----------------------
   # Validate CocoaPods Spec
