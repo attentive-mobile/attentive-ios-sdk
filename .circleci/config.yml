@@ -43,6 +43,7 @@ orbs:
 fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
 fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
+fastlane_coverage_dir: &fastlane_coverage_dir "fastlane/test_output/coverage"
 
 # ========================
 # Commands (Reusable)
@@ -248,14 +249,8 @@ jobs:
 
       # Store coverage reports as artifact
       - store_artifacts:
-          path: fastlane/test_output/coverage
+          path: *fastlane_coverage_dir
           destination: coverage-report
-
-      # Persist coverage data for potential CI integrations (Codecov, etc.)
-      - persist_to_workspace:
-          root: fastlane/test_output
-          paths:
-            - coverage/coverage.json
 
   # -----------------------
   # Validate CocoaPods Spec
