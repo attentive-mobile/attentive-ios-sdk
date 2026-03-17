@@ -278,6 +278,11 @@ platform :ios do
     ios_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-ios/Build/Products/#{configuration}-iphoneos"
     sim_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator"
 
+    unless File.directory?(ios_framework_path) && File.directory?(sim_framework_path)
+      UI.message("DerivedData not found, building framework now...")
+      build_framework
+    end
+
     UI.message("🧱 Assembling #{framework} XCFramework (scheme: #{scheme}, config: #{configuration})")
 
     ios_framework = "#{ios_framework_path}/#{framework}.framework"
@@ -370,17 +375,11 @@ platform :ios do
     UI.success("✅ Example apps built successfully")
   end
 
-  desc "Build Bonni using prebuilt XCFramework to validate binary distribution"
-  lane :build_bonni_with_binary do
-    package_file = abs_path("Package.swift")
-    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
+  desc "Build Bonni, optionally swapping Package.swift to use the prebuilt XCFramework"
+  lane :build_bonni do |options|
+    with_binary = options.fetch(:with_binary_framework, false)
 
-    UI.user_error!("XCFramework not found at #{xcframework_path}. Ensure build-framework and assemble-xcframework ran first.") unless File.directory?(abs_path(xcframework_path))
-
-    original_package = File.read(package_file)
-    begin
-      write_binary_package_swift(package_file: package_file, path: xcframework_path)
-
+    build_block = proc do
       build_ios_app(
         project: "Bonni/Bonni.xcodeproj",
         scheme: "AttentiveExample",
@@ -389,66 +388,78 @@ platform :ios do
         skip_package_ipa: true,
         xcargs: "CODE_SIGNING_ALLOWED=NO"
       )
+      UI.success("✅ Bonni built successfully#{with_binary ? ' with XCFramework binary' : ''}")
+    end
 
-      UI.success("✅ Bonni built successfully with XCFramework binary")
-    ensure
-      File.write(package_file, original_package)
-      UI.message("Restored original Package.swift")
+    if with_binary
+      with_local_xcframework_package(&build_block)
+    else
+      build_block.call
     end
   end
 
-  desc "Build Bonni for release"
-  lane :build_bonni_release do
-    # Sync code signing
-    UI.message("🔄 Syncing code signing certificates...")
-    sync_code_signing(
-      type: "appstore",
-      readonly: true
-    )
+  desc "Build Bonni for release. with_local_binary (default 'true') swaps Package.swift to local XCFramework; set to 'false' to use existing Package.swift (e.g. tagged remote binary)."
+  lane :build_bonni_release do |options|
+    with_local_binary = options.fetch(:with_local_binary, "true").to_s != "false"
 
-    project_path = "Bonni/Bonni.xcodeproj"
-    app_store_build_number = app_store_build_number(
-      live: false,
-      api_key: api_key
-    )
-    increment_build_number(
-      build_number: app_store_build_number + 1,
-      xcodeproj: project_path
-    )
+    build_block = proc do
+      # Sync code signing
+      UI.message("🔄 Syncing code signing certificates...")
+      sync_code_signing(
+        type: "appstore",
+        readonly: true
+      )
 
-    app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
-    notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
+      project_path = "Bonni/Bonni.xcodeproj"
+      app_store_build_number = app_store_build_number(
+        live: false,
+        api_key: api_key
+      )
+      increment_build_number(
+        build_number: app_store_build_number + 1,
+        xcodeproj: project_path
+      )
 
-    # Configure manual signing for each target
-    {
-      "AttentiveExample" => app_profile_name,
-      "ATTNNotificationService" => notification_service_profile_name
-    }.each do |target, profile|
-      update_code_signing_settings(
-        use_automatic_signing: false,
-        path: project_path,
-        targets: [target],
-        profile_name: profile,
-        code_sign_identity: "Apple Distribution"
-        )
+      app_profile_name = ENV["sigh_com.attentive.bonniexample_appstore_profile-name"]
+      notification_service_profile_name = ENV["sigh_com.attentive.bonniexample.ATTNNotificationService_appstore_profile-name"]
+
+      # Configure manual signing for each target
+      {
+        "AttentiveExample" => app_profile_name,
+        "ATTNNotificationService" => notification_service_profile_name
+      }.each do |target, profile|
+        update_code_signing_settings(
+          use_automatic_signing: false,
+          path: project_path,
+          targets: [target],
+          profile_name: profile,
+          code_sign_identity: "Apple Distribution"
+          )
+      end
+
+      # Build the app
+      UI.message("🏗️ Building app for App Store...")
+      build_ios_app(
+        project: project_path,
+        scheme: "AttentiveExample",
+        configuration: "Release",
+        export_method: "app-store",
+        export_options: {
+          provisioningProfiles: {
+            "com.attentive.bonniexample" => app_profile_name,
+            "com.attentive.bonniexample.ATTNNotificationService" => notification_service_profile_name
+          }
+        },
+        output_directory: FASTLANE_BUILD_OUTPUT_DIR,
+        clean: true
+      )
     end
 
-    # Build the app
-    UI.message("🏗️ Building app for App Store...")
-    build_ios_app(
-      project: project_path,
-      scheme: "AttentiveExample",
-      configuration: "Release",
-      export_method: "app-store",
-      export_options: {
-        provisioningProfiles: {
-          "com.attentive.bonniexample" => app_profile_name,
-          "com.attentive.bonniexample.ATTNNotificationService" => notification_service_profile_name
-        }
-      },
-      output_directory: FASTLANE_BUILD_OUTPUT_DIR,
-      clean: true
-    )
+    if with_local_binary
+      with_local_xcframework_package(&build_block)
+    else
+      build_block.call
+    end
   end
 
   # ========================
@@ -656,6 +667,26 @@ platform :ios do
   # ========================
   # Methods
   # ========================
+
+  def with_local_xcframework_package
+    xcframework_path = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
+    package_file = abs_path("Package.swift")
+
+    unless File.directory?(abs_path(xcframework_path))
+      UI.message("XCFramework not found, building it now...")
+      build_framework
+      assemble_xcframework
+    end
+
+    original_package = File.read(package_file)
+    write_binary_package_swift(package_file: package_file, path: xcframework_path)
+    begin
+      yield
+    ensure
+      File.write(package_file, original_package)
+      UI.message("Restored original Package.swift")
+    end
+  end
 
   def read_ios_target
     File.read(abs_path(".ios-deployment-target")).strip

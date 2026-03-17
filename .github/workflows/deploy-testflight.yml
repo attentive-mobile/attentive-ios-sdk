@@ -1,0 +1,171 @@
+name: Deploy to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Build source"
+        required: true
+        type: choice
+        options:
+          - main
+          - latest_tag
+        default: main
+
+jobs:
+  trigger-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve build parameters
+        id: params
+        run: |
+          if [ "${{ inputs.source }}" = "latest_tag" ]; then
+            tag=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/tags?per_page=100" \
+              | jq -r '[.[] | select(.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))][0].name')
+
+            if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+              echo "::error::No semver tag found"
+              exit 1
+            fi
+
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "with_local_binary=false" >> "$GITHUB_OUTPUT"
+            echo "Resolved latest tag: $tag"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "with_local_binary=true" >> "$GITHUB_OUTPUT"
+            echo "Building from main with local XCFramework"
+          fi
+
+      - name: Trigger CircleCI deploy-testflight pipeline
+        id: trigger
+        run: |
+          tag="${{ steps.params.outputs.tag }}"
+          with_local_binary="${{ steps.params.outputs.with_local_binary }}"
+
+          if [ -n "$tag" ]; then
+            payload=$(jq -n --arg tag "$tag" --arg wlb "$with_local_binary" '{
+              tag: $tag,
+              parameters: {
+                run_testflight_deploy: true,
+                with_local_binary: $wlb
+              }
+            }')
+            echo "Triggering CircleCI for tag: $tag"
+          else
+            payload=$(jq -n --arg wlb "$with_local_binary" '{
+              branch: "main",
+              parameters: {
+                run_testflight_deploy: true,
+                with_local_binary: $wlb
+              }
+            }')
+            echo "Triggering CircleCI for branch: main"
+          fi
+
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://circleci.com/api/v2/project/${{ secrets.CIRCLECI_PROJECT_ID }}/pipeline" \
+            -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "$body" | jq . 2>/dev/null || echo "$body"
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::CircleCI API returned HTTP $http_code"
+            exit 1
+          fi
+
+          pipeline_id=$(echo "$body" | jq -r '.id')
+          pipeline_number=$(echo "$body" | jq -r '.number')
+          if [ -z "$pipeline_id" ] || [ "$pipeline_id" = "null" ]; then
+            echo "::error::Could not extract pipeline ID from CircleCI response"
+            exit 1
+          fi
+
+          echo "pipeline_id=$pipeline_id" >> "$GITHUB_OUTPUT"
+          echo "pipeline_number=$pipeline_number" >> "$GITHUB_OUTPUT"
+          echo "CircleCI deploy-testflight pipeline triggered (pipeline: $pipeline_number)"
+
+      - name: Wait for CircleCI pipeline to complete
+        run: |
+          pipeline_id="${{ steps.trigger.outputs.pipeline_id }}"
+          pipeline_number="${{ steps.trigger.outputs.pipeline_number }}"
+          poll_interval=30
+          timeout=3600  # 60 minutes
+          elapsed=0
+
+          echo "Waiting for CircleCI pipeline $pipeline_number to complete..."
+          echo "Pipeline URL: https://app.circleci.com/pipelines/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}"
+
+          while [ "$elapsed" -lt "$timeout" ]; do
+            api_response=$(curl -s -w "\n%{http_code}" -X GET \
+              "https://circleci.com/api/v2/pipeline/${pipeline_id}/workflow" \
+              -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
+              -H "Content-Type: application/json")
+
+            http_code=$(echo "$api_response" | tail -1)
+            response=$(echo "$api_response" | sed '$d')
+
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              echo "::error::CircleCI API returned HTTP $http_code while polling workflows"
+              echo "$response"
+              exit 1
+            fi
+
+            workflow_count=$(echo "$response" | jq '.items | length')
+
+            if [ "$workflow_count" -eq 0 ]; then
+              echo "No workflows found yet, waiting..."
+              sleep "$poll_interval"
+              elapsed=$((elapsed + poll_interval))
+              continue
+            fi
+
+            all_terminal=true
+            any_failed=false
+            summary=""
+
+            for i in $(seq 0 $((workflow_count - 1))); do
+              name=$(echo "$response" | jq -r ".items[$i].name")
+              status=$(echo "$response" | jq -r ".items[$i].status")
+              wf_id=$(echo "$response" | jq -r ".items[$i].id")
+              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${{ secrets.CIRCLECI_PROJECT_ID }}/${pipeline_number}/workflows/${wf_id})\n"
+
+              case "$status" in
+                success) ;;
+                failed|error|canceled|unauthorized)
+                  any_failed=true
+                  ;;
+                *)
+                  all_terminal=false
+                  ;;
+              esac
+            done
+
+            if [ "$all_terminal" = true ]; then
+              echo ""
+              echo "All workflows finished:"
+              echo -e "$summary"
+
+              if [ "$any_failed" = true ]; then
+                echo "::error::One or more CircleCI workflows did not succeed"
+                exit 1
+              else
+                echo "All CircleCI workflows completed successfully!"
+                exit 0
+              fi
+            fi
+
+            echo "[$(date -u +%H:%M:%S)] Workflows still running (${elapsed}s elapsed)..."
+            echo -e "$summary"
+            sleep "$poll_interval"
+            elapsed=$((elapsed + poll_interval))
+          done
+
+          echo "::error::Timed out after ${timeout}s waiting for CircleCI pipeline to complete"
+          exit 1
