@@ -7,12 +7,18 @@ parameters:
   run_release:
     type: boolean
     default: false
+  run_testflight_deploy:
+    type: boolean
+    default: false
   release_version:
     type: string
     default: ""
   release_notes:
     type: string
     default: ""
+  with_local_binary:
+    type: string
+    default: "true"
 
 # ========================
 # Executors
@@ -194,7 +200,7 @@ jobs:
 
       - run:
           name: Build Bonni with XCFramework via Fastlane
-          command: bundle exec fastlane build_bonni_with_binary
+          command: bundle exec fastlane build_bonni with_binary_framework:true
 
   # -----------------------
   # Build Bonni release
@@ -214,7 +220,7 @@ jobs:
 
       - run:
           name: Build Bonni release via Fastlane
-          command: bundle exec fastlane build_bonni_release
+          command: bundle exec fastlane build_bonni_release with_local_binary:<< pipeline.parameters.with_local_binary >>
 
       - persist_to_workspace:
           root: .
@@ -383,6 +389,7 @@ workflows:
       - build-bonni-release:
           requires:
             - build-examples
+            - assemble-xcframework
 
       - release:
           requires:
@@ -394,9 +401,44 @@ workflows:
             - build-bonni-release
             - release
 
+  # Deploy to TestFlight workflow triggered via API (GitHub Actions)
+  deploy-testflight:
+    when: << pipeline.parameters.run_testflight_deploy >>
+    jobs:
+      - checkout-and-setup
+
+      - lint:
+          requires:
+            - checkout-and-setup
+
+      - unit-tests:
+          requires:
+            - checkout-and-setup
+
+      - build-framework:
+          requires:
+            - checkout-and-setup
+
+      - assemble-xcframework:
+          requires:
+            - build-framework
+
+      - build-bonni-release:
+          requires:
+            - lint
+            - unit-tests
+            - assemble-xcframework
+
+      - deploy-testflight:
+          requires:
+            - build-bonni-release
+
   # Main workflow for all branches
   lint-validate-build-test:
-    unless: << pipeline.parameters.run_release >>
+    unless:
+      or:
+        - << pipeline.parameters.run_release >>
+        - << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup
 
@@ -439,22 +481,8 @@ workflows:
 
       - build-bonni-release:
           requires:
-            - build-examples
+            - assemble-xcframework
           filters:
             branches:
               only: main
 
-      - hold-testflight:
-          type: approval
-          requires:
-            - build-bonni-release
-          filters:
-            branches:
-              only: main
-
-      - deploy-testflight:
-          requires:
-            - hold-testflight
-          filters:
-            branches:
-              only: main
