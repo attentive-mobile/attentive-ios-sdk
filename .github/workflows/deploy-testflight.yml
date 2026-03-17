@@ -2,67 +2,20 @@ name: Deploy to TestFlight
 
 on:
   workflow_dispatch:
-    inputs:
-      source:
-        description: "Build source"
-        required: true
-        type: choice
-        options:
-          - main
-          - latest_tag
-        default: main
 
 jobs:
   trigger-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve build parameters
-        id: params
-        run: |
-          if [ "${{ inputs.source }}" = "latest_tag" ]; then
-            tag=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/tags?per_page=100" \
-              | jq -r '[.[] | select(.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))][0].name')
-
-            if [ -z "$tag" ] || [ "$tag" = "null" ]; then
-              echo "::error::No semver tag found"
-              exit 1
-            fi
-
-            echo "tag=$tag" >> "$GITHUB_OUTPUT"
-            echo "with_local_binary=false" >> "$GITHUB_OUTPUT"
-            echo "Resolved latest tag: $tag"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-            echo "with_local_binary=true" >> "$GITHUB_OUTPUT"
-            echo "Building from main with local XCFramework"
-          fi
-
       - name: Trigger CircleCI deploy-testflight pipeline
         id: trigger
         run: |
-          tag="${{ steps.params.outputs.tag }}"
-          with_local_binary="${{ steps.params.outputs.with_local_binary }}"
-
-          if [ -n "$tag" ]; then
-            payload=$(jq -n --arg tag "$tag" --arg wlb "$with_local_binary" '{
-              tag: $tag,
-              parameters: {
-                run_testflight_deploy: true,
-                with_local_binary: $wlb
-              }
-            }')
-            echo "Triggering CircleCI for tag: $tag"
-          else
-            payload=$(jq -n --arg wlb "$with_local_binary" '{
-              branch: "main",
-              parameters: {
-                run_testflight_deploy: true,
-                with_local_binary: $wlb
-              }
-            }')
-            echo "Triggering CircleCI for branch: main"
-          fi
+          payload=$(jq -n '{
+            branch: "main",
+            parameters: {
+              run_testflight_deploy: true
+            }
+          }')
 
           response=$(curl -s -w "\n%{http_code}" -X POST \
             "https://circleci.com/api/v2/project/${{ secrets.CIRCLECI_PROJECT_ID }}/pipeline" \

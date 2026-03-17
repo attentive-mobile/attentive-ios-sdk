@@ -377,7 +377,7 @@ platform :ios do
 
   desc "Build Bonni, optionally swapping Package.swift to use the prebuilt XCFramework"
   lane :build_bonni do |options|
-    with_binary = options.fetch(:with_binary_framework, false)
+    with_binary = options.fetch(:with_binary_framework, "false").to_s == "true"
 
     build_block = proc do
       build_ios_app(

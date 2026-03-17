@@ -3,6 +3,8 @@ version: 2.1
 # ========================
 # Pipeline Parameters
 # ========================
+  # Note: run_release and run_testflight_deploy are mutually exclusive.
+  # Only one should be true per pipeline trigger.
 parameters:
   run_release:
     type: boolean
@@ -16,6 +18,7 @@ parameters:
   release_notes:
     type: string
     default: ""
+  # String type (not boolean) because GitHub Actions passes values via jq --arg which produces strings
   with_local_binary:
     type: string
     default: "true"

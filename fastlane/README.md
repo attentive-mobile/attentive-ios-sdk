@@ -95,13 +95,13 @@ Assemble XCFramework
 
 Build example apps
 
-### ios build_bonni_with_binary
+### ios build_bonni
 
 ```sh
-[bundle exec] fastlane ios build_bonni_with_binary
+[bundle exec] fastlane ios build_bonni
 ```
 
-Build Bonni using prebuilt XCFramework to validate binary distribution
+Build Bonni, optionally swapping Package.swift to use the prebuilt XCFramework
 
 ### ios build_bonni_release
 
@@ -109,7 +109,7 @@ Build Bonni using prebuilt XCFramework to validate binary distribution
 [bundle exec] fastlane ios build_bonni_release
 ```
 
-Build Bonni for release
+Build Bonni for release. with_local_binary (default 'true') swaps Package.swift to local XCFramework; set to 'false' to use existing Package.swift (e.g. tagged remote binary).
 
 ### ios unit_test
 
