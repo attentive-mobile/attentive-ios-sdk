@@ -62,9 +62,23 @@ commands:
     description: "Send Slack notification on job failure"
     steps:
       - run:
-          name: Build Slack PR context
+          name: Build Slack failure payload
           when: on_fail
           command: |
+            # Build fields array
+            FIELDS='['
+            FIELDS+='{"type":"mrkdwn","text":"*Job:*\n'"${CIRCLE_JOB}"'"},'
+            FIELDS+='{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"},'
+            FIELDS+='{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"},'
+            FIELDS+='{"type":"mrkdwn","text":"*Project:*\n'"${CIRCLE_PROJECT_REPONAME}"'"}'
+            if [ -n "$CIRCLE_WORKFLOW_NAME" ]; then
+              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n'"${CIRCLE_WORKFLOW_NAME}"'"}'
+            fi
+
+            # Build actions array
+            ACTIONS='[{"type":"button","text":{"type":"plain_text","text":"View Job"},"url":"'"${CIRCLE_BUILD_URL}"'"}'
+
+            # Add PR context if available
             if [ -n "$CIRCLE_PULL_REQUEST" ]; then
               PR_NUMBER="${CIRCLE_PULL_REQUEST##*/}"
               PR_TITLE=$(curl -sf \
@@ -73,53 +87,35 @@ commands:
                 "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls/${PR_NUMBER}" \
                 | jq -r '.title // empty')
               if [ -n "$PR_TITLE" ]; then
-                # Escape characters that would break JSON
                 PR_TITLE=$(echo "$PR_TITLE" | sed 's/\\/\\\\/g; s/"/\\"/g')
-                echo "export SLACK_PR_FIELD=',{\"type\":\"mrkdwn\",\"text\":\"*PR:*\n<$CIRCLE_PULL_REQUEST|#${PR_NUMBER}: ${PR_TITLE}>\"}'" >> "$BASH_ENV"
+                FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"': '"${PR_TITLE}"'>"}'
               else
-                echo "export SLACK_PR_FIELD=',{\"type\":\"mrkdwn\",\"text\":\"*PR:*\n<$CIRCLE_PULL_REQUEST|#${PR_NUMBER}>\"}'" >> "$BASH_ENV"
+                FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"'>"}'
               fi
-              echo "export SLACK_PR_BUTTON=',{\"type\":\"button\",\"text\":{\"type\":\"plain_text\",\"text\":\"View PR\"},\"url\":\"$CIRCLE_PULL_REQUEST\"}'" >> "$BASH_ENV"
-            else
-              echo 'export SLACK_PR_FIELD=""' >> "$BASH_ENV"
-              echo 'export SLACK_PR_BUTTON=""' >> "$BASH_ENV"
+              ACTIONS+=',{"type":"button","text":{"type":"plain_text","text":"View PR"},"url":"'"${CIRCLE_PULL_REQUEST}"'"}'
             fi
+
+            FIELDS+=']'
+            ACTIONS+=']'
+
+            # Build full payload
+            PAYLOAD=$(jq -n \
+              --argjson fields "$FIELDS" \
+              --argjson actions "$ACTIONS" \
+              '{
+                "blocks": [
+                  {"type":"header","text":{"type":"plain_text","text":"🚨 Job Failed","emoji":true}},
+                  {"type":"section","fields":$fields},
+                  {"type":"actions","elements":$actions}
+                ]
+              }')
+
+            echo "export SLACK_FAILURE_PAYLOAD='$(echo "$PAYLOAD" | sed "s/'/'\\\\''/g")'" >> "$BASH_ENV"
       - slack/notify:
           channel: eng-mobile-sdk-ci-alerts-ios
           event: fail
           custom: |
-            {
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🚨 Job Failed",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*Job:*\n${CIRCLE_JOB}" },
-                    { "type": "mrkdwn", "text": "*Branch:*\n${CIRCLE_BRANCH}" },
-                    { "type": "mrkdwn", "text": "*Author:*\n${CIRCLE_USERNAME}" },
-                    { "type": "mrkdwn", "text": "*Project:*\n${CIRCLE_PROJECT_REPONAME}" },
-                    { "type": "mrkdwn", "text": "*Workflow:*\n${CIRCLE_WORKFLOW_NAME}" }${SLACK_PR_FIELD}
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": { "type": "plain_text", "text": "View Job" },
-                      "url": "${CIRCLE_BUILD_URL}"
-                    }${SLACK_PR_BUTTON}
-                  ]
-                }
-              ]
-            }
+            ${SLACK_FAILURE_PAYLOAD}
 
   notify-slack-on-release-success:
     description: "Send Slack notification on successful SDK release"
