@@ -92,7 +92,6 @@ commands:
               else
                 FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"'>"}'
               fi
-              ACTIONS+=',{"type":"button","text":{"type":"plain_text","text":"View PR"},"url":"'"${CIRCLE_PULL_REQUEST}"'"}'
             fi
 
             FIELDS+=']'
