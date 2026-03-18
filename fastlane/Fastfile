@@ -455,19 +455,34 @@ platform :ios do
   # Testing
   # ========================
 
-  desc "Run unit tests"
+  XCRESULT_PATH = "#{FASTLANE_TEST_OUTPUT_DIR}/unit-tests.xcresult"
+
+  desc "Run unit tests with code coverage"
   lane :unit_test do
-    UI.message("🧪 Running unit tests...")
+    UI.message("🧪 Running unit tests with code coverage...")
     run_tests(
       project: "attentive-ios-sdk.xcodeproj",
       scheme: "attentive-ios-sdk-framework",
       device: FASTLANE_TEST_DEVICE,
       output_directory: FASTLANE_TEST_OUTPUT_DIR,
       output_types: "html,junit",
-      result_bundle: true
+      result_bundle: true,
+      result_bundle_path: XCRESULT_PATH,
+      code_coverage: true
     )
 
-    UI.success("✅ Unit tests passed")
+    # Extract coverage reports from xcresult bundle
+    UI.user_error!("xcresult bundle not found at #{abs_path(XCRESULT_PATH)}") unless File.exist?(abs_path(XCRESULT_PATH))
+
+    coverage_dir = "#{FASTLANE_TEST_OUTPUT_DIR}/coverage"
+    sh("mkdir -p '#{abs_path(coverage_dir)}'")
+    sh("xcrun xccov view --report --json '#{abs_path(XCRESULT_PATH)}' > '#{abs_path(coverage_dir)}/coverage.json'")
+    sh("xcrun xccov view --report '#{abs_path(XCRESULT_PATH)}' > '#{abs_path(coverage_dir)}/coverage.txt'")
+
+    # Print coverage summary to CI logs
+    sh("cat '#{abs_path(coverage_dir)}/coverage.txt'")
+
+    UI.success("✅ Unit tests passed, coverage reports generated")
   end
 
   # ========================

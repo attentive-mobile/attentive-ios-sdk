@@ -95,6 +95,14 @@ Assemble XCFramework
 
 Build example apps
 
+### ios build_bonni_with_binary
+
+```sh
+[bundle exec] fastlane ios build_bonni_with_binary
+```
+
+Build Bonni using prebuilt XCFramework to validate binary distribution
+
 ### ios build_bonni_release
 
 ```sh
@@ -109,7 +117,7 @@ Build Bonni for release
 [bundle exec] fastlane ios unit_test
 ```
 
-Run unit tests
+Run unit tests with code coverage
 
 ### ios validate_podspec
 

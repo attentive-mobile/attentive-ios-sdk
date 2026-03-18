@@ -43,6 +43,7 @@ orbs:
 fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
 fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
+fastlane_coverage_dir: &fastlane_coverage_dir "fastlane/test_output/coverage"
 
 # ========================
 # Commands (Reusable)
@@ -224,7 +225,7 @@ jobs:
           path: *fastlane_build_output_dir
 
   # -----------------------
-  # Unit Tests
+  # Unit Tests with Code Coverage
   # -----------------------
   unit-tests:
     executor: macos-xcode
@@ -235,14 +236,21 @@ jobs:
       - setup-fastlane
 
       - run:
-          name: Run Unit Tests via Fastlane
+          name: Run Unit Tests with Coverage via Fastlane
           command: bundle exec fastlane unit_test
 
       - store_test_results:
           path: *fastlane_test_output_dir
 
+      # Store test report as artifact
       - store_artifacts:
           path: *fastlane_test_output_dir
+          destination: unit-test-report
+
+      # Store coverage reports as artifact
+      - store_artifacts:
+          path: *fastlane_coverage_dir
+          destination: coverage-report
 
   # -----------------------
   # Validate CocoaPods Spec
