@@ -64,3 +64,10 @@ fastlane/reports
 .env
 .env.*
 !.env.default
+
+# Claude
+.claude/
+# Exceptions for shared config (if applicable)
+!.claude/CLAUDE.md
+!.claude/settings.json
+!.claude/skills/**/SKILL.md
