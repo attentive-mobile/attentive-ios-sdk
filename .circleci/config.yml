@@ -226,6 +226,11 @@ jobs:
     steps:
       - checkout
 
+      # TODO: Remove after testing Slack notifications
+      - run:
+          name: Test Slack notification (REMOVE ME)
+          command: exit 1
+
       # Setup Fastlane
       - setup-fastlane
 
