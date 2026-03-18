@@ -137,7 +137,7 @@ commands:
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Version:*\n${RELEASE_VERSION}" },
+                    { "type": "mrkdwn", "text": "*Version:*\n<< pipeline.parameters.release_version >>" },
                     { "type": "mrkdwn", "text": "*Author:*\n${CIRCLE_USERNAME}" }
                   ]
                 },
@@ -147,7 +147,7 @@ commands:
                     {
                       "type": "button",
                       "text": { "type": "plain_text", "text": "View Release" },
-                      "url": "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/${RELEASE_VERSION}"
+                      "url": "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>"
                     }
                   ]
                 }
@@ -475,7 +475,7 @@ jobs:
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}"
 
       - notify-slack-on-release-success
       - notify-slack-on-failure
