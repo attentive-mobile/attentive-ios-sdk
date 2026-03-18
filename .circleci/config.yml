@@ -75,9 +75,9 @@ commands:
             FIELDS='['
             FIELDS+='{"type":"mrkdwn","text":"*Job:*\n<'"${CIRCLE_BUILD_URL}"'|'"${CIRCLE_JOB}"'>"}'
             if [ -n "$WORKFLOW_NAME" ]; then
-              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n'"${WORKFLOW_NAME}"'"}'
+              WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/${CIRCLE_WORKFLOW_ID}"
+              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n<'"${WORKFLOW_URL}"'|'"${WORKFLOW_NAME}"'>"}'
             fi
-            FIELDS+=',{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"}'
             # Add PR context if available
             if [ -n "$CIRCLE_PULL_REQUEST" ]; then
               PR_NUMBER="${CIRCLE_PULL_REQUEST##*/}"
@@ -93,7 +93,10 @@ commands:
                 FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"'>"}'
               fi
             fi
-            FIELDS+=',{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"},'
+            if [ -n "$CIRCLE_USERNAME" ]; then
+              FIELDS+=',{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"}'
+            fi
+            FIELDS+=',{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"},'
             FIELDS+='{"type":"mrkdwn","text":"*Project:*\n'"${CIRCLE_PROJECT_REPONAME}"'"},'
             FIELDS+='{"type":"mrkdwn","text":"*Build:*\n#'"${CIRCLE_BUILD_NUM}"'"}'
 
