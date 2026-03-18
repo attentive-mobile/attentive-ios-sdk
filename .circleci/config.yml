@@ -65,19 +65,19 @@ commands:
           name: Build Slack failure payload
           when: on_fail
           command: |
+            # Fetch workflow name from CircleCI API
+            WORKFLOW_NAME=$(curl -sf \
+              -H "Circle-Token: ${CIRCLECI_TOKEN}" \
+              "https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}" \
+              | jq -r '.name // empty')
+
             # Build fields array
             FIELDS='['
-            FIELDS+='{"type":"mrkdwn","text":"*Job:*\n'"${CIRCLE_JOB}"'"},'
-            FIELDS+='{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"},'
-            FIELDS+='{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"},'
-            FIELDS+='{"type":"mrkdwn","text":"*Project:*\n'"${CIRCLE_PROJECT_REPONAME}"'"}'
-            if [ -n "$CIRCLE_WORKFLOW_NAME" ]; then
-              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n'"${CIRCLE_WORKFLOW_NAME}"'"}'
+            FIELDS+='{"type":"mrkdwn","text":"*Job:*\n<'"${CIRCLE_BUILD_URL}"'|'"${CIRCLE_JOB}"'>"}'
+            if [ -n "$WORKFLOW_NAME" ]; then
+              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n'"${WORKFLOW_NAME}"'"}'
             fi
-
-            # Build actions array
-            ACTIONS='[{"type":"button","text":{"type":"plain_text","text":"View Job"},"url":"'"${CIRCLE_BUILD_URL}"'"}'
-
+            FIELDS+=',{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"}'
             # Add PR context if available
             if [ -n "$CIRCLE_PULL_REQUEST" ]; then
               PR_NUMBER="${CIRCLE_PULL_REQUEST##*/}"
@@ -93,19 +93,19 @@ commands:
                 FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"'>"}'
               fi
             fi
+            FIELDS+=',{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"},'
+            FIELDS+='{"type":"mrkdwn","text":"*Project:*\n'"${CIRCLE_PROJECT_REPONAME}"'"},'
+            FIELDS+='{"type":"mrkdwn","text":"*Build:*\n#'"${CIRCLE_BUILD_NUM}"'"}'
 
             FIELDS+=']'
-            ACTIONS+=']'
 
             # Build full payload
             PAYLOAD=$(jq -n \
               --argjson fields "$FIELDS" \
-              --argjson actions "$ACTIONS" \
               '{
                 "blocks": [
                   {"type":"header","text":{"type":"plain_text","text":"🚨 Job Failed","emoji":true}},
-                  {"type":"section","fields":$fields},
-                  {"type":"actions","elements":$actions}
+                  {"type":"section","fields":$fields}
                 ]
               }')
 
@@ -508,40 +508,40 @@ workflows:
     when: << pipeline.parameters.run_release >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-examples:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
@@ -550,24 +550,24 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-examples
             - assemble-xcframework
 
       - release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-examples
             - build-bonni-with-binary
 
       - deploy-testflight:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-bonni-release
             - release
@@ -577,37 +577,37 @@ workflows:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-bonni-release
 
@@ -619,41 +619,41 @@ workflows:
         - << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       # Run these in parallel after setup
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-examples:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
@@ -662,12 +662,12 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
           filters:
