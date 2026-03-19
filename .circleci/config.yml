@@ -56,7 +56,7 @@ fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
 slack_channel_ci_alerts: &slack_channel_ci_alerts "eng-mobile-sdk-ci-alerts-ios"
 slack_channel_releases: &slack_channel_releases "eng-mobile-sdk-releases"
 default_context: &default_context
-  context: [org-global, org-publishing]
+  context: [org-global, orb-publishing]
 
 # ========================
 # Commands (Reusable)
