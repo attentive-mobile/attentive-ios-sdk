@@ -53,6 +53,10 @@ orbs:
 fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
 fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
+slack_channel_ci_alerts: &slack_channel_ci_alerts "eng-mobile-sdk-ci-alerts-ios"
+slack_channel_releases: &slack_channel_releases "eng-mobile-sdk-releases"
+default_context: &default_context
+  context: [org-global, org-publishing]
 
 # ========================
 # Commands (Reusable)
@@ -64,57 +68,9 @@ commands:
       - run:
           name: Build Slack failure payload
           when: on_fail
-          command: |
-            # Fetch workflow name from CircleCI API
-            WORKFLOW_NAME=$(curl -sf \
-              -H "Circle-Token: ${CIRCLECI_TOKEN}" \
-              "https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}" \
-              | jq -r '.name // empty')
-
-            # Build fields array
-            FIELDS='['
-            FIELDS+='{"type":"mrkdwn","text":"*Job:*\n<'"${CIRCLE_BUILD_URL}"'|'"${CIRCLE_JOB}"'>"}'
-            if [ -n "$WORKFLOW_NAME" ]; then
-              WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/${CIRCLE_WORKFLOW_ID}"
-              FIELDS+=',{"type":"mrkdwn","text":"*Workflow:*\n<'"${WORKFLOW_URL}"'|'"${WORKFLOW_NAME}"'>"}'
-            fi
-            # Add PR context if available
-            if [ -n "$CIRCLE_PULL_REQUEST" ]; then
-              PR_NUMBER="${CIRCLE_PULL_REQUEST##*/}"
-              PR_TITLE=$(curl -sf \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: token ${GITHUB_TOKEN}" \
-                "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls/${PR_NUMBER}" \
-                | jq -r '.title // empty')
-              if [ -n "$PR_TITLE" ]; then
-                PR_TITLE=$(echo "$PR_TITLE" | sed 's/\\/\\\\/g; s/"/\\"/g')
-                FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"': '"${PR_TITLE}"'>"}'
-              else
-                FIELDS+=',{"type":"mrkdwn","text":"*PR:*\n<'"${CIRCLE_PULL_REQUEST}"'|#'"${PR_NUMBER}"'>"}'
-              fi
-            fi
-            if [ -n "$CIRCLE_USERNAME" ]; then
-              FIELDS+=',{"type":"mrkdwn","text":"*Author:*\n'"${CIRCLE_USERNAME}"'"}'
-            fi
-            FIELDS+=',{"type":"mrkdwn","text":"*Branch:*\n'"${CIRCLE_BRANCH}"'"},'
-            FIELDS+='{"type":"mrkdwn","text":"*Project:*\n'"${CIRCLE_PROJECT_REPONAME}"'"},'
-            FIELDS+='{"type":"mrkdwn","text":"*Build:*\n#'"${CIRCLE_BUILD_NUM}"'"}'
-
-            FIELDS+=']'
-
-            # Build full payload
-            PAYLOAD=$(jq -n \
-              --argjson fields "$FIELDS" \
-              '{
-                "blocks": [
-                  {"type":"header","text":{"type":"plain_text","text":"🚨 Job Failed","emoji":true}},
-                  {"type":"section","fields":$fields}
-                ]
-              }')
-
-            echo "export SLACK_FAILURE_PAYLOAD='$(echo "$PAYLOAD" | sed "s/'/'\\\\''/g")'" >> "$BASH_ENV"
+          command: .circleci/slack-notify-failure.sh
       - slack/notify:
-          channel: eng-mobile-sdk-ci-alerts-ios
+          channel: *slack_channel_ci_alerts
           event: fail
           custom: |
             ${SLACK_FAILURE_PAYLOAD}
@@ -123,7 +79,7 @@ commands:
     description: "Send Slack notification on successful SDK release"
     steps:
       - slack/notify:
-          channel: eng-mobile-sdk-releases
+          channel: *slack_channel_releases
           event: pass
           custom: |
             {
@@ -139,18 +95,7 @@ commands:
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Version:*\n<< pipeline.parameters.release_version >>" },
-                    { "type": "mrkdwn", "text": "*Author:*\n${CIRCLE_USERNAME}" }
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": { "type": "plain_text", "text": "View Release" },
-                      "url": "https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>"
-                    }
+                    { "type": "mrkdwn", "text": "*Version:*\n<https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>|<< pipeline.parameters.release_version >>>" }
                   ]
                 }
               ]
@@ -160,7 +105,7 @@ commands:
     description: "Send Slack notification on successful TestFlight deploy"
     steps:
       - slack/notify:
-          channel: eng-mobile-sdk-releases
+          channel: *slack_channel_releases
           event: pass
           custom: |
             {
@@ -176,18 +121,8 @@ commands:
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Branch:*\n${CIRCLE_BRANCH}" },
-                    { "type": "mrkdwn", "text": "*Author:*\n${CIRCLE_USERNAME}" }
-                  ]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": { "type": "plain_text", "text": "View Job" },
-                      "url": "${CIRCLE_BUILD_URL}"
-                    }
+                    { "type": "mrkdwn", "text": "*Build:*\n${TESTFLIGHT_BUILD_NUMBER}" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n${CIRCLE_BRANCH}" }
                   ]
                 }
               ]
@@ -511,40 +446,40 @@ workflows:
     when: << pipeline.parameters.run_release >>
     jobs:
       - checkout-and-setup:
-          context: [org-global, org-publishing]
+          <<: *default_context
 
       - lint:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-framework
 
       - build-examples:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - lint
             - unit-tests
@@ -553,24 +488,24 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-examples
             - assemble-xcframework
 
       - release:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-examples
             - build-bonni-with-binary
 
       - deploy-testflight:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-bonni-release
             - release
@@ -580,37 +515,37 @@ workflows:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: [org-global, org-publishing]
+          <<: *default_context
 
       - lint:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-framework
 
       - build-bonni-release:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-bonni-release
 
@@ -622,41 +557,41 @@ workflows:
         - << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: [org-global, org-publishing]
+          <<: *default_context
 
       # Run these in parallel after setup
       - lint:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - build-framework
 
       - build-examples:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - lint
             - unit-tests
@@ -665,12 +600,12 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: [org-global, org-publishing]
+          <<: *default_context
           requires:
             - assemble-xcframework
           filters:

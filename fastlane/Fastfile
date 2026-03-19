@@ -652,6 +652,10 @@ platform :ios do
       distribute_external: false,
       notify_external_testers: false
     )
+    # Export build number for Slack notifications
+    build_number = lane_context[SharedValues::BUILD_NUMBER]
+    sh("echo 'export TESTFLIGHT_BUILD_NUMBER=#{build_number}' >> \"$BASH_ENV\"") if build_number
+
     UI.success("✅ Build uploaded to TestFlight successfully!")
   end
 
