@@ -444,40 +444,40 @@ workflows:
     when: << pipeline.parameters.run_release >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-examples:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
@@ -486,24 +486,24 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-examples
             - assemble-xcframework
 
       - release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-examples
             - build-bonni-with-binary
 
       - deploy-testflight:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-bonni-release
             - release
@@ -513,37 +513,37 @@ workflows:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-bonni-release
 
@@ -555,41 +555,41 @@ workflows:
         - << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          context: org-global
+          context: [org-global, org-publishing]
 
       # Run these in parallel after setup
       - lint:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - build-framework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - build-framework
 
       - build-examples:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - lint
             - unit-tests
@@ -598,12 +598,12 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          context: org-global
+          context: [org-global, org-publishing]
           requires:
             - assemble-xcframework
           filters:
