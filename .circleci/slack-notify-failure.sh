@@ -15,13 +15,10 @@ echo "GITHUB_TOKEN set: $([ -n "${GITHUB_TOKEN:-}" ] && echo 'yes' || echo 'no')
 echo "CIRCLE_WORKFLOW_ID: ${CIRCLE_WORKFLOW_ID:-unset}"
 
 # Fetch workflow name from CircleCI API
-WORKFLOW_NAME=""
-if [ -n "${CIRCLECI_TOKEN:-}" ]; then
-  WORKFLOW_NAME=$(curl -sf \
-    -H "Circle-Token: ${CIRCLECI_TOKEN}" \
-    "https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}" \
-    | jq -r '.name // empty' || true)
-fi
+WORKFLOW_NAME=$(curl -sf \
+  -H "Circle-Token: ${CIRCLECI_TOKEN:-}" \
+  "https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}" \
+  | jq -r '.name // empty' || true)
 WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/${CIRCLE_WORKFLOW_ID}"
 
 # Fetch PR title if available
