@@ -55,8 +55,6 @@ fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
 slack_channel_ci_alerts: &slack_channel_ci_alerts "eng-mobile-sdk-ci-alerts-ios"
 slack_channel_releases: &slack_channel_releases "eng-mobile-sdk-releases"
-default_context: &default_context
-  context: [org-global, orb-publishing]
 
 # ========================
 # Commands (Reusable)
@@ -446,40 +444,40 @@ workflows:
     when: << pipeline.parameters.run_release >>
     jobs:
       - checkout-and-setup:
-          <<: *default_context
+          context: org-global
 
       - lint:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - build-framework:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          <<: *default_context
+          context: org-global
           requires:
             - build-framework
 
       - build-examples:
-          <<: *default_context
+          context: org-global
           requires:
             - lint
             - unit-tests
@@ -488,24 +486,24 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          <<: *default_context
+          context: org-global
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          <<: *default_context
+          context: org-global
           requires:
             - build-examples
             - assemble-xcframework
 
       - release:
-          <<: *default_context
+          context: org-global
           requires:
             - build-examples
             - build-bonni-with-binary
 
       - deploy-testflight:
-          <<: *default_context
+          context: org-global
           requires:
             - build-bonni-release
             - release
@@ -515,37 +513,37 @@ workflows:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          <<: *default_context
+          context: org-global
 
       - lint:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - build-framework:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          <<: *default_context
+          context: org-global
           requires:
             - build-framework
 
       - build-bonni-release:
-          <<: *default_context
+          context: org-global
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
-          <<: *default_context
+          context: org-global
           requires:
             - build-bonni-release
 
@@ -557,41 +555,41 @@ workflows:
         - << pipeline.parameters.run_testflight_deploy >>
     jobs:
       - checkout-and-setup:
-          <<: *default_context
+          context: org-global
 
       # Run these in parallel after setup
       - lint:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - unit-tests:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - build-framework:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - validate-podspec:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - validate-spm:
-          <<: *default_context
+          context: org-global
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
-          <<: *default_context
+          context: org-global
           requires:
             - build-framework
 
       - build-examples:
-          <<: *default_context
+          context: org-global
           requires:
             - lint
             - unit-tests
@@ -600,12 +598,12 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
-          <<: *default_context
+          context: org-global
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
-          <<: *default_context
+          context: org-global
           requires:
             - assemble-xcframework
           filters:
