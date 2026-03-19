@@ -6,17 +6,11 @@ set -euo pipefail
 #
 # Required env vars: CIRCLE_JOB, CIRCLE_BUILD_NUM, CIRCLE_BUILD_URL,
 #   CIRCLE_WORKFLOW_ID, CIRCLE_BRANCH, CIRCLE_PROJECT_REPONAME
-# Optional env vars: CIRCLECI_TOKEN, CIRCLE_PULL_REQUEST, CIRCLE_USERNAME,
+# Optional env vars: CIRCLE_PULL_REQUEST, CIRCLE_USERNAME,
 #   CIRCLE_PROJECT_USERNAME, GITHUB_TOKEN
 
-# Debug: check available tokens
-echo "CIRCLECI_TOKEN set: $([ -n "${CIRCLECI_TOKEN:-}" ] && echo 'yes' || echo 'no')"
-echo "GITHUB_TOKEN set: $([ -n "${GITHUB_TOKEN:-}" ] && echo 'yes' || echo 'no')"
-echo "CIRCLE_WORKFLOW_ID: ${CIRCLE_WORKFLOW_ID:-unset}"
-
-# Fetch workflow name from CircleCI API
+# Fetch workflow name from CircleCI API (no auth required)
 WORKFLOW_NAME=$(curl -sf \
-  -H "Circle-Token: ${CIRCLECI_TOKEN:-}" \
   "https://circleci.com/api/v2/workflow/${CIRCLE_WORKFLOW_ID}" \
   | jq -r '.name // empty' || true)
 WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/${CIRCLE_WORKFLOW_ID}"
