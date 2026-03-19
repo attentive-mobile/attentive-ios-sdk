@@ -9,6 +9,11 @@ set -euo pipefail
 # Optional env vars: CIRCLE_TOKEN, CIRCLE_PULL_REQUEST, CIRCLE_USERNAME,
 #   CIRCLE_PROJECT_USERNAME, GITHUB_TOKEN
 
+# Debug: check available tokens
+echo "CIRCLE_TOKEN set: $([ -n "${CIRCLE_TOKEN:-}" ] && echo 'yes' || echo 'no')"
+echo "GITHUB_TOKEN set: $([ -n "${GITHUB_TOKEN:-}" ] && echo 'yes' || echo 'no')"
+echo "CIRCLE_WORKFLOW_ID: ${CIRCLE_WORKFLOW_ID:-unset}"
+
 # Fetch workflow name from CircleCI API
 WORKFLOW_NAME=""
 if [ -n "${CIRCLE_TOKEN:-}" ]; then
