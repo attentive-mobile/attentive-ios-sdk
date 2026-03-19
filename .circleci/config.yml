@@ -45,6 +45,7 @@ orbs:
   aws-cli: circleci/aws-cli@4.0.0
   github-cli: circleci/github-cli@2.7.2
   attentive: attentive-mobile/circleci-orb@0.0.11
+  slack: circleci/slack@6.1.3
 
 # ========================
 # Constants
@@ -53,11 +54,80 @@ fastlane_reports_dir: &fastlane_reports_dir "fastlane/reports"
 fastlane_build_output_dir: &fastlane_build_output_dir "fastlane/build"
 fastlane_test_output_dir: &fastlane_test_output_dir "fastlane/test_output"
 fastlane_coverage_dir: &fastlane_coverage_dir "fastlane/test_output/coverage"
+slack_channel_ci_alerts: &slack_channel_ci_alerts "eng-mobile-sdk-ci-alerts-ios"
+slack_channel_releases: &slack_channel_releases "eng-mobile-sdk-releases"
+default_context: &default_context org-global
 
 # ========================
 # Commands (Reusable)
 # ========================
 commands:
+  notify-slack-on-failure:
+    description: "Send Slack notification on job failure"
+    steps:
+      - run:
+          name: Build Slack failure payload
+          when: on_fail
+          command: .circleci/slack-notify-failure.sh
+      - slack/notify:
+          channel: *slack_channel_ci_alerts
+          event: fail
+          custom: |
+            ${SLACK_FAILURE_PAYLOAD}
+
+  notify-slack-on-release-success:
+    description: "Send Slack notification on successful SDK release"
+    steps:
+      - slack/notify:
+          channel: *slack_channel_releases
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ SDK Release Published",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Version:*\n<https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>|<< pipeline.parameters.release_version >>>" }
+                  ]
+                }
+              ]
+            }
+
+  notify-slack-on-testflight-success:
+    description: "Send Slack notification on successful TestFlight deploy"
+    steps:
+      - slack/notify:
+          channel: *slack_channel_releases
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ TestFlight Build Deployed",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Build:*\n${TESTFLIGHT_BUILD_NUMBER}" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n${CIRCLE_BRANCH}" }
+                  ]
+                }
+              ]
+            }
+
   setup-fastlane:
     description: "Install Fastlane via Bundler"
     steps:
@@ -114,6 +184,8 @@ jobs:
           paths:
             - .
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Lint
   # -----------------------
@@ -131,6 +203,8 @@ jobs:
 
       - store_test_results:
           path: *fastlane_reports_dir
+
+      - notify-slack-on-failure
 
   # -----------------------
   # Build Framework
@@ -151,6 +225,8 @@ jobs:
           root: .
           paths:
             - *fastlane_build_output_dir
+
+      - notify-slack-on-failure
 
   # -----------------------
   # Assemble XCFramework
@@ -175,6 +251,8 @@ jobs:
       - store_artifacts:
           path: *fastlane_build_output_dir
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Build Examples
   # -----------------------
@@ -190,6 +268,8 @@ jobs:
           name: Build Example Apps via Fastlane
           command: bundle exec fastlane build_examples
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Build Bonni with XCFramework
   # -----------------------
@@ -204,6 +284,8 @@ jobs:
       - run:
           name: Build Bonni with XCFramework via Fastlane
           command: bundle exec fastlane build_bonni with_binary_framework:true
+
+      - notify-slack-on-failure
 
   # -----------------------
   # Build Bonni release
@@ -233,6 +315,8 @@ jobs:
       - store_artifacts:
           path: *fastlane_build_output_dir
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Unit Tests with Code Coverage
   # -----------------------
@@ -261,6 +345,8 @@ jobs:
           path: *fastlane_coverage_dir
           destination: coverage-report
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Validate CocoaPods Spec
   # -----------------------
@@ -286,6 +372,8 @@ jobs:
           paths:
             - ~/Library/Caches/CocoaPods
 
+      - notify-slack-on-failure
+
   # -----------------------
   # Validate Swift Package Manager
   # -----------------------
@@ -300,6 +388,8 @@ jobs:
       - run:
           name: Validate Swift Package via Fastlane
           command: bundle exec fastlane validate_spm
+
+      - notify-slack-on-failure
 
   # -----------------------
   # Release SDK
@@ -324,7 +414,10 @@ jobs:
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: bundle exec fastlane create_release version:"${RELEASE_VERSION}" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}"
+
+      - notify-slack-on-release-success
+      - notify-slack-on-failure
 
   # -----------------------
   # Deploy to TestFlight
@@ -341,6 +434,9 @@ jobs:
           name: Deploy to TestFlight via Fastlane
           command: bundle exec fastlane deploy_testflight
 
+      - notify-slack-on-testflight-success
+      - notify-slack-on-failure
+
 # ========================
 # Workflows
 # ========================
@@ -351,33 +447,41 @@ workflows:
   release-sdk:
     when: << pipeline.parameters.run_release >>
     jobs:
-      - checkout-and-setup
+      - checkout-and-setup:
+          context: *default_context
 
       - lint:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - validate-podspec:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - validate-spm:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
+          context: *default_context
           requires:
             - build-framework
 
       - build-examples:
+          context: *default_context
           requires:
             - lint
             - unit-tests
@@ -386,20 +490,24 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
+          context: *default_context
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
+          context: *default_context
           requires:
             - build-examples
             - assemble-xcframework
 
       - release:
+          context: *default_context
           requires:
             - build-examples
             - build-bonni-with-binary
 
       - deploy-testflight:
+          context: *default_context
           requires:
             - build-bonni-release
             - release
@@ -443,34 +551,42 @@ workflows:
         - << pipeline.parameters.run_release >>
         - << pipeline.parameters.run_testflight_deploy >>
     jobs:
-      - checkout-and-setup
+      - checkout-and-setup:
+          context: *default_context
 
       # Run these in parallel after setup
       - lint:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - validate-podspec:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - validate-spm:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
+          context: *default_context
           requires:
             - build-framework
 
       - build-examples:
+          context: *default_context
           requires:
             - lint
             - unit-tests
@@ -479,10 +595,12 @@ workflows:
             - validate-spm
 
       - build-bonni-with-binary:
+          context: *default_context
           requires:
             - assemble-xcframework
 
       - build-bonni-release:
+          context: *default_context
           requires:
             - assemble-xcframework
           filters:
