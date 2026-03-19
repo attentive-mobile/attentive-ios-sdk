@@ -646,13 +646,16 @@ platform :ios do
     )
 
     # 13. Push to CocoaPods (SPM + GitHub release already work at this point)
-    begin
-      pod_push(
-        path: "ATTNSDKFramework.podspec",
-        allow_warnings: true
-      )
-    rescue => e
-      UI.user_error!("CocoaPods push failed: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push ATTNSDKFramework.podspec --allow-warnings")
+    podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
+    podspecs.each do |spec|
+      begin
+        pod_push(
+          path: spec,
+          allow_warnings: true
+        )
+      rescue => e
+        UI.user_error!("CocoaPods push failed for #{spec}: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push #{spec} --allow-warnings")
+      end
     end
 
     UI.success("Released #{new_version}. PR opened to main.")
