@@ -279,8 +279,12 @@ platform :ios do
     sim_framework_path  = "#{REPO_ROOT}/#{output_root}/DerivedData-sim/Build/Products/#{configuration}-iphonesimulator"
 
     unless File.directory?(ios_framework_path) && File.directory?(sim_framework_path)
-      UI.message("DerivedData not found, building framework now...")
-      build_framework
+      if is_ci
+        UI.user_error!("DerivedData not found. Check upstream build-framework CI job.")
+      else
+        UI.message("DerivedData not found, building framework now...")
+        build_framework
+      end
     end
 
     UI.message("🧱 Assembling #{framework} XCFramework (scheme: #{scheme}, config: #{configuration})")
@@ -691,9 +695,13 @@ platform :ios do
     package_file = abs_path("Package.swift")
 
     unless File.directory?(abs_path(xcframework_path))
-      UI.message("XCFramework not found, building it now...")
-      build_framework
-      assemble_xcframework
+      if is_ci
+        UI.user_error!("XCFramework not found at #{abs_path(xcframework_path)}. Check upstream CI jobs.")
+      else
+        UI.message("XCFramework not found, building it now...")
+        build_framework
+        assemble_xcframework
+      end
     end
 
     original_package = File.read(package_file)
