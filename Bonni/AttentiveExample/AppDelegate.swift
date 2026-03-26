@@ -15,6 +15,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     public var attentiveSdk : ATTNSDK?
+    public var productListViewModel: ProductListViewModel?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         initializeAttentiveSdk()
@@ -63,6 +64,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
         attentiveSdk?.failedToRegisterForPush(error)
+    }
+
+    // MARK: - Deep Link Handling (for iOS versions without SceneDelegate)
+
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        return DeepLinkRouter.shared.handle(url: url)
     }
 
     public static func createUserIdentifiers() -> [String: Any] {
