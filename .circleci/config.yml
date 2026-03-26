@@ -605,4 +605,6 @@ workflows:
             - assemble-xcframework
           filters:
             branches:
-              only: main
+              only: 
+                - main
+                - develop
