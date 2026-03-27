@@ -592,6 +592,11 @@ extension ATTNAPI {
         task.resume()
     }
 
+    static func isInvalidDomain(_ domain: String) -> Bool {
+        let normalized = domain.lowercased()
+        return normalized.contains("attn.tv") || normalized.contains("/") || normalized.contains(":")
+    }
+
     /// Sends a new-style event payload to the `/mobile` endpoint.
     /// - Parameters:
     ///   - event: The typed event payload (ATTNBaseEvent<M>)

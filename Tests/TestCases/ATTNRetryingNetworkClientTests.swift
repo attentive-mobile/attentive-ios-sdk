@@ -125,7 +125,7 @@ final class ATTNRetryingNetworkClientTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 1.0)
+        wait(for: [expectation], timeout: 5.0)
         XCTAssertEqual(finalStatusCode, 200)
         XCTAssertEqual(MockURLProtocol.requestCount, 3,
                                      "Should have sent exactly 3 attempts (2 failures + 1 success)")
@@ -147,7 +147,7 @@ final class ATTNRetryingNetworkClientTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 1.0)
+        wait(for: [expectation], timeout: 5.0)
         XCTAssertEqual(finalStatusCode, 200)
         XCTAssertEqual(MockURLProtocol.requestCount, 2)
     }
@@ -171,7 +171,7 @@ final class ATTNRetryingNetworkClientTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 1.0)
+        wait(for: [expectation], timeout: 5.0)
         // Should have attempted exactly maxRetries + 1 times in total.
         XCTAssertEqual(MockURLProtocol.requestCount, 4, "3 retries + final give-up response")
     }

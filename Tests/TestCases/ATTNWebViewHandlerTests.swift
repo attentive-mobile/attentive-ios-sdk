@@ -56,33 +56,50 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         XCTAssertEqual(mockWebViewProvider.parentView, parentView, "Parent view should be set correctly")
     }
 
-    func testLaunchCreative_ShouldPreventRaceConditions() {
+    func testLaunchCreative_ShouldPreventDuplicateCreation() {
         let parentView = UIView()
         let expectation = self.expectation(description: "WebView should be set")
 
-        expectation.expectedFulfillmentCount = 1 // Only one WebView should be created
-
+        expectation.expectedFulfillmentCount = 1
         mockWebViewProvider.webViewSetupExpectation = expectation
 
-        DispatchQueue.global().async {
-            print("Dispatch 1 - Launching creative 1")
-            self.handler.launchCreative(parentView: parentView, creativeId: "raceCondition1")
+        // First call transitions state from .closed to .launching.
+        // Second call sees state .launching and returns immediately.
+        handler.launchCreative(parentView: parentView, creativeId: "first")
+        handler.launchCreative(parentView: parentView, creativeId: "second")
+
+        waitForExpectations(timeout: 10.0) { error in
+            XCTAssertNil(error, "WebView should have been created by the first call")
         }
 
-        DispatchQueue.global().async {
-            print("Dispatch 2 - Launching creative 2")
-            self.handler.launchCreative(parentView: parentView, creativeId: "raceCondition2")
-        }
-
-        waitForExpectations(timeout: 5.0) { error in
-            if let error = error {
-                print("Expectation not fulfilled: \(error.localizedDescription)")
-            }
-            XCTAssertNil(error, "Race condition was not handled correctly")
-        }
-
-        print("WebView creation count: \(mockWebViewProvider.webViewCreationCount)")
         XCTAssertEqual(mockWebViewProvider.webViewCreationCount, 1, "WebView should be created only once")
+    }
+
+    func testLaunchCreative_CompareAndSetShouldBeThreadSafe() {
+        // Directly test that compareAndSet is safe under concurrent access.
+        // Only one of many concurrent callers should succeed in transitioning
+        // from .closed to .launching.
+        let stateManager = ATTNCreativeStateManager()
+        let iterations = 10
+        let group = DispatchGroup()
+        var successCount = 0
+        let lock = NSLock()
+
+        for _ in 0..<iterations {
+            group.enter()
+            Thread.detachNewThread {
+                if stateManager.compareAndSet(from: .closed, to: .launching) {
+                    lock.lock()
+                    successCount += 1
+                    lock.unlock()
+                }
+                group.leave()
+            }
+        }
+
+        let result = group.wait(timeout: .now() + 10.0)
+        XCTAssertEqual(result, .success, "All concurrent tasks should complete")
+        XCTAssertEqual(successCount, 1, "Exactly one concurrent caller should win the compareAndSet race")
     }
 
     func testCloseCreative_ShouldRemoveWebView() {

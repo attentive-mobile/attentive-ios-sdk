@@ -23,6 +23,46 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Setup dependencies and environment
 
+### ios sync_version
+
+```sh
+[bundle exec] fastlane ios sync_version
+```
+
+Sync version across all files. Usage: fastlane sync_version version:2.0.11
+
+### ios get_version
+
+```sh
+[bundle exec] fastlane ios get_version
+```
+
+Get current version from .version file
+
+### ios bump_version
+
+```sh
+[bundle exec] fastlane ios bump_version
+```
+
+Bump version. Usage: fastlane bump_version version:2.1.0
+
+### ios sync_ios_target
+
+```sh
+[bundle exec] fastlane ios sync_ios_target
+```
+
+Sync iOS deployment target across all files. Usage: fastlane sync_ios_target target:15.0
+
+### ios get_ios_target
+
+```sh
+[bundle exec] fastlane ios get_ios_target
+```
+
+Get current iOS deployment target
+
 ### ios lint
 
 ```sh
@@ -31,13 +71,85 @@ Setup dependencies and environment
 
 Run SwiftLint
 
+### ios build_framework
+
+```sh
+[bundle exec] fastlane ios build_framework
+```
+
+Build framework for device and simulator
+
+### ios assemble_xcframework
+
+```sh
+[bundle exec] fastlane ios assemble_xcframework
+```
+
+Assemble XCFramework
+
+### ios build_examples
+
+```sh
+[bundle exec] fastlane ios build_examples
+```
+
+Build example apps
+
+### ios build_bonni
+
+```sh
+[bundle exec] fastlane ios build_bonni
+```
+
+Build Bonni, optionally swapping Package.swift to use the prebuilt XCFramework
+
+### ios build_bonni_release
+
+```sh
+[bundle exec] fastlane ios build_bonni_release
+```
+
+Build Bonni for release. with_local_binary (default 'true') swaps Package.swift to local XCFramework; set to 'false' to use existing Package.swift (e.g. tagged remote binary).
+
 ### ios unit_test
 
 ```sh
 [bundle exec] fastlane ios unit_test
 ```
 
-Run unit tests
+Run unit tests with code coverage
+
+### ios validate_podspec
+
+```sh
+[bundle exec] fastlane ios validate_podspec
+```
+
+Validate CocoaPods podspec
+
+### ios validate_spm
+
+```sh
+[bundle exec] fastlane ios validate_spm
+```
+
+Validate Swift Package Manager
+
+### ios create_release
+
+```sh
+[bundle exec] fastlane ios create_release
+```
+
+Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0
+
+### ios deploy_testflight
+
+```sh
+[bundle exec] fastlane ios deploy_testflight
+```
+
+Upload a new build to TestFlight
 
 ### ios build_xcframework
 

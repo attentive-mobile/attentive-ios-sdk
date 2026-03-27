@@ -13,7 +13,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.9'
+  pod 'attentive-ios-sdk', '2.0.13'
 end
 ```
 
@@ -24,10 +24,29 @@ pod install
 ```
 
 
-### Swift Package Manager
+### Swift Package Manager (Recommended)
 
-We also support adding the dependency via Swift Package Manager.
+We also support adding the dependency via Swift Package Manager. SPM resolves a pre-built universal `XCFramework` from the GitHub release and automatically handles embedding, code signing, and stripping of non-distributable content (e.g. headers and Swift module metadata) during archiving.
+
 SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xcode package dependency UI.
+
+### XCFramework (Manual Integration)
+
+Universal `XCFramework` is supported for consumers on Xcode 26.1.1+.
+
+A pre-built `ATTNSDKFramework.xcframework` is attached to each [GitHub release](https://github.com/attentive-mobile/attentive-ios-sdk/releases). If you cannot use SPM or CocoaPods, you can integrate it manually:
+
+1. Download `ATTNSDKFramework.xcframework.zip` from the desired release and unzip it.
+2. Drag the `ATTNSDKFramework.xcframework` folder into your Xcode project navigator.
+3. Select your app target, go to **General > Frameworks, Libraries, and Embedded Content**.
+4. Ensure `ATTNSDKFramework.xcframework` is listed and set to **"Embed & Sign"**.
+
+> [!WARNING]
+> **We strongly recommend using SPM or CocoaPods instead of manual XCFramework integration.** The XCFramework is a dynamic framework, and incorrect embedding can cause App Store submission failures. A common issue is Apple rejecting the archive with:
+>
+> *"Invalid Bundle. The bundle at 'YourApp.app/Frameworks/ATTNSDKFramework.framework' contains disallowed nested bundles."*
+>
+> This happens when the framework's `Headers/` and `Modules/` directories are not stripped during archiving. To avoid this, always add the XCFramework through the **General > Frameworks, Libraries, and Embedded Content** UI with **"Embed & Sign"** — do not manually add it via a Copy Files build phase. SPM avoids this entirely because it handles the embedding and stripping automatically.
 
 
 ## Usage
