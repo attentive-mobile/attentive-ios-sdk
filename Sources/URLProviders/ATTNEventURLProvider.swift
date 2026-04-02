@@ -56,7 +56,6 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
 
     func buildNewEventEndpointUrl(for eventRequest: ATTNEventRequest, userIdentity: ATTNUserIdentity, domain: String) -> URL? {
         var urlComponents = getNewEventEndpointUrlComponent()
-        // TODO finish building url for new event endpoint
         var queryParams = userIdentity.constructBaseQueryParams(domain: domain)
         var combinedMetadata = userIdentity.buildBaseMetadata() as [String: Any]
         combinedMetadata.merge(eventRequest.metadata) { (current, _) in current }
