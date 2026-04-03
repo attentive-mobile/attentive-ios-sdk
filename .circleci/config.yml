@@ -133,7 +133,7 @@ commands:
     steps:
       - run:
           name: Install SwiftLint
-          command: brew install swiftlint
+          command: command -v swiftlint || brew install swiftlint
 
   setup-fastlane:
     description: "Install Fastlane via Bundler"
