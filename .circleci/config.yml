@@ -128,6 +128,13 @@ commands:
               ]
             }
 
+  install-swiftlint:
+    description: "Install SwiftLint (required by Xcode build phase)"
+    steps:
+      - run:
+          name: Install SwiftLint
+          command: brew install swiftlint
+
   setup-fastlane:
     description: "Install Fastlane via Bundler"
     steps:
@@ -215,6 +222,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -262,6 +270,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -279,6 +288,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -295,6 +305,8 @@ jobs:
     steps:
       - attach_workspace:
           at: .
+
+      - install-swiftlint
 
       - aws-cli/setup:
           region: AWS_REGION
@@ -326,6 +338,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -383,6 +396,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
