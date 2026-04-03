@@ -9,11 +9,22 @@ let package = Package(
     products: [
         .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
+    ],
     targets: [
         .target(
             name: "ATTNSDKFramework",
             path: "Sources",
             resources: [.process("Resources")]
+        ),
+        .testTarget(
+            name: "ATTNSDKFrameworkTests",
+            dependencies: [
+                "ATTNSDKFramework",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+            ],
+            path: "Tests"
         )
     ]
 )

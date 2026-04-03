@@ -14,6 +14,8 @@
 		0A8BDC8C2F298C5D00138567 /* InboxMessageRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */; };
 		0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */; };
 		0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */; };
+		0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */; };
+		0AE51BF22F7D8200004CC16E /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 0AE51BF32F7D8200004CC16E /* SnapshotTesting */; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
@@ -126,6 +128,7 @@
 		0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxMessageRowView.swift; sourceTree = "<group>"; };
 		0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Strings.swift"; sourceTree = "<group>"; };
 		0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStyle.swift; sourceTree = "<group>"; };
+		0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSnapshotTestCase.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -248,6 +251,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0AE51BF22F7D8200004CC16E /* SnapshotTesting in Frameworks */,
 				58D52E1D292EC52B00CF32DE /* ATTNSDKFramework.framework in Frameworks */,
 				58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */,
 			);
@@ -392,6 +396,7 @@
 		FB2983F22C0F75600039759C /* TestCases */ = {
 			isa = PBXGroup;
 			children = (
+				0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */,
 				F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */,
 				F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */,
 				F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */,
@@ -634,6 +639,9 @@
 				58D52E1F292EC52B00CF32DE /* PBXTargetDependency */,
 			);
 			name = "attentive-ios-sdk Tests";
+			packageProductDependencies = (
+				0AE51BF32F7D8200004CC16E /* SnapshotTesting */,
+			);
 			productName = "attentive-ios-sdk Tests";
 			productReference = 58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -666,6 +674,9 @@
 				Base,
 			);
 			mainGroup = 58332EB9292EC18800B1ECF3;
+			packageReferences = (
+				0AE51BF42F7D8200004CC16E /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+			);
 			productRefGroup = 58332EC4292EC18800B1ECF3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -805,6 +816,7 @@
 				FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */,
 				FB86C0402C40669400E35580 /* ATTNProductViewEventTests.swift in Sources */,
 				FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */,
+				0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */,
 				FB2983FA2C0F80A30039759C /* ATTNPersistentStorageTests.swift in Sources */,
 				F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */,
 				FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */,
@@ -833,6 +845,25 @@
 			targetProxy = 58D52E1E292EC52B00CF32DE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0AE51BF42F7D8200004CC16E /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.17.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0AE51BF32F7D8200004CC16E /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0AE51BF42F7D8200004CC16E /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		58332EC8292EC18800B1ECF3 /* Debug */ = {
