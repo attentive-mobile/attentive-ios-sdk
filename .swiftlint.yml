@@ -140,3 +140,5 @@ excluded:
   - Tests
   - Bonni
   - Pods
+  - vendor
+  - Vendor
