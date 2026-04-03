@@ -24,7 +24,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         case timeout
         case unknown(String)
 
-        static func getRawValue(from value: Any) -> ScriptStatus? {
+        static func getRawValue(from value: Any) -> Self? {
             guard let stringValue = value as? String else { return nil }
             switch stringValue {
             case "SUCCESS":
@@ -139,7 +139,19 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 let configuration = WKWebViewConfiguration()
                 configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-                let userScriptWithEventListener = String(format: "window.addEventListener('message', (event) => {if (event.data && event.data.__attentive) {window.webkit.messageHandlers.log.postMessage(event.data.__attentive.action);}}, false);window.addEventListener('visibilitychange', (event) => {window.webkit.messageHandlers.log.postMessage(`%@ ${document.hidden}`);}, false);", Constants.visibilityEvent)
+                let jsEventListeners = """
+                    window.addEventListener('message', (event) => {\
+                    if (event.data && event.data.__attentive) {\
+                    window.webkit.messageHandlers.log.postMessage(\
+                    event.data.__attentive.action);}}, false);\
+                    window.addEventListener('visibilitychange', (event) => {\
+                    window.webkit.messageHandlers.log.postMessage(\
+                    `%@ ${document.hidden}`);}, false);
+                    """
+                let userScriptWithEventListener = String(
+                    format: jsEventListeners,
+                    Constants.visibilityEvent
+                )
                 let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
                 configuration.userContentController.addUserScript(userScript)
                 // Prevent dupes
@@ -489,4 +501,3 @@ extension UIView {
         return nil
     }
 }
-

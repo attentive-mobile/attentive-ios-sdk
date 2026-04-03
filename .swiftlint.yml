@@ -1,15 +1,101 @@
+# SwiftLint Configuration — Attentive iOS SDK
+# Optimized for code clarity and AI-assisted development
+# See MSDK-298 Phase 2 audit for rationale
+
+# ============================================
+# Disabled Rules
+# ============================================
+# Only disable rules with clear justification
 disabled_rules:
-  - file_length
-  - line_length
-  - function_body_length
-  - type_body_length
-  - trailing_comma
-  - opening_brace
-  - todo
-  - non_optional_string_data_conversion
+  - opening_brace            # Style preference; not a clarity issue
+  - todo                     # Use expiring_todo instead (opt-in below)
+  - non_optional_string_data_conversion  # SDK handles raw data encoding
+
+# ============================================
+# Opt-In Rules
+# ============================================
+# These are disabled by default in SwiftLint but improve code clarity
+opt_in_rules:
+  # --- Auto-correctable (zero-effort adoption) ---
+  - sorted_imports                  # 14 violations — consistent import order
+  - modifier_order                  # 8 violations — consistent modifier ordering
+  - redundant_type_annotation       # 4 violations — remove noise where type is obvious
+  - trailing_comma                  # 3 violations — cleaner diffs
+
+  # --- Low-effort, high-value for SDK ---
+  - explicit_top_level_acl          # 61 violations — every top-level decl states its visibility
+  - force_unwrapping                # 5 violations — prevent unsafe unwraps
+  - fatal_error_message             # 2 violations — crash reasons are required
+  - convenience_type                # 2 violations — static-only types should be enums
+  - implicitly_unwrapped_optional   # 1 violation — no implicit unwraps outside IBOutlets
+
+  # --- AI clarity rules ---
+  - closure_body_length             # 8 violations — AI loses context in long closures
+  - missing_docs                    # 6 violations — public SDK API must be documented
+  - discouraged_optional_collection # 13 violations — prefer empty collection over nil
+  - discouraged_optional_boolean    # 0 violations — prevent Bool? ambiguity
+
+  # --- Code hygiene ---
+  - legacy_objc_type                # 19 violations — use Swift types over NSString etc.
+  - superfluous_else                # 2 violations — simplify control flow
+  - prefer_self_in_static_references  # 4 violations — clearer self-references in static context
+
+# ============================================
+# Size & Complexity Limits
+# ============================================
+# Re-enabled with relaxed thresholds calibrated to this codebase.
+# These were previously disabled entirely. Thresholds are set above
+# current worst offenders as warnings, with errors as hard limits.
+
+file_length:
+  warning: 500
+  error: 900
+  ignore_comment_only_lines: true
+
+line_length:
+  warning: 160
+  error: 250
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: true
+  ignores_interpolated_strings: true
+
+function_body_length:
+  warning: 60
+  error: 150
+
+type_body_length:
+  warning: 300
+  error: 700    # ATTNSDK.swift is 629 lines — Phase 3 refactoring will address this
+
+closure_body_length:
+  warning: 30
+  error: 100
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+function_parameter_count:
+  warning: 5
+  error: 8
+
+large_tuple:
+  warning: 3
+  error: 4
+
+# ============================================
+# Naming
+# ============================================
 identifier_name:
   allowed_symbols: "_"
-  min_length: 1
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+
 nesting:
   type_level:
     warning: 3
@@ -17,6 +103,40 @@ nesting:
   function_level:
     warning: 5
     error: 10
+
+# ============================================
+# Rule-Specific Configuration
+# ============================================
+implicitly_unwrapped_optional:
+  mode: all_except_iboutlets
+
+missing_docs:
+  excludes_extensions: true
+  excludes_inherited_types: true
+  excludes_trivial_init: true
+  warning:
+    - open
+    - public
+
+modifier_order:
+  preferred_modifier_order:
+    - override
+    - acl
+    - setterACL
+    - dynamic
+    - mutators
+    - lazy
+    - final
+    - required
+    - convenience
+    - typeMethods
+    - owned
+
+# ============================================
+# Excluded Paths
+# ============================================
 excluded:
   - Example
   - Tests
+  - Bonni
+  - Pods

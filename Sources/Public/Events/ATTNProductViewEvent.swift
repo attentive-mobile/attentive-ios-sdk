@@ -24,7 +24,7 @@ public final class ATTNProductViewEvent: NSObject, ATTNEvent {
         super.init()
     }
 
-    private override init() {
+    override private init() {
         fatalError("init() has not been implemented")
     }
 }
