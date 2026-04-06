@@ -139,15 +139,14 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 let configuration = WKWebViewConfiguration()
                 configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-                let jsEventListeners = """
-                    window.addEventListener('message', (event) => {\
-                    if (event.data && event.data.__attentive) {\
-                    window.webkit.messageHandlers.log.postMessage(\
-                    event.data.__attentive.action);}}, false);\
-                    window.addEventListener('visibilitychange', (event) => {\
-                    window.webkit.messageHandlers.log.postMessage(\
-                    `%@ ${document.hidden}`);}, false);
-                    """
+                let jsEventListeners =
+                    "window.addEventListener('message', (event) => {" +
+                    "if (event.data && event.data.__attentive) {" +
+                    "window.webkit.messageHandlers.log.postMessage(" +
+                    "event.data.__attentive.action);}}, false);" +
+                    "window.addEventListener('visibilitychange', (event) => {" +
+                    "window.webkit.messageHandlers.log.postMessage(" +
+                    "`%@ ${document.hidden}`);}, false);"
                 let userScriptWithEventListener = String(
                     format: jsEventListeners,
                     Constants.visibilityEvent

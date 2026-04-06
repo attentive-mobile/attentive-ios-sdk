@@ -288,7 +288,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -305,8 +304,6 @@ jobs:
     steps:
       - attach_workspace:
           at: .
-
-      - install-swiftlint
 
       - aws-cli/setup:
           region: AWS_REGION
@@ -396,7 +393,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
