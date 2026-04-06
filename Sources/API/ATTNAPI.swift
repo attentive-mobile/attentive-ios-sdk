@@ -90,7 +90,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                                          userIdentity: ATTNUserIdentity,
                                          authorizationStatus: UNAuthorizationStatus,
                                          callback: ATTNAPICallback?) {
-        //debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
+        // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
         let now = Date()
         if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
             Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
@@ -123,10 +123,10 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             let evsJson     = userIdentity.buildExternalVendorIdsJson()
             let evsArray    = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8)))
-            as? [[String:String]] ?? []
+            as? [[String: String]] ?? []
             let metadataJson = userIdentity.buildMetadataJson()
             let metadata    = (try? JSONSerialization.jsonObject(with: Data(metadataJson.utf8)))
-            as? [String:String] ?? [:]
+            as? [String: String] ?? [:]
 
             let authorizationStatusString: String = {
                 switch authorizationStatus {
@@ -139,7 +139,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                 }
             }()
 
-            let payload: [String:Any] = [
+            let payload: [String: Any] = [
                 "c": geoDomain,
                 "v": "mobile-app-\(ATTNConstants.sdkVersion)",
                 "u": userIdentity.visitorId,
@@ -158,7 +158,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             Loggers.network.debug("POST /token payload: \(payload, privacy: .public)")
 
-            retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
+            retryClient.performRequestWithRetry(request, to: url) { data, _, response, error in
                 if let error = error {
                     Loggers.network.error("Error sending push token: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -208,7 +208,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             Loggers.network.debug("POST app open events payload: \(payload, privacy: .public)")
 
-            retryClient.performRequestWithRetry(request, to: url) { data, sentURL, response, error in
+            retryClient.performRequestWithRetry(request, to: url) { data, _, response, error in
                 if let error = error {
                     Loggers.network.error("Error sending app events: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
@@ -250,7 +250,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                 }
 
                 let evsJson  = userIdentity.buildExternalVendorIdsJson()
-                let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+                let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String: String]] ?? []
 
                 var payload: [String: Any] = [
                     "c": geoDomain,
@@ -331,7 +331,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                 }
 
                 let evsJson  = userIdentity.buildExternalVendorIdsJson()
-                let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String:String]] ?? []
+                let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String: String]] ?? []
 
                 var payload: [String: Any] = [
                     "c": geoDomain,

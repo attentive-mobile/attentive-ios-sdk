@@ -165,7 +165,7 @@ final class ATTNRetryingNetworkClient {
             return seconds
         }
         // Use a shared static DateFormatter for thread safety & performance
-        if let date = ATTNRetryingNetworkClient.retryAfterDateFormatter.date(from: header) {
+        if let date = Self.retryAfterDateFormatter.date(from: header) {
             let interval = date.timeIntervalSinceNow
             return interval > 0 ? interval : 0
         }

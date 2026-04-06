@@ -16,7 +16,7 @@ public final class ATTNOrder: NSObject {
         self.orderId = orderId
     }
 
-    private override init() {
+    override private init() {
         fatalError("init() has not been implemented")
     }
 }

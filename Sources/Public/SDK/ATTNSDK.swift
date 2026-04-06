@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import WebKit
 import UserNotifications
+import WebKit
 
 public typealias ATTNCreativeTriggerCompletionHandler = (String) -> Void
 
@@ -758,8 +758,7 @@ public final class ATTNSDK: NSObject {
             if let strValue = value as? String {
                 if key == "attentive_message_title" || key == "attentive_message_body" {
                         escapedDict[key] = strValue
-                }
-                else {
+                } else {
                     escapedDict[key] = strValue
                 }
             } else if let nestedDict = value as? [String: Any] {
@@ -778,11 +777,11 @@ public final class ATTNSDK: NSObject {
         return array.map { value in
             if let dictValue = value as? [String: Any] {
                 return escapeJSONDictionary(dictValue)
-            } else if let nestedArray = value as? [Any] {
-                return escapeJSONArray(nestedArray)
-            } else {
-                return value
             }
+            if let nestedArray = value as? [Any] {
+                return escapeJSONArray(nestedArray)
+            }
+            return value
         }
     }
 }

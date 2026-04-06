@@ -140,7 +140,6 @@ public struct ATTNAddToCartMetadata: Codable {
     }
 }
 
-
 public struct ATTNProductViewMetadata: Codable {
     public let eventType: String = "ProductView"
     public let product: ATTNProduct

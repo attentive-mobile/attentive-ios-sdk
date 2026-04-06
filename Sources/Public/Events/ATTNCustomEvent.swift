@@ -16,7 +16,7 @@ public final class ATTNCustomEvent: NSObject, ATTNEvent {
     public init?(type: String, properties: [String: String]) {
         ATTNParameterValidation.verifyNotNil(type as NSObject, inputName: "type")
         ATTNParameterValidation.verifyStringOrNil(type as NSObject, inputName: "type")
-        if let invalidCharInType = ATTNCustomEvent.findInvalidCharacter(in: type) {
+        if let invalidCharInType = Self.findInvalidCharacter(in: type) {
             Loggers.event.debug("Invalid character \(invalidCharInType, privacy: .public) in CustomEvent type \(type, privacy: .public)")
             return nil
         }
@@ -24,7 +24,7 @@ public final class ATTNCustomEvent: NSObject, ATTNEvent {
         ATTNParameterValidation.verifyNotNil(properties as NSObject, inputName: "properties")
         ATTNParameterValidation.verify1DStringDictionaryOrNil(properties as NSDictionary, inputName: "properties")
         if properties.keys
-            .map({ ATTNCustomEvent.findInvalidCharacterInPropertiesKey(key: $0) })
+            .map({ Self.findInvalidCharacterInPropertiesKey(key: $0) })
             .first(where: { $0 != nil }) != nil {
             return nil
         }

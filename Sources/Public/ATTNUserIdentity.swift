@@ -20,7 +20,7 @@ public final class ATTNUserIdentity: NSObject {
     private let visitorService: ATTNVisitorService
 
     @objc
-    public override convenience init() {
+    override public convenience init() {
         self.init(identifiers: [:])
     }
 
