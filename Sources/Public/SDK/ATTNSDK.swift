@@ -167,6 +167,27 @@ public final class ATTNSDK: NSObject {
 
     @objc(clearUser)
     public func clearUser() {
+        clearUserIdentifiers()
+
+        // Detach push token from the logged-out user by calling updateUser with empty identifiers
+        let pushToken = currentPushToken
+        guard !pushToken.isEmpty else {
+            Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+            return
+        }
+
+        Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        api.updateUser(
+            pushToken: pushToken,
+            userIdentity: userIdentity,
+            email: nil,
+            phone: nil,
+            callback: nil
+        )
+    }
+
+    /// Clears user identifiers and generates a new visitor ID without making any network calls.
+    private func clearUserIdentifiers() {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
         Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
@@ -512,7 +533,7 @@ public final class ATTNSDK: NSObject {
             return
         }
         Loggers.event.debug("Updating user with push token: \(pushToken, privacy: .public)")
-        clearUser()
+        clearUserIdentifiers()
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,

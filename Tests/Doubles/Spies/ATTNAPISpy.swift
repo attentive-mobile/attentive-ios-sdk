@@ -22,6 +22,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var sendOptInWasCalled = false
     private(set) var sendOptOutWasCalled = false
     private(set) var updateUserWasCalled = false
+    private(set) var updateUserCallCount = 0
 
     // MARK: - Last-params (optional, handy for assertions)
     private(set) var lastPushToken: String?
@@ -136,6 +137,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         callback: ATTNAPICallback?
     ) {
         updateUserWasCalled = true
+        updateUserCallCount += 1
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
         callback?(nil, nil, nil, nil)
