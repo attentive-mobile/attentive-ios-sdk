@@ -19,7 +19,7 @@ public final class ATTNPrice: NSObject {
         super.init()
     }
 
-    private override init() {
+    override private init() {
         fatalError("init() has not been implemented")
     }
 }

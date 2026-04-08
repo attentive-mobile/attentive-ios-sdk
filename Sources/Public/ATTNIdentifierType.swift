@@ -29,6 +29,6 @@ extension ATTNIdentifierType {
         phone,
         email,
         shopifyId,
-        klaviyoId,
+        klaviyoId
     ]
 }

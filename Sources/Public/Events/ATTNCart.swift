@@ -13,7 +13,7 @@ public final class ATTNCart: NSObject {
     @objc public var cartCoupon: String?
 
     @objc
-    public override init() { }
+    override public init() { }
 
     @objc
     public init(cartId: String? = nil, cartCoupon: String? = nil) {

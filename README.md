@@ -244,6 +244,69 @@ Call Attentive's event functions whenever important events happens in your app, 
 
 The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, and `ATTNCustomEvent`.
 
+### Event Metadata Fields
+
+#### ATTNItem
+
+| Field              | Type               | Required | Description                          |
+| ------------------ | ------------------ | -------- | ------------------------------------ |
+| `productId`        | `String`           | Yes      | The product's unique identifier      |
+| `productVariantId` | `String`           | Yes      | The product variant's identifier     |
+| `price`            | `ATTNPrice`        | Yes      | The item's price                     |
+| `productImage`     | `String?`          | No       | URL of the product image             |
+| `name`             | `String?`          | No       | The product name                     |
+| `quantity`         | `Int`              | No       | The quantity (default: 1)            |
+| `category`         | `String?`          | No       | The product category                 |
+
+#### ATTNPrice
+
+| Field      | Type               | Required | Description                                  |
+| ---------- | ------------------ | -------- | -------------------------------------------- |
+| `price`    | `NSDecimalNumber`  | Yes      | The price value                              |
+| `currency` | `String`           | Yes      | The currency code (e.g. `"USD"`)             |
+
+#### ATTNOrder
+
+| Field     | Type     | Required | Description                   |
+| --------- | -------- | -------- | ----------------------------- |
+| `orderId` | `String` | Yes      | The order's unique identifier |
+
+#### ATTNCart
+
+| Field        | Type      | Required | Description                   |
+| ------------ | --------- | -------- | ----------------------------- |
+| `cartId`     | `String?` | No       | The cart's unique identifier  |
+| `cartCoupon` | `String?` | No       | A coupon code applied to cart |
+
+#### ATTNPurchaseEvent
+
+| Field   | Type          | Required | Description                              |
+| ------- | ------------- | -------- | ---------------------------------------- |
+| `items` | `[ATTNItem]`  | Yes      | The item(s) purchased                    |
+| `order` | `ATTNOrder`   | Yes      | The order associated with the purchase   |
+| `cart`  | `ATTNCart?`   | No       | The cart the purchase was made from      |
+
+#### ATTNAddToCartEvent
+
+| Field      | Type          | Required | Description                            |
+| ---------- | ------------- | -------- | -------------------------------------- |
+| `items`    | `[ATTNItem]`  | Yes      | The item(s) added to cart              |
+| `deeplink` | `String?`     | No       | A deeplink URL to the product          |
+
+#### ATTNProductViewEvent
+
+| Field      | Type          | Required | Description                            |
+| ---------- | ------------- | -------- | -------------------------------------- |
+| `items`    | `[ATTNItem]`  | Yes      | The item(s) viewed                     |
+| `deeplink` | `String?`     | No       | A deeplink URL to the product          |
+
+#### ATTNCustomEvent
+
+| Field        | Type                | Required | Description                                                  |
+| ------------ | ------------------- | -------- | ------------------------------------------------------------ |
+| `type`       | `String`            | Yes      | The event name (case-sensitive, no special characters)        |
+| `properties` | `[String: String]`  | Yes      | Key-value pairs of metadata (keys and values case-sensitive)  |
+
 #### Swift
 ```swift
 let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
