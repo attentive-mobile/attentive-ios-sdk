@@ -1,5 +1,5 @@
 //
-//  Inbox.swift
+//  InboxManager.swift
 //  attentive-ios-sdk
 //
 //  Created by Umair Sharif on 1/15/26.
@@ -13,7 +13,7 @@ public enum InboxState: Sendable {
     case error(Error)
 }
 
-actor Inbox {
+actor InboxManager {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
     private var currentState: InboxState = .loading
@@ -55,7 +55,7 @@ actor Inbox {
     init() {
         Task {
             await send(.loading)
-            await updateMessages(Self.getMockMessages())
+            await updateMessages(Self.getMockInbox().messages)
         }
     }
 
@@ -78,13 +78,13 @@ actor Inbox {
     }
 
     func refresh() async {
-        await updateMessages(Self.getMockMessages())
+        await updateMessages(Self.getMockInbox().messages)
     }
 }
 
 // MARK: - Private methods
 
-extension Inbox {
+extension InboxManager {
     private func removeContinuation(id: UUID) {
         continuations.removeValue(forKey: id)
     }
@@ -121,11 +121,11 @@ extension Inbox {
     }
 }
 
-fileprivate extension Inbox {
-    private static func getMockMessages() async -> [Message] {
+fileprivate extension InboxManager {
+    private static func getMockInbox() async -> Inbox {
         #warning("Artificial delay to simulate delayed network response, should be removed in production.")
         try? await Task.sleep(nanoseconds: 2000000000)
-        return [
+        let messages: [Message] = [
             Message(
                 id: "1",
                 style: .small,
@@ -154,5 +154,6 @@ fileprivate extension Inbox {
                 actionURLString: "https://example.com/track/12345"
             )
         ]
+        return Inbox(messages: messages, unreadCount: messages.count)
     }
 }
