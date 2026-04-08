@@ -4,4 +4,4 @@
 // Note: IPHONEOS_DEPLOYMENT_TARGET is managed by .ios-deployment-target
 // Run `fastlane sync_ios_target` to update this value
 
-IPHONEOS_DEPLOYMENT_TARGET = 14.0
+IPHONEOS_DEPLOYMENT_TARGET = 15.0

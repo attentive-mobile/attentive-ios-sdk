@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import UserNotifications
 import WebKit
 
@@ -49,6 +50,8 @@ public final class ATTNSDK: NSObject {
 
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
+
+    private let inbox = Inbox()
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -191,6 +194,54 @@ public final class ATTNSDK: NSObject {
         Loggers.creative.debug("Domain updated successfully - Old Domain: \(oldDomain, privacy: .public), New Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
         api.send(userIdentity: userIdentity)
         Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+    }
+
+    // MARK: Inbox
+
+    /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
+    /// then emits on any subsequent change.
+    /// Usage: `for await state in await sdk.inboxStateStream { ... }`
+    public var inboxStateStream: AsyncStream<InboxState> {
+        get async {
+            await inbox.stateStream
+        }
+    }
+
+    /// Async accessor for all messages.
+    public var allMessages: [Message] {
+        get async {
+            await inbox.allMessages
+        }
+    }
+
+    /// Async accessor for unread count.
+    public var unreadCount: Int {
+        get async {
+            await inbox.unreadCount
+        }
+    }
+
+    @MainActor
+    public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
+        InboxView(viewModel: InboxViewModel(inbox: inbox, style: style))
+    }
+
+    @MainActor
+    public func inboxViewController(style: InboxStyle = InboxStyle()) -> UIViewController {
+        UIHostingController(rootView: inboxView(style: style))
+    }
+
+    public func markRead(for messageID: Message.ID) async {
+        await inbox.markRead(messageID)
+    }
+
+    public func markUnread(for messageID: Message.ID) async {
+        await inbox.markUnread(messageID)
+    }
+
+    public func delete(messageID: Message.ID) async {
+        await inbox.delete(messageID)
     }
 
     // MARK: Push Permissions & Token
@@ -498,9 +549,11 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc(updateUserWithEmail:phone:callback:)
-    public func updateUser(email: String? = nil,
-                                                 phone: String? = nil,
-                                                 callback: ATTNAPICallback? = nil) {
+    public func updateUser(
+        email: String? = nil,
+        phone: String? = nil,
+        callback: ATTNAPICallback? = nil
+    ) {
         Loggers.event.debug("Attempting to update user - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
