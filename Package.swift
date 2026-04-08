@@ -22,7 +22,7 @@ let package = Package(
             name: "ATTNSDKFrameworkTests",
             dependencies: [
                 "ATTNSDKFramework",
-                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
             path: "Tests"
         )
