@@ -143,3 +143,4 @@ excluded:
   - vendor
   - Vendor
   - .build
+  - fastlane/build
