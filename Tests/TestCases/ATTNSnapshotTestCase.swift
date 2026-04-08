@@ -69,8 +69,7 @@ class ATTNSnapshotTestCase: XCTestCase {
     }
 
     private var recordMode: SnapshotTestingConfiguration.Record {
-        guard !Self.isCI else { return .never }
-        return isRecordingSnapshots ? .all : .missing
+        isRecordingSnapshots && !Self.isCI ? .all : .never
     }
 
     /// Asserts a snapshot of the given view controller for each provided device size.
