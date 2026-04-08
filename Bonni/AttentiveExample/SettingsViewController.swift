@@ -65,6 +65,14 @@ class SettingsViewController: UIViewController {
         return button
     }()
 
+    private let logOutButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Log Out", for: .normal)
+        button.setTitleColor(.systemRed, for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
     // MARK: - Test Events Section
 
     private let showCreativeButton: UIButton = {
@@ -250,6 +258,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(accountInfoLabel)
         stackView.addArrangedSubview(switchAccountButton)
         stackView.addArrangedSubview(switchDomainButton)
+        stackView.addArrangedSubview(logOutButton)
 
         let divider = UIView()
         divider.backgroundColor = .lightGray
@@ -272,6 +281,7 @@ class SettingsViewController: UIViewController {
             let allButtons: [UIButton] = [
                 switchAccountButton,
                 switchDomainButton,
+                logOutButton,
                 showCreativeButton,
                 showPushPermissionButton,
                 sendLocalPushNotification,
@@ -320,6 +330,7 @@ class SettingsViewController: UIViewController {
     private func setupActions() {
         switchAccountButton.addTarget(self, action: #selector(switchAccountTapped), for: .touchUpInside)
         switchDomainButton.addTarget(self, action: #selector(switchDomainTapped), for: .touchUpInside)
+        logOutButton.addTarget(self, action: #selector(logOutTapped), for: .touchUpInside)
         showCreativeButton.addTarget(self, action: #selector(showCreativeTapped), for: .touchUpInside)
         showPushPermissionButton.addTarget(self, action: #selector(showPushPermissionTapped), for: .touchUpInside)
         sendLocalPushNotification.addTarget(self, action: #selector(sendLocalPushNotificationTapped), for: .touchUpInside)
@@ -493,8 +504,19 @@ class SettingsViewController: UIViewController {
         showToast(with: success ? "Deep link handled: bonni://cart" : "Deep link failed")
     }
 
+    @objc private func logOutTapped() {
+        getAttentiveSdk().clearUser()
+        currentEmail = nil
+        currentPhone = nil
+        currentEmailLabel.text = "Current email:"
+        currentPhoneLabel.text = "Current phone:"
+        accountInfoLabel.text = "Login Info: Guest"
+        showToast(with: "Logged out — push token detached")
+    }
+
     @objc private func clearUserTapped() {
-        // TODO: Clear the user
+        getAttentiveSdk().clearUser()
+        showToast(with: "User cleared")
     }
 
     @objc private func clearCookiesTapped() {
