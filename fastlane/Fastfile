@@ -660,10 +660,10 @@ platform :ios do
       UI.user_error!("Release failed and rolled back: #{e.message}")
     end
 
+    # 12. Open PR to main (skip for prereleases — beta version bumps should not target main)
     if is_prerelease
-      UI.important("Prerelease: skipping PR to main and CocoaPods push")
+      UI.important("Prerelease: skipping PR to main")
     else
-      # 12. Open PR to main
       create_pull_request(
         repo: repository_name,
         api_bearer: ENV["GITHUB_TOKEN"],
@@ -673,18 +673,18 @@ platform :ios do
         body: "Automated version bump to #{new_version}",
         team_reviewers: "team-mobile-sdk"
       )
+    end
 
-      # 13. Push to CocoaPods (SPM + GitHub release already work at this point)
-      podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
-      podspecs.each do |spec|
-        begin
-          pod_push(
-            path: spec,
-            allow_warnings: true
-          )
-        rescue => e
-          UI.user_error!("CocoaPods push failed for #{spec}: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push #{spec} --allow-warnings")
-        end
+    # 13. Push to CocoaPods (prerelease versions require explicit opt-in via pod version pinning)
+    podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
+    podspecs.each do |spec|
+      begin
+        pod_push(
+          path: spec,
+          allow_warnings: true
+        )
+      rescue => e
+        UI.user_error!("CocoaPods push failed for #{spec}: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push #{spec} --allow-warnings")
       end
     end
 
