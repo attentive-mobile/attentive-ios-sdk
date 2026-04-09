@@ -22,6 +22,9 @@ parameters:
   with_local_binary:
     type: string
     default: "true"
+  is_prerelease:
+    type: string
+    default: "false"
 
 # ========================
 # Executors
@@ -424,7 +427,7 @@ jobs:
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}" is_prerelease:<< pipeline.parameters.is_prerelease >>
 
       - notify-slack-on-release-success
       - notify-slack-on-failure
