@@ -305,29 +305,33 @@ jobs:
   build-bonni-release:
     executor: macos-xcode
     steps:
-      - attach_workspace:
-          at: .
+      - unless:
+          condition:
+            equal: ["true", << pipeline.parameters.is_prerelease >>]
+          steps:
+            - attach_workspace:
+                at: .
 
-      - aws-cli/setup:
-          region: AWS_REGION
-          role_arn: 'arn:aws:iam::026393418737:role/circleci'
-          role_session_name: $CIRCLE_JOB-<< pipeline.number >>
+            - aws-cli/setup:
+                region: AWS_REGION
+                role_arn: 'arn:aws:iam::026393418737:role/circleci'
+                role_session_name: $CIRCLE_JOB-<< pipeline.number >>
 
-      - setup-fastlane
+            - setup-fastlane
 
-      - run:
-          name: Build Bonni release via Fastlane
-          command: bundle exec fastlane build_bonni_release with_local_binary:<< pipeline.parameters.with_local_binary >>
+            - run:
+                name: Build Bonni release via Fastlane
+                command: bundle exec fastlane build_bonni_release with_local_binary:<< pipeline.parameters.with_local_binary >>
 
-      - persist_to_workspace:
-          root: .
-          paths:
-            - *fastlane_build_output_dir
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - *fastlane_build_output_dir
 
-      - store_artifacts:
-          path: *fastlane_build_output_dir
+            - store_artifacts:
+                path: *fastlane_build_output_dir
 
-      - notify-slack-on-failure
+            - notify-slack-on-failure
 
   # -----------------------
   # Unit Tests with Code Coverage
@@ -438,17 +442,21 @@ jobs:
   deploy-testflight:
     executor: macos-xcode
     steps:
-      - attach_workspace:
-          at: .
+      - unless:
+          condition:
+            equal: ["true", << pipeline.parameters.is_prerelease >>]
+          steps:
+            - attach_workspace:
+                at: .
 
-      - setup-fastlane
+            - setup-fastlane
 
-      - run:
-          name: Deploy to TestFlight via Fastlane
-          command: bundle exec fastlane deploy_testflight
+            - run:
+                name: Deploy to TestFlight via Fastlane
+                command: bundle exec fastlane deploy_testflight
 
-      - notify-slack-on-testflight-success
-      - notify-slack-on-failure
+            - notify-slack-on-testflight-success
+            - notify-slack-on-failure
 
 # ========================
 # Workflows
@@ -512,9 +520,6 @@ workflows:
           requires:
             - build-examples
             - assemble-xcframework
-          when:
-            not:
-              equal: ["true", << pipeline.parameters.is_prerelease >>]
 
       - release:
           context: *default_context
@@ -527,9 +532,6 @@ workflows:
           requires:
             - build-bonni-release
             - release
-          when:
-            not:
-              equal: ["true", << pipeline.parameters.is_prerelease >>]
 
   # Deploy to TestFlight workflow triggered via API (GitHub Actions)
   deploy-testflight:
