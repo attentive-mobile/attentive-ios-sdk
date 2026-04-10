@@ -296,6 +296,9 @@ jobs:
   build-bonni-release:
     executor: macos-xcode
     steps:
+      - run:
+          name: Check prerelease
+          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
       - unless:
           condition:
             equal: ["true", << pipeline.parameters.is_prerelease >>]
@@ -432,6 +435,9 @@ jobs:
   deploy-testflight:
     executor: macos-xcode
     steps:
+      - run:
+          name: Check prerelease
+          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
       - unless:
           condition:
             equal: ["true", << pipeline.parameters.is_prerelease >>]
