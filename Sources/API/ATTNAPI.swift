@@ -165,12 +165,11 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             Loggers.network.debug("POST /token payload: \(payload, privacy: .public)")
 
-            retryClient.performRequestWithRetry(request, to: url) { [weak self] data, _, response, error in
+            retryClient.performRequestWithRetry(request, to: url) { data, _, response, error in
                 if let error = error {
                     Loggers.network.error("Error sending push token: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
                     Loggers.network.error("Push-token API returned status \(http.statusCode, privacy: .public)")
-                    self?.enableGeoAdjustmentFallback()
                 } else {
                     Loggers.network.debug("Successfully sent push token")
                 }
@@ -287,7 +286,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
                 Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload, privacy: .public)")
 
-                let task = self.urlSession.dataTask(with: request) { [weak self] data, response, error in
+                let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
                         Loggers.network.error("Opt-in error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
@@ -296,7 +295,6 @@ final class ATTNAPI: ATTNAPIProtocol {
                         Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                         if http.statusCode >= 400 {
                             Loggers.network.error("Opt-in API returned status \(http.statusCode, privacy: .public)")
-                            self?.enableGeoAdjustmentFallback()
                         } else {
                             Loggers.network.debug("Opt-in successful: opted in email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
                         }
@@ -369,7 +367,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
                 Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload, privacy: .public)")
 
-                let task = self.urlSession.dataTask(with: request) { [weak self] data, response, error in
+                let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
                         Loggers.network.error("Opt-out error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
@@ -378,7 +376,6 @@ final class ATTNAPI: ATTNAPIProtocol {
                         Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                         if http.statusCode >= 400 {
                             Loggers.network.error("Opt-out API returned status \(http.statusCode, privacy: .public)")
-                            self?.enableGeoAdjustmentFallback()
                         } else {
                             Loggers.network.debug("Opt-out successful: opted out email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
                         }
@@ -476,12 +473,11 @@ fileprivate extension ATTNAPI {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
 
-        let task = urlSession.dataTask(with: urlRequest) { [weak self] data, response, error in
+        let task = urlSession.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
                 Loggers.event.error("Error sending for event '\(request.eventNameAbbreviation, privacy: .public)'. Error: '\(error.localizedDescription, privacy: .public)'")
             } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
                 Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
-                self?.enableGeoAdjustmentFallback()
             } else {
                 Loggers.event.debug("Successfully sent event of type '\(request.eventNameAbbreviation, privacy: .public)'")
             }
@@ -503,12 +499,11 @@ fileprivate extension ATTNAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
-        let task = urlSession.dataTask(with: request) { [weak self] data, response, error in
+        let task = urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
                 Loggers.event.error("Error sending user identity. Error: '\(error.localizedDescription, privacy: .public)'")
             } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
                 Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
-                self?.enableGeoAdjustmentFallback()
             } else {
                 Loggers.event.debug("Successfully sent user identity event")
             }
@@ -692,14 +687,13 @@ extension ATTNAPI {
                                     --------------------------------
                                     """)
 
-                let task = self.urlSession.dataTask(with: request) { [weak self] data, response, error in
+                let task = self.urlSession.dataTask(with: request) { data, response, error in
                     if let error = error {
                         Loggers.network.error("New event send error: \(error.localizedDescription, privacy: .public)")
                     } else if let http = response as? HTTPURLResponse {
                         Loggers.network.debug("New event status code: \(http.statusCode, privacy: .public)")
                         if http.statusCode >= 400 {
                             Loggers.network.error("New event failed with HTTP status code \(http.statusCode, privacy: .public)")
-                            self?.enableGeoAdjustmentFallback()
                         }
                     }
                     callback?(data, url, response, error)
