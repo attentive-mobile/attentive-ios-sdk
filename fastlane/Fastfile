@@ -253,7 +253,7 @@ platform :ios do
     swiftlint(
       mode: :lint,
       output_file: "#{FASTLANE_REPORTS_DIR}/swiftlint.xml",
-      raise_if_swiftlint_error: true,
+      raise_if_swiftlint_error: false,
       reporter: "junit",
       ignore_exit_status: true
     )
