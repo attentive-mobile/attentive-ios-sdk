@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g., 2.1.0)"
+        description: "Release version (e.g., 2.1.0 or 2.1.0-beta.1)"
         required: true
         type: string
+      is_prerelease:
+        description: "Mark as prerelease (beta). Skips PR to main and TestFlight deploy."
+        required: false
+        type: boolean
+        default: false
       release_notes:
         description: "Release notes (optional — single line only, use gh CLI for multiline. Auto-generated from commits if blank)"
         required: false
@@ -18,8 +23,8 @@ jobs:
     steps:
       - name: Validate version format
         run: |
-          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Version must be in semver format (e.g., 2.1.0)"
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Version must be in semver format (e.g., 2.1.0 or 2.1.0-beta.1)"
             exit 1
           fi
 
@@ -31,12 +36,14 @@ jobs:
           payload=$(jq -n \
             --arg version "${{ inputs.version }}" \
             --arg notes "$RELEASE_NOTES" \
+            --arg is_prerelease "${{ inputs.is_prerelease }}" \
             '{
-              branch: "main",
+              branch: "${{ github.ref_name }}",
               parameters: {
                 run_release: true,
                 release_version: $version,
-                release_notes: $notes
+                release_notes: $notes,
+                is_prerelease: $is_prerelease
               }
             }')
 

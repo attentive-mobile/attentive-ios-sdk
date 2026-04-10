@@ -22,6 +22,9 @@ parameters:
   with_local_binary:
     type: string
     default: "true"
+  is_prerelease:
+    type: string
+    default: "false"
 
 # ========================
 # Executors
@@ -128,6 +131,13 @@ commands:
               ]
             }
 
+  install-swiftlint:
+    description: "Install SwiftLint (required by Xcode build phase)"
+    steps:
+      - run:
+          name: Install SwiftLint
+          command: command -v swiftlint || brew install swiftlint
+
   setup-fastlane:
     description: "Install Fastlane via Bundler"
     steps:
@@ -215,6 +225,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -262,6 +273,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -326,6 +338,7 @@ jobs:
       - attach_workspace:
           at: .
 
+      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -414,7 +427,7 @@ jobs:
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}" is_prerelease:<< pipeline.parameters.is_prerelease >>
 
       - notify-slack-on-release-success
       - notify-slack-on-failure
@@ -499,6 +512,9 @@ workflows:
           requires:
             - build-examples
             - assemble-xcframework
+          when:
+            not:
+              equal: ["true", << pipeline.parameters.is_prerelease >>]
 
       - release:
           context: *default_context
@@ -511,6 +527,9 @@ workflows:
           requires:
             - build-bonni-release
             - release
+          when:
+            not:
+              equal: ["true", << pipeline.parameters.is_prerelease >>]
 
   # Deploy to TestFlight workflow triggered via API (GitHub Actions)
   deploy-testflight:
