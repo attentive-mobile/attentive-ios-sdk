@@ -160,7 +160,16 @@ jobs:
   checkout-and-setup:
     executor: macos-xcode
     steps:
-      - checkout
+      - attentive/app-based-github-token:
+          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
+          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+          github_app_installation_id: ${GITHUB_APP_INSTALLATION_ID}
+      - run:
+          name: Checkout code
+          command: |
+            git clone --filter=blob:none \
+              "https://x-access-token:${GITHUB_TOKEN}@github.com/attentive-mobile/attentive-ios-sdk.git" .
+            git checkout "${CIRCLE_BRANCH}"
 
       # Setup Fastlane
       - setup-fastlane
@@ -533,7 +542,8 @@ workflows:
   deploy-testflight:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
-      - checkout-and-setup
+      - checkout-and-setup:
+          context: *default_context
 
       - lint:
           requires:
