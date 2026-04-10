@@ -10,6 +10,6 @@ import Foundation
 struct ATTNConstants {
     private init() { }
 
-    static let sdkVersion = "2.0.13"
+    static let sdkVersion = "2.0.14-beta.1"
     static let skipFatigueEnvKey = "SKIP_FATIGUE_ON_CREATIVE"
 }

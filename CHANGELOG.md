@@ -1,3 +1,47 @@
+## [2.0.14-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.13...2.0.14-beta.1) (2026-04-10)
+* Use GitHub App token for checkout instead of SSH keys
+* updates to use project slug
+* updates slug
+* Add unconditional step to satisfy CircleCI minimum step requirement
+* updates config
+* uses project slug
+* disables swiftlint errors
+* removes swiftlint for beta branch
+* adds beta branch automation work
+* Automatically route legacy events through v2 /mobile endpoint
+* Add event metadata fields documentation to README
+* Remove CI, lint, and UI GitHub Actions workflows
+* Fix TESTFLIGHT_BUILD_NUMBER: read from IPA instead of lane context
+* cleans up whitespace
+* adds gitignore
+* Add Slack notifications for CI failures, releases, and TestFlight deploys
+* Fail fast in CI when XCFramework/DerivedData is missing instead of silently rebuilding
+* Fix release.yml to use vars instead of secrets for CIRCLECI_PROJECT_ID
+* MSDK-291: Push both podspecs during release
+* use vars for circleci project id, address PR feedback
+* adds updates
+* adds bonni build in different configurations adds deploy testflight job
+* MSDK-285: Add code coverage to unit test CI job (#220)
+* removes circleci prefix
+* updates release to use new api v2 using https
+* removes https manual configuration
+* updates orb
+* cleans up orb usage
+* adds validation
+* clean up
+* reusing method
+* adds local build steps
+* Revert "Add Claude AI PR review workflow (#209)" (#213)
+* updates readme
+* updates readme
+* Add Claude AI PR review workflow (#209)
+* updates description
+* make the pr tag the team
+* cleans up changelog
+* Version bump 2.0.13
+* Binary Package.swift for 2.0.13
+* Version bump 2.0.13
+
 ## [2.0.13](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.12...2.0.13) (2026-02-27)
 Bug Fixes & Improvements
 - Push token events are now sent on every app foreground, ensuring more reliable push notification delivery (#197)
