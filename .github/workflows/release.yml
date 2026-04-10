@@ -48,7 +48,7 @@ jobs:
             }')
 
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://circleci.com/api/v2/project/${{ vars.CIRCLECI_PROJECT_ID }}/pipeline" \
+            "https://circleci.com/api/v2/project/gh/attentive-mobile/attentive-ios-sdk/pipeline" \
             -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$payload")
