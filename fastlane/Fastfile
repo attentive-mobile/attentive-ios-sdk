@@ -139,7 +139,19 @@ platform :ios do
                    if new_pre.nil? && current_pre
                      true
                    elsif new_pre && current_pre
-                     new_pre > current_pre
+                     # Compare identifiers per semver: split on '.', compare numerics as integers
+                     new_ids = new_pre.split('.')
+                     current_ids = current_pre.split('.')
+                     cmp = new_ids.zip(current_ids).reduce(nil) do |result, (n, c)|
+                       next result if result && result != 0
+                       # A longer prerelease has higher precedence if all prior ids match
+                       next 1 if c.nil?
+                       both_numeric = n.match?(/^\d+$/) && c.match?(/^\d+$/)
+                       both_numeric ? n.to_i <=> c.to_i : n <=> c
+                     end
+                     # If all compared ids are equal, longer prerelease wins (e.g., beta.1.1 > beta.1)
+                     cmp = new_ids.length <=> current_ids.length if cmp.nil? || cmp == 0
+                     cmp > 0
                    else
                      false
                    end

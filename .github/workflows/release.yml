@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       is_prerelease:
-        description: "Mark as prerelease (beta). Skips CocoaPods push and PR to main."
+        description: "Mark as prerelease (beta). Skips PR to main and TestFlight deploy."
         required: false
         type: boolean
         default: false
@@ -38,7 +38,7 @@ jobs:
             --arg notes "$RELEASE_NOTES" \
             --arg is_prerelease "${{ inputs.is_prerelease }}" \
             '{
-              branch: "main",
+              branch: "${{ github.ref_name }}",
               parameters: {
                 run_release: true,
                 release_version: $version,
