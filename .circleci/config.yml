@@ -141,6 +141,10 @@ jobs:
   checkout-and-setup:
     executor: macos-xcode
     steps:
+      # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
+      # so that we have the correct permissions to both read and write to the repo via the configured
+      # Github App. This was initially brought about by the fact that API-triggered workflows were not
+      # correctly accessing the Github App token and instead using SSH, which does not work for the release job.
       - attentive/app-based-github-token:
           github_app_client_id: ${GITHUB_APP_CLIENT_ID}
           github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
