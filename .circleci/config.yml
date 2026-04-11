@@ -78,32 +78,6 @@ commands:
           custom: |
             ${SLACK_FAILURE_PAYLOAD}
 
-  notify-slack-on-release-success:
-    description: "Send Slack notification on successful SDK release"
-    steps:
-      - slack/notify:
-          channel: *slack_channel_releases
-          event: pass
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "✅ SDK Release Published",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*Version:*\n<https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>|<< pipeline.parameters.release_version >>>" }
-                  ]
-                }
-              ]
-            }
-
   notify-slack-on-testflight-success:
     description: "Send Slack notification on successful TestFlight deploy"
     steps:
@@ -442,7 +416,6 @@ jobs:
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
           command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}" is_prerelease:<< pipeline.parameters.is_prerelease >>
 
-      - notify-slack-on-release-success
       - notify-slack-on-failure
 
   # -----------------------
