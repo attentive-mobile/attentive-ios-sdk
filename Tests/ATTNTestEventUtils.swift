@@ -10,11 +10,11 @@ import XCTest
 @testable import ATTNSDKFramework
 
 struct ATTNTestEventUtils {
-    static func verifyCommonQueryItems(queryItems: [String: String], userIdentity: ATTNUserIdentity, geoAdjustedDomain: String, eventType: String, metadata: [String: Any]) {
+    static func verifyCommonQueryItems(queryItems: [String: String], userIdentity: ATTNUserIdentity, domain: String, eventType: String, metadata: [String: Any]) {
         XCTAssertEqual("modern", queryItems["tag"])
         XCTAssertEqual("mobile-app", queryItems["v"])
         XCTAssertEqual("0", queryItems["lt"])
-        XCTAssertEqual(geoAdjustedDomain, queryItems["c"])
+        XCTAssertEqual(domain, queryItems["c"])
         XCTAssertEqual(eventType, queryItems["t"])
         XCTAssertEqual(userIdentity.visitorId, queryItems["u"])
 

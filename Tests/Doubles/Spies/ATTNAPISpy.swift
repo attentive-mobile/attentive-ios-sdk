@@ -17,7 +17,6 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var sendNewEventWasCalled = false
     private(set) var updateDomainWasCalled = false
     private(set) var domainWasSet = false
-    private(set) var cachedGeoAdjustedDomainWasSet = false
     private(set) var sendPushTokenWasCalled = false
     private(set) var sendAppEventsWasCalled = false
     private(set) var sendOptInWasCalled = false
@@ -37,10 +36,6 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     // MARK: - ATTNAPIProtocol state
     var domain: String {
         didSet { domainWasSet = true }
-    }
-
-    var cachedGeoAdjustedDomain: String? {
-        didSet { cachedGeoAdjustedDomainWasSet = true }
     }
 
     // MARK: - Init

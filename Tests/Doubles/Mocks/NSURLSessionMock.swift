@@ -9,12 +9,9 @@ import Foundation
 @testable import ATTNSDKFramework
 
 class NSURLSessionMock: URLSession {
-    var didCallDtag = false
     var didCallEventsApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
-
-    private let TEST_GEO_ADJUSTED_DOMAIN = "some-domain-ca"
 
     override init() {
         super.init()
@@ -25,13 +22,6 @@ class NSURLSessionMock: URLSession {
 
         if let url = request.url {
             urlCalls.append(url)
-
-            if url.absoluteString.contains("cdn.attn.tv") {
-                didCallDtag = true
-                return NSURLSessionDataTaskMock { data, response, error in
-                    completionHandler("a='\(self.TEST_GEO_ADJUSTED_DOMAIN).attn.tv'".data(using: .utf8), HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil), nil)
-                }
-            }
 
             if url.absoluteString.contains("events.attentivemobile.com") {
                 didCallEventsApi = true

@@ -10,7 +10,6 @@ import XCTest
 
 final class ATTNAPITests: XCTestCase {
     let testDomain = "some-domain"
-    let testGeoAdjustedDomain = "some-domain-ca"
 
     func testURLSession_verifySessionHasUserAgent() {
         let userAgentBuilderMock = ATTNUserAgentBuilderMock()
@@ -34,7 +33,6 @@ final class ATTNAPITests: XCTestCase {
         api.send(userIdentity: userIdentity)
 
         // Assert
-        XCTAssertFalse(sessionMock.didCallDtag)
         XCTAssertTrue(sessionMock.didCallEventsApi)
     }
 
@@ -299,7 +297,7 @@ final class ATTNAPITests: XCTestCase {
         XCTAssertEqual("POST", request.httpMethod?.uppercased())
     }
 
-    func testSendEvent_multipleEventsSent_doesNotCallGeoAdjustedDomain() {
+    func testSendEvent_multipleEventsSent_callsEventsApiForEach() {
         let sessionMock = NSURLSessionMock()
         let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
         let addToCart1 = ATTNTestEventUtils.buildAddToCart()
@@ -313,30 +311,5 @@ final class ATTNAPITests: XCTestCase {
         api.send(event: addToCart2, userIdentity: userIdentity)
         XCTAssertTrue(sessionMock.didCallEventsApi)
         XCTAssertEqual(2, sessionMock.urlCalls.count)
-
-        var numberOfGeoAdjustedDomainCalls = 0
-        for urlCall in sessionMock.urlCalls {
-            if urlCall.host == "cdn.attn.tv" {
-                numberOfGeoAdjustedDomainCalls += 1
-            }
-        }
-        XCTAssertEqual(0, numberOfGeoAdjustedDomainCalls)
     }
-
-    func testGetGeoAdjustedDomain_geoAdjustmentDisabled_returnsRawDomain() {
-        let sessionMock = NSURLSessionMock()
-        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
-
-        XCTAssertNil(api.cachedGeoAdjustedDomain)
-
-        api.getGeoAdjustedDomain(domain: testDomain) { geoAdjustedDomain, error in
-            XCTAssertEqual(self.testDomain, geoAdjustedDomain)
-            XCTAssertNil(error)
-        }
-
-        XCTAssertFalse(sessionMock.didCallDtag)
-        XCTAssertEqual(testDomain, api.cachedGeoAdjustedDomain)
-    }
-
-
 }

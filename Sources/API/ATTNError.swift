@@ -10,7 +10,6 @@ import Foundation
 public enum ATTNError: Error {
     case sdkNotInitialized
     case missingContactInfo
-    case geoDomainUnavailable
     case badURL
     case invalidDomain
 }
@@ -22,8 +21,6 @@ extension ATTNError: LocalizedError {
             return "SDK not initialized"
         case .missingContactInfo:
             return "Provide email and/or phone"
-        case .geoDomainUnavailable:
-            return "Geo domain unavailable"
         case .badURL:
             return "Invalid URL"
         case .invalidDomain:

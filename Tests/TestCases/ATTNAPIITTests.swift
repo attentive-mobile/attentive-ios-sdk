@@ -11,8 +11,6 @@ import XCTest
 final class ATTNAPIITTests: XCTestCase {
 
     private let testDomain = "mobileapps"
-    // Update this accordingly when running on VPN
-    private let testGeoAdjustedDomain = "mobileapps"
     private let eventSendTimeoutSec = 6
 
     var api: ATTNAPI!
@@ -66,7 +64,7 @@ final class ATTNAPIITTests: XCTestCase {
             return
         }
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "idn", metadata: metadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, domain: testDomain, eventType: "idn", metadata: metadata)
 
         let expectedJSONString = "[{\"vendor\":\"2\",\"id\":\"someClientUserId\"},{\"vendor\":\"1\",\"id\":\"someKlaviyoId\"},{\"vendor\":\"0\",\"id\":\"someShopifyId\"},{\"vendor\":\"6\",\"id\":\"customIdValue\",\"name\":\"customId\"}]"
         guard let expectedData = expectedJSONString.data(using: .utf8),
@@ -136,7 +134,7 @@ final class ATTNAPIITTests: XCTestCase {
             return
         }
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: purchaseQueryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "p", metadata: purchaseMetadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: purchaseQueryItems, userIdentity: userIdentity, domain: testDomain, eventType: "p", metadata: purchaseMetadata)
 
         XCTAssertEqual(purchase.items[0].productId, purchaseMetadata["productId"] as? String)
         XCTAssertEqual(purchase.items[0].productVariantId, purchaseMetadata["subProductId"] as? String)
@@ -173,7 +171,7 @@ final class ATTNAPIITTests: XCTestCase {
         }
         XCTAssertEqual(1, products.count)
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: ocQueryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "oc", metadata: ocMetadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: ocQueryItems, userIdentity: userIdentity, domain: testDomain, eventType: "oc", metadata: ocMetadata)
 
         ATTNTestEventUtils.verifyProductFromItem(item: purchase.items[0], product: products[0])
 
@@ -220,7 +218,7 @@ final class ATTNAPIITTests: XCTestCase {
             return
         }
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "c", metadata: metadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, domain: testDomain, eventType: "c", metadata: metadata)
 
         XCTAssertEqual(addToCart.items[0].productId, metadata["productId"] as? String)
         XCTAssertEqual(addToCart.items[0].productVariantId, metadata["subProductId"] as? String)
@@ -272,7 +270,7 @@ final class ATTNAPIITTests: XCTestCase {
             return
         }
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "d", metadata: metadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, domain: testDomain, eventType: "d", metadata: metadata)
 
         XCTAssertEqual(productView.items[0].productId, metadata["productId"] as? String)
         XCTAssertEqual(productView.items[0].productVariantId, metadata["subProductId"] as? String)
@@ -324,7 +322,7 @@ final class ATTNAPIITTests: XCTestCase {
             return
         }
 
-        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, geoAdjustedDomain: testGeoAdjustedDomain, eventType: "ce", metadata: metadata)
+        ATTNTestEventUtils.verifyCommonQueryItems(queryItems: queryItems, userIdentity: userIdentity, domain: testDomain, eventType: "ce", metadata: metadata)
 
         XCTAssertEqual(customEvent.type, metadata["type"] as? String)
         if let propertiesString = metadata["properties"] as? String,
