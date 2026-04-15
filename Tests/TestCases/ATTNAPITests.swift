@@ -338,22 +338,5 @@ final class ATTNAPITests: XCTestCase {
         XCTAssertEqual(testDomain, api.cachedGeoAdjustedDomain)
     }
 
-    func testGetGeoAdjustedDomain_geoAdjustmentEnabled_fetchesDtagAndReturnsGeoDomain() {
-        let sessionMock = NSURLSessionMock()
-        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
 
-        // Simulate fallback: enable geo-adjustment as if a prior request failed
-        api.enableGeoAdjustmentFallback()
-        XCTAssertNil(api.cachedGeoAdjustedDomain)
-
-        api.getGeoAdjustedDomain(domain: testDomain) { geoAdjustedDomain, error in
-            XCTAssertEqual(self.testGeoAdjustedDomain, geoAdjustedDomain)
-            XCTAssertNil(error)
-        }
-
-        XCTAssertTrue(sessionMock.didCallDtag)
-        XCTAssertEqual(1, sessionMock.requests.count)
-        XCTAssertEqual("GET", sessionMock.requests[0].httpMethod?.uppercased())
-        XCTAssertEqual(testGeoAdjustedDomain, api.cachedGeoAdjustedDomain)
-    }
 }

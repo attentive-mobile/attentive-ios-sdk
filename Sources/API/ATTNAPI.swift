@@ -611,12 +611,6 @@ extension ATTNAPI {
         return normalized.contains("attn.tv") || normalized.contains("/") || normalized.contains(":")
     }
 
-    func enableGeoAdjustmentFallback() {
-        guard !geoAdjustmentEnabled else { return }
-        Loggers.network.debug("Enabling geo-adjustment fallback for domain '\(self.domain, privacy: .public)'")
-        geoAdjustmentEnabled = true
-        cachedGeoAdjustedDomain = nil
-    }
 
     /// Sends a new-style event payload to the `/mobile` endpoint.
     /// - Parameters:
