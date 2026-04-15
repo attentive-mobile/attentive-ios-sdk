@@ -10,6 +10,8 @@ import Foundation
 public enum ATTNError: Error {
     case sdkNotInitialized
     case missingContactInfo
+    @available(*, deprecated, message: "Geo-domain adjustment has been removed. This case is no longer used by the SDK.")
+    case geoDomainUnavailable
     case badURL
     case invalidDomain
 }
@@ -21,6 +23,8 @@ extension ATTNError: LocalizedError {
             return "SDK not initialized"
         case .missingContactInfo:
             return "Provide email and/or phone"
+        case .geoDomainUnavailable:
+            return "Geo domain unavailable"
         case .badURL:
             return "Invalid URL"
         case .invalidDomain:
