@@ -664,6 +664,59 @@ sdk.trigger(view)
 [sdk trigger:self.view];
 ```
 
+### Trigger a Specific Creative
+
+You can display a specific sign-up unit by passing its creative ID to the `trigger` method. This is useful when you want to show different creatives based on where the user is in your app (e.g., a different sign-up unit on the home screen vs. a product page).
+
+To find your creative ID, go to the [Attentive Sign-up Units page](https://ui.attentivemobile.com/subscribers/sign-up-units), select your company, and look for **mobile app** sign-up units. There are two mobile types:
+- **Mobile Full Screen** — a full-screen creative that covers the entire app view
+- **Mobile Partial** — a partial creative that overlays part of the app view
+
+The creative ID is displayed on the sign-up unit detail page.
+
+#### Swift
+
+```swift
+// Trigger a specific creative by ID
+sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID")
+
+// Trigger a specific creative by ID with a completion handler
+sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
+  switch status {
+  case ATTNCreativeTriggerStatus.opened:
+    print("Opened the Creative!")
+  case ATTNCreativeTriggerStatus.notOpened:
+    print("Couldn't open the Creative!")
+  case ATTNCreativeTriggerStatus.closed:
+    print("Closed the Creative!")
+  case ATTNCreativeTriggerStatus.notClosed:
+    print("Couldn't close the Creative!")
+  default:
+    break
+  }
+}
+```
+
+#### Objective-C
+
+```objective-c
+// Trigger a specific creative by ID
+[sdk trigger:self.view creativeId:@"YOUR_CREATIVE_ID"];
+
+// Trigger a specific creative by ID with a completion handler
+[sdk trigger:self.view creativeId:@"YOUR_CREATIVE_ID" handler:^(NSString *triggerStatus) {
+  if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+    NSLog(@"Opened the Creative!");
+  } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+    NSLog(@"Couldn't open the Creative!");
+  } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+    NSLog(@"Closed the Creative!");
+  } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+    NSLog(@"Couldn't close the Creative!");
+  }
+}];
+```
+
 ### Skip Fatigue on Creative
 
 For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
