@@ -640,13 +640,13 @@ sdk.trigger(view) { status in
 // Load the creative with a completion handler.
 [sdk trigger:self.view
      handler:^(NSString *triggerStatus) {
-      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+      if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.opened]) {
         NSLog(@"Opened the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notOpened]) {
         NSLog(@"Couldn't open the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.closed]) {
         NSLog(@"Closed the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notClosed]) {
         NSLog(@"Couldn't close the Creative!");
       }
     }];
@@ -705,13 +705,13 @@ sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
 
 // Trigger a specific creative by ID with a completion handler
 [sdk trigger:self.view creativeId:@"YOUR_CREATIVE_ID" handler:^(NSString *triggerStatus) {
-  if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+  if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.opened]) {
     NSLog(@"Opened the Creative!");
-  } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notOpened]) {
     NSLog(@"Couldn't open the Creative!");
-  } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.closed]) {
     NSLog(@"Closed the Creative!");
-  } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notClosed]) {
     NSLog(@"Couldn't close the Creative!");
   }
 }];
