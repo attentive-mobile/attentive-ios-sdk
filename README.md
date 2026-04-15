@@ -107,12 +107,6 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 [ATTNEventTracker setupWithSDk:sdk];
 ```
 
-### Domain handling for international accounts
-
-Mobile apps should always pass the exact Attentive domain tied to the account (e.g., `youngla-pt` for the Portugal account, `youngla` for the US account). Unlike the web tag, the mobile SDK does not perform geo-based domain routing by default. The domain you provide at initialization is used directly in all API requests.
-
-If the backend rejects the raw domain (HTTP 4xx), the SDK will automatically fall back to the legacy geo-adjustment behavior, which fetches the domain from the CDN tag (`cdn.attn.tv/{domain}/dtag.js`). You can find the correct domain for a given account using the "Find Company" tool in the Attentive Admin UI.
-
 ## Step 2 - Identify the current user
 
 When you gather information about the current user (user ID, email, phone, etc), you can pass it to Attentive for identification purposes via the `identify` function. You can call identify every time to add any additional information about the user.
