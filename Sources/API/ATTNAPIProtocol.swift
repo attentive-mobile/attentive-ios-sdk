@@ -9,7 +9,6 @@ import UserNotifications
 protocol ATTNAPIProtocol {
     // MARK: - Shared state
     var domain: String { get set }
-    var cachedGeoAdjustedDomain: String? { get set }
 
     // MARK: - Identity & Events
     func send(userIdentity: ATTNUserIdentity)
