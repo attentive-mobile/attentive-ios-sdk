@@ -299,14 +299,32 @@ final class ATTNAPI: ATTNAPIProtocol {
 
     // MARK: - Update User
 
+    // Internal note for maintainers and AI assistants:
+    // ------------------------------------------------
+    // This method is the single network call behind two public SDK operations:
+    //
+    //   1. **updateUser(email:phone:callback:)** — the user is switching identity.
+    //      Called with a real email/phone and operationContext = "updateUser".
+    //
+    //   2. **clearUser()** — the user is logging out.
+    //      Called with nil email/phone and operationContext = "clearUser".
+    //      Sending an empty metadata dict ("m": {}) tells the server to detach
+    //      the push token from the current user without associating it to a new
+    //      email/phone. This is an internal implementation detail — SDK consumers
+    //      should only see "clearUser" in logs, never "updateUser".
+    //
+    // The `operationContext` parameter controls how every log line is labelled so
+    // that developer-facing console output always reflects the public API the
+    // consumer actually called, not the underlying network mechanism.
     func updateUser(
         pushToken: String,
         userIdentity: ATTNUserIdentity,
         email: String? = nil,
         phone: String? = nil,
+        operationContext: String = "updateUser",
         callback: ATTNAPICallback? = nil
     ) {
-        Loggers.network.debug("Updating user - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
+        Loggers.network.debug("\(operationContext, privacy: .public): sending request - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
         var meta: [String: Any] = [:]
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
@@ -326,7 +344,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         if !pushToken.isEmpty { payload["pt"] = pushToken }
 
         guard let url = URL(string: "https://mobile.attentivemobile.com:443/user-update") else {
-            Loggers.network.error("Invalid Update User URL")
+            Loggers.network.error("\(operationContext, privacy: .public): invalid URL")
             callback?(nil, nil, nil, ATTNError.badURL)
             return
         }
@@ -338,17 +356,17 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
-        Loggers.network.debug("POST /update_user payload: \(payload, privacy: .public)")
+        Loggers.network.debug("\(operationContext, privacy: .public): POST /user-update payload: \(payload, privacy: .public)")
 
         let task = self.urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
-                Loggers.network.error("Update User error: \(error.localizedDescription, privacy: .public)")
+                Loggers.network.error("\(operationContext, privacy: .public): network error - \(error.localizedDescription, privacy: .public)")
             } else if let http = response as? HTTPURLResponse {
-                Loggers.network.debug("----- Update User Result -----")
+                Loggers.network.debug("----- \(operationContext, privacy: .public) Result -----")
                 Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
                 Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
                 if http.statusCode >= 400 {
-                    Loggers.network.error("UpdateUser API returned status \(http.statusCode, privacy: .public)")
+                    Loggers.network.error("\(operationContext, privacy: .public): API returned status \(http.statusCode, privacy: .public)")
                 }
             }
             if let data = data, let bodyStr = String(data: data, encoding: .utf8) {

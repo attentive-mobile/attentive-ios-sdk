@@ -165,11 +165,29 @@ public final class ATTNSDK: NSObject {
         launchCreative(parentView: view, creativeId: creativeId, handler: handler)
     }
 
+    /// Clears all user identifiers and detaches the push token from the current user.
+    ///
+    /// Call this when the user logs out. The SDK will:
+    /// 1. Reset all local identifiers (email, phone, etc.) and generate a new anonymous visitor ID.
+    /// 2. If a push token is registered, tell the server to detach it from the previous user so
+    ///    they stop receiving push notifications on this device.
+    ///
+    /// After `clearUser()` returns, the device is in an anonymous state. The next call to
+    /// `identify(_:)` or `updateUser(email:phone:callback:)` will associate the device with a
+    /// new user.
+    ///
+    /// - Note: If no push token has been registered (via `registerDeviceToken`), the server-side
+    ///   detach is skipped — identifiers are still cleared locally.
+    ///
+    /// Internal implementation detail (for maintainers / AI assistants):
+    /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
+    /// empty email and phone. The `operationContext: "clearUser"` parameter ensures all logs
+    /// are labelled "clearUser" so SDK consumers never see "updateUser" in their console when
+    /// they only called `clearUser()`.
     @objc(clearUser)
     public func clearUser() {
         clearUserIdentifiers()
 
-        // Detach push token from the logged-out user by calling updateUser with empty identifiers
         let pushToken = currentPushToken
         guard !pushToken.isEmpty else {
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
@@ -182,11 +200,16 @@ public final class ATTNSDK: NSObject {
             userIdentity: userIdentity,
             email: nil,
             phone: nil,
+            operationContext: "clearUser",
             callback: nil
         )
     }
 
-    /// Clears user identifiers and generates a new visitor ID without making any network calls.
+    /// Clears user identifiers and generates a new visitor ID. **Local only — no network call.**
+    ///
+    /// Both `clearUser()` and `updateUser(email:phone:callback:)` call this as their first step.
+    /// The new visitor ID is used in any subsequent API call so the server treats the device as
+    /// a fresh anonymous user.
     private func clearUserIdentifiers() {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
@@ -518,27 +541,40 @@ public final class ATTNSDK: NSObject {
         optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
     }
 
+    /// Switches the current user identity by associating the device with new email and/or phone identifiers.
+    ///
+    /// This method:
+    /// 1. Clears all existing identifiers and generates a new anonymous visitor ID (same as `clearUser()`).
+    /// 2. Sends the new email/phone to the server, which re-identifies the device under the new user.
+    ///
+    /// At least one of `email` or `phone` must be provided.
+    ///
+    /// - Parameters:
+    ///   - email: The new user's email address (optional if phone is provided).
+    ///   - phone: The new user's phone number in E.164 format (optional if email is provided).
+    ///   - callback: Called when the server responds. `nil` is acceptable.
     @objc(updateUserWithEmail:phone:callback:)
     public func updateUser(email: String? = nil,
                                                  phone: String? = nil,
                                                  callback: ATTNAPICallback? = nil) {
-        Loggers.event.debug("Attempting to update user - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        Loggers.event.debug("updateUser: switching user identity - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
         : (UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "")
         guard !pushToken.isEmpty else {
-            Loggers.event.error("updateUser aborted: missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            Loggers.event.error("updateUser: aborted — missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
-        Loggers.event.debug("Updating user with push token: \(pushToken, privacy: .public)")
+        Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
         clearUserIdentifiers()
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,
             email: email,
             phone: phone,
+            operationContext: "updateUser",
             callback: callback
         )
     }

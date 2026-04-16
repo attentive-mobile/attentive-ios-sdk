@@ -56,11 +56,22 @@ protocol ATTNAPIProtocol {
     )
 
     // MARK: - Update User
+    //
+    // Shared endpoint for both `clearUser()` and `updateUser(email:phone:)`.
+    //
+    // - When called from clearUser:  email=nil, phone=nil, operationContext="clearUser"
+    //   → Tells the server to detach the push token from the current user (logout flow).
+    //
+    // - When called from updateUser: email/phone provided, operationContext="updateUser"
+    //   → Tells the server to re-identify the device under a new user.
+    //
+    // `operationContext` is used exclusively for logging — it has no effect on the API payload.
     func updateUser(
         pushToken: String,
         userIdentity: ATTNUserIdentity,
         email: String?,
         phone: String?,
+        operationContext: String,
         callback: ATTNAPICallback?
     )
 }
