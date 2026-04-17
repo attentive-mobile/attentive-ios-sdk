@@ -533,28 +533,34 @@ workflows:
           context: *default_context
 
       - lint:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
+          context: *default_context
           requires:
             - build-framework
 
       - build-bonni-release:
+          context: *default_context
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
+          context: *default_context
           requires:
             - build-bonni-release
 
