@@ -151,14 +151,15 @@ sdk.clearUser()
 [sdk clearUser];
 ```
 
+> **Push token users:** If your app uses Attentive push notifications, `clearUser` will also detach the push token from the logged-out user on the server, so they no longer receive push notifications on this device. Make sure to call `clearUser()` on every logout path.
+
 ### Update user via email and/or phone
 
-Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user (the sdk will automatically call clearUser()), and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will automatically clear all identifiers previously associated with the current user, and associate the current user with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
 
 #### Swift
 ```
 // Update user with both email and phone
-attentiveSdk.clearUser() // Must be called prior to calling updateUser()
 attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
     switch result {
     case .success:
@@ -210,9 +211,10 @@ attentiveSdk?.identify([
 ```
 
 ### 3. User logs out  
-Call `clearUser()` to remove identifiers.  
+Call `clearUser()` to remove identifiers. If your app uses Attentive push notifications, this also detaches the push token from the logged-out user.
 
-``` user logs out
+```swift
+// user logs out
 attentiveSdk?.clearUser()
 ```
 

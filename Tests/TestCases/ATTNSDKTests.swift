@@ -368,6 +368,53 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
     }
 
+    // MARK: - clearUser tests
+
+    func testClearUser_withPushToken_callsUpdateUserWithNilEmailAndPhone() {
+        let deviceToken = Data([0x01, 0x02, 0x03])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled)
+
+        sut.clearUser()
+
+        XCTAssertTrue(apiSpy.updateUserWasCalled, "clearUser should call updateUser to detach push token")
+        XCTAssertNil(apiSpy.lastUpdateUserEmail, "clearUser should pass nil email to detach push token")
+        XCTAssertNil(apiSpy.lastUpdateUserPhone, "clearUser should pass nil phone to detach push token")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertEqual(apiSpy.lastUpdateUserPushToken, "010203")
+    }
+
+    func testClearUser_withoutPushToken_doesNotCallUpdateUser() {
+        sut.clearUser()
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled, "clearUser should not call updateUser without a push token")
+    }
+
+    func testClearUser_resetsIdentifiers() {
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        sut.clearUser()
+
+        XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0, "clearUser should reset all identifiers")
+    }
+
+    // MARK: - updateUser tests
+
+    func testUpdateUser_callsUpdateUserExactlyOnce() {
+        let deviceToken = Data([0x01, 0x02, 0x03])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 0, "updateUser should not have been called yet")
+
+        sut.updateUser(email: "new@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1, "updateUser should call api.updateUser exactly once, not twice")
+        XCTAssertEqual(apiSpy.lastUpdateUserEmail, "new@example.com")
+        XCTAssertEqual(apiSpy.lastUpdateUserPhone, "+15551234567")
+        XCTAssertEqual(apiSpy.lastOperationContext, "updateUser")
+    }
+
     private func waitForCondition(_ condition: @escaping () -> Bool, timeout: TimeInterval = 0.25) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
