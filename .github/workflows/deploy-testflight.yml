@@ -2,6 +2,12 @@ name: Deploy to TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy to TestFlight"
+        required: true
+        default: "main"
+        type: string
 
 jobs:
   trigger-deploy:
@@ -10,8 +16,8 @@ jobs:
       - name: Trigger CircleCI deploy-testflight pipeline
         id: trigger
         run: |
-          payload=$(jq -n '{
-            branch: "main",
+          payload=$(jq -n --arg branch "${{ inputs.branch }}" '{
+            branch: $branch,
             parameters: {
               run_testflight_deploy: true
             }
