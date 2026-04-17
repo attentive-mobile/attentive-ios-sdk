@@ -381,6 +381,8 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertTrue(apiSpy.updateUserWasCalled, "clearUser should call updateUser to detach push token")
         XCTAssertNil(apiSpy.lastUpdateUserEmail, "clearUser should pass nil email to detach push token")
         XCTAssertNil(apiSpy.lastUpdateUserPhone, "clearUser should pass nil phone to detach push token")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertEqual(apiSpy.lastUpdateUserPushToken, "010203")
     }
 
     func testClearUser_withoutPushToken_doesNotCallUpdateUser() {
@@ -410,6 +412,7 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.updateUserCallCount, 1, "updateUser should call api.updateUser exactly once, not twice")
         XCTAssertEqual(apiSpy.lastUpdateUserEmail, "new@example.com")
         XCTAssertEqual(apiSpy.lastUpdateUserPhone, "+15551234567")
+        XCTAssertEqual(apiSpy.lastOperationContext, "updateUser")
     }
 
     private func waitForCondition(_ condition: @escaping () -> Bool, timeout: TimeInterval = 0.25) -> Bool {

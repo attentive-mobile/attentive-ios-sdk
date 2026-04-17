@@ -388,7 +388,6 @@ class SettingsViewController: UIViewController {
             self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
             self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
 
-            self.getAttentiveSdk().clearUser()
             self.getAttentiveSdk().updateUser(
                 email: self.currentEmail,
                 phone: self.currentPhone

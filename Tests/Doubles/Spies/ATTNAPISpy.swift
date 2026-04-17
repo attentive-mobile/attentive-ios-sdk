@@ -130,6 +130,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
 
     // MARK: - Update User
     private(set) var lastOperationContext: String?
+    private(set) var lastUpdateUserPushToken: String?
 
     func updateUser(
         pushToken: String,
@@ -141,6 +142,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     ) {
         updateUserWasCalled = true
         updateUserCallCount += 1
+        lastUpdateUserPushToken = pushToken
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
         lastOperationContext = operationContext
