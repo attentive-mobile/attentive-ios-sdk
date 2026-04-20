@@ -152,8 +152,9 @@ jobs:
       - run:
           name: Checkout code
           command: |
-            git clone --filter=blob:none \
-              "https://x-access-token:${GITHUB_TOKEN}@github.com/attentive-mobile/attentive-ios-sdk.git" .
+            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64)" \
+              clone --filter=blob:none \
+              "https://github.com/attentive-mobile/attentive-ios-sdk.git" .
             git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
@@ -304,7 +305,7 @@ jobs:
 
             - aws-cli/setup:
                 region: AWS_REGION
-                role_arn: 'arn:aws:iam::026393418737:role/circleci'
+                role_arn: "${AWS_ROLE_ARN}"
                 role_session_name: $CIRCLE_JOB-<< pipeline.number >>
 
             - setup-fastlane
