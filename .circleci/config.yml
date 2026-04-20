@@ -305,7 +305,7 @@ jobs:
 
             - aws-cli/setup:
                 region: AWS_REGION
-                role_arn: "${AWS_ROLE_ARN}"
+                role_arn: $AWS_ROLE_ARN
                 role_session_name: $CIRCLE_JOB-<< pipeline.number >>
 
             - setup-fastlane
