@@ -154,7 +154,7 @@ jobs:
           command: |
             git clone --filter=blob:none \
               "https://x-access-token:${GITHUB_TOKEN}@github.com/attentive-mobile/attentive-ios-sdk.git" .
-            git checkout "${CIRCLE_BRANCH}"
+            git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
       - setup-fastlane
