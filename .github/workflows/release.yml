@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g., 2.1.0)"
+        description: "Release version (e.g., 2.1.0 or 2.1.0-beta.1)"
         required: true
         type: string
+      is_prerelease:
+        description: "Mark as prerelease (beta). Skips PR to main and TestFlight deploy."
+        required: false
+        type: boolean
+        default: false
       release_notes:
         description: "Release notes (optional — single line only, use gh CLI for multiline. Auto-generated from commits if blank)"
         required: false
@@ -18,8 +23,8 @@ jobs:
     steps:
       - name: Validate version format
         run: |
-          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Version must be in semver format (e.g., 2.1.0)"
+          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Version must be in semver format (e.g., 2.1.0 or 2.1.0-beta.1)"
             exit 1
           fi
 
@@ -31,17 +36,19 @@ jobs:
           payload=$(jq -n \
             --arg version "${{ inputs.version }}" \
             --arg notes "$RELEASE_NOTES" \
+            --arg is_prerelease "${{ inputs.is_prerelease }}" \
             '{
-              branch: "main",
+              branch: "${{ github.ref_name }}",
               parameters: {
                 run_release: true,
                 release_version: $version,
-                release_notes: $notes
+                release_notes: $notes,
+                is_prerelease: $is_prerelease
               }
             }')
 
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://circleci.com/api/v2/project/${{ vars.CIRCLECI_PROJECT_ID }}/pipeline" \
+            "https://circleci.com/api/v2/project/${{ vars.CIRCLECI_PROJECT_SLUG }}/pipeline" \
             -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$payload")
@@ -76,7 +83,7 @@ jobs:
           elapsed=0
 
           echo "Waiting for CircleCI pipeline $pipeline_number to complete..."
-          echo "Pipeline URL: https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_ID }}/${pipeline_number}"
+          echo "Pipeline URL: https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_SLUG }}/${pipeline_number}"
 
           while [ "$elapsed" -lt "$timeout" ]; do
             api_response=$(curl -s -w "\n%{http_code}" -X GET \
@@ -110,7 +117,7 @@ jobs:
               name=$(echo "$response" | jq -r ".items[$i].name")
               status=$(echo "$response" | jq -r ".items[$i].status")
               wf_id=$(echo "$response" | jq -r ".items[$i].id")
-              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_ID }}/${pipeline_number}/workflows/${wf_id})\n"
+              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_SLUG }}/${pipeline_number}/workflows/${wf_id})\n"
 
               case "$status" in
                 success) ;;

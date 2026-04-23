@@ -17,12 +17,12 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var sendNewEventWasCalled = false
     private(set) var updateDomainWasCalled = false
     private(set) var domainWasSet = false
-    private(set) var cachedGeoAdjustedDomainWasSet = false
     private(set) var sendPushTokenWasCalled = false
     private(set) var sendAppEventsWasCalled = false
     private(set) var sendOptInWasCalled = false
     private(set) var sendOptOutWasCalled = false
     private(set) var updateUserWasCalled = false
+    private(set) var updateUserCallCount = 0
 
     // MARK: - Last-params (optional, handy for assertions)
     private(set) var lastPushToken: String?
@@ -37,10 +37,6 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     // MARK: - ATTNAPIProtocol state
     var domain: String {
         didSet { domainWasSet = true }
-    }
-
-    var cachedGeoAdjustedDomain: String? {
-        didSet { cachedGeoAdjustedDomainWasSet = true }
     }
 
     // MARK: - Init
@@ -133,16 +129,23 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     }
 
     // MARK: - Update User
+    private(set) var lastOperationContext: String?
+    private(set) var lastUpdateUserPushToken: String?
+
     func updateUser(
         pushToken: String,
         userIdentity: ATTNUserIdentity,
         email: String?,
         phone: String?,
+        operationContext: String,
         callback: ATTNAPICallback?
     ) {
         updateUserWasCalled = true
+        updateUserCallCount += 1
+        lastUpdateUserPushToken = pushToken
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
+        lastOperationContext = operationContext
         callback?(nil, nil, nil, nil)
     }
 }

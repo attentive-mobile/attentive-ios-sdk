@@ -10,7 +10,6 @@ import XCTest
 
 final class ATTNAPITests: XCTestCase {
     let testDomain = "some-domain"
-    let testGeoAdjustedDomain = "some-domain-ca"
 
     func testURLSession_verifySessionHasUserAgent() {
         let userAgentBuilderMock = ATTNUserAgentBuilderMock()
@@ -34,7 +33,6 @@ final class ATTNAPITests: XCTestCase {
         api.send(userIdentity: userIdentity)
 
         // Assert
-        XCTAssertTrue(sessionMock.didCallDtag)
         XCTAssertTrue(sessionMock.didCallEventsApi)
     }
 
@@ -50,8 +48,8 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(3, sessionMock.urlCalls.count)
-        let eventsUrl = sessionMock.urlCalls[1]
+        XCTAssertEqual(2, sessionMock.urlCalls.count)
+        let eventsUrl = sessionMock.urlCalls[0]
         let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: eventsUrl)
         XCTAssertEqual("mobile-app", queryItems["v"])
         XCTAssertEqual("p", queryItems["t"])
@@ -69,8 +67,8 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(3, sessionMock.urlCalls.count)
-        let purchaseUrl = sessionMock.urlCalls[1]
+        XCTAssertEqual(2, sessionMock.urlCalls.count)
+        let purchaseUrl = sessionMock.urlCalls[0]
         let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: purchaseUrl)
         let queryItemsString = queryItems["m"]
         let metadata = try! JSONSerialization.jsonObject(with: queryItemsString!.data(using: .utf8)!, options: []) as! [String: Any]
@@ -101,7 +99,7 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(4, sessionMock.urlCalls.count)
+        XCTAssertEqual(3, sessionMock.urlCalls.count)
         var orderConfirmedUrl: URL!
         for url in sessionMock.urlCalls {
             if url.absoluteString.contains("t=oc") {
@@ -138,24 +136,24 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(4, sessionMock.urlCalls.count)
+        XCTAssertEqual(3, sessionMock.urlCalls.count)
 
         // check the first item was converted to an event call
-        let metadata = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[1]) as! [String: String]
+        let metadata = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[0]) as! [String: String]
         XCTAssertEqual(purchase.items[0].productId, metadata["productId"])
-        let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[1])
+        let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[0])
         XCTAssertEqual("p", queryItems["t"])
 
         // check the second item was converted to an event call
-        let metadata2 = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[2]) as! [String: String]
+        let metadata2 = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[1]) as! [String: String]
         XCTAssertEqual(purchase.items[1].productId, metadata2["productId"])
-        let queryItems2 = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[2])
+        let queryItems2 = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[1])
         XCTAssertEqual("p", queryItems2["t"])
 
         // check an OrderConfirmed was created
-        let metadata3 = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[3]) as! [String: String]
+        let metadata3 = ATTNTestEventUtils.getMetadataFromUrl(url: sessionMock.urlCalls[2]) as! [String: String]
         XCTAssertEqual(purchase.order.orderId, metadata3["orderId"])
-        let queryItems3 = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[3])
+        let queryItems3 = ATTNTestEventUtils.getQueryItemsFromUrl(url: sessionMock.urlCalls[2])
         XCTAssertEqual("oc", queryItems3["t"])
     }
 
@@ -171,8 +169,8 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
-        let addToCartUrl = sessionMock.urlCalls[1]
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
+        let addToCartUrl = sessionMock.urlCalls[0]
         let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: addToCartUrl)
         let queryItemsString = queryItems["m"]
         let metadata = try! JSONSerialization.jsonObject(with: queryItemsString!.data(using: .utf8)!, options: []) as! [String: Any]
@@ -202,8 +200,8 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
-        let url = sessionMock.urlCalls[1]
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
+        let url = sessionMock.urlCalls[0]
         let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: url)
         let queryItemsString = queryItems["m"]
         let metadata = try! JSONSerialization.jsonObject(with: queryItemsString!.data(using: .utf8)!, options: []) as! [String: Any]
@@ -233,8 +231,8 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
-        let url = sessionMock.urlCalls[1]
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
+        let url = sessionMock.urlCalls[0]
         let queryItems = ATTNTestEventUtils.getQueryItemsFromUrl(url: url)
 
         XCTAssertEqual("i", queryItems["t"])
@@ -252,7 +250,7 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
         var customEventUrl: URL!
         for url in sessionMock.urlCalls {
             if url.absoluteString.contains("t=ce") {
@@ -294,12 +292,12 @@ final class ATTNAPITests: XCTestCase {
 
         // Assert
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
-        let request = sessionMock.requests[1]
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
+        let request = sessionMock.requests[0]
         XCTAssertEqual("POST", request.httpMethod?.uppercased())
     }
 
-    func testSendEvent_multipleEventsSent_onlyGetsGeoAdjustedDomainOnce() {
+    func testSendEvent_multipleEventsSent_callsEventsApiForEach() {
         let sessionMock = NSURLSessionMock()
         let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
         let addToCart1 = ATTNTestEventUtils.buildAddToCart()
@@ -308,47 +306,10 @@ final class ATTNAPITests: XCTestCase {
 
         api.send(event: addToCart1, userIdentity: userIdentity)
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(2, sessionMock.urlCalls.count)
+        XCTAssertEqual(1, sessionMock.urlCalls.count)
 
         api.send(event: addToCart2, userIdentity: userIdentity)
         XCTAssertTrue(sessionMock.didCallEventsApi)
-        XCTAssertEqual(3, sessionMock.urlCalls.count)
-
-        var numberOfGeoAdjustedDomainCalls = 0
-        for urlCall in sessionMock.urlCalls {
-            if urlCall.host == "cdn.attn.tv" {
-                numberOfGeoAdjustedDomainCalls += 1
-            }
-        }
-        XCTAssertEqual(1, numberOfGeoAdjustedDomainCalls)
-    }
-
-    func testGetGeoAdjustedDomain_notCachedYet_savesTheCorrectDomainValue() {
-        let sessionMock = NSURLSessionMock()
-        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
-
-        XCTAssertNil(api.cachedGeoAdjustedDomain)
-
-        api.getGeoAdjustedDomain(domain: testDomain) { geoAdjustedDomain, error in
-            XCTAssertEqual(self.testGeoAdjustedDomain, geoAdjustedDomain)
-        }
-
-        XCTAssertEqual(testGeoAdjustedDomain, api.cachedGeoAdjustedDomain)
-    }
-
-    func testGetGeoAdjustedDomain_notCachedYet_httpMethodIsGet() {
-        let sessionMock = NSURLSessionMock()
-        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
-
-        XCTAssertNil(api.cachedGeoAdjustedDomain)
-
-        api.getGeoAdjustedDomain(domain: testDomain) { geoAdjustedDomain, error in
-            XCTAssertEqual(self.testGeoAdjustedDomain, geoAdjustedDomain)
-        }
-
-        XCTAssertTrue(sessionMock.didCallDtag)
-        XCTAssertEqual(1, sessionMock.requests.count)
-        let request = sessionMock.requests[0]
-        XCTAssertEqual("GET", request.httpMethod?.uppercased())
+        XCTAssertEqual(2, sessionMock.urlCalls.count)
     }
 }

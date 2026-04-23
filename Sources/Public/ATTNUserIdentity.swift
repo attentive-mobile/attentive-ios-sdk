@@ -51,15 +51,16 @@ public final class ATTNUserIdentity: NSObject {
 
 fileprivate extension ATTNUserIdentity {
     func validate(identifiers: [String: Any]) {
-        ATTNIdentifierType.allKeys.forEach { currentKey in
-            ATTNParameterValidation.verifyStringOrNil(
-                identifiers[currentKey] as? NSObject,
-                inputName: currentKey
-            )
+        for key in identifiers.keys {
+            if key == ATTNIdentifierType.customIdentifiers {
+                ATTNParameterValidation.verify1DStringDictionaryOrNil(
+                    identifiers[key] as? NSDictionary,
+                    inputName: key)
+            } else {
+                ATTNParameterValidation.verifyStringOrNil(
+                    identifiers[key] as? NSObject,
+                    inputName: key)
+            }
         }
-
-        ATTNParameterValidation.verify1DStringDictionaryOrNil(
-            identifiers[ATTNIdentifierType.customIdentifiers] as? NSDictionary,
-            inputName: ATTNIdentifierType.customIdentifiers)
     }
 }

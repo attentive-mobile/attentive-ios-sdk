@@ -154,14 +154,15 @@ sdk.clearUser()
 [sdk clearUser];
 ```
 
+> **Push token users:** If your app uses Attentive push notifications, `clearUser` will also detach the push token from the logged-out user on the server, so they no longer receive push notifications on this device. Make sure to call `clearUser()` on every logout path.
+
 ### Update user via email and/or phone
 
-Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will clear all identifiers previously associated with the current user (the sdk will automatically call clearUser()), and associate the app with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
+Our SDK supports switching the identified user via email and/or phone (at least one identifier must be provided). Calling this method will automatically clear all identifiers previously associated with the current user, and associate the current user with the new identifier(s) you provide. This ensures that all subsequent events and messages are attributed to the newly identified user.
 
 #### Swift
 ```
 // Update user with both email and phone
-attentiveSdk.clearUser() // Must be called prior to calling updateUser()
 attentiveSdk.updateUser(email: "user@example.com", phone: "+15551234567") { result in
     switch result {
     case .success:
@@ -213,9 +214,10 @@ attentiveSdk?.identify([
 ```
 
 ### 3. User logs out  
-Call `clearUser()` to remove identifiers.  
+Call `clearUser()` to remove identifiers. If your app uses Attentive push notifications, this also detaches the push token from the logged-out user.
 
-``` user logs out
+```swift
+// user logs out
 attentiveSdk?.clearUser()
 ```
 
@@ -643,13 +645,13 @@ sdk.trigger(view) { status in
 // Load the creative with a completion handler.
 [sdk trigger:self.view
      handler:^(NSString *triggerStatus) {
-      if (triggerStatus == ATTNCreativeTriggerStatus.opened) {
+      if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.opened]) {
         NSLog(@"Opened the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notOpened) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notOpened]) {
         NSLog(@"Couldn't open the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.closed) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.closed]) {
         NSLog(@"Closed the Creative!");
-      } else if (triggerStatus == ATTNCreativeTriggerStatus.notClosed) {
+      } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notClosed]) {
         NSLog(@"Couldn't close the Creative!");
       }
     }];
@@ -665,6 +667,53 @@ sdk.trigger(view)
 
 ```objective-c
 [sdk trigger:self.view];
+```
+
+### Trigger a Specific Creative
+
+You can display a specific sign-up unit by passing its creative ID to the `trigger` method. This is useful when you want to show different creatives based on where the user is in your app (e.g., a different sign-up unit on the home screen vs. a product page).
+
+#### Swift
+
+```swift
+// Trigger a specific creative by ID
+sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID")
+
+// Trigger a specific creative by ID with a completion handler
+sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
+  switch status {
+  case ATTNCreativeTriggerStatus.opened:
+    print("Opened the Creative!")
+  case ATTNCreativeTriggerStatus.notOpened:
+    print("Couldn't open the Creative!")
+  case ATTNCreativeTriggerStatus.closed:
+    print("Closed the Creative!")
+  case ATTNCreativeTriggerStatus.notClosed:
+    print("Couldn't close the Creative!")
+  default:
+    break
+  }
+}
+```
+
+#### Objective-C
+
+```objective-c
+// Trigger a specific creative by ID
+[sdk trigger:self.view creativeId:@"YOUR_CREATIVE_ID"];
+
+// Trigger a specific creative by ID with a completion handler
+[sdk trigger:self.view creativeId:@"YOUR_CREATIVE_ID" handler:^(NSString *triggerStatus) {
+  if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.opened]) {
+    NSLog(@"Opened the Creative!");
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notOpened]) {
+    NSLog(@"Couldn't open the Creative!");
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.closed]) {
+    NSLog(@"Closed the Creative!");
+  } else if ([triggerStatus isEqualToString:ATTNCreativeTriggerStatus.notClosed]) {
+    NSLog(@"Couldn't close the Creative!");
+  }
+}];
 ```
 
 ### Skip Fatigue on Creative

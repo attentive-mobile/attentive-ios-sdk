@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "attentive-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "attentive-mobile/claude-plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "mobile-sdk-internal@attentive-marketplace": true
+  }
+}

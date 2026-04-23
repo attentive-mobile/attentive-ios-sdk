@@ -22,6 +22,9 @@ parameters:
   with_local_binary:
     type: string
     default: "true"
+  is_prerelease:
+    type: string
+    default: "false"
 
 # ========================
 # Executors
@@ -74,32 +77,6 @@ commands:
           event: fail
           custom: |
             ${SLACK_FAILURE_PAYLOAD}
-
-  notify-slack-on-release-success:
-    description: "Send Slack notification on successful SDK release"
-    steps:
-      - slack/notify:
-          channel: *slack_channel_releases
-          event: pass
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "✅ SDK Release Published",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*Version:*\n<https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/releases/tag/<< pipeline.parameters.release_version >>|<< pipeline.parameters.release_version >>>" }
-                  ]
-                }
-              ]
-            }
 
   notify-slack-on-testflight-success:
     description: "Send Slack notification on successful TestFlight deploy"
@@ -164,7 +141,21 @@ jobs:
   checkout-and-setup:
     executor: macos-xcode
     steps:
-      - checkout
+      # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
+      # so that we have the correct permissions to both read and write to the repo via the configured
+      # Github App. This was initially brought about by the fact that API-triggered workflows were not
+      # correctly accessing the Github App token and instead using SSH, which does not work for the release job.
+      - attentive/app-based-github-token:
+          github_app_client_id: ${GITHUB_APP_CLIENT_ID}
+          github_app_private_key_base64: ${GITHUB_APP_PRIVATE_KEY_BASE64}
+          github_app_installation_id: ${GITHUB_APP_INSTALLATION_ID}
+      - run:
+          name: Checkout code
+          command: |
+            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)" \
+              clone --filter=blob:none \
+              "https://github.com/attentive-mobile/attentive-ios-sdk.git" .
+            git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
       - setup-fastlane
@@ -302,29 +293,36 @@ jobs:
   build-bonni-release:
     executor: macos-xcode
     steps:
-      - attach_workspace:
-          at: .
-
-      - aws-cli/setup:
-          region: AWS_REGION
-          role_arn: 'arn:aws:iam::026393418737:role/circleci'
-          role_session_name: $CIRCLE_JOB-<< pipeline.number >>
-
-      - setup-fastlane
-
       - run:
-          name: Build Bonni release via Fastlane
-          command: bundle exec fastlane build_bonni_release with_local_binary:<< pipeline.parameters.with_local_binary >>
+          name: Check prerelease
+          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
+      - unless:
+          condition:
+            equal: ["true", << pipeline.parameters.is_prerelease >>]
+          steps:
+            - attach_workspace:
+                at: .
 
-      - persist_to_workspace:
-          root: .
-          paths:
-            - *fastlane_build_output_dir
+            - aws-cli/setup:
+                region: AWS_REGION
+                role_arn: $AWS_ROLE_ARN
+                role_session_name: $CIRCLE_JOB-<< pipeline.number >>
 
-      - store_artifacts:
-          path: *fastlane_build_output_dir
+            - setup-fastlane
 
-      - notify-slack-on-failure
+            - run:
+                name: Build Bonni release via Fastlane
+                command: bundle exec fastlane build_bonni_release with_local_binary:<< pipeline.parameters.with_local_binary >>
+
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - *fastlane_build_output_dir
+
+            - store_artifacts:
+                path: *fastlane_build_output_dir
+
+            - notify-slack-on-failure
 
   # -----------------------
   # Unit Tests with Code Coverage
@@ -424,9 +422,8 @@ jobs:
           environment:
             RELEASE_VERSION: << pipeline.parameters.release_version >>
             RELEASE_NOTES: << pipeline.parameters.release_notes >>
-          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}"
+          command: bundle exec fastlane create_release version:"<< pipeline.parameters.release_version >>" release_notes:"${RELEASE_NOTES}" is_prerelease:<< pipeline.parameters.is_prerelease >>
 
-      - notify-slack-on-release-success
       - notify-slack-on-failure
 
   # -----------------------
@@ -435,17 +432,24 @@ jobs:
   deploy-testflight:
     executor: macos-xcode
     steps:
-      - attach_workspace:
-          at: .
-
-      - setup-fastlane
-
       - run:
-          name: Deploy to TestFlight via Fastlane
-          command: bundle exec fastlane deploy_testflight
+          name: Check prerelease
+          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
+      - unless:
+          condition:
+            equal: ["true", << pipeline.parameters.is_prerelease >>]
+          steps:
+            - attach_workspace:
+                at: .
 
-      - notify-slack-on-testflight-success
-      - notify-slack-on-failure
+            - setup-fastlane
+
+            - run:
+                name: Deploy to TestFlight via Fastlane
+                command: bundle exec fastlane deploy_testflight
+
+            - notify-slack-on-testflight-success
+            - notify-slack-on-failure
 
 # ========================
 # Workflows
@@ -526,31 +530,38 @@ workflows:
   deploy-testflight:
     when: << pipeline.parameters.run_testflight_deploy >>
     jobs:
-      - checkout-and-setup
+      - checkout-and-setup:
+          context: *default_context
 
       - lint:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - unit-tests:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - build-framework:
+          context: *default_context
           requires:
             - checkout-and-setup
 
       - assemble-xcframework:
+          context: *default_context
           requires:
             - build-framework
 
       - build-bonni-release:
+          context: *default_context
           requires:
             - lint
             - unit-tests
             - assemble-xcframework
 
       - deploy-testflight:
+          context: *default_context
           requires:
             - build-bonni-release
 

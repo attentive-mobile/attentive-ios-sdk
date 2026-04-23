@@ -116,18 +116,50 @@ platform :ios do
     version
   end
 
-  desc "Bump version. Usage: fastlane bump_version version:2.1.0"
+  desc "Bump version. Usage: fastlane bump_version version:2.1.0 (or version:2.1.0-beta.1)"
   lane :bump_version do |options|
     version_file = abs_path(".version")
     current_version = File.read(version_file).strip
 
     UI.user_error!("version parameter is required. Usage: fastlane bump_version version:2.1.0") unless options[:version]
     new_version = options[:version].strip
-    UI.user_error!("❌ Invalid version format: #{new_version}. Expected X.Y.Z") unless new_version.match?(/^\d+\.\d+\.\d+$/)
+    UI.user_error!("❌ Invalid version format: #{new_version}. Expected X.Y.Z or X.Y.Z-prerelease") unless new_version.match?(/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/)
 
-    current_parts = current_version.split('.').map(&:to_i)
-    new_parts = new_version.split('.').map(&:to_i)
-    UI.user_error!("❌ New version #{new_version} must be greater than current version #{current_version}") unless (new_parts <=> current_parts) == 1
+    current_base = current_version.split('-').first.split('.').map(&:to_i)
+    new_base = new_version.split('-').first.split('.').map(&:to_i)
+
+    version_ok = if (new_base <=> current_base) == 1
+                   true
+                 elsif (new_base <=> current_base) == 0
+                   # Same base version: allow if new has a higher prerelease than current
+                   # e.g., 2.0.14-beta.1 → 2.0.14-beta.2, or 2.0.14-beta.1 → 2.0.14
+                   current_pre = current_version.include?('-') ? current_version.split('-', 2).last : nil
+                   new_pre = new_version.include?('-') ? new_version.split('-', 2).last : nil
+                   # Release (no prerelease) > any prerelease of the same base version
+                   if new_pre.nil? && current_pre
+                     true
+                   elsif new_pre && current_pre
+                     # Compare identifiers per semver: split on '.', compare numerics as integers
+                     new_ids = new_pre.split('.')
+                     current_ids = current_pre.split('.')
+                     cmp = new_ids.zip(current_ids).reduce(nil) do |result, (n, c)|
+                       next result if result && result != 0
+                       # A longer prerelease has higher precedence if all prior ids match
+                       next 1 if c.nil?
+                       both_numeric = n.match?(/^\d+$/) && c.match?(/^\d+$/)
+                       both_numeric ? n.to_i <=> c.to_i : n <=> c
+                     end
+                     # If all compared ids are equal, longer prerelease wins (e.g., beta.1.1 > beta.1)
+                     cmp = new_ids.length <=> current_ids.length if cmp.nil? || cmp == 0
+                     cmp > 0
+                   else
+                     false
+                   end
+                 else
+                   false
+                 end
+
+    UI.user_error!("❌ New version #{new_version} must be greater than current version #{current_version}") unless version_ok
 
     UI.message("📝 Bumping version: #{current_version} → #{new_version}")
 
@@ -543,7 +575,7 @@ platform :ios do
   # Distribution
   # ========================
 
-  desc "Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0"
+  desc "Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0 (or version:2.1.0-beta.1 is_prerelease:true)"
   lane :create_release do |options|
     UI.user_error!("Version parameter is required. Usage: fastlane create_release version:2.1.0") unless options[:version]
 
@@ -551,6 +583,7 @@ platform :ios do
     repository_name   = "attentive-mobile/attentive-ios-sdk"
     current_version   = get_version
     new_version       = options[:version].strip
+    is_prerelease     = options[:is_prerelease].to_s == "true"
     xcframework_path  = "#{FASTLANE_BUILD_OUTPUT_DIR}/ATTNSDKFramework.xcframework"
 
     # 1. Pre-flight checks
@@ -628,6 +661,7 @@ platform :ios do
         name: "#{new_version}",
         tag_name: "#{new_version}",
         description: release_notes,
+        is_prerelease: is_prerelease,
         upload_assets: [xcframework_zip_path]
       )
     rescue => e
@@ -638,18 +672,22 @@ platform :ios do
       UI.user_error!("Release failed and rolled back: #{e.message}")
     end
 
-    # 12. Open PR to main
-    create_pull_request(
-      repo: repository_name,
-      api_bearer: ENV["GITHUB_TOKEN"],
-      title: "[CI/fastlane] Bump version to #{new_version}",
-      head: version_bump,
-      base: "main",
-      body: "Automated version bump to #{new_version}",
-      team_reviewers: "team-mobile-sdk"
-    )
+    # 12. Open PR to main (skip for prereleases — beta version bumps should not target main)
+    if is_prerelease
+      UI.important("Prerelease: skipping PR to main")
+    else
+      create_pull_request(
+        repo: repository_name,
+        api_bearer: ENV["GITHUB_TOKEN"],
+        title: "[CI/fastlane] Bump version to #{new_version}",
+        head: version_bump,
+        base: "main",
+        body: "Automated version bump to #{new_version}",
+        team_reviewers: "team-mobile-sdk"
+      )
+    end
 
-    # 13. Push to CocoaPods (SPM + GitHub release already work at this point)
+    # 13. Push to CocoaPods (prerelease versions require explicit opt-in via pod version pinning)
     podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
     podspecs.each do |spec|
       begin
@@ -662,7 +700,7 @@ platform :ios do
       end
     end
 
-    UI.success("Released #{new_version}. PR opened to main.")
+    UI.success("#{is_prerelease ? 'Prerelease' : 'Released'} #{new_version}.#{is_prerelease ? '' : ' PR opened to main.'}")
   end
 
   desc "Upload a new build to TestFlight"
