@@ -152,7 +152,7 @@ jobs:
       - run:
           name: Checkout code
           command: |
-            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64)" \
+            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)" \
               clone --filter=blob:none \
               "https://github.com/attentive-mobile/attentive-ios-sdk.git" .
             git checkout "${CIRCLE_SHA1}"
