@@ -152,9 +152,14 @@ jobs:
       - run:
           name: Checkout code
           command: |
-            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)" \
+            AUTH_HEADER="http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)"
+            git -c "${AUTH_HEADER}" \
               clone --filter=blob:none \
               "https://github.com/attentive-mobile/attentive-ios-sdk.git" .
+            # Explicitly fetch CIRCLE_SHA1 before checkout. It may not be reachable
+            # from the default clone (e.g. PR merge refs, or a force-push that
+            # occurred between the trigger and this clone).
+            git -c "${AUTH_HEADER}" fetch --filter=blob:none origin "${CIRCLE_SHA1}"
             git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
