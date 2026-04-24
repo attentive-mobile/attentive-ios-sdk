@@ -146,8 +146,20 @@ platform :ios do
                        next result if result && result != 0
                        # A longer prerelease has higher precedence if all prior ids match
                        next 1 if c.nil?
-                       both_numeric = n.match?(/^\d+$/) && c.match?(/^\d+$/)
-                       both_numeric ? n.to_i <=> c.to_i : n <=> c
+                       # SemVer §11.4: numeric identifiers always have lower precedence
+                       # than alphanumeric identifiers; compare numerics as integers and
+                       # alphanumerics lexically.
+                       n_numeric = n.match?(/^\d+$/)
+                       c_numeric = c.match?(/^\d+$/)
+                       if n_numeric && c_numeric
+                         n.to_i <=> c.to_i
+                       elsif n_numeric
+                         -1
+                       elsif c_numeric
+                         1
+                       else
+                         n <=> c
+                       end
                      end
                      # If all compared ids are equal, longer prerelease wins (e.g., beta.1.1 > beta.1)
                      cmp = new_ids.length <=> current_ids.length if cmp.nil? || cmp == 0
