@@ -422,6 +422,17 @@ jobs:
 
       - github-cli/setup
 
+      # The workspace was cloned in `checkout-and-setup` with a GitHub App token that
+      # expires in ~1 hour. By the time this job runs the persisted credential is
+      # likely stale, so write a fresh auth header into the local git config before
+      # any git push (e.g. Fastlane's `push_git_tags`).
+      - run:
+          name: Refresh git auth header with fresh GitHub App token
+          command: |
+            git config --local --replace-all \
+              "http.https://github.com/.extraheader" \
+              "Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)"
+
       - run:
           name: Create release for SDK via Fastlane
           environment:
