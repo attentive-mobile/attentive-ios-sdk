@@ -168,7 +168,7 @@ jobs:
       # Cache Swift Package Manager dependencies
       - restore_cache:
           keys:
-            - v1-spm-{{ checksum "Package.resolved" }}
+            - v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
             - v1-spm-
 
       # Resolve dependencies via Fastlane
@@ -177,7 +177,7 @@ jobs:
           command: bundle exec fastlane setup
 
       - save_cache:
-          key: v1-spm-{{ checksum "Package.resolved" }}
+          key: v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
           paths:
             - ~/.swiftpm
             - ~/Library/Developer/Xcode/DerivedData
