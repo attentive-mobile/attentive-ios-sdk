@@ -228,8 +228,5 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
 extension ProductViewController: ProductDetailViewControllerDelegate {
     func productDetailViewController(_ controller: ProductDetailViewController, didAddToCart product: ATTNItem) {
         viewModel.addProductToCart(product)
-        let addToCartEvent = ATTNAddToCartEvent(items: [product])
-        ATTNEventTracker.sharedInstance()?.record(event: addToCartEvent)
-        showToast(with: "Add To Cart event sent")
     }
 }

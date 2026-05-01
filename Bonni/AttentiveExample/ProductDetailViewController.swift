@@ -140,7 +140,10 @@ class ProductDetailViewController: UIViewController {
     
     // MARK: - Actions
     @objc private func addToCartTapped() {
+        let addToCartEvent = ATTNAddToCartEvent(items: [product])
+        ATTNEventTracker.sharedInstance()?.record(event: addToCartEvent)
         delegate?.productDetailViewController(self, didAddToCart: product)
+        showToast(with: "Add To Cart event sent")
     }
     
     @objc private func addToCartV2Tapped() {
