@@ -219,6 +219,10 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
     }
     
     func didTapProductImage(product: ATTNItem) {
+        let productViewEvent = ATTNProductViewEvent(items: [product])
+        ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+        showToast(with: "Product View event sent")
+
         let detailVC = ProductDetailViewController(product: product)
         detailVC.delegate = self
         navigationController?.pushViewController(detailVC, animated: true)
