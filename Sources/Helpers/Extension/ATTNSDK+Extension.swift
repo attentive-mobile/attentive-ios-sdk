@@ -9,15 +9,19 @@ import Foundation
 
 extension ATTNSDK {
     func send(event: ATTNEvent) {
-        if useV2Endpoint, let v2Event = convertLegacyEventToV2(event) {
-            recordV2EventData(v2Event)
+        if useV2Endpoint {
+            sendLegacyEventAsV2(event)
             return
         }
         api.send(event: event, userIdentity: userIdentity)
     }
 
-    private func convertLegacyEventToV2(_ event: ATTNEvent) -> ATTNEventData? {
+    private func sendLegacyEventAsV2(_ event: ATTNEvent) {
         if let purchase = event as? ATTNPurchaseEvent {
+            guard !purchase.items.isEmpty else {
+                Loggers.event.debug("No items found in the purchase event, skipping v2 send.")
+                return
+            }
             let products = purchase.items.map { item in
                 ATTNProduct(
                     productId: item.productId,
@@ -34,59 +38,63 @@ extension ATTNSDK {
             let orderTotal = products.reduce(0.0) {
                 $0 + (Double($1.price) ?? 0) * Double($1.quantity)
             }
-            return .purchase(
+            sendPurchaseEvent(
                 orderId: purchase.order.orderId,
                 currency: currency,
                 orderTotal: String(format: "%.2f", orderTotal),
                 cart: cart,
                 products: products
             )
+            return
         }
 
-        if let addToCart = event as? ATTNAddToCartEvent, let item = addToCart.items.first {
-            let product = ATTNProduct(
-                productId: item.productId,
-                variantId: item.productVariantId,
-                name: item.name ?? "",
-                imageUrl: item.productImage,
-                categories: item.category.map { [$0] },
-                price: item.price.price.stringValue,
-                quantity: item.quantity
-            )
-            return .addToCart(product: product, currency: item.price.currency)
+        if let addToCart = event as? ATTNAddToCartEvent {
+            guard !addToCart.items.isEmpty else {
+                Loggers.event.debug("No items found in the AddToCart event, skipping v2 send.")
+                return
+            }
+            for item in addToCart.items {
+                let product = ATTNProduct(
+                    productId: item.productId,
+                    variantId: item.productVariantId,
+                    name: item.name ?? "",
+                    imageUrl: item.productImage,
+                    categories: item.category.map { [$0] },
+                    price: item.price.price.stringValue,
+                    quantity: item.quantity
+                )
+                sendAddToCartEvent(product: product, currency: item.price.currency)
+            }
+            return
         }
 
-        if let productView = event as? ATTNProductViewEvent, let item = productView.items.first {
-            let product = ATTNProduct(
-                productId: item.productId,
-                variantId: item.productVariantId,
-                name: item.name ?? "",
-                imageUrl: item.productImage,
-                categories: item.category.map { [$0] },
-                price: item.price.price.stringValue,
-                quantity: item.quantity
-            )
-            return .productView(product: product, currency: item.price.currency)
+        if let productView = event as? ATTNProductViewEvent {
+            guard !productView.items.isEmpty else {
+                Loggers.event.debug("No items found in the ProductView event, skipping v2 send.")
+                return
+            }
+            for item in productView.items {
+                let product = ATTNProduct(
+                    productId: item.productId,
+                    variantId: item.productVariantId,
+                    name: item.name ?? "",
+                    imageUrl: item.productImage,
+                    categories: item.category.map { [$0] },
+                    price: item.price.price.stringValue,
+                    quantity: item.quantity
+                )
+                sendProductViewEvent(product: product, currency: item.price.currency)
+            }
+            return
         }
 
         if let customEvent = event as? ATTNCustomEvent {
-            return .customEvent(customProperties: customEvent.properties)
+            sendCustomEvent(type: customEvent.type, customProperties: customEvent.properties)
+            return
         }
 
-        return nil
-    }
-
-    private func recordV2EventData(_ eventData: ATTNEventData) {
-        switch eventData {
-        case let .addToCart(product, currency):
-            sendAddToCartEvent(product: product, currency: currency)
-        case let .productView(product, currency):
-            sendProductViewEvent(product: product, currency: currency)
-        case let .purchase(orderId, currency, orderTotal, cart, products):
-            sendPurchaseEvent(orderId: orderId, currency: currency, orderTotal: orderTotal, cart: cart, products: products)
-        case let .customEvent(customProperties):
-            sendCustomEvent(customProperties: customProperties)
-        }
+        Loggers.event.debug("Unsupported event type for v2 conversion, falling back to legacy.")
+        api.send(event: event, userIdentity: userIdentity)
     }
 
     func initializeSkipFatigueOnCreatives() {
@@ -127,8 +135,8 @@ extension ATTNSDK {
         sendNewEventInternal(eventType: .purchase, metadata: metadata)
     }
 
-    func sendCustomEvent(customProperties: [String: String]?) {
-        let metadata = ATTNMobileCustomEventMetadata(customProperties: customProperties)
+    func sendCustomEvent(type: String? = nil, customProperties: [String: String]?) {
+        let metadata = ATTNMobileCustomEventMetadata(type: type, customProperties: customProperties)
         sendNewEventInternal(eventType: .mobileCustomEvent, metadata: metadata)
     }
 
