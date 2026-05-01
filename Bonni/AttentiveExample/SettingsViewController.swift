@@ -547,6 +547,7 @@ class SettingsViewController: UIViewController {
 
     @objc private func v2ToggleChanged(_ sender: UISwitch) {
         getAttentiveSdk().useV2Endpoint = sender.isOn
+        UserDefaults.standard.set(sender.isOn, forKey: "attentiveUseV2Endpoint")
         showToast(with: sender.isOn ? "All events → /mobile (v2)" : "All events → /e (v1)")
     }
 
