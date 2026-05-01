@@ -20,7 +20,7 @@ This keeps internal details out of the public SDK repo while letting Claude Code
 ```bash
 # Install dependencies
 bundle install
-bundle exec pod install
+bundle exec pod install --project-directory=Example
 
 # Build framework (device + simulator)
 bundle exec fastlane ios build_framework
@@ -65,7 +65,7 @@ bundle exec fastlane ios assemble_xcframework
 - **Protocol-driven**: Dependencies use protocols (`ATTNAPIProtocol`, `ATTNWebViewProviding`)
 - **Dependency injection** for testability — constructor injection with spy/mock test doubles
 - **Swift-first** with `@objc` annotations for Objective-C compatibility
-- iOS deployment target: **15.0** (set in `.ios-deployment-target`)
+- iOS deployment target: **14.0** (set in `.ios-deployment-target`); Inbox module requires iOS 15+
 - Swift version: **5.0+**
 - Version source of truth: `.version` file
 
