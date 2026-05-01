@@ -131,6 +131,20 @@ class SettingsViewController: UIViewController {
         return button
     }()
 
+    private let v2EndpointToggle: UISwitch = {
+        let toggle = UISwitch()
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        return toggle
+    }()
+
+    private let v2EndpointLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Use V2 (/mobile) for all events"
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     private let copyDeviceTokenButton: UIButton = {
         let copyButton = UIButton(type: .system)
         copyButton.setTitle("Copy Device Token", for: .normal)
@@ -265,6 +279,19 @@ class SettingsViewController: UIViewController {
         divider.translatesAutoresizingMaskIntoConstraints = false
         divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
         stackView.addArrangedSubview(divider)
+
+        let v2Row = UIStackView(arrangedSubviews: [v2EndpointLabel, v2EndpointToggle])
+        v2Row.axis = .horizontal
+        v2Row.spacing = 8
+        v2EndpointToggle.isOn = getAttentiveSdk().useV2Endpoint
+        v2EndpointToggle.addTarget(self, action: #selector(v2ToggleChanged), for: .valueChanged)
+        stackView.addArrangedSubview(v2Row)
+
+        let divider2 = UIView()
+        divider2.backgroundColor = .lightGray
+        divider2.translatesAutoresizingMaskIntoConstraints = false
+        divider2.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        stackView.addArrangedSubview(divider2)
 
         stackView.addArrangedSubview(showCreativeButton)
         stackView.addArrangedSubview(showPushPermissionButton)
@@ -516,6 +543,11 @@ class SettingsViewController: UIViewController {
     @objc private func clearUserTapped() {
         getAttentiveSdk().clearUser()
         showToast(with: "User cleared")
+    }
+
+    @objc private func v2ToggleChanged(_ sender: UISwitch) {
+        getAttentiveSdk().useV2Endpoint = sender.isOn
+        showToast(with: sender.isOn ? "All events → /mobile (v2)" : "All events → /e (v1)")
     }
 
     @objc private func clearCookiesTapped() {

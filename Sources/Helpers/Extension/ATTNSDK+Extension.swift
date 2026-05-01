@@ -9,7 +9,84 @@ import Foundation
 
 extension ATTNSDK {
     func send(event: ATTNEvent) {
+        if useV2Endpoint, let v2Event = convertLegacyEventToV2(event) {
+            recordV2EventData(v2Event)
+            return
+        }
         api.send(event: event, userIdentity: userIdentity)
+    }
+
+    private func convertLegacyEventToV2(_ event: ATTNEvent) -> ATTNEventData? {
+        if let purchase = event as? ATTNPurchaseEvent {
+            let products = purchase.items.map { item in
+                ATTNProduct(
+                    productId: item.productId,
+                    variantId: item.productVariantId,
+                    name: item.name ?? "",
+                    imageUrl: item.productImage,
+                    categories: item.category.map { [$0] },
+                    price: item.price.price.stringValue,
+                    quantity: item.quantity
+                )
+            }
+            let cart = ATTNCartPayload(from: purchase.cart)
+            let currency = purchase.items.first?.price.currency ?? "USD"
+            let orderTotal = products.reduce(0.0) {
+                $0 + (Double($1.price) ?? 0) * Double($1.quantity)
+            }
+            return .purchase(
+                orderId: purchase.order.orderId,
+                currency: currency,
+                orderTotal: String(format: "%.2f", orderTotal),
+                cart: cart,
+                products: products
+            )
+        }
+
+        if let addToCart = event as? ATTNAddToCartEvent, let item = addToCart.items.first {
+            let product = ATTNProduct(
+                productId: item.productId,
+                variantId: item.productVariantId,
+                name: item.name ?? "",
+                imageUrl: item.productImage,
+                categories: item.category.map { [$0] },
+                price: item.price.price.stringValue,
+                quantity: item.quantity
+            )
+            return .addToCart(product: product, currency: item.price.currency)
+        }
+
+        if let productView = event as? ATTNProductViewEvent, let item = productView.items.first {
+            let product = ATTNProduct(
+                productId: item.productId,
+                variantId: item.productVariantId,
+                name: item.name ?? "",
+                imageUrl: item.productImage,
+                categories: item.category.map { [$0] },
+                price: item.price.price.stringValue,
+                quantity: item.quantity
+            )
+            return .productView(product: product, currency: item.price.currency)
+        }
+
+        if let customEvent = event as? ATTNCustomEvent {
+            return .customEvent(customProperties: customEvent.properties)
+        }
+
+        return nil
+    }
+
+    private func recordV2EventData(_ eventData: ATTNEventData) {
+        switch eventData {
+        case let .addToCart(product, currency):
+            sendAddToCartEvent(product: product, currency: currency)
+        case let .productView(product, currency):
+            sendProductViewEvent(product: product, currency: currency)
+        case let .purchase(orderId, currency, orderTotal, cart, products):
+            sendPurchaseEvent(orderId: orderId, currency: currency, orderTotal: orderTotal, cart: cart, products: products)
+        case let .customEvent(customProperties):
+            sendCustomEvent(customProperties: customProperties)
+        }
     }
 
     func initializeSkipFatigueOnCreatives() {

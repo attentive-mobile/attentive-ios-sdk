@@ -65,6 +65,9 @@ public final class ATTNSDK: NSObject {
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
 
+    /// Routes legacy `record(event:)` calls through the v2 `/mobile` endpoint instead of `/e`.
+    @objc public var useV2Endpoint: Bool = false
+
     public init(domain: String, mode: ATTNSDKMode) {
         Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
 
