@@ -106,8 +106,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+        request.setValue(ATTNSDKConfiguration.Headers.applicationJSON, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
+        request.setValue(ATTNSDKConfiguration.Headers.datadogSamplingPriorityKeep, forHTTPHeaderField: ATTNSDKConfiguration.Headers.datadogSamplingPriority)
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
         Loggers.network.debug("POST /token payload: \(payload, privacy: .public)")
@@ -149,14 +150,15 @@ final class ATTNAPI: ATTNAPIProtocol {
                 "events": events
             ]
 
-            guard let url = URL(string: "https://mobile.attentivemobile.com/mtctrl") else {
+            guard let url = ATTNSDKConfiguration.Endpoint.Mobile.appEventsURL else {
                 Loggers.network.error("Invalid AppEvents URL")
                 return
             }
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+            request.setValue(ATTNSDKConfiguration.Headers.applicationJSON, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
             request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
             Loggers.network.debug("POST app open events payload: \(payload, privacy: .public)")
@@ -199,7 +201,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             if let phone = phone { payload["phone"] = phone }
             if !pushToken.isEmpty { payload["pt"] = pushToken }
 
-            guard let url = URL(string: "https://mobile.attentivemobile.com/opt-in-subscriptions") else {
+            guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optInURL else {
                 Loggers.network.error("Invalid opt-in subscriptions URL")
                 callback?(nil, nil, nil, ATTNError.badURL)
                 return
@@ -207,9 +209,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
-            request.timeoutInterval = 15
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+            request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+            request.setValue(ATTNSDKConfiguration.Headers.applicationJSON, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
+            request.setValue(ATTNSDKConfiguration.Headers.datadogSamplingPriorityKeep, forHTTPHeaderField: ATTNSDKConfiguration.Headers.datadogSamplingPriority)
             request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
             Loggers.network.debug("POST /opt-in-subscriptions payload: \(payload, privacy: .public)")
@@ -261,7 +263,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             if let phone = phone { payload["phone"] = phone }
             if !pushToken.isEmpty { payload["pt"] = pushToken }
 
-            guard let url = URL(string: "https://mobile.attentivemobile.com/opt-out-subscriptions") else {
+            guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optOutURL else {
                 Loggers.network.error("Invalid opt-out subscriptions URL")
                 callback?(nil, nil, nil, ATTNError.badURL)
                 return
@@ -269,9 +271,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
-            request.timeoutInterval = 15
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+            request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+            request.setValue(ATTNSDKConfiguration.Headers.applicationJSON, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
+            request.setValue(ATTNSDKConfiguration.Headers.datadogSamplingPriorityKeep, forHTTPHeaderField: ATTNSDKConfiguration.Headers.datadogSamplingPriority)
             request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
             Loggers.network.debug("POST /opt-out-subscriptions payload: \(payload, privacy: .public)")
@@ -343,7 +345,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         ]
         if !pushToken.isEmpty { payload["pt"] = pushToken }
 
-        guard let url = URL(string: "https://mobile.attentivemobile.com:443/user-update") else {
+        guard let url = ATTNSDKConfiguration.Endpoint.Mobile.userUpdateURL else {
             Loggers.network.error("\(operationContext, privacy: .public): invalid URL")
             callback?(nil, nil, nil, ATTNError.badURL)
             return
@@ -351,9 +353,9 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 15
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+        request.setValue(ATTNSDKConfiguration.Headers.applicationJSON, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
+        request.setValue(ATTNSDKConfiguration.Headers.datadogSamplingPriorityKeep, forHTTPHeaderField: ATTNSDKConfiguration.Headers.datadogSamplingPriority)
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
         Loggers.network.debug("\(operationContext, privacy: .public): POST /user-update payload: \(payload, privacy: .public)")
@@ -398,6 +400,7 @@ fileprivate extension ATTNAPI {
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
 
         let task = urlSession.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
@@ -424,6 +427,7 @@ fileprivate extension ATTNAPI {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
 
         let task = urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -445,7 +449,7 @@ fileprivate extension ATTNAPI {
 extension ATTNAPI {
     static func isInvalidDomain(_ domain: String) -> Bool {
         let normalized = domain.lowercased()
-        return normalized.contains("attn.tv") || normalized.contains("/") || normalized.contains(":")
+        return ATTNSDKConfiguration.Endpoint.invalidDomainSubstrings.contains { normalized.contains($0) }
     }
 
 
@@ -473,8 +477,9 @@ extension ATTNAPI {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded; charset=utf-8", forHTTPHeaderField: "Content-Type")
-        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.timeoutInterval = ATTNSDKConfiguration.Timeout.defaultRequest
+        request.setValue(ATTNSDKConfiguration.Headers.formURLEncoded, forHTTPHeaderField: ATTNSDKConfiguration.Headers.contentType)
+        request.setValue(ATTNSDKConfiguration.Headers.datadogSamplingPriorityKeep, forHTTPHeaderField: ATTNSDKConfiguration.Headers.datadogSamplingPriority)
 
         do {
             // Encode the event to JSON with explicit null values

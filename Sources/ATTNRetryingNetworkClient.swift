@@ -19,10 +19,10 @@ struct ATTNRetryConfiguration {
     let maxCumulativeDelay: TimeInterval
 
     init(
-        initialDelay: TimeInterval = 1.0,
-        maxRetries: Int = 5,
-        jitterRange: ClosedRange<Double> = -0.5...0.5,
-        maxCumulativeDelay: TimeInterval = 300.0 // 5 minutes
+        initialDelay: TimeInterval = ATTNSDKConfiguration.Retry.initialDelay,
+        maxRetries: Int = ATTNSDKConfiguration.Retry.maxRetries,
+        jitterRange: ClosedRange<Double> = ATTNSDKConfiguration.Retry.jitterRange,
+        maxCumulativeDelay: TimeInterval = ATTNSDKConfiguration.Retry.maxCumulativeDelay
     ) {
         self.initialDelay = initialDelay
         self.maxRetries = maxRetries

@@ -561,9 +561,9 @@ public final class ATTNSDK: NSObject {
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
-        : (UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "")
+        : (UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "")
         guard !pushToken.isEmpty else {
-            Loggers.event.error("updateUser: aborted — missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: "attentiveDeviceToken") ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            Loggers.event.error("updateUser: aborted — missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
@@ -642,13 +642,13 @@ public final class ATTNSDK: NSObject {
             let settings = await center.notificationSettings()
             let currentStatus = settings.authorizationStatus
 
-            let lastStatus = UserDefaults.standard.integer(forKey: "attentiveLastAuthStatus")
-                            UserDefaults.standard.set(currentStatus.rawValue, forKey: "attentiveLastAuthStatus")
+            let lastStatus = UserDefaults.standard.integer(forKey: ATTNSDKConfiguration.UserDefaultsKey.lastAuthStatus)
+                            UserDefaults.standard.set(currentStatus.rawValue, forKey: ATTNSDKConfiguration.UserDefaultsKey.lastAuthStatus)
 
                             if lastStatus != UNAuthorizationStatus.authorized.rawValue &&
                                  currentStatus == .authorized {
                                     Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
-                                    UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+                                    UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
                                     self.pushTokenStore.token = ""
                                     await MainActor.run {
                                             UIApplication.shared.registerForRemoteNotifications()
@@ -663,7 +663,7 @@ public final class ATTNSDK: NSObject {
                 await MainActor.run {
                     if self.currentPushToken.isEmpty {
                         Loggers.event.debug("Authorization granted after denial — forcing APNs re-registration.")
-                        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+                        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
                             }
                     Loggers.event.debug("Notification permission authorized. Registering for remote notifications.")
                     UIApplication.shared.registerForRemoteNotifications()
@@ -875,7 +875,7 @@ fileprivate extension ATTNSDK {
 
 // MARK: - PushToken storage
 private final class PushTokenStore {
-    private let key = "attentiveDeviceToken"
+    private let key = ATTNSDKConfiguration.UserDefaultsKey.deviceToken
     private let queue = DispatchQueue(label: "com.attentive.sdk.PushTokenStore", qos: .userInitiated)
     private var inMemory: String?
 

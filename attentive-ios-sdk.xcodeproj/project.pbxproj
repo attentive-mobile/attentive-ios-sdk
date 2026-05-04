@@ -43,6 +43,7 @@
 		FB35C1792C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */; };
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
 		FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */; };
+		FB314CFA0001000000000001 /* ATTNSDKConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */; };
 		FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */; };
 		FB35C1852C0E35E7009FA048 /* ATTNJsonUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */; };
 		FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */; };
@@ -163,6 +164,7 @@
 		FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeTriggerStatus.swift; sourceTree = "<group>"; };
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
 		FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNConstants.swift; sourceTree = "<group>"; };
+		FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKConfiguration.swift; sourceTree = "<group>"; };
 		FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Extension.swift"; sourceTree = "<group>"; };
 		FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNJsonUtils.swift; sourceTree = "<group>"; };
 		FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTypes.swift; sourceTree = "<group>"; };
@@ -522,6 +524,7 @@
 				FBA9F9EE2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift */,
 				FBA9F9EF2C0A77AB00C65024 /* ATTNVisitorService.swift */,
 				FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */,
+				FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */,
 				FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */,
 				FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */,
 				F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */,
@@ -735,6 +738,7 @@
 				FB65536C2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift in Sources */,
 				FB84E3032C3F30FF0011936B /* ATTNDeeplinkHandling.swift in Sources */,
 				FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */,
+				FB314CFA0001000000000001 /* ATTNSDKConfiguration.swift in Sources */,
 				F96E25382DD69244005AE2E3 /* ATTNLaunchManager.swift in Sources */,
 				FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */,
 				FBA9FA082C0A77AB00C65024 /* Dictionary+Extension.swift in Sources */,
