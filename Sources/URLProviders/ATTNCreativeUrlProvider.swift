@@ -12,12 +12,6 @@ protocol ATTNCreativeUrlProviding {
 }
 
 struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
-    private enum Constants {
-        static var scheme: String { "https" }
-        static var host: String { "creatives.attn.tv" }
-        static var path: String { "/mobile-apps/index.html" }
-    }
-
     private let appInfo: ATTNAppInfoProtocol
 
     init(appInfo: ATTNAppInfoProtocol = ATTNAppInfo()) {
@@ -26,9 +20,9 @@ struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
 
     func buildCompanyCreativeUrl(configuration: ATTNCreativeUrlConfig) -> String {
         var components = URLComponents()
-        components.scheme = Constants.scheme
-        components.host = Constants.host
-        components.path = Constants.path
+        components.scheme = ATTNSDKConfiguration.Endpoint.scheme
+        components.host = ATTNSDKConfiguration.Endpoint.Creatives.host
+        components.path = ATTNSDKConfiguration.Endpoint.Creatives.path
 
         var queryItems = [
             URLQueryItem(name: "domain", value: configuration.domain)

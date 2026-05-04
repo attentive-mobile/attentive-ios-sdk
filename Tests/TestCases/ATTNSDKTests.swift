@@ -19,7 +19,7 @@ final class ATTNSDKTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
         creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
         apiSpy = ATTNAPISpy(domain: testDomain)
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
@@ -31,7 +31,7 @@ final class ATTNSDKTests: XCTestCase {
         ATTNEventTracker.destroy()
 
         ProcessInfo.restoreOriginalEnvironment()
-        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
 
         creativeUrlProviderSpy = nil
         sut = nil
