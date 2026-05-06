@@ -58,9 +58,15 @@ public final class ATTNSDK: NSObject {
     private(set) var api: ATTNAPIProtocol
     private(set) var userIdentity: ATTNUserIdentity
 
-    internal var domain: String
+    @objc public internal(set) var domain: String
     private var mode: ATTNSDKMode
     private var webViewHandler: ATTNWebViewHandling?
+
+    /// The visitor ID for the current user. Rotates when `clearUser()` is called.
+    @objc public var visitorId: String { userIdentity.visitorId }
+
+    /// The marketing version of the SDK (e.g. `"2.0.13"`).
+    @objc public static var sdkVersion: String { ATTNConstants.sdkVersion }
 
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
