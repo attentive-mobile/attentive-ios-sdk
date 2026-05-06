@@ -142,3 +142,4 @@ excluded:
   - Pods
   - vendor
   - Vendor
+  - .build
