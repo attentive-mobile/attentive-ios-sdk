@@ -145,6 +145,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
         }()
 
         productImageView.image = UIImage(named: product.name ?? "Protective Superscreen")
+        productImageView.contentMode = .scaleAspectFill
 
         addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
     }

@@ -22,26 +22,17 @@ extension ATTNSDK {
                 Loggers.event.debug("No items found in the purchase event, skipping v2 send.")
                 return
             }
-            let products = purchase.items.map { item in
-                ATTNProduct(
-                    productId: item.productId,
-                    variantId: item.productVariantId,
-                    name: item.name ?? "",
-                    imageUrl: item.productImage,
-                    categories: item.category.map { [$0] },
-                    price: item.price.price.stringValue,
-                    quantity: item.quantity
-                )
-            }
+            let products = purchase.items.map { product(from: $0) }
             let cart = ATTNCartPayload(from: purchase.cart)
-            let currency = purchase.items.first?.price.currency ?? "USD"
-            let orderTotal = products.reduce(0.0) {
-                $0 + (Double($1.price) ?? 0) * Double($1.quantity)
+            let currency = purchase.items[0].price.currency
+            let orderTotal = purchase.items.reduce(NSDecimalNumber.zero) { total, item in
+                let quantity = NSDecimalNumber(value: item.quantity)
+                return total.adding(item.price.price.multiplying(by: quantity))
             }
             sendPurchaseEvent(
                 orderId: purchase.order.orderId,
                 currency: currency,
-                orderTotal: String(format: "%.2f", orderTotal),
+                orderTotal: orderTotal.stringValue,
                 cart: cart,
                 products: products
             )
@@ -54,16 +45,7 @@ extension ATTNSDK {
                 return
             }
             for item in addToCart.items {
-                let product = ATTNProduct(
-                    productId: item.productId,
-                    variantId: item.productVariantId,
-                    name: item.name ?? "",
-                    imageUrl: item.productImage,
-                    categories: item.category.map { [$0] },
-                    price: item.price.price.stringValue,
-                    quantity: item.quantity
-                )
-                sendAddToCartEvent(product: product, currency: item.price.currency)
+                sendAddToCartEvent(product: product(from: item), currency: item.price.currency)
             }
             return
         }
@@ -74,16 +56,7 @@ extension ATTNSDK {
                 return
             }
             for item in productView.items {
-                let product = ATTNProduct(
-                    productId: item.productId,
-                    variantId: item.productVariantId,
-                    name: item.name ?? "",
-                    imageUrl: item.productImage,
-                    categories: item.category.map { [$0] },
-                    price: item.price.price.stringValue,
-                    quantity: item.quantity
-                )
-                sendProductViewEvent(product: product, currency: item.price.currency)
+                sendProductViewEvent(product: product(from: item), currency: item.price.currency)
             }
             return
         }
@@ -95,6 +68,18 @@ extension ATTNSDK {
 
         Loggers.event.debug("Unsupported event type for v2 conversion, falling back to legacy.")
         api.send(event: event, userIdentity: userIdentity)
+    }
+
+    private func product(from item: ATTNItem) -> ATTNProduct {
+        ATTNProduct(
+            productId: item.productId,
+            variantId: item.productVariantId,
+            name: item.name ?? "",
+            imageUrl: item.productImage,
+            categories: item.category.map { [$0] },
+            price: item.price.price.stringValue,
+            quantity: item.quantity
+        )
     }
 
     func initializeSkipFatigueOnCreatives() {

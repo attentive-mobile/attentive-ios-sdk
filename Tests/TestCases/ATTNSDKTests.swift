@@ -415,6 +415,138 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOperationContext, "updateUser")
     }
 
+    func testUpdateUser_storesIdentifiersLocally() {
+        let deviceToken = Data([0x01, 0x02, 0x03])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        sut.updateUser(email: "new@example.com", phone: "+15551234567")
+
+        let identifiers = sut.getUserIdentity().identifiers
+        XCTAssertEqual(identifiers[ATTNIdentifierType.email] as? String, "new@example.com",
+                       "updateUser should store email locally on userIdentity")
+        XCTAssertEqual(identifiers[ATTNIdentifierType.phone] as? String, "+15551234567",
+                       "updateUser should store phone locally on userIdentity")
+    }
+
+    // MARK: - sendLegacyEventAsV2 Tests
+
+    func testSendEvent_v2Enabled_purchase_sendNewEvent() {
+        sut.useV2Endpoint = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "9.99"), currency: "USD"))
+        item.quantity = 2
+        let order = ATTNOrder(orderId: "order-1")
+        let event = ATTNPurchaseEvent(items: [item], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.purchase)
+    }
+
+    func testSendEvent_v2Enabled_purchaseMultipleItems_computesCorrectTotal() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        item1.quantity = 2
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
+        item2.quantity = 3
+        let order = ATTNOrder(orderId: "order-2")
+        let event = ATTNPurchaseEvent(items: [item1, item2], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 1)
+    }
+
+    func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "EUR"))
+        let event = ATTNAddToCartEvent(items: [item1, item2])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 2)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.addToCart)
+    }
+
+    func testSendEvent_v2Enabled_productView_sendsPerItem() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.00"), currency: "GBP"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "25.00"), currency: "GBP"))
+        let event = ATTNProductViewEvent(items: [item1, item2])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 2)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.productView)
+    }
+
+    func testSendEvent_v2Enabled_customEvent_sendsWithType() {
+        sut.useV2Endpoint = true
+        let event = ATTNCustomEvent(type: "Signup", properties: ["source": "banner"])!
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.customEvent)
+    }
+
+    func testSendEvent_v2Enabled_unsupportedEvent_fallsBackToLegacy() {
+        sut.useV2Endpoint = true
+        let event = ATTNInfoEvent()
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertTrue(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyPurchaseItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let order = ATTNOrder(orderId: "order-empty")
+        let event = ATTNPurchaseEvent(items: [], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyAddToCartItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let event = ATTNAddToCartEvent(items: [])
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyProductViewItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let event = ATTNProductViewEvent(items: [])
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Disabled_usesLegacyPath() {
+        sut.useV2Endpoint = false
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let event = ATTNAddToCartEvent(items: [item])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendEventWasCalled)
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+    }
+
     private func waitForCondition(_ condition: @escaping () -> Bool, timeout: TimeInterval = 0.25) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {

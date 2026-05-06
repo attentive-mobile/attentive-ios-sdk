@@ -78,7 +78,12 @@ class ProductDetailViewController: UIViewController {
         setupUI()
         configureProduct()
     }
-    
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        showToast(with: "Product View event sent")
+    }
+
     // MARK: - Setup UI
     
     private func setupUI() {
@@ -114,7 +119,9 @@ class ProductDetailViewController: UIViewController {
     
     private func configureProduct() {
         productNameLabel.text = product.name ?? "Unknown Product"
-        if let imageUrl = product.productImage, let url = URL(string: imageUrl) {
+        if let name = product.name, let localImage = UIImage(named: name) {
+            productImageView.image = localImage
+        } else if let imageUrl = product.productImage, let url = URL(string: imageUrl) {
             loadImage(from: url)
         } else {
             productImageView.image = UIImage(systemName: "photo")

@@ -202,9 +202,19 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         return 10
     }
-    
+
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
         return 10
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let product = viewModel.products[indexPath.item]
+        let productViewEvent = ATTNProductViewEvent(items: [product])
+        ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+
+        let detailVC = ProductDetailViewController(product: product)
+        detailVC.delegate = self
+        navigationController?.pushViewController(detailVC, animated: true)
     }
 }
 
@@ -221,7 +231,6 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
     func didTapProductImage(product: ATTNItem) {
         let productViewEvent = ATTNProductViewEvent(items: [product])
         ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
-        showToast(with: "Product View event sent")
 
         let detailVC = ProductDetailViewController(product: product)
         detailVC.delegate = self

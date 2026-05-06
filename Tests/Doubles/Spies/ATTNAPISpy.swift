@@ -15,6 +15,8 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var sendEventWasCalled = false
     private(set) var sendEventCallbackWasCalled = false
     private(set) var sendNewEventWasCalled = false
+    private(set) var sendNewEventCallCount = 0
+    private(set) var lastEventRequest: ATTNEventRequest?
     private(set) var updateDomainWasCalled = false
     private(set) var domainWasSet = false
     private(set) var sendPushTokenWasCalled = false
@@ -70,6 +72,8 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         callback: ATTNAPICallback?
     ) {
         sendNewEventWasCalled = true
+        sendNewEventCallCount += 1
+        lastEventRequest = eventRequest
         callback?(nil, nil, nil, nil)
     }
 
