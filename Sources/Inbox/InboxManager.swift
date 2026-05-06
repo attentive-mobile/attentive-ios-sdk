@@ -122,7 +122,7 @@ extension InboxManager {
 }
 
 fileprivate extension InboxManager {
-    private static func getMockInbox() async -> Inbox {
+    private static func getMockInbox() async -> InboxResponse {
         #warning("Artificial delay to simulate delayed network response, should be removed in production.")
         try? await Task.sleep(nanoseconds: 2000000000)
         let messages: [Message] = [
@@ -154,6 +154,6 @@ fileprivate extension InboxManager {
                 actionURLString: "https://example.com/track/12345"
             )
         ]
-        return Inbox(messages: messages, unreadCount: messages.count)
+        return InboxResponse(messages: messages, unreadCount: 2)
     }
 }
