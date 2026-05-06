@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0A411B432F31DE0400563599 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A411B422F31DDFA00563599 /* Inbox.swift */; };
+		0A411B432F31DE0400563599 /* InboxResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A411B422F31DDFA00563599 /* InboxResponse.swift */; };
 		0A83DEAE2F21A1AA003FD456 /* InboxManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */; };
 		0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAC2F21A1AA003FD456 /* Message.swift */; };
 		0A83DEB22F22C309003FD456 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB12F22C2F9003FD456 /* InboxView.swift */; };
@@ -121,7 +121,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0A411B422F31DDFA00563599 /* Inbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inbox.swift; sourceTree = "<group>"; };
+		0A411B422F31DDFA00563599 /* InboxResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxResponse.swift; sourceTree = "<group>"; };
 		0A812DF42F1827C50082B133 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManager.swift; sourceTree = "<group>"; };
 		0A83DEAC2F21A1AA003FD456 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
@@ -272,7 +272,7 @@
 		0A83DEAD2F21A1AA003FD456 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				0A411B422F31DDFA00563599 /* Inbox.swift */,
+				0A411B422F31DDFA00563599 /* InboxResponse.swift */,
 				0A83DEAC2F21A1AA003FD456 /* Message.swift */,
 			);
 			path = Models;
@@ -761,7 +761,7 @@
 				FB35C1932C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift in Sources */,
 				FB35C18D2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift in Sources */,
 				FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */,
-				0A411B432F31DE0400563599 /* Inbox.swift in Sources */,
+				0A411B432F31DE0400563599 /* InboxResponse.swift in Sources */,
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,

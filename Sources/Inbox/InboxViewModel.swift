@@ -22,16 +22,23 @@ class InboxViewModel: ObservableObject {
     let style: InboxStyle
 
     private let inboxManager: InboxManager
+    private var stateStreamTask: Task<Void, Never>?
 
     init(inboxManager: InboxManager, style: InboxStyle) {
         self.inboxManager = inboxManager
         self.style = style
         state = .loading
-        Task {
-            for await state in await inboxManager.stateStream {
-                self.state = state.viewState
+        stateStreamTask = Task { [weak self] in
+            guard let stream = await self?.inboxManager.stateStream else { return }
+            for await state in stream {
+                guard !Task.isCancelled else { return }
+                self?.state = state.viewState
             }
         }
+    }
+
+    deinit {
+        stateStreamTask?.cancel()
     }
 
     func refresh() async {

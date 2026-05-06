@@ -1,11 +1,11 @@
 //
-//  Inbox.swift
+//  InboxResponse.swift
 //  attentive-ios-sdk
 //
 //  Created by Umair Sharif on 2/2/26.
 //
 
-struct Inbox: Codable {
+struct InboxResponse: Codable {
     var messages: [Message]
     var unreadCount: Int
 }
