@@ -399,6 +399,38 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0, "clearUser should reset all identifiers")
     }
 
+    // MARK: - pushEnabled tests
+
+    func testPushEnabled_defaultsToTrue() {
+        XCTAssertTrue(sut.pushEnabled)
+    }
+
+    func testRegisterDeviceToken_whenPushDisabled_doesNotSendToken() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+
+        XCTAssertFalse(apiSpy.sendPushTokenWasCalled, "registerDeviceToken should be a no-op when pushEnabled is false")
+    }
+
+    func testHandleRegularOpen_whenPushDisabled_doesNotSendAppEvents() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.handleRegularOpen(authorizationStatus: .authorized)
+
+        XCTAssertFalse(apiSpy.sendAppEventsWasCalled, "handleRegularOpen should be a no-op when pushEnabled is false")
+    }
+
+    func testOptIn_whenPushDisabled_stillQueuesUntilTokenArrives() {
+        // Opt-in still queues when no push token is present; verifies pushEnabled=false
+        // doesn't accidentally short-circuit marketing-subscription flows.
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertFalse(apiSpy.sendOptInWasCalled, "Opt-in should be queued without a push token regardless of pushEnabled")
+    }
+
     // MARK: - updateUser tests
 
     func testUpdateUser_callsUpdateUserExactlyOnce() {

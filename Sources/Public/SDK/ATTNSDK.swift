@@ -71,14 +71,21 @@ public final class ATTNSDK: NSObject {
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
 
+    /// When `true` (default), the SDK acts as the device's push provider: it requests push
+    /// permission, registers with APNs, tracks push tokens, and handles incoming push events.
+    /// Set to `false` if another provider owns push on this device; the SDK will then skip
+    /// all push registration, token storage, and push-event handling.
+    @objc public let pushEnabled: Bool
+
     /// Routes legacy `record(event:)` calls through the v2 `/mobile` endpoint instead of `/e`.
     @objc public var useV2Endpoint: Bool = false
 
-    public init(domain: String, mode: ATTNSDKMode) {
-        Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
+    public init(domain: String, mode: ATTNSDKMode, pushEnabled: Bool = true) {
+        Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public), PushEnabled: \(pushEnabled, privacy: .public)")
 
         self.domain = domain
         self.mode = mode
+        self.pushEnabled = pushEnabled
 
         self.userIdentity = .init()
         self.api = ATTNAPI(domain: domain)
@@ -93,13 +100,16 @@ public final class ATTNSDK: NSObject {
             return
         }
 
-        // Register app open events for when app is foregrounded
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAppDidBecomeActive),
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
-        )
+        // Register app open events for when app is foregrounded.
+        // Skipped when another provider owns push on this device.
+        if pushEnabled {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleAppDidBecomeActive),
+                name: UIApplication.didBecomeActiveNotification,
+                object: nil
+            )
+        }
 
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.sendInfoEvent()
@@ -119,18 +129,26 @@ public final class ATTNSDK: NSObject {
         self.init(domain: domain, mode: .production)
     }
 
-    @available(swift, deprecated: 0.6, message: "Please use init(domain: String, mode: ATTNSDKMode) instead.")
+    @available(swift, deprecated: 0.6, message: "Please use init(domain:mode:pushEnabled:) instead.")
     @objc(initWithDomain:mode:)
     public convenience init(domain: String, mode: String) {
         self.init(domain: domain, mode: ATTNSDKMode(rawValue: mode) ?? .production)
+    }
+
+    /// Objective-C initializer with push-provider opt-out. Pass `mode` as the raw value
+    /// of `ATTNSDKMode` ("debug" or "production"); unrecognized values default to production.
+    @objc(initWithDomain:mode:pushEnabled:)
+    public convenience init(domain: String, mode: String, pushEnabled: Bool) {
+        self.init(domain: domain, mode: ATTNSDKMode(rawValue: mode) ?? .production, pushEnabled: pushEnabled)
     }
 
     /// Async initializer that reports success/failure after background setup.
     public static func initialize(
         domain: String,
         mode: ATTNSDKMode = .production,
+        pushEnabled: Bool = true,
         completion: @escaping (Result<ATTNSDK, Error>) -> Void) {
-            let sdk = ATTNSDK(domain: domain, mode: mode)
+            let sdk = ATTNSDK(domain: domain, mode: mode, pushEnabled: pushEnabled)
             DispatchQueue.global(qos: .userInitiated).async {
                 let setupSucceeded = sdk.webViewHandler != nil
                 DispatchQueue.main.async {
@@ -251,6 +269,11 @@ public final class ATTNSDK: NSObject {
     /// Ask the user for push‐notification permission and register with APNs if granted.
     @objc(registerForPushNotificationsWithCompletion:)
     public func registerForPushNotifications(completion: ((Bool, Error?) -> Void)? = nil) {
+        guard pushEnabled else {
+            Loggers.event.debug("registerForPushNotifications skipped: pushEnabled is false")
+            completion?(false, nil)
+            return
+        }
         Loggers.event.debug("Requesting push-notification authorization…")
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
             if let error = error {
@@ -273,6 +296,11 @@ public final class ATTNSDK: NSObject {
     @objc(registerDeviceToken:authorizationStatus:callback:)
     public func registerDeviceToken(_ deviceToken: Data, authorizationStatus: UNAuthorizationStatus, callback: ATTNAPICallback? = nil
     ) {
+        guard pushEnabled else {
+            Loggers.event.debug("registerDeviceToken skipped: pushEnabled is false")
+            callback?(nil, nil, nil, nil)
+            return
+        }
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
@@ -305,6 +333,10 @@ public final class ATTNSDK: NSObject {
 
     @objc(registerForPushFailed:)
     public func failedToRegisterForPush(_ error: Error) {
+        guard pushEnabled else {
+            Loggers.event.debug("failedToRegisterForPush skipped: pushEnabled is false")
+            return
+        }
         Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription, privacy: .public)")
     }
 
@@ -350,6 +382,10 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handleRegularOpen(pushToken: String? = nil, authorizationStatus: UNAuthorizationStatus) {
+        guard pushEnabled else {
+            Loggers.event.debug("handleRegularOpen skipped: pushEnabled is false")
+            return
+        }
         Loggers.event.debug("Handling regular app open - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
 
         // checks and resets push launch flag
@@ -381,6 +417,10 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handleForegroundPush(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
+        guard pushEnabled else {
+            Loggers.event.debug("handleForegroundPush skipped: pushEnabled is false")
+            return
+        }
         Loggers.event.debug("Handling foreground push notification - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         let userInfo = response.notification.request.content.userInfo
         Loggers.event.debug("Push notification payload: \(userInfo, privacy: .public)")
@@ -403,6 +443,10 @@ public final class ATTNSDK: NSObject {
     }
 
     @objc public func handlePushOpen(response: UNNotificationResponse, authorizationStatus: UNAuthorizationStatus) {
+        guard pushEnabled else {
+            Loggers.event.debug("handlePushOpen skipped: pushEnabled is false")
+            return
+        }
         Loggers.event.debug("Handling push open (app launched from push) - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         ATTNLaunchManager.shared.launchedFromPush = true
         let userInfo = response.notification.request.content.userInfo
@@ -917,8 +961,8 @@ extension ATTNSDK {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self, creativeUrlBuilder: urlBuilder)
     }
 
-    convenience init(api: ATTNAPIProtocol, urlBuilder: ATTNCreativeUrlProviding? = nil) {
-        self.init(domain: api.domain)
+    convenience init(api: ATTNAPIProtocol, urlBuilder: ATTNCreativeUrlProviding? = nil, pushEnabled: Bool = true) {
+        self.init(domain: api.domain, mode: .production, pushEnabled: pushEnabled)
         self.api = api
         guard let urlBuilder = urlBuilder else { return }
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self, creativeUrlBuilder: urlBuilder)
