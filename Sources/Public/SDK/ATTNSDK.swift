@@ -572,6 +572,10 @@ public final class ATTNSDK: NSObject {
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
         clearUserIdentifiers()
+        var newIdentifiers: [String: Any] = [:]
+        if let email = email { newIdentifiers[ATTNIdentifierType.email] = email }
+        if let phone = phone { newIdentifiers[ATTNIdentifierType.phone] = phone }
+        userIdentity.mergeIdentifiers(newIdentifiers)
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,
