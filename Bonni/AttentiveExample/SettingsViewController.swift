@@ -51,6 +51,33 @@ class SettingsViewController: UIViewController {
         return label
     }()
 
+    private let domainLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.textColor = .darkGray
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
+    private let sdkVersionLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.textColor = .darkGray
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
+    private let visitorIdLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.textColor = .darkGray
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     private let switchAccountButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Switch User", for: .normal)
@@ -238,6 +265,14 @@ class SettingsViewController: UIViewController {
 
         setupUI()
         setupActions()
+        refreshSdkInfoLabels()
+    }
+
+    private func refreshSdkInfoLabels() {
+        let sdk = getAttentiveSdk()
+        domainLabel.text = "Domain: \(sdk.domain)"
+        visitorIdLabel.text = "Visitor ID: \(sdk.visitorId)"
+        sdkVersionLabel.text = "SDK: v\(ATTNSDK.sdkVersion)"
     }
 
     // MARK: - UI Setup
@@ -270,6 +305,8 @@ class SettingsViewController: UIViewController {
         ])
 
         stackView.addArrangedSubview(accountInfoLabel)
+        stackView.addArrangedSubview(domainLabel)
+        stackView.addArrangedSubview(visitorIdLabel)
         stackView.addArrangedSubview(switchAccountButton)
         stackView.addArrangedSubview(switchDomainButton)
         stackView.addArrangedSubview(logOutButton)
@@ -297,7 +334,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(showPushPermissionButton)
         stackView.addArrangedSubview(sendLocalPushNotification)
         stackView.addArrangedSubview(sendCustomEventButton)
-        // TODO: Add back stackView.addArrangedSubview(identifyUserButton)
+        stackView.addArrangedSubview(identifyUserButton)
         stackView.addArrangedSubview(cartDeepLinkButton)
         stackView.addArrangedSubview(clearUserButton)
         stackView.addArrangedSubview(clearCookiesButton)
@@ -341,6 +378,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(phoneRow)
         stackView.addArrangedSubview(currentEmailLabel)
         stackView.addArrangedSubview(currentPhoneLabel)
+        stackView.addArrangedSubview(sdkVersionLabel)
 
         // optional: match font to other buttons
         if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
@@ -459,6 +497,7 @@ class SettingsViewController: UIViewController {
 
             let sdk = self.getAttentiveSdk()
             sdk.update(domain: newDomain)
+            self.refreshSdkInfoLabels()
             self.showToast(with: "Domain updated to “\(newDomain)”")
         })
 
@@ -516,7 +555,60 @@ class SettingsViewController: UIViewController {
     }
 
     @objc private func identifyUserTapped() {
-        // TODO: Identify the user & show results on debug view
+        let alert = UIAlertController(title: "Identify User",
+                                      message: "Leave fields blank to skip them.",
+                                      preferredStyle: .alert)
+
+        alert.addTextField { tf in
+            tf.placeholder = "Client User ID"
+            tf.autocapitalizationType = .none
+        }
+        alert.addTextField { tf in
+            tf.placeholder = "name@example.com"
+            tf.keyboardType = .emailAddress
+            tf.autocapitalizationType = .none
+        }
+        alert.addTextField { tf in
+            tf.placeholder = "+15551234567"
+            tf.keyboardType = .phonePad
+        }
+        alert.addTextField { tf in
+            tf.placeholder = "Shopify ID"
+            tf.autocapitalizationType = .none
+        }
+        alert.addTextField { tf in
+            tf.placeholder = "Klaviyo ID"
+            tf.autocapitalizationType = .none
+        }
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Identify", style: .default) { [weak self] _ in
+            guard let self else { return }
+            let keys = [
+                ATTNIdentifierType.clientUserId,
+                ATTNIdentifierType.email,
+                ATTNIdentifierType.phone,
+                ATTNIdentifierType.shopifyId,
+                ATTNIdentifierType.klaviyoId
+            ]
+            var identifiers: [String: Any] = [:]
+            for (index, key) in keys.enumerated() {
+                let value = alert.textFields?[index].text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !value.isEmpty else { continue }
+                identifiers[key] = value
+            }
+
+            guard !identifiers.isEmpty else {
+                self.showToast(with: "No identifiers provided")
+                return
+            }
+
+            self.getAttentiveSdk().identify(identifiers)
+            let summary = identifiers.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")
+            self.showToast(with: "Identified: \(summary)")
+        })
+
+        present(alert, animated: true)
     }
 
     @objc private func cartDeepLinkTapped() {
@@ -537,11 +629,13 @@ class SettingsViewController: UIViewController {
         currentEmailLabel.text = "Current email:"
         currentPhoneLabel.text = "Current phone:"
         accountInfoLabel.text = "Login Info: Guest"
+        refreshSdkInfoLabels()
         showToast(with: "Logged out — push token detached")
     }
 
     @objc private func clearUserTapped() {
         getAttentiveSdk().clearUser()
+        refreshSdkInfoLabels()
         showToast(with: "User cleared")
     }
 
