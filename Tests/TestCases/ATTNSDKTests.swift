@@ -457,6 +457,8 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertTrue(apiSpy.sendNewEventWasCalled)
         XCTAssertEqual(apiSpy.sendNewEventCallCount, 1)
+        let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
+        XCTAssertEqual(metadata?.orderTotal, "36.5")
     }
 
     func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
