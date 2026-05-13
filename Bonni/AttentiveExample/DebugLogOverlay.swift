@@ -13,33 +13,39 @@ import ATTNSDKFramework
 ///
 /// - Tap the floating "LOGS" button to show/hide the panel.
 /// - Drag the LOGS button or the panel's title bar to reposition them.
+///
+/// Owned by `SceneDelegate` for the lifetime of the scene; tear down with `uninstall()`.
 final class DebugLogOverlay {
-    static let shared = DebugLogOverlay()
+    private let window: OverlayWindow
+    private let streamTask: Task<Void, Never>
 
-    private var window: OverlayWindow?
-    private var streamTask: Task<Void, Never>?
-
-    private init() {}
-
-    func install(on windowScene: UIWindowScene) {
-        guard window == nil else { return }
+    init(windowScene: UIWindowScene) {
         let window = OverlayWindow(windowScene: windowScene)
         window.windowLevel = .alert + 1
         window.isHidden = false
-        window.rootViewController = OverlayContainerViewController()
+        let containerVC = OverlayContainerViewController()
+        window.rootViewController = containerVC
         self.window = window
 
-        let containerVC = window.rootViewController as? OverlayContainerViewController
-        containerVC?.panel.replace(with: ATTNSDK.recentLogs())
+        let panelRef = containerVC.panel
+        panelRef.replace(with: ATTNSDK.recentLogs())
 
-        let containerRef = containerVC
-        streamTask = Task {
+        self.streamTask = Task {
             for await entry in ATTNSDK.logStream {
                 await MainActor.run {
-                    containerRef?.panel.append(entry)
+                    panelRef.append(entry)
                 }
             }
         }
+    }
+
+    func uninstall() {
+        streamTask.cancel()
+        window.isHidden = true
+    }
+
+    deinit {
+        streamTask.cancel()
     }
 }
 
