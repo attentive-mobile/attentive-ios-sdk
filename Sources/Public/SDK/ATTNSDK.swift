@@ -68,6 +68,20 @@ public final class ATTNSDK: NSObject {
     /// The marketing version of the SDK (e.g. `"2.0.13"`).
     @objc public static var sdkVersion: String { ATTNConstants.sdkVersion }
 
+    /// Recent SDK log entries from the in-process ring buffer. Captures every level
+    /// (including `.debug`) regardless of build configuration, so this works in
+    /// release/TestFlight builds where `OSLogStore` would not surface `.debug` lines.
+    /// - Parameter since: Optional cutoff; entries older than this are filtered out.
+    public static func recentLogs(since: Date? = nil) -> [ATTNLogEntry] {
+        ATTNLogBuffer.shared.snapshot(since: since)
+    }
+
+    /// Async stream that yields each SDK log entry as it is recorded. Use this to
+    /// drive a live debug overlay.
+    public static var logStream: AsyncStream<ATTNLogEntry> {
+        ATTNLogBuffer.shared.stream()
+    }
+
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
 
