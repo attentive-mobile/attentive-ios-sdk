@@ -27,7 +27,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = navController
         self.window = window
         window.makeKeyAndVisible()
-        guard let _ = (scene as? UIWindowScene) else { return }
+        guard let windowScene = (scene as? UIWindowScene) else { return }
+
+        DebugLogOverlay.shared.install(on: windowScene)
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
