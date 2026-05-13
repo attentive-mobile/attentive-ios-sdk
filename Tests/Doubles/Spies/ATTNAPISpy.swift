@@ -27,6 +27,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var updateUserWasCalled = false
     private(set) var updateUserCallCount = 0
 
+    // MARK: - Stubbing
+    var stubbedError: Error?
+
     // MARK: - Last-params (optional, handy for assertions)
     private(set) var lastPushToken: String?
     private(set) var lastAuthorizationStatus: UNAuthorizationStatus?
@@ -56,7 +59,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
 
     func send(userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         sendUserIdentityCallbackWasCalled = true
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     func send(event: ATTNEvent, userIdentity: ATTNUserIdentity) {
@@ -65,7 +68,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
 
     func send(event: ATTNEvent, userIdentity: ATTNUserIdentity, callback: ATTNAPICallback?) {
         sendEventCallbackWasCalled = true
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     func sendNewEvent<M: Codable>(
@@ -78,7 +81,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         sendNewEventCallCount += 1
         lastEventRequest = eventRequest
         lastEventMetadata = event.eventMetadata
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     func update(domain newDomain: String) {
@@ -94,7 +97,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         sendPushTokenWasCalled = true
         lastPushToken = pushToken
         lastAuthorizationStatus = authorizationStatus
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     func sendAppEvents(
@@ -106,7 +109,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         callback: ATTNAPICallback?
     ) {
         sendAppEventsWasCalled = true
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     // MARK: - Marketing subscriptions
@@ -121,7 +124,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastOptInEmail = email
         lastOptInPhone = phone
         lastOptInPushToken = pushToken
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     func sendOptOutMarketingSubscription(
@@ -135,7 +138,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastOptOutEmail = email
         lastOptOutPhone = phone
         lastOptOutPushToken = pushToken
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 
     // MARK: - Update User
@@ -156,6 +159,6 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
         lastOperationContext = operationContext
-        callback?(nil, nil, nil, nil)
+        callback?(nil, nil, nil, stubbedError)
     }
 }

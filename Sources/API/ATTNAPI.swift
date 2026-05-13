@@ -72,6 +72,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             for: userIdentity,
             domain: domain) else {
             Loggers.network.error("Invalid push token URL")
+            callback?(nil, nil, nil, ATTNError.badURL)
             return
         }
 
@@ -116,7 +117,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         retryClient.performRequestWithRetry(request, to: url) { data, _, response, error in
             if let error = error {
                 Loggers.network.error("Error sending push token: \(error.localizedDescription, privacy: .public)")
-            } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            } else if let http = response as? HTTPURLResponse, !http.isSuccessful {
                 Loggers.network.error("Push-token API returned status \(http.statusCode, privacy: .public)")
             } else {
                 Loggers.network.debug("Successfully sent push token")
@@ -152,6 +153,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.appEventsURL else {
                 Loggers.network.error("Invalid AppEvents URL")
+                callback?(nil, nil, nil, ATTNError.badURL)
                 return
             }
 
@@ -166,7 +168,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             retryClient.performRequestWithRetry(request, to: url) { data, _, response, error in
                 if let error = error {
                     Loggers.network.error("Error sending app events: \(error.localizedDescription, privacy: .public)")
-                } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+                } else if let http = response as? HTTPURLResponse, !http.isSuccessful {
                     Loggers.network.error("AppEvents API returned status \(http.statusCode, privacy: .public)")
                 } else {
                     Loggers.network.debug("Successfully sent app events")
@@ -227,7 +229,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                     Loggers.network.debug("----- Opt-In Subscriptions Result -----")
                     Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
                     Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
-                    if http.statusCode >= 400 {
+                    if !http.isSuccessful {
                         Loggers.network.error("Opt-in API returned status \(http.statusCode, privacy: .public)")
                     } else {
                         Loggers.network.debug("Opt-in successful: opted in email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
@@ -292,7 +294,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                     Loggers.network.debug("----- Opt-Out Subscriptions Result -----")
                     Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
                     Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
-                    if http.statusCode >= 400 {
+                    if !http.isSuccessful {
                         Loggers.network.error("Opt-out API returned status \(http.statusCode, privacy: .public)")
                     } else {
                         Loggers.network.debug("Opt-out successful: opted out email: \(email ?? "nil", privacy: .public), phone: \(phone ?? "nil", privacy: .public)")
@@ -374,7 +376,7 @@ final class ATTNAPI: ATTNAPIProtocol {
                 Loggers.network.debug("----- \(operationContext, privacy: .public) Result -----")
                 Loggers.network.debug("Status Code: \(http.statusCode, privacy: .public)")
                 Loggers.network.debug("Headers: \(http.allHeaderFields, privacy: .public)")
-                if http.statusCode >= 400 {
+                if !http.isSuccessful {
                     Loggers.network.error("\(operationContext, privacy: .public): API returned status \(http.statusCode, privacy: .public)")
                 }
             }
@@ -400,6 +402,7 @@ fileprivate extension ATTNAPI {
     func sendEventInternalForRequest(request: ATTNEventRequest, userIdentity: ATTNUserIdentity, domain: String, callback: ATTNAPICallback?) {
         guard let url = eventUrlProvider.buildUrl(for: request, userIdentity: userIdentity, domain: domain) else {
             Loggers.event.error("Invalid URL constructed for event request.")
+            callback?(nil, nil, nil, ATTNError.badURL)
             return
         }
 
@@ -412,7 +415,7 @@ fileprivate extension ATTNAPI {
         let task = urlSession.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
                 Loggers.event.error("Error sending for event '\(request.eventNameAbbreviation, privacy: .public)'. Error: '\(error.localizedDescription, privacy: .public)'")
-            } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
+            } else if let httpResponse = response as? HTTPURLResponse, !httpResponse.isSuccessful {
                 Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
             } else {
                 Loggers.event.debug("Successfully sent event of type '\(request.eventNameAbbreviation, privacy: .public)'")
@@ -427,6 +430,7 @@ fileprivate extension ATTNAPI {
     func sendUserIdentityInternal(userIdentity: ATTNUserIdentity, domain: String, callback: ATTNAPICallback?) {
         guard let url = eventUrlProvider.buildUrl(for: userIdentity, domain: domain) else {
             Loggers.event.error("Invalid URL constructed for user identity.")
+            callback?(nil, nil, nil, ATTNError.badURL)
             return
         }
 
@@ -439,7 +443,7 @@ fileprivate extension ATTNAPI {
         let task = urlSession.dataTask(with: request) { data, response, error in
             if let error = error {
                 Loggers.event.error("Error sending user identity. Error: '\(error.localizedDescription, privacy: .public)'")
-            } else if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode > 400 {
+            } else if let httpResponse = response as? HTTPURLResponse, !httpResponse.isSuccessful {
                 Loggers.event.error("Error sending the event. Incorrect status code: '\(httpResponse.statusCode, privacy: .public)'")
             } else {
                 Loggers.event.debug("Successfully sent user identity event")
@@ -521,7 +525,7 @@ extension ATTNAPI {
                     Loggers.network.error("New event send error: \(error.localizedDescription, privacy: .public)")
                 } else if let http = response as? HTTPURLResponse {
                     Loggers.network.debug("New event status code: \(http.statusCode, privacy: .public)")
-                    if http.statusCode >= 400 {
+                    if !http.isSuccessful {
                         Loggers.network.error("New event failed with HTTP status code \(http.statusCode, privacy: .public)")
                     }
                 }
