@@ -486,6 +486,13 @@ public final class ATTNSDK: NSObject {
 
     // MARK: Marketing Subscriptions
 
+    /// Opts the user into email/SMS (a.k.a. non-push) marketing subscriptions.
+    ///
+    /// - For push-enabled clients (`pushEnabled == true`): if no push token is yet available,
+    ///   the request is queued and flushed once the token registers. This preserves the
+    ///   existing flow where opt-in is associated with the device's push token.
+    /// - For non-push clients (`pushEnabled == false`): there will never be a push token,
+    ///   so the request is sent immediately without one.
     @objc(optInMarketingSubscriptionWithEmail:phone:callback:)
     public func optInMarketingSubscription(
         email: String? = nil,
@@ -502,7 +509,7 @@ public final class ATTNSDK: NSObject {
         }
 
         let token = currentPushToken
-        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if pushEnabled && token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             enqueueMarketingRequest(.init(
                 kind: .optIn,
                 email: email,
@@ -540,6 +547,11 @@ public final class ATTNSDK: NSObject {
         optInMarketingSubscription(email: nil, phone: phone, callback: callback)
     }
 
+    /// Opts the user out of email/SMS (a.k.a. non-push) marketing subscriptions.
+    ///
+    /// Same push-token semantics as ``optInMarketingSubscription(email:phone:callback:)``:
+    /// push-enabled clients queue until a token arrives; non-push clients send immediately
+    /// without one.
     @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
     public func optOutMarketingSubscription(
         email: String? = nil,
@@ -556,7 +568,7 @@ public final class ATTNSDK: NSObject {
         }
 
         let token = currentPushToken
-        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if pushEnabled && token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             enqueueMarketingRequest(.init(
                 kind: .optOut,
                 email: email,

@@ -421,14 +421,26 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertFalse(apiSpy.sendAppEventsWasCalled, "handleRegularOpen should be a no-op when pushEnabled is false")
     }
 
-    func testOptIn_whenPushDisabled_stillQueuesUntilTokenArrives() {
-        // Opt-in still queues when no push token is present; verifies pushEnabled=false
-        // doesn't accidentally short-circuit marketing-subscription flows.
+    func testOptIn_whenPushDisabled_sendsImmediatelyWithoutPushToken() {
+        // Non-push clients (pushEnabled = false) will never receive a push token, so
+        // opt-in must fire immediately rather than queueing for one.
         let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
 
         pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
 
-        XCTAssertFalse(apiSpy.sendOptInWasCalled, "Opt-in should be queued without a push token regardless of pushEnabled")
+        XCTAssertTrue(apiSpy.sendOptInWasCalled, "Opt-in should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Non-push opt-in should send with an empty push token")
+    }
+
+    func testOptOut_whenPushDisabled_sendsImmediatelyWithoutPushToken() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
+        XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
     }
 
     // MARK: - updateUser tests

@@ -32,8 +32,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var lastAuthorizationStatus: UNAuthorizationStatus?
     private(set) var lastOptInEmail: String?
     private(set) var lastOptInPhone: String?
+    private(set) var lastOptInPushToken: String?
     private(set) var lastOptOutEmail: String?
     private(set) var lastOptOutPhone: String?
+    private(set) var lastOptOutPushToken: String?
     private(set) var lastUpdateUserEmail: String?
     private(set) var lastUpdateUserPhone: String?
 
@@ -118,6 +120,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         sendOptInWasCalled = true
         lastOptInEmail = email
         lastOptInPhone = phone
+        lastOptInPushToken = pushToken
         callback?(nil, nil, nil, nil)
     }
 
@@ -131,6 +134,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         sendOptOutWasCalled = true
         lastOptOutEmail = email
         lastOptOutPhone = phone
+        lastOptOutPushToken = pushToken
         callback?(nil, nil, nil, nil)
     }
 
