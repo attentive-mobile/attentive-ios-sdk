@@ -107,6 +107,15 @@ bundle exec fastlane ios assemble_xcframework
 - **New public API** should have corresponding unit tests
 - **Access internal types** via `@testable import ATTNSDKFramework`
 
+## Backward Compatibility
+
+This SDK is used by millions of users and client adoption cycles can take months to a year. **Avoid breaking changes at all costs.** Specifically:
+
+- **Never change the type of an error emitted from an existing callback path.** Clients pattern-match on error types (`as? ATTNSDKError`); changing the emitted type silently breaks their handling.
+- **Deprecate, don't remove.** Old public types, methods, and enum cases get `@available(*, deprecated)` annotations with migration guidance. They stay functional until a major version bump with documented migration.
+- **New functionality goes through new API surface.** Don't repurpose existing methods with subtly different behavior.
+- **Threading contracts are part of the API.** If a completion handler has always been called on the main queue, keep it that way for all code paths — including new early-return error paths.
+
 ## Do Not
 
 - **Force unwrap** (`!`) without clear justification — prefer `guard let` / `if let`
@@ -116,6 +125,7 @@ bundle exec fastlane ios assemble_xcframework
 - **Skip `@objc`** on new public types — Objective-C consumers depend on it
 - **Hardcode URLs** — use the `URLProvider` pattern
 - **Use `print()`** — use `ATTNLogger` instead
+- **Introduce breaking changes** without a major version bump and documented migration path
 
 ## Distribution
 

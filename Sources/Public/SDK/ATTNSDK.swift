@@ -151,7 +151,9 @@ public final class ATTNSDK: NSObject {
         completion: @escaping (Result<ATTNSDK, Error>) -> Void) {
             if ATTNAPI.isInvalidDomain(domain) {
                 Loggers.creative.error("ATTNSDK initialization failed - invalid domain: \(domain, privacy: .public)")
-                completion(.failure(ATTNError.invalidDomain))
+                DispatchQueue.main.async {
+                    completion(.failure(ATTNError.invalidDomain))
+                }
                 return
             }
             let sdk = ATTNSDK(domain: domain, mode: mode, pushEnabled: pushEnabled)
@@ -371,7 +373,7 @@ public final class ATTNSDK: NSObject {
     ) {
         if pushToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Loggers.event.error("registerAppEvents aborted: missing push token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            callback?(nil, nil, nil, ATTNError.missingPushToken)
+            callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
         Loggers.event.debug("Registering app events - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Subscription Status: \(subscriptionStatus, privacy: .public), Event Count: \(events.count, privacy: .public)")
@@ -648,7 +650,7 @@ public final class ATTNSDK: NSObject {
         : (UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "")
         guard !pushToken.isEmpty else {
             Loggers.event.error("updateUser: aborted — missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            callback?(nil, nil, nil, ATTNError.missingPushToken)
+            callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             return
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
@@ -828,7 +830,7 @@ public final class ATTNSDK: NSObject {
 
             for request in expired {
                 Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
-                request.callback?(nil, nil, nil, ATTNError.missingPushToken)
+                request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
             }
 
             for request in valid {
@@ -868,7 +870,7 @@ public final class ATTNSDK: NSObject {
         scheduleMarketingExpiryTimer()
         for request in expired {
             Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
-            request.callback?(nil, nil, nil, ATTNError.missingPushToken)
+            request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
         }
     }
 

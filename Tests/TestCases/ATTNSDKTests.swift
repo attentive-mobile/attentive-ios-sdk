@@ -644,7 +644,7 @@ final class ATTNSDKTests: XCTestCase {
         )
 
         XCTAssertNotNil(receivedError)
-        XCTAssertEqual(receivedError as? ATTNError, .missingPushToken)
+        XCTAssertEqual(receivedError as? ATTNSDKError, .missingPushToken)
     }
 
 }
