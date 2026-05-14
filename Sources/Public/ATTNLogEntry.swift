@@ -21,13 +21,18 @@ public final class ATTNLogEntry: NSObject {
 
     @objc public let date: Date
     @objc public let category: String
+    /// Always one of `Level.rawValue`. Swift callers should prefer `logLevel`.
     @objc public let level: String
     @objc public let message: String
 
-    public init(date: Date, category: String, level: String, message: String) {
+    /// Typed accessor for Swift callers. Returns `nil` only if `level` was
+    /// constructed from a raw string outside `Level.rawValue`.
+    public var logLevel: Level? { Level(rawValue: level) }
+
+    public init(date: Date, category: String, level: Level, message: String) {
         self.date = date
         self.category = category
-        self.level = level
+        self.level = level.rawValue
         self.message = message
     }
 

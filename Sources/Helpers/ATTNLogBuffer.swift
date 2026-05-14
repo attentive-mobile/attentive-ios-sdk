@@ -9,8 +9,20 @@ import Foundation
 
 /// In-process ring buffer of recent SDK log lines. Used by the in-app debug overlay
 /// in TestFlight/release builds where `OSLogStore` would not surface `.debug` entries.
+///
+/// Off by default — apps that don't show the overlay pay zero buffer overhead. Set
+/// `isCapturing = true` once at launch to start retaining entries.
 final class ATTNLogBuffer: @unchecked Sendable {
     static let shared = ATTNLogBuffer()
+
+    /// When `false` (the default), `append(...)` is a no-op and no entries are
+    /// retained, dispatched, or yielded to subscribers. Toggling this on does not
+    /// retroactively recover entries that were dropped while disabled.
+    var isCapturing: Bool {
+        get { queue.sync { _isCapturing } }
+        set { queue.async { self._isCapturing = newValue } }
+    }
+    private var _isCapturing = false
 
     private let capacity: Int
     private let evictionSlack: Int
@@ -26,8 +38,9 @@ final class ATTNLogBuffer: @unchecked Sendable {
     }
 
     func append(level: ATTNLogEntry.Level, category: String, message: String) {
-        let entry = ATTNLogEntry(date: Date(), category: category, level: level.rawValue, message: message)
         queue.async {
+            guard self._isCapturing else { return }
+            let entry = ATTNLogEntry(date: Date(), category: category, level: level, message: message)
             self.entries.append(entry)
             if self.entries.count >= self.capacity + self.evictionSlack {
                 self.entries.removeFirst(self.evictionSlack)
@@ -47,8 +60,11 @@ final class ATTNLogBuffer: @unchecked Sendable {
 
     /// Async stream of new entries appended after subscription. The caller must
     /// retain the resulting Task; cancelling it removes the subscription.
+    ///
+    /// Drops the oldest pending entries when a consumer falls behind so a single
+    /// slow subscriber cannot grow memory without bound.
     func stream() -> AsyncStream<ATTNLogEntry> {
-        AsyncStream { continuation in
+        AsyncStream(bufferingPolicy: .bufferingNewest(capacity)) { continuation in
             let id = UUID()
             queue.async {
                 self.subscribers[id] = continuation

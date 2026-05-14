@@ -153,9 +153,14 @@ private final class DebugLogPanelView: UIView {
         return f
     }()
 
-    /// Lines pending append when the panel is hidden. Flushed in one batch on show.
-    private var pendingLines: [String] = []
-    private var lineCount = 0
+    /// Source of truth: all retained lines, capped at `maxLines`.
+    private var lines: [String] = []
+    /// Count of lines from the front of `lines` that are already in `textStorage`.
+    /// Lines past this index are pending and will be appended by `flushPending`.
+    private var renderedCount = 0
+    /// Number of leading rendered lines in `textStorage` that are now stale and
+    /// must be spliced out on the next flush. Accumulates while the panel is hidden.
+    private var pendingSplice = 0
     private static let maxLines = 1000
 
     override init(frame: CGRect) {
@@ -197,57 +202,74 @@ private final class DebugLogPanelView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     func append(_ entry: ATTNLogEntry) {
-        let line = formatLine(entry)
-        guard !isHidden else {
-            pendingLines.append(line)
-            if pendingLines.count > Self.maxLines {
-                pendingLines.removeFirst(pendingLines.count - Self.maxLines)
-            }
-            return
-        }
-        appendVisibleLine(line)
+        appendLine(formatLine(entry))
     }
 
     func replace(with entries: [ATTNLogEntry]) {
-        let text = entries.map(formatLine).joined(separator: "\n")
-        textView.text = text
-        lineCount = entries.count
-        scrollToBottom()
-    }
-
-    /// Apply any entries received while hidden. Called by the container on show.
-    func flushPending() {
-        guard !pendingLines.isEmpty else { return }
-        let chunk = pendingLines.joined(separator: "\n")
-        pendingLines.removeAll(keepingCapacity: true)
-        appendVisibleLine(chunk)
-    }
-
-    private func appendVisibleLine(_ line: String) {
-        let prefix = textView.text.isEmpty ? "" : "\n"
-        textView.textStorage.append(NSAttributedString(
-            string: prefix + line,
-            attributes: [
-                .font: textView.font ?? UIFont.monospacedSystemFont(ofSize: 10, weight: .regular),
-                .foregroundColor: textView.textColor ?? UIColor.white
-            ]
-        ))
-        lineCount += 1
-        trimIfNeeded()
-        scrollToBottom()
-    }
-
-    private func trimIfNeeded() {
-        guard lineCount > Self.maxLines else { return }
-        let text = textView.text ?? ""
-        var dropCount = lineCount - Self.maxLines
-        var idx = text.startIndex
-        while dropCount > 0, let nl = text[idx...].firstIndex(of: "\n") {
-            idx = text.index(after: nl)
-            dropCount -= 1
+        lines = entries.map(formatLine)
+        if lines.count > Self.maxLines {
+            lines.removeFirst(lines.count - Self.maxLines)
         }
-        textView.text = String(text[idx...])
-        lineCount = Self.maxLines
+        renderedCount = 0
+        pendingSplice = 0
+        textView.textStorage.setAttributedString(NSAttributedString())
+        if !isHidden { flushPending() }
+    }
+
+    /// Reconciles `textView.textStorage` with `lines`. Splices any pending leading
+    /// lines out, then appends new tail entries. Cheap when nothing is pending.
+    func flushPending() {
+        if pendingSplice > 0 {
+            spliceLeadingLines(pendingSplice)
+            pendingSplice = 0
+        }
+        guard renderedCount < lines.count else { return }
+        let pending = lines[renderedCount...]
+        let prefix = renderedCount == 0 ? "" : "\n"
+        textView.textStorage.append(
+            NSAttributedString(string: prefix + pending.joined(separator: "\n"), attributes: lineAttributes)
+        )
+        renderedCount = lines.count
+        scrollToBottom()
+    }
+
+    /// Pushes a single line into the array, trims if needed, and updates `textStorage`
+    /// only if the panel is visible. While hidden, work is deferred to `flushPending`.
+    private func appendLine(_ line: String) {
+        lines.append(line)
+        if lines.count > Self.maxLines {
+            let drop = lines.count - Self.maxLines
+            lines.removeFirst(drop)
+            // Of the dropped lines, this many were already in textStorage and need
+            // to be spliced out (now or later, depending on visibility).
+            let renderedDrop = min(drop, renderedCount)
+            renderedCount -= renderedDrop
+            if isHidden {
+                pendingSplice += renderedDrop
+            } else if renderedDrop > 0 {
+                spliceLeadingLines(renderedDrop)
+            }
+        }
+        if !isHidden { flushPending() }
+    }
+
+    /// Removes the first `count` newline-terminated lines from the text view's storage
+    /// in place, preserving attributes on the remaining text.
+    private func spliceLeadingLines(_ count: Int) {
+        let storage = textView.textStorage
+        let plain = storage.string as NSString
+        var location = 0
+        for _ in 0..<count where location < plain.length {
+            let nlRange = plain.range(of: "\n", options: [], range: NSRange(location: location, length: plain.length - location))
+            guard nlRange.location != NSNotFound else {
+                location = plain.length
+                break
+            }
+            location = nlRange.location + nlRange.length
+        }
+        if location > 0 {
+            storage.replaceCharacters(in: NSRange(location: 0, length: location), with: "")
+        }
     }
 
     private func scrollToBottom() {
@@ -259,10 +281,18 @@ private final class DebugLogPanelView: UIView {
         entry.formatted(timestamp: Self.timestampFormatter.string(from: entry.date))
     }
 
+    private var lineAttributes: [NSAttributedString.Key: Any] {
+        [
+            .font: textView.font ?? UIFont.monospacedSystemFont(ofSize: 10, weight: .regular),
+            .foregroundColor: textView.textColor ?? UIColor.white
+        ]
+    }
+
     @objc private func clearTapped() {
-        textView.text = ""
-        pendingLines.removeAll(keepingCapacity: true)
-        lineCount = 0
+        lines.removeAll(keepingCapacity: true)
+        renderedCount = 0
+        pendingSplice = 0
+        textView.textStorage.setAttributedString(NSAttributedString())
     }
 
     @objc private func handleDrag(_ gesture: UIPanGestureRecognizer) {
