@@ -194,12 +194,16 @@ final class ATTNAPI: ATTNAPIProtocol {
                 "v": "mobile-app-\(ATTNConstants.sdkVersion)",
                 "u": userIdentity.visitorId,
                 "evs": evsArray,
-                "tp": "apns",
                 "type": "MARKETING"
             ]
             if let email = email { payload["email"] = email }
             if let phone = phone { payload["phone"] = phone }
-            if !pushToken.isEmpty { payload["pt"] = pushToken }
+            // `tp` ("transport") only makes sense alongside a push token; for non-push
+            // clients we omit both so the payload doesn't look like an incomplete request.
+            if !pushToken.isEmpty {
+                payload["pt"] = pushToken
+                payload["tp"] = "apns"
+            }
 
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optInURL else {
                 Loggers.network.error("Invalid opt-in subscriptions URL")
@@ -256,12 +260,15 @@ final class ATTNAPI: ATTNAPIProtocol {
                 "v": "mobile-app-\(ATTNConstants.sdkVersion)",
                 "u": userIdentity.visitorId,
                 "evs": evsArray,
-                "tp": "apns",
                 "type": "MARKETING"
             ]
             if let email = email { payload["email"] = email }
             if let phone = phone { payload["phone"] = phone }
-            if !pushToken.isEmpty { payload["pt"] = pushToken }
+            // See note in sendOptInMarketingSubscription: `tp` is paired with `pt`.
+            if !pushToken.isEmpty {
+                payload["pt"] = pushToken
+                payload["tp"] = "apns"
+            }
 
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optOutURL else {
                 Loggers.network.error("Invalid opt-out subscriptions URL")
