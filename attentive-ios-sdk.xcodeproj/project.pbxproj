@@ -45,6 +45,7 @@
 		FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */; };
 		FB2983F82C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */; };
 		FB2983FA2C0F80A30039759C /* ATTNPersistentStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F92C0F80A30039759C /* ATTNPersistentStorageTests.swift */; };
+		0AD0CE052F62A38000ABCDEF /* ATTNLogBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD0CE042F62A38000ABCDEF /* ATTNLogBufferTests.swift */; };
 		FB2983FC2C0F81FD0039759C /* ATTNParameterValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983FB2C0F81FD0039759C /* ATTNParameterValidationTests.swift */; };
 		FB2983FE2C0F85770039759C /* ATTNCustomEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983FD2C0F85770039759C /* ATTNCustomEventTests.swift */; };
 		FB2984002C0F86270039759C /* ATTNCreativeUrlFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983FF2C0F86270039759C /* ATTNCreativeUrlFormatterTests.swift */; };
@@ -183,6 +184,7 @@
 		FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityTests.swift; sourceTree = "<group>"; };
 		FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserAgentBuilderTests.swift; sourceTree = "<group>"; };
 		FB2983F92C0F80A30039759C /* ATTNPersistentStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPersistentStorageTests.swift; sourceTree = "<group>"; };
+		0AD0CE042F62A38000ABCDEF /* ATTNLogBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNLogBufferTests.swift; sourceTree = "<group>"; };
 		FB2983FB2C0F81FD0039759C /* ATTNParameterValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNParameterValidationTests.swift; sourceTree = "<group>"; };
 		FB2983FD2C0F85770039759C /* ATTNCustomEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCustomEventTests.swift; sourceTree = "<group>"; };
 		FB2983FF2C0F86270039759C /* ATTNCreativeUrlFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeUrlFormatterTests.swift; sourceTree = "<group>"; };
@@ -440,6 +442,7 @@
 				FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */,
 				FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */,
 				FB2983F92C0F80A30039759C /* ATTNPersistentStorageTests.swift */,
+				0AD0CE042F62A38000ABCDEF /* ATTNLogBufferTests.swift */,
 				F9CED4642DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift */,
 				FB2983FB2C0F81FD0039759C /* ATTNParameterValidationTests.swift */,
 				FB2983FD2C0F85770039759C /* ATTNCustomEventTests.swift */,
@@ -861,6 +864,7 @@
 				FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */,
 				0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */,
 				FB2983FA2C0F80A30039759C /* ATTNPersistentStorageTests.swift in Sources */,
+				0AD0CE052F62A38000ABCDEF /* ATTNLogBufferTests.swift in Sources */,
 				F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */,
 				FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */,
 				FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */,
