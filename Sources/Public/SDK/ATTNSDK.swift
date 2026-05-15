@@ -15,7 +15,7 @@ extension Notification.Name {
     static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
 }
 
-@available(*, deprecated, message: "Use ATTNError.initializationFailed / ATTNError.missingPushToken instead")
+@available(*, deprecated, message: "Use ATTNError.initializationFailed instead")
 public enum ATTNSDKError: Error {
     case initializationFailed
     case missingPushToken
@@ -260,7 +260,7 @@ public final class ATTNSDK: NSObject {
     public func update(domain: String, completion: ((Error?) -> Void)?) {
         guard self.domain != domain else {
             Loggers.creative.debug("Domain update skipped - requested domain matches current domain: \(domain, privacy: .public)")
-            completion?(nil)
+            DispatchQueue.main.async { completion?(nil) }
             return
         }
         if ATTNAPI.isInvalidDomain(domain) {
@@ -269,11 +269,11 @@ public final class ATTNSDK: NSObject {
             if completion == nil {
                 assertionFailure(ATTNError.invalidDomain.localizedDescription)
             }
-            completion?(ATTNError.invalidDomain)
+            DispatchQueue.main.async { completion?(ATTNError.invalidDomain) }
             return
         }
         updateDomainInternal(domain)
-        completion?(nil)
+        DispatchQueue.main.async { completion?(nil) }
     }
 
     private func updateDomainInternal(_ domain: String) {

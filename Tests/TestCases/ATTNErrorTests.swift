@@ -11,8 +11,6 @@ final class ATTNErrorTests: XCTestCase {
         XCTAssertEqual(ATTNError.badURL.localizedDescription, "Invalid URL")
         XCTAssertEqual(ATTNError.invalidDomain.localizedDescription, "The provided domain is not recognized. Please verify that the domain matches your Attentive settings.")
         XCTAssertEqual(ATTNError.initializationFailed.localizedDescription, "SDK initialization failed")
-        XCTAssertEqual(ATTNError.missingPushToken.localizedDescription, "Push token is not available")
-        XCTAssertEqual(ATTNError.httpError(statusCode: 404, data: nil).localizedDescription, "HTTP request failed with status code 404")
     }
 
     // MARK: - CustomNSError
@@ -27,15 +25,6 @@ final class ATTNErrorTests: XCTestCase {
         XCTAssertEqual(ATTNError.badURL.errorCode, 4)
         XCTAssertEqual(ATTNError.invalidDomain.errorCode, 5)
         XCTAssertEqual(ATTNError.initializationFailed.errorCode, 6)
-        XCTAssertEqual(ATTNError.missingPushToken.errorCode, 7)
-        XCTAssertEqual(ATTNError.httpError(statusCode: 500, data: nil).errorCode, 1500)
-    }
-
-    func testHttpErrorCarriesResponseData() {
-        let body = "error body".data(using: .utf8)!
-        let error = ATTNError.httpError(statusCode: 422, data: body)
-        let userInfo = error.errorUserInfo
-        XCTAssertEqual(userInfo["responseData"] as? Data, body)
     }
 
     func testNSErrorBridging() {
