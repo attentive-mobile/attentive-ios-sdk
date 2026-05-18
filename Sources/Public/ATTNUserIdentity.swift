@@ -9,15 +9,22 @@ import Foundation
 
 @objc(ATTNUserIdentity)
 public final class ATTNUserIdentity: NSObject {
+    private let lock = NSLock()
+    private var _identifiers: [String: Any]
+    private var _visitorId: String
+    private let visitorService: ATTNVisitorService
+
     @objc public var identifiers: [String: Any] {
-        willSet {
-            guard !newValue.isEmpty else { return }
-            validate(identifiers: newValue)
-        }
+        lock.lock()
+        defer { lock.unlock() }
+        return _identifiers
     }
 
-    @objc public var visitorId: String
-    private let visitorService: ATTNVisitorService
+    @objc public var visitorId: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _visitorId
+    }
 
     @objc
     override public convenience init() {
@@ -27,25 +34,26 @@ public final class ATTNUserIdentity: NSObject {
     @objc(initWithIdentifiers:)
     public init(identifiers: [String: Any]) {
         self.visitorService = .init()
-        self.identifiers = identifiers
-        self.visitorId = self.visitorService.getVisitorId()
+        self._identifiers = identifiers
+        self._visitorId = self.visitorService.getVisitorId()
         super.init()
     }
 
     @objc
     public func clearUser() {
-        identifiers = [:]
-        visitorId = visitorService.createNewVisitorId()
+        lock.lock()
+        _identifiers = [:]
+        _visitorId = visitorService.createNewVisitorId()
+        lock.unlock()
     }
 
     @objc
     public func mergeIdentifiers(_ newIdentifiers: [String: Any]) {
         validate(identifiers: newIdentifiers)
-
-        var currentIdentifiers = identifiers
+        lock.lock()
         // In case of a key conflict, the new value from newIdentifiers should be used.
-        currentIdentifiers.merge(newIdentifiers) { (_, new) in new }
-        identifiers = currentIdentifiers
+        _identifiers.merge(newIdentifiers) { (_, new) in new }
+        lock.unlock()
     }
 }
 

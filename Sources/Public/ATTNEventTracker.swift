@@ -19,6 +19,7 @@ public enum ATTNEventData {
 
 @objc(ATTNEventTracker)
 public final class ATTNEventTracker: NSObject {
+    private static let sharedInstanceLock = NSLock()
     private static var _sharedInstance: ATTNEventTracker?
     private let sdk: ATTNSDK
 
@@ -29,7 +30,9 @@ public final class ATTNEventTracker: NSObject {
 
     @objc(setupWithSdk:)
     public static func setup(with sdk: ATTNSDK) {
+        sharedInstanceLock.lock()
         _sharedInstance = ATTNEventTracker(sdk: sdk)
+        sharedInstanceLock.unlock()
         Loggers.event.debug("ATTNEventTracker was initialized with SDK")
     }
 
@@ -45,8 +48,11 @@ public final class ATTNEventTracker: NSObject {
 
     @objc
     public static func sharedInstance() -> ATTNEventTracker? {
-        assert(_sharedInstance != nil, "ATTNEventTracker must be setup before being used")
-        return _sharedInstance
+        sharedInstanceLock.lock()
+        let instance = _sharedInstance
+        sharedInstanceLock.unlock()
+        assert(instance != nil, "ATTNEventTracker must be setup before being used")
+        return instance
     }
 
     // MARK: - New Event API (v2 endpoint)
@@ -88,7 +94,9 @@ public final class ATTNEventTracker: NSObject {
 // MARK: Internal Helpers
 extension ATTNEventTracker {
     static func destroy() {
+        sharedInstanceLock.lock()
         _sharedInstance = nil
+        sharedInstanceLock.unlock()
     }
 
     func getSdk() -> ATTNSDK {
