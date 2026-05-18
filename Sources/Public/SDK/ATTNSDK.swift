@@ -39,14 +39,17 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
-    let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
-    var pendingMarketingRequests: [PendingMarketingRequest] = []
-    var pendingMarketingExpiryTimer: DispatchSourceTimer?
-    let pendingMarketingTTL: TimeInterval = 60
+    private let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
+    /// All access to `pendingMarketingRequests` and `pendingMarketingExpiryTimer` is serialized through `marketingQueue`.
+    private var pendingMarketingRequests: [PendingMarketingRequest] = []
+    private var pendingMarketingExpiryTimer: DispatchSourceTimer?
+    private let pendingMarketingTTL: TimeInterval = 60
+    /// Guards `_pendingURL` and `_lastRegularOpenTime`.
+    private let stateLock = NSLock()
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
-    private var pendingURL: URL?
+    private var _pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
-    private var lastRegularOpenTime: Date?
+    private var _lastRegularOpenTime: Date?
 
     var currentPushToken: String { pushTokenStore.token }
 
@@ -415,11 +418,14 @@ public final class ATTNSDK: NSObject {
         }
         // debounce to remove duplicate events; only allow app events tracking once every 2 seconds
         let now = Date()
-        if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+        stateLock.lock()
+        if let last = _lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+            stateLock.unlock()
             Loggers.event.debug("Skipping duplicate handleRegularOpen due to debounce.")
             return
         }
-        lastRegularOpenTime = now
+        _lastRegularOpenTime = now
+        stateLock.unlock()
 
         let alEvent: [String: Any] = [
             "ist": "al",
@@ -498,10 +504,13 @@ public final class ATTNSDK: NSObject {
     /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
     /// call this to retrieve (and clear) the pending URL.
     public func consumeDeepLink() -> URL? {
-        defer { pendingURL = nil }
-        let urlString = pendingURL?.absoluteString ?? ""
+        stateLock.lock()
+        let url = _pendingURL
+        _pendingURL = nil
+        stateLock.unlock()
+        let urlString = url?.absoluteString ?? ""
         Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
-        return pendingURL
+        return url
     }
 
     // MARK: - Private Helpers
@@ -617,7 +626,9 @@ public final class ATTNSDK: NSObject {
             return
         }
 
-        pendingURL = validURL
+        stateLock.lock()
+        _pendingURL = validURL
+        stateLock.unlock()
         Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
         NotificationCenter.default.post(
             name: .ATTNSDKDeepLinkReceived,

@@ -17,7 +17,8 @@ final class ATTNAPI: ATTNAPIProtocol {
     private(set) var urlSession: URLSession
 
     private let retryClient: ATTNRetryingNetworkClient
-    private var lastPushTokenSendTime: Date?
+    private let stateLock = NSLock()
+    private var _lastPushTokenSendTime: Date?
 
     // MARK: ATTNAPIProtocol Properties
     var domain: String
@@ -60,11 +61,14 @@ final class ATTNAPI: ATTNAPIProtocol {
                                          callback: ATTNAPICallback?) {
         // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
         let now = Date()
-        if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+        stateLock.lock()
+        if let last = _lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+            stateLock.unlock()
             Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
             return
         }
-        lastPushTokenSendTime = now
+        _lastPushTokenSendTime = now
+        stateLock.unlock()
 
         Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Auth Status: \(authorizationStatus.rawValue, privacy: .public)")
 
