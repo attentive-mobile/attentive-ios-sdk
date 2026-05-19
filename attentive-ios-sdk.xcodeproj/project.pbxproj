@@ -691,7 +691,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    swiftlint\nelse\n    echo \"error: SwiftLint is required but not installed. Run 'brew install swiftlint' to install it.\"\n    exit 1\nfi\n";
+			shellScript = "if [ \"$CI\" = \"true\" ]\nthen\n    echo \"Skipping SwiftLint build phase in CI (handled by dedicated lint job)\"\n    exit 0\nfi\n\nif [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    swiftlint\nelse\n    echo \"error: SwiftLint is required but not installed. Run 'brew install swiftlint' to install it.\"\n    exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
