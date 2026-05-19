@@ -61,6 +61,7 @@
 		FB4E3FE52C36F7BF004B8FF0 /* ATTNWebViewHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */; };
 		FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */; };
 		FB56D4DA2C208BAD00AF7530 /* ATTNSDK+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */; };
+		A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */; };
 		FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */; };
 		FB56D4DE2C208DC100AF7530 /* String+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DD2C208DC100AF7530 /* String+Extension.swift */; };
 		FB56D4E12C20925500AF7530 /* ProcessInfo+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */; };
@@ -184,6 +185,7 @@
 		FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandling.swift; sourceTree = "<group>"; };
 		FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewProviding.swift; sourceTree = "<group>"; };
 		FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+Extension.swift"; sourceTree = "<group>"; };
+		A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+MarketingSubscriptions.swift"; sourceTree = "<group>"; };
 		FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Boolean+Extension.swift"; sourceTree = "<group>"; };
 		FB56D4DD2C208DC100AF7530 /* String+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extension.swift"; sourceTree = "<group>"; };
 		FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProcessInfo+Extension.swift"; sourceTree = "<group>"; };
@@ -430,6 +432,7 @@
 			isa = PBXGroup;
 			children = (
 				FBA9F9FC2C0A77AB00C65024 /* ATTNSDK.swift */,
+				A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */,
 				FBA9F9FD2C0A77AB00C65024 /* ATTNSDKMode.swift */,
 			);
 			path = SDK;
@@ -750,6 +753,7 @@
 				FBA9FA082C0A77AB00C65024 /* Dictionary+Extension.swift in Sources */,
 				FBA9FA152C0A77AB00C65024 /* ATTNOrder.swift in Sources */,
 				FBA9FA1A2C0A77AB00C65024 /* ATTNSDK.swift in Sources */,
+				A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */,
 				FBA9FA0E2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift in Sources */,
 				FBA9FA0C2C0A77AB00C65024 /* ATTNParameterValidation.swift in Sources */,
 				54226504E51EC95F3B2E536D /* HTTPURLResponse+Extension.swift in Sources */,
