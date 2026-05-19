@@ -105,13 +105,6 @@ commands:
               ]
             }
 
-  install-swiftlint:
-    description: "Install SwiftLint (required by Xcode build phase)"
-    steps:
-      - run:
-          name: Install SwiftLint
-          command: command -v swiftlint || brew install swiftlint
-
   setup-fastlane:
     description: "Install Fastlane via Bundler"
     steps:
@@ -218,7 +211,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -266,7 +258,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -338,7 +329,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
