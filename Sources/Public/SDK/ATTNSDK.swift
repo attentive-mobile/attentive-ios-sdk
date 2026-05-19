@@ -44,7 +44,6 @@ public final class ATTNSDK: NSObject {
     private var pendingMarketingRequests: [PendingMarketingRequest] = []
     private var pendingMarketingExpiryTimer: DispatchSourceTimer?
     private let pendingMarketingTTL: TimeInterval = 60
-    /// Guards `_pendingURL` and `_lastRegularOpenTime`.
     private let stateLock = NSLock()
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
     private var _pendingURL: URL?
@@ -418,14 +417,17 @@ public final class ATTNSDK: NSObject {
         }
         // debounce to remove duplicate events; only allow app events tracking once every 2 seconds
         let now = Date()
-        stateLock.lock()
-        if let last = _lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
-            stateLock.unlock()
+        let shouldSkip: Bool = stateLock.withLock {
+            if let last = _lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+                return true
+            }
+            _lastRegularOpenTime = now
+            return false
+        }
+        if shouldSkip {
             Loggers.event.debug("Skipping duplicate handleRegularOpen due to debounce.")
             return
         }
-        _lastRegularOpenTime = now
-        stateLock.unlock()
 
         let alEvent: [String: Any] = [
             "ist": "al",
@@ -504,10 +506,11 @@ public final class ATTNSDK: NSObject {
     /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
     /// call this to retrieve (and clear) the pending URL.
     public func consumeDeepLink() -> URL? {
-        stateLock.lock()
-        let url = _pendingURL
-        _pendingURL = nil
-        stateLock.unlock()
+        let url = stateLock.withLock { () -> URL? in
+            let snapshot = _pendingURL
+            _pendingURL = nil
+            return snapshot
+        }
         let urlString = url?.absoluteString ?? ""
         Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
         return url
@@ -626,9 +629,7 @@ public final class ATTNSDK: NSObject {
             return
         }
 
-        stateLock.lock()
-        _pendingURL = validURL
-        stateLock.unlock()
+        stateLock.withLock { _pendingURL = validURL }
         Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
         NotificationCenter.default.post(
             name: .ATTNSDKDeepLinkReceived,

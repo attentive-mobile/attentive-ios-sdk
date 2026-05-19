@@ -15,15 +15,11 @@ public final class ATTNUserIdentity: NSObject {
     private let visitorService: ATTNVisitorService
 
     @objc public var identifiers: [String: Any] {
-        lock.lock()
-        defer { lock.unlock() }
-        return _identifiers
+        lock.withLock { _identifiers }
     }
 
     @objc public var visitorId: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return _visitorId
+        lock.withLock { _visitorId }
     }
 
     @objc
@@ -41,19 +37,19 @@ public final class ATTNUserIdentity: NSObject {
 
     @objc
     public func clearUser() {
-        lock.lock()
-        _identifiers = [:]
-        _visitorId = visitorService.createNewVisitorId()
-        lock.unlock()
+        lock.withLock {
+            _identifiers = [:]
+            _visitorId = visitorService.createNewVisitorId()
+        }
     }
 
     @objc
     public func mergeIdentifiers(_ newIdentifiers: [String: Any]) {
         validate(identifiers: newIdentifiers)
-        lock.lock()
-        // In case of a key conflict, the new value from newIdentifiers should be used.
-        _identifiers.merge(newIdentifiers) { (_, new) in new }
-        lock.unlock()
+        lock.withLock {
+            // In case of a key conflict, the new value from newIdentifiers should be used.
+            _identifiers.merge(newIdentifiers) { (_, new) in new }
+        }
     }
 }
 

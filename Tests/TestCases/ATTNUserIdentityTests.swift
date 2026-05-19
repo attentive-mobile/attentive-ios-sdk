@@ -89,8 +89,7 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     func testMergeIdentifiers_concurrentMerges_doesNotCrashAndPreservesAllKeys() {
         let identity = ATTNUserIdentity()
-        let iterations = 200
-        DispatchQueue.concurrentPerform(iterations: iterations) { i in
+        DispatchQueue.concurrentPerform(iterations: 200) { i in
             identity.mergeIdentifiers([ATTNIdentifierType.customIdentifiers: ["key\(i)": "value\(i)"] as NSDictionary])
         }
         // The classic TOCTOU here would either crash or drop keys. With proper locking
@@ -101,44 +100,24 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
         let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "seed@test.com"])
-        let group = DispatchGroup()
-        let writerQueue = DispatchQueue(label: "writer", attributes: .concurrent)
-        let readerQueue = DispatchQueue(label: "reader", attributes: .concurrent)
-
-        for i in 0..<200 {
-            group.enter()
-            writerQueue.async {
+        runConcurrently(iterations: 200, queueLabels: ["writer", "reader"]) { i, queueIndex in
+            if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
-                group.leave()
-            }
-            group.enter()
-            readerQueue.async {
+            } else {
                 _ = identity.identifiers
                 _ = identity.visitorId
-                group.leave()
             }
         }
-        let result = group.wait(timeout: .now() + 5)
-        XCTAssertEqual(result, .success)
     }
 
     func testClearUser_concurrentClearAndMerge_doesNotCrash() {
         let identity = ATTNUserIdentity()
-        let group = DispatchGroup()
-        let queue = DispatchQueue(label: "concurrent", attributes: .concurrent)
-        for i in 0..<100 {
-            group.enter()
-            queue.async {
+        runConcurrently(iterations: 100, queueLabels: ["merge", "clear"]) { i, queueIndex in
+            if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
-                group.leave()
-            }
-            group.enter()
-            queue.async {
+            } else {
                 identity.clearUser()
-                group.leave()
             }
         }
-        let result = group.wait(timeout: .now() + 5)
-        XCTAssertEqual(result, .success)
     }
 }

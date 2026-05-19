@@ -61,14 +61,17 @@ final class ATTNAPI: ATTNAPIProtocol {
                                          callback: ATTNAPICallback?) {
         // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
         let now = Date()
-        stateLock.lock()
-        if let last = _lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
-            stateLock.unlock()
+        let shouldSkip: Bool = stateLock.withLock {
+            if let last = _lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+                return true
+            }
+            _lastPushTokenSendTime = now
+            return false
+        }
+        if shouldSkip {
             Loggers.event.debug("Skipping duplicate sendPushToken due to debounce.")
             return
         }
-        _lastPushTokenSendTime = now
-        stateLock.unlock()
 
         Loggers.network.debug("Sending push token - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Auth Status: \(authorizationStatus.rawValue, privacy: .public)")
 

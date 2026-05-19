@@ -47,6 +47,8 @@
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
 		FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */; };
 		FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */; };
+		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
+		A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */; };
 		FB35C1852C0E35E7009FA048 /* ATTNJsonUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */; };
 		FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */; };
 		FB35C1892C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1882C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift */; };
@@ -171,6 +173,8 @@
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
 		FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNConstants.swift; sourceTree = "<group>"; };
 		FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Extension.swift"; sourceTree = "<group>"; };
+		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
+		A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+Concurrency.swift"; sourceTree = "<group>"; };
 		FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNJsonUtils.swift; sourceTree = "<group>"; };
 		FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTypes.swift; sourceTree = "<group>"; };
 		FB35C1882C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNExternalVendorTypes.swift; sourceTree = "<group>"; };
@@ -357,6 +361,7 @@
 				FB2983F22C0F75600039759C /* TestCases */,
 				FB2983D32C0F73990039759C /* Doubles */,
 				FB2984032C0F9D650039759C /* ATTNTestEventUtils.swift */,
+				A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */,
 				FB56D4DF2C20923800AF7530 /* Extensions */,
 			);
 			path = Tests;
@@ -468,6 +473,7 @@
 				FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */,
 				FBA9F9E72C0A77AB00C65024 /* Dictionary+Extension.swift */,
 				FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */,
+				A9D1C312A0001000000000002 /* NSLock+Extension.swift */,
 				FB35C18A2C0E3F27009FA048 /* ATTNEvent+Extension.swift */,
 				FB35C18C2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift */,
 				FB35C1922C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift */,
@@ -714,6 +720,7 @@
 				FB35C1932C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift in Sources */,
 				FB35C18D2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift in Sources */,
 				FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */,
+				A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */,
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,
@@ -792,6 +799,7 @@
 				F952B5B62EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift in Sources */,
 				F952B5B72EC2915000E0E69D /* ATTNV2EventModelsTests.swift in Sources */,
 				FB2984042C0F9D650039759C /* ATTNTestEventUtils.swift in Sources */,
+				A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */,
 				7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

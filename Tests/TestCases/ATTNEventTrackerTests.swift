@@ -24,22 +24,13 @@ final class ATTNEventTrackerTests: XCTestCase {
 
     func testSharedInstance_concurrentSetupAndAccess_doesNotCrash() {
         let sdk = ATTNSDK(domain: "domain")
-        let group = DispatchGroup()
-        let queue = DispatchQueue(label: "concurrent", attributes: .concurrent)
-        for _ in 0..<200 {
-            group.enter()
-            queue.async {
+        runConcurrently(iterations: 200, queueLabels: ["setup", "access"]) { _, queueIndex in
+            if queueIndex == 0 {
                 ATTNEventTracker.setup(with: sdk)
-                group.leave()
-            }
-            group.enter()
-            queue.async {
+            } else {
                 _ = ATTNEventTracker.sharedInstance()
-                group.leave()
             }
         }
-        let result = group.wait(timeout: .now() + 5)
-        XCTAssertEqual(result, .success)
         XCTAssertNotNil(ATTNEventTracker.sharedInstance())
     }
 }
