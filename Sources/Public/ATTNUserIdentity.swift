@@ -15,7 +15,13 @@ public final class ATTNUserIdentity: NSObject {
     private let visitorService: ATTNVisitorService
 
     @objc public var identifiers: [String: Any] {
-        lock.withLock { _identifiers }
+        get { lock.withLock { _identifiers } }
+        set {
+            if !newValue.isEmpty {
+                validate(identifiers: newValue)
+            }
+            lock.withLock { _identifiers = newValue }
+        }
     }
 
     @objc public var visitorId: String {

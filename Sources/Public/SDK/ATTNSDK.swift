@@ -416,8 +416,8 @@ public final class ATTNSDK: NSObject {
             return
         }
         // debounce to remove duplicate events; only allow app events tracking once every 2 seconds
-        let now = Date()
         let shouldSkip: Bool = stateLock.withLock {
+            let now = Date()
             if let last = _lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
                 return true
             }
@@ -616,7 +616,7 @@ public final class ATTNSDK: NSObject {
     }
 
     /// Normalize a raw string into a URL, stash it, and immediately post a notification.
-    private func normalizeAndBroadcast(_ rawString: String) {
+    internal func normalizeAndBroadcast(_ rawString: String) {
         let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         var candidateURL: URL?
 

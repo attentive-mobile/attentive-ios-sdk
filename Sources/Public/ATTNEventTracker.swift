@@ -32,8 +32,8 @@ public final class ATTNEventTracker: NSObject {
     public static func setup(with sdk: ATTNSDK) {
         sharedInstanceLock.withLock {
             _sharedInstance = ATTNEventTracker(sdk: sdk)
+            Loggers.event.debug("ATTNEventTracker was initialized with SDK")
         }
-        Loggers.event.debug("ATTNEventTracker was initialized with SDK")
     }
 
     @available(swift, deprecated: 0.6, message: "Please use record(event: ATTNEvent) instead.")
