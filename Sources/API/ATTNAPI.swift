@@ -60,8 +60,8 @@ final class ATTNAPI: ATTNAPIProtocol {
                                          authorizationStatus: UNAuthorizationStatus,
                                          callback: ATTNAPICallback?) {
         // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
-        let now = Date()
         let shouldSkip: Bool = stateLock.withLock {
+            let now = Date()
             if let last = _lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
                 return true
             }

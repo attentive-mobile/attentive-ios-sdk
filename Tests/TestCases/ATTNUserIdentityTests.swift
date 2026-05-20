@@ -87,15 +87,15 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     // MARK: Concurrency
 
-    func testMergeIdentifiers_concurrentMerges_doesNotCrashAndPreservesAllKeys() {
+    func testMergeIdentifiers_concurrentMerges_preservesAllKeys() {
         let identity = ATTNUserIdentity()
+        // Each iteration writes a *different* top-level key. With non-atomic merge the
+        // read-modify-write would drop keys under contention; with proper locking every
+        // merge composes, so all 200 keys must survive.
         DispatchQueue.concurrentPerform(iterations: 200) { i in
-            identity.mergeIdentifiers([ATTNIdentifierType.customIdentifiers: ["key\(i)": "value\(i)"] as NSDictionary])
+            identity.mergeIdentifiers(["dynamic_key_\(i)": "value\(i)"])
         }
-        // The classic TOCTOU here would either crash or drop keys. With proper locking
-        // we only guarantee the merge sequence is atomic — the *last* writer wins for the
-        // shared key, but the operation must complete without crashing.
-        XCTAssertNotNil(identity.identifiers[ATTNIdentifierType.customIdentifiers])
+        XCTAssertEqual(identity.identifiers.count, 200)
     }
 
     func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
