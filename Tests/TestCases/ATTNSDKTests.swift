@@ -602,4 +602,58 @@ final class ATTNSDKTests: XCTestCase {
         return condition()
     }
 
+    // MARK: - Error Handling Tests
+
+    func testUpdateDomain_invalidDomain_callsCompletionWithError() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error?
+        sut.update(domain: "https://attn.tv/bad-domain", completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNotNil(receivedError)
+        XCTAssertEqual(receivedError as? ATTNError, .invalidDomain)
+    }
+
+    func testUpdateDomain_validDomain_callsCompletionWithNil() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error? = ATTNError.badURL
+        sut.update(domain: "VALID_DOMAIN", completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNil(receivedError)
+    }
+
+    func testUpdateDomain_sameDomain_callsCompletionWithNil() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error? = ATTNError.badURL
+        sut.update(domain: testDomain, completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNil(receivedError)
+    }
+
+    func testRegisterAppEvents_emptyPushToken_callsCallbackWithMissingPushTokenError() {
+        var receivedError: Error?
+        sut.registerAppEvents(
+            [["ist": "al", "data": [:]]],
+            pushToken: "",
+            subscriptionStatus: "authorized",
+            callback: { _, _, _, error in
+                receivedError = error
+            }
+        )
+
+        XCTAssertNotNil(receivedError)
+        XCTAssertEqual(receivedError as? ATTNSDKError, .missingPushToken)
+    }
+
 }

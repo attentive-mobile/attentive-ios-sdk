@@ -15,6 +15,7 @@ extension Notification.Name {
     static let didReceivePushOpen = Notification.Name("ATTNSDKDidReceivePushOpen")
 }
 
+@available(*, deprecated, message: "Use ATTNError.initializationFailed instead")
 public enum ATTNSDKError: Error {
     case initializationFailed
     case missingPushToken
@@ -38,17 +39,16 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
-    private let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
-    private var pendingMarketingRequests: [PendingMarketingRequest] = []
-    private var pendingMarketingExpiryTimer: DispatchSourceTimer?
-    private let pendingMarketingTTL: TimeInterval = 60
+    let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
+    var pendingMarketingRequests: [PendingMarketingRequest] = []
+    var pendingMarketingExpiryTimer: DispatchSourceTimer?
+    let pendingMarketingTTL: TimeInterval = 60
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
     private var pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
     private var lastRegularOpenTime: Date?
 
-    // Single accessor used across the SDK
-    private var currentPushToken: String { pushTokenStore.token }
+    var currentPushToken: String { pushTokenStore.token }
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -148,6 +148,13 @@ public final class ATTNSDK: NSObject {
         mode: ATTNSDKMode = .production,
         pushEnabled: Bool = true,
         completion: @escaping (Result<ATTNSDK, Error>) -> Void) {
+            if ATTNAPI.isInvalidDomain(domain) {
+                Loggers.creative.error("ATTNSDK initialization failed - invalid domain: \(domain, privacy: .public)")
+                DispatchQueue.main.async {
+                    completion(.failure(ATTNError.invalidDomain))
+                }
+                return
+            }
             let sdk = ATTNSDK(domain: domain, mode: mode, pushEnabled: pushEnabled)
             DispatchQueue.global(qos: .userInitiated).async {
                 let setupSucceeded = sdk.webViewHandler != nil
@@ -157,7 +164,7 @@ public final class ATTNSDK: NSObject {
                         completion(.success(sdk))
                     } else {
                         Loggers.creative.error("ATTNSDK async initialization failed - webViewHandler setup unsuccessful")
-                        completion(.failure(ATTNSDKError.initializationFailed))
+                        completion(.failure(ATTNError.initializationFailed))
                     }
                 }
             }
@@ -237,7 +244,7 @@ public final class ATTNSDK: NSObject {
     /// Both `clearUser()` and `updateUser(email:phone:callback:)` call this as their first step.
     /// The new visitor ID is used in any subsequent API call so the server treats the device as
     /// a fresh anonymous user.
-    private func clearUserIdentifiers() {
+    func clearUserIdentifiers() {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
         Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
@@ -245,17 +252,30 @@ public final class ATTNSDK: NSObject {
 
     @objc(updateDomain:)
     public func update(domain: String) {
+        update(domain: domain, completion: nil)
+    }
+
+    @objc(updateDomain:completion:)
+    public func update(domain: String, completion: ((Error?) -> Void)?) {
         guard self.domain != domain else {
             Loggers.creative.debug("Domain update skipped - requested domain matches current domain: \(domain, privacy: .public)")
+            DispatchQueue.main.async { completion?(nil) }
             return
         }
         if ATTNAPI.isInvalidDomain(domain) {
-            let message = ATTNError.invalidDomain.localizedDescription
             Loggers.creative.error("Invalid domain provided: \(domain, privacy: .public)")
-            Loggers.creative.error("\(message)")
-            assertionFailure(message)
+            Loggers.creative.error("\(ATTNError.invalidDomain.localizedDescription)")
+            if completion == nil {
+                assertionFailure(ATTNError.invalidDomain.localizedDescription)
+            }
+            DispatchQueue.main.async { completion?(ATTNError.invalidDomain) }
             return
         }
+        updateDomainInternal(domain)
+        DispatchQueue.main.async { completion?(nil) }
+    }
+
+    private func updateDomainInternal(_ domain: String) {
         let oldDomain = self.domain
         self.domain = domain
         api.update(domain: domain)
@@ -314,9 +334,9 @@ public final class ATTNSDK: NSObject {
             if let http = response as? HTTPURLResponse {
                 Loggers.event.debug("Status Code: \(http.statusCode, privacy: .public)")
                 Loggers.event.debug("Headers: \(http.allHeaderFields, privacy: .public)")
-                if http.statusCode >= 200 && http.statusCode < 300 {
+                if http.isSuccessful {
                     Loggers.event.debug("Device token registration successful - Push Token: \(tokenString, privacy: .public)")
-                } else if http.statusCode >= 400 {
+                } else {
                     Loggers.event.error("Device token registration failed with status code: \(http.statusCode, privacy: .public)")
                 }
             }
@@ -364,9 +384,9 @@ public final class ATTNSDK: NSObject {
             if let http = response as? HTTPURLResponse {
                 Loggers.event.debug("Status Code: \(http.statusCode, privacy: .public)")
                 Loggers.event.debug("Headers: \(http.allHeaderFields, privacy: .public)")
-                if http.statusCode >= 200 && http.statusCode < 300 {
+                if http.isSuccessful {
                     Loggers.event.debug("App events sent successfully")
-                } else if http.statusCode >= 400 {
+                } else {
                     Loggers.event.error("App events failed with status code: \(http.statusCode, privacy: .public)")
                 }
             }
@@ -484,176 +504,7 @@ public final class ATTNSDK: NSObject {
         return pendingURL
     }
 
-    // MARK: Marketing Subscriptions
-
-    /// Opts the user into email/SMS (a.k.a. non-push) marketing subscriptions.
-    ///
-    /// - For push-enabled clients (`pushEnabled == true`): if no push token is yet available,
-    ///   the request is queued and flushed once the token registers. This preserves the
-    ///   existing flow where opt-in is associated with the device's push token.
-    /// - For non-push clients (`pushEnabled == false`): there will never be a push token,
-    ///   so the request is sent immediately without one.
-    @objc(optInMarketingSubscriptionWithEmail:phone:callback:)
-    public func optInMarketingSubscription(
-        email: String? = nil,
-        phone: String? = nil,
-        callback: ATTNAPICallback? = nil
-    ) {
-        let email = normalize(email)
-        let phone = normalize(phone)
-
-        guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-in failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public)")
-            callback?(nil, nil, nil, ATTNError.missingContactInfo)
-            return
-        }
-
-        let token = currentPushToken
-        if pushEnabled && token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            enqueueMarketingRequest(.init(
-                kind: .optIn,
-                email: email,
-                phone: phone,
-                callback: callback,
-                createdAt: Date()
-            ))
-            return
-        }
-
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
-
-        api.sendOptInMarketingSubscription(
-            pushToken: currentPushToken,
-            email: email,
-            phone: phone,
-            userIdentity: userIdentity,
-            callback: callback
-        )
-    }
-
-    @objc(optInMarketingSubscriptionWithEmail:callback:)
-    public func optInMarketingSubscription(
-        email: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: email, phone: nil, callback: callback)
-    }
-
-    @objc(optInMarketingSubscriptionWithPhone:callback:)
-    public func optInMarketingSubscription(
-        phone: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: nil, phone: phone, callback: callback)
-    }
-
-    /// Opts the user out of email/SMS (a.k.a. non-push) marketing subscriptions.
-    ///
-    /// Same push-token semantics as ``optInMarketingSubscription(email:phone:callback:)``:
-    /// push-enabled clients queue until a token arrives; non-push clients send immediately
-    /// without one.
-    @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
-    public func optOutMarketingSubscription(
-        email: String? = nil,
-        phone: String? = nil,
-        callback: ATTNAPICallback? = nil
-    ) {
-        let email = normalize(email)
-        let phone = normalize(phone)
-
-        guard email != nil || phone != nil else {
-            Loggers.event.error("Opt-out failed: missing both email and phone number - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public)")
-            callback?(nil, nil, nil, ATTNError.missingContactInfo)
-            return
-        }
-
-        let token = currentPushToken
-        if pushEnabled && token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            enqueueMarketingRequest(.init(
-                kind: .optOut,
-                email: email,
-                phone: phone,
-                callback: callback,
-                createdAt: Date()
-            ))
-            return
-        }
-
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
-
-        api.sendOptOutMarketingSubscription(
-            pushToken: currentPushToken,
-            email: email,
-            phone: phone,
-            userIdentity: userIdentity,
-            callback: callback
-        )
-    }
-
-    @objc(optOutMarketingSubscriptionWithEmail:callback:)
-    public func optOutMarketingSubscription(
-        email: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optOutMarketingSubscription(email: email, phone: nil, callback: callback)
-    }
-
-    @objc(optOutMarketingSubscriptionWithPhone:callback:)
-    public func optOutMarketingSubscription(
-        phone: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
-    }
-
-    /// Switches the current user identity by associating the device with new email and/or phone identifiers.
-    ///
-    /// This method:
-    /// 1. Clears all existing identifiers and generates a new anonymous visitor ID (same as `clearUser()`).
-    /// 2. Sends the new email/phone to the server, which re-identifies the device under the new user.
-    ///
-    /// At least one of `email` or `phone` must be provided.
-    ///
-    /// - Parameters:
-    ///   - email: The new user's email address (optional if phone is provided).
-    ///   - phone: The new user's phone number in E.164 format (optional if email is provided).
-    ///   - callback: Called when the server responds. `nil` is acceptable.
-    @objc(updateUserWithEmail:phone:callback:)
-    public func updateUser(email: String? = nil,
-                                                 phone: String? = nil,
-                                                 callback: ATTNAPICallback? = nil) {
-        Loggers.event.debug("updateUser: switching user identity - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
-        let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pushToken = !trimmedPushToken.isEmpty
-        ? trimmedPushToken
-        : (UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "")
-        guard !pushToken.isEmpty else {
-            Loggers.event.error("updateUser: aborted — missing push token - Tried in-memory token: '\(trimmedPushToken, privacy: .public)', Tried UserDefaults: '\(UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? "nil", privacy: .public)', Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
-            return
-        }
-        Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
-        clearUserIdentifiers()
-        var newIdentifiers: [String: Any] = [:]
-        if let email = email { newIdentifiers[ATTNIdentifierType.email] = email }
-        if let phone = phone { newIdentifiers[ATTNIdentifierType.phone] = phone }
-        userIdentity.mergeIdentifiers(newIdentifiers)
-        api.updateUser(
-            pushToken: pushToken,
-            userIdentity: userIdentity,
-            email: email,
-            phone: phone,
-            operationContext: "updateUser",
-            callback: callback
-        )
-    }
-
     // MARK: - Private Helpers
-
-    private func normalize(_ value: String?) -> String? {
-        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (trimmed?.isEmpty == false) ? trimmed : nil
-    }
 
     private func registerWithAPNsIfAuthorized() {
         // Skip UNUserNotificationCenter usage in unit tests
@@ -789,92 +640,6 @@ public final class ATTNSDK: NSObject {
         }
     }
 
-    private func enqueueMarketingRequest(_ request: PendingMarketingRequest) {
-        marketingQueue.async { [weak self] in
-            guard let self else { return }
-            let expiresAt = request.createdAt.addingTimeInterval(self.pendingMarketingTTL)
-            Loggers.event.debug("Queueing marketing request until push token is available - Kind: \(request.kind.rawValue, privacy: .public), Expires: \(expiresAt, privacy: .public)")
-            self.pendingMarketingRequests.append(request)
-            self.scheduleMarketingExpiryTimer()
-        }
-    }
-
-    private func flushPendingMarketingRequests(with token: String) {
-        marketingQueue.async { [weak self] in
-            guard let self else { return }
-            let now = Date()
-            let (valid, expired) = self.pendingMarketingRequests.partitioned { now.timeIntervalSince($0.createdAt) <= self.pendingMarketingTTL }
-            self.pendingMarketingRequests = []
-            self.cancelMarketingExpiryTimerIfNeeded()
-
-            for request in expired {
-                Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
-                request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
-            }
-
-            for request in valid {
-                self.sendMarketingRequest(request, pushToken: token)
-            }
-        }
-    }
-
-    private func scheduleMarketingExpiryTimer() {
-        guard !pendingMarketingRequests.isEmpty else {
-            cancelMarketingExpiryTimerIfNeeded()
-            return
-        }
-        let nextExpiry = pendingMarketingRequests
-            .map { $0.createdAt.addingTimeInterval(pendingMarketingTTL) }
-            .min() ?? Date().addingTimeInterval(pendingMarketingTTL)
-        let delay = max(0, nextExpiry.timeIntervalSinceNow)
-        cancelMarketingExpiryTimerIfNeeded()
-        let timer = DispatchSource.makeTimerSource(queue: marketingQueue)
-        timer.schedule(deadline: .now() + delay, repeating: .never)
-        timer.setEventHandler { [weak self] in
-            self?.expirePendingMarketingRequests()
-        }
-        pendingMarketingExpiryTimer = timer
-        timer.resume()
-    }
-
-    private func cancelMarketingExpiryTimerIfNeeded() {
-        pendingMarketingExpiryTimer?.cancel()
-        pendingMarketingExpiryTimer = nil
-    }
-
-    private func expirePendingMarketingRequests() {
-        let now = Date()
-        let (valid, expired) = pendingMarketingRequests.partitioned { now.timeIntervalSince($0.createdAt) <= pendingMarketingTTL }
-        pendingMarketingRequests = valid
-        scheduleMarketingExpiryTimer()
-        for request in expired {
-            Loggers.event.error("Marketing request expired before push token became available - Kind: \(request.kind.rawValue, privacy: .public)")
-            request.callback?(nil, nil, nil, ATTNSDKError.missingPushToken)
-        }
-    }
-
-    private func sendMarketingRequest(_ request: PendingMarketingRequest, pushToken: String) {
-        switch request.kind {
-        case .optIn:
-            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
-            api.sendOptInMarketingSubscription(
-                pushToken: pushToken,
-                email: request.email,
-                phone: request.phone,
-                userIdentity: userIdentity,
-                callback: request.callback
-            )
-        case .optOut:
-            Loggers.event.debug("Sending queued opt-out marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
-            api.sendOptOutMarketingSubscription(
-                pushToken: pushToken,
-                email: request.email,
-                phone: request.phone,
-                userIdentity: userIdentity,
-                callback: request.callback
-            )
-        }
-    }
 
     /// Recursively escapes quotes and slashes only in attentive_message_title and attentive_message_body fields.
     func escapeJSONDictionary(_ dictionary: [String: Any]) -> [String: Any] {
@@ -981,32 +746,3 @@ extension ATTNSDK {
     }
 }
 
-private struct PendingMarketingRequest {
-    enum Kind: String {
-        case optIn
-        case optOut
-    }
-
-    let kind: Kind
-    let email: String?
-    let phone: String?
-    let callback: ATTNAPICallback?
-    let createdAt: Date
-}
-
-private extension Array {
-    func partitioned(by isIncluded: (Element) -> Bool) -> ([Element], [Element]) {
-        var included: [Element] = []
-        var excluded: [Element] = []
-        included.reserveCapacity(count)
-        excluded.reserveCapacity(count)
-        for element in self {
-            if isIncluded(element) {
-                included.append(element)
-            } else {
-                excluded.append(element)
-            }
-        }
-        return (included, excluded)
-    }
-}
