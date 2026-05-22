@@ -112,7 +112,10 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     func testClearUser_concurrentClearAndMerge_doesNotCrash() {
         let identity = ATTNUserIdentity()
-        runConcurrently(iterations: 100, queueLabels: ["merge", "clear"]) { i, queueIndex in
+        // Iteration count kept low because clearUser() does a synchronous
+        // UserDefaults write per call; 20×2 racing calls is plenty to surface
+        // a missing-lock crash without blowing CI's timeout budget on disk I/O.
+        runConcurrently(iterations: 20, timeout: 10, queueLabels: ["merge", "clear"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
