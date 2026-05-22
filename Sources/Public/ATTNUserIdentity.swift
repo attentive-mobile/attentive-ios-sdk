@@ -43,9 +43,13 @@ public final class ATTNUserIdentity: NSObject {
 
     @objc
     public func clearUser() {
+        // Generate the new visitor id outside the lock — it does a synchronous
+        // UserDefaults write which would otherwise serialize every concurrent
+        // clearUser call behind a disk I/O.
+        let newVisitorId = visitorService.createNewVisitorId()
         lock.withLock {
             _identifiers = [:]
-            _visitorId = visitorService.createNewVisitorId()
+            _visitorId = newVisitorId
         }
     }
 
