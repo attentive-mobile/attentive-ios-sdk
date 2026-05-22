@@ -35,34 +35,70 @@ struct ATTNLogger {
         self.osLogger = Logger(subsystem: Loggers.subsystem, category: category)
     }
 
-    func debug(_ message: ATTNLogMessage) {
-        osLogger.debug("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .debug, category: category, message: message.rendered)
+    // Each level forwards `message` as an autoclosure into os.Logger's own lazy
+    // string interpolation. When the buffer isn't capturing, os.Logger keeps its
+    // native gating: on release builds with `.debug` disabled, the closure isn't
+    // evaluated and the call costs nothing — same as calling `os.Logger` directly.
+    // When capture is on, we evaluate once and feed both destinations.
+
+    func debug(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.debug("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .debug, category: category, message: rendered)
+        } else {
+            osLogger.debug("\(message().rendered, privacy: .public)")
+        }
     }
 
-    func info(_ message: ATTNLogMessage) {
-        osLogger.info("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .info, category: category, message: message.rendered)
+    func info(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.info("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .info, category: category, message: rendered)
+        } else {
+            osLogger.info("\(message().rendered, privacy: .public)")
+        }
     }
 
-    func notice(_ message: ATTNLogMessage) {
-        osLogger.notice("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .notice, category: category, message: message.rendered)
+    func notice(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.notice("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .notice, category: category, message: rendered)
+        } else {
+            osLogger.notice("\(message().rendered, privacy: .public)")
+        }
     }
 
-    func warning(_ message: ATTNLogMessage) {
-        osLogger.warning("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .warning, category: category, message: message.rendered)
+    func warning(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.warning("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .warning, category: category, message: rendered)
+        } else {
+            osLogger.warning("\(message().rendered, privacy: .public)")
+        }
     }
 
-    func error(_ message: ATTNLogMessage) {
-        osLogger.error("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .error, category: category, message: message.rendered)
+    func error(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.error("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .error, category: category, message: rendered)
+        } else {
+            osLogger.error("\(message().rendered, privacy: .public)")
+        }
     }
 
-    func fault(_ message: ATTNLogMessage) {
-        osLogger.fault("\(message.rendered, privacy: .public)")
-        ATTNLogBuffer.shared.append(level: .fault, category: category, message: message.rendered)
+    func fault(_ message: @autoclosure @escaping () -> ATTNLogMessage) {
+        if ATTNLogBuffer.shared.isCapturing {
+            let rendered = message().rendered
+            osLogger.fault("\(rendered, privacy: .public)")
+            ATTNLogBuffer.shared.append(level: .fault, category: category, message: rendered)
+        } else {
+            osLogger.fault("\(message().rendered, privacy: .public)")
+        }
     }
 }
 
