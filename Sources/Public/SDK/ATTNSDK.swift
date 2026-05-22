@@ -39,11 +39,11 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
-    private let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
+    let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
     /// All access to `pendingMarketingRequests` and `pendingMarketingExpiryTimer` is serialized through `marketingQueue`.
-    private var pendingMarketingRequests: [PendingMarketingRequest] = []
-    private var pendingMarketingExpiryTimer: DispatchSourceTimer?
-    private let pendingMarketingTTL: TimeInterval = 60
+    var pendingMarketingRequests: [PendingMarketingRequest] = []
+    var pendingMarketingExpiryTimer: DispatchSourceTimer?
+    let pendingMarketingTTL: TimeInterval = 60
     private let stateLock = NSLock()
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
     private var _pendingURL: URL?

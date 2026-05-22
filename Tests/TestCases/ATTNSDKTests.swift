@@ -602,31 +602,6 @@ final class ATTNSDKTests: XCTestCase {
         return condition()
     }
 
-    // MARK: Concurrency
-
-    func testConsumeDeepLink_concurrentConsumeAndSet_atMostOneConsumerWinsPerSet() {
-        // The read-and-clear in `consumeDeepLink` must be atomic: of N concurrent consumers
-        // racing one published deep link, exactly one (or zero, if a later set has already
-        // overwritten it) should observe a non-nil URL — never two reading the same URL.
-        let counter = Counter()
-        runConcurrently(iterations: 200, queueLabels: ["set", "consume"]) { [weak self] i, queueIndex in
-            guard let self else { return }
-            if queueIndex == 0 {
-                self.sut.normalizeAndBroadcast("attentive://test/\(i)")
-            } else if self.sut.consumeDeepLink() != nil {
-                counter.increment()
-            }
-        }
-        // Bounded by number of set operations; the precise count depends on timing.
-        XCTAssertLessThanOrEqual(counter.value, 200)
-    }
-}
-
-private final class Counter {
-    private let lock = NSLock()
-    private var _value = 0
-    var value: Int { lock.withLock { _value } }
-    func increment() { lock.withLock { _value += 1 } }
     // MARK: - Error Handling Tests
 
     func testUpdateDomain_invalidDomain_callsCompletionWithError() {
@@ -681,4 +656,29 @@ private final class Counter {
         XCTAssertEqual(receivedError as? ATTNSDKError, .missingPushToken)
     }
 
+    // MARK: Concurrency
+
+    func testConsumeDeepLink_concurrentConsumeAndSet_atMostOneConsumerWinsPerSet() {
+        // The read-and-clear in `consumeDeepLink` must be atomic: of N concurrent consumers
+        // racing one published deep link, exactly one (or zero, if a later set has already
+        // overwritten it) should observe a non-nil URL — never two reading the same URL.
+        let counter = Counter()
+        runConcurrently(iterations: 200, queueLabels: ["set", "consume"]) { [weak self] i, queueIndex in
+            guard let self else { return }
+            if queueIndex == 0 {
+                self.sut.normalizeAndBroadcast("attentive://test/\(i)")
+            } else if self.sut.consumeDeepLink() != nil {
+                counter.increment()
+            }
+        }
+        // Bounded by number of set operations; the precise count depends on timing.
+        XCTAssertLessThanOrEqual(counter.value, 200)
+    }
+}
+
+private final class Counter {
+    private let lock = NSLock()
+    private var _value = 0
+    var value: Int { lock.withLock { _value } }
+    func increment() { lock.withLock { _value += 1 } }
 }
