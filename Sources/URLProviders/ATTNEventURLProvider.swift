@@ -22,7 +22,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
         queryParams["m"] = userIdentity.buildMetadataJson()
         queryParams["t"] = ATTNEventTypes.userIdentifierCollected
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
@@ -39,7 +39,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
             queryParams["pd"] = deeplink
         }
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
@@ -56,7 +56,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
             queryParams["pd"] = deeplink
         }
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
@@ -93,5 +93,22 @@ extension ATTNEventURLProvider {
         components.path = path
         components.port = port
         return components
+    }
+
+    private static let formEncodedAllowedCharacters: CharacterSet = {
+        var chars = CharacterSet.urlQueryAllowed
+        chars.remove("+")
+        chars.remove("&")
+        chars.remove("=")
+        return chars
+    }()
+
+    static func setFormEncodedQuery(on components: inout URLComponents, params: [String: String]) {
+        let queryString = params.map { key, value in
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? value
+            return "\(encodedKey)=\(encodedValue)"
+        }.joined(separator: "&")
+        components.percentEncodedQuery = queryString
     }
 }
