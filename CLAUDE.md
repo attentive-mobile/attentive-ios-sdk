@@ -84,6 +84,7 @@ bundle exec fastlane ios assemble_xcframework
 - Use `ATTNLogger` for all SDK logging — never `print()`
 - String constants and keys belong in `ATTNConstants`
 - URL construction goes through `URLProvider` types, not inline
+- **Underscore prefix on stored properties is reserved.** Only use `_foo` when Swift forces it — i.e., the property is the backing storage for a public computed property of the same name (e.g., `ATTNUserIdentity._identifiers` backs the `@objc` `identifiers` wrapper). For purely-private vars (including lock-guarded ones with no public counterpart), use the plain name; `private` already conveys scope.
 
 ### SwiftUI (Inbox module only)
 
