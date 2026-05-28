@@ -46,9 +46,9 @@ public final class ATTNSDK: NSObject {
     let pendingMarketingTTL: TimeInterval = 60
     private let stateLock = NSLock()
     /// Holds exactly one pending deep-link URL (new taps overwrite old).
-    private var _pendingURL: URL?
+    private var pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
-    private var _lastRegularOpenTime: Date?
+    private var lastRegularOpenTime: Date?
 
     var currentPushToken: String { pushTokenStore.token }
 
@@ -418,10 +418,10 @@ public final class ATTNSDK: NSObject {
         // debounce to remove duplicate events; only allow app events tracking once every 2 seconds
         let shouldSkip: Bool = stateLock.withLock {
             let now = Date()
-            if let last = _lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
+            if let last = lastRegularOpenTime, now.timeIntervalSince(last) < 2 {
                 return true
             }
-            _lastRegularOpenTime = now
+            lastRegularOpenTime = now
             return false
         }
         if shouldSkip {
@@ -507,8 +507,8 @@ public final class ATTNSDK: NSObject {
     /// call this to retrieve (and clear) the pending URL.
     public func consumeDeepLink() -> URL? {
         let url = stateLock.withLock { () -> URL? in
-            let snapshot = _pendingURL
-            _pendingURL = nil
+            let snapshot = pendingURL
+            pendingURL = nil
             return snapshot
         }
         let urlString = url?.absoluteString ?? ""
@@ -629,7 +629,7 @@ public final class ATTNSDK: NSObject {
             return
         }
 
-        stateLock.withLock { _pendingURL = validURL }
+        stateLock.withLock { pendingURL = validURL }
         Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
         NotificationCenter.default.post(
             name: .ATTNSDKDeepLinkReceived,
