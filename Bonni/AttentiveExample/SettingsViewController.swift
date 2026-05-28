@@ -54,7 +54,6 @@ class SettingsViewController: UIViewController {
     private let domainLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .darkGray
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -72,7 +71,6 @@ class SettingsViewController: UIViewController {
     private let visitorIdLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .darkGray
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -170,6 +168,13 @@ class SettingsViewController: UIViewController {
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
+    }()
+
+    private let copyVisitorIdButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Copy Visitor ID", for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
     }()
 
     private let copyDeviceTokenButton: UIButton = {
@@ -307,6 +312,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(accountInfoLabel)
         stackView.addArrangedSubview(domainLabel)
         stackView.addArrangedSubview(visitorIdLabel)
+        stackView.addArrangedSubview(copyVisitorIdButton)
         stackView.addArrangedSubview(switchAccountButton)
         stackView.addArrangedSubview(switchDomainButton)
         stackView.addArrangedSubview(logOutButton)
@@ -354,6 +360,7 @@ class SettingsViewController: UIViewController {
                 cartDeepLinkButton,
                 clearUserButton,
                 clearCookiesButton,
+                copyVisitorIdButton,
                 copyDeviceTokenButton
             ]
             allButtons.forEach {
@@ -404,6 +411,7 @@ class SettingsViewController: UIViewController {
         cartDeepLinkButton.addTarget(self, action: #selector(cartDeepLinkTapped), for: .touchUpInside)
         clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
         clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
+        copyVisitorIdButton.addTarget(self, action: #selector(copyVisitorIdTapped), for: .touchUpInside)
 
         addEmailButton.addTarget(self, action: #selector(addEmailTapped), for: .touchUpInside)
         optInEmailButton.addTarget(self, action: #selector(optInEmailTapped), for: .touchUpInside)
@@ -651,6 +659,16 @@ class SettingsViewController: UIViewController {
                                                                                         modifiedSince: Date(timeIntervalSince1970: 0),
                                                                                         completionHandler: { os_log("Cleared cookies!") })
         showToast(with: "Cookies cleared")
+    }
+
+    @objc private func copyVisitorIdTapped() {
+        let visitorId = getAttentiveSdk().visitorId
+        guard !visitorId.isEmpty else {
+            showToast(with: "No visitor ID available")
+            return
+        }
+        UIPasteboard.general.string = visitorId
+        showToast(with: "Visitor ID copied")
     }
 
     @objc private func copyDeviceTokenTapped() {
