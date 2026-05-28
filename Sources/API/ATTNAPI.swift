@@ -18,7 +18,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
     private let retryClient: ATTNRetryingNetworkClient
     private let stateLock = NSLock()
-    private var _lastPushTokenSendTime: Date?
+    private var lastPushTokenSendTime: Date?
 
     // MARK: ATTNAPIProtocol Properties
     var domain: String
@@ -62,10 +62,10 @@ final class ATTNAPI: ATTNAPIProtocol {
         // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
         let shouldSkip: Bool = stateLock.withLock {
             let now = Date()
-            if let last = _lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+            if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
                 return true
             }
-            _lastPushTokenSendTime = now
+            lastPushTokenSendTime = now
             return false
         }
         if shouldSkip {
