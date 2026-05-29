@@ -670,12 +670,19 @@ class SettingsViewController: UIViewController {
 
     @objc private func pushEnabledToggleChanged(_ sender: UISwitch) {
         UserDefaults.standard.set(sender.isOn, forKey: "attentivePushEnabled")
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        appDelegate.initializeAttentiveSdk()
-        refreshSdkInfoLabels()
-        showToast(with: sender.isOn
-            ? "Push enabled — relaunch to register token"
-            : "Push disabled — push calls will be skipped")
+        if !sender.isOn {
+            UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        }
+
+        let message = sender.isOn
+            ? "Push enabled. App will close — relaunch to apply."
+            : "Push disabled. App will close — relaunch to apply."
+
+        let alert = UIAlertController(title: "Push Config Changed", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            exit(0)
+        })
+        present(alert, animated: true)
     }
 
     @objc private func v2ToggleChanged(_ sender: UISwitch) {

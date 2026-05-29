@@ -25,7 +25,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
-    func initializeAttentiveSdk() {
+    private func initializeAttentiveSdk() {
         // Intialize the Attentive SDK. Replace with your Attentive domain to test
         // with your Attentive account.
         // This only has to be done once per application lifecycle
