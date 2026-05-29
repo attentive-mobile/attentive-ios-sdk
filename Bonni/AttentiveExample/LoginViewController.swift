@@ -119,6 +119,9 @@ class LoginViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // The LoginBackground image is a light brand asset; keep this screen
+        // in light mode so the buttons and text remain readable on it.
+        overrideUserInterfaceStyle = .light
         view.backgroundColor = .white
         setupUI()
     }

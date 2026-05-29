@@ -34,7 +34,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     
     private lazy var allProductsLabel: UILabel = {
         let label = UILabel()
-        label.textColor = UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
+        label.textColor = .label
         label.font = UIFont(name: "Degular-Medium", size: kLabelFontSize)
         let attributedText = NSMutableAttributedString(string: "All Products", attributes: [
             .kern: kLabelKerning
@@ -75,7 +75,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
 
         // Store the viewModel in AppDelegate for deep link access
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
@@ -101,19 +101,19 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
             navigationController?.navigationBar.barTintColor = kNavColor
         }
         navigationController?.navigationBar.isTranslucent = false
-        
+
         // Left bar button: settings using "profile" image.
         let settingsImage = UIImage(named: "profile")
         let settingsButtonItem = UIBarButtonItem(image: settingsImage, style: .plain, target: self, action: #selector(settingsButtonTapped))
         settingsButtonItem.tintColor = .black
         navigationItem.leftBarButtonItem = settingsButtonItem
-        
+
         // Right bar button: cart using "Shopping cart" image.
         let cartImage = UIImage(named: "Shopping cart")
         let cartButtonItem = UIBarButtonItem(image: cartImage, style: .plain, target: self, action: #selector(cartButtonTapped))
         cartButtonItem.tintColor = .black
         navigationItem.rightBarButtonItem = cartButtonItem
-        
+
         // Center the logo in the navigation bar.
         let logoImageView = UIImageView(image: UIImage(named: "Union.svg"))
         logoImageView.contentMode = .scaleAspectFit
