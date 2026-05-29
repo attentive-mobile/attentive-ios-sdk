@@ -25,7 +25,7 @@ class OrderConfirmationViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         title = "Order Confirmed"
         setupUI()
         setupCloseButton()

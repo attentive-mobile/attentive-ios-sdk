@@ -62,7 +62,7 @@ class SettingsViewController: UIViewController {
     private let sdkVersionLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .darkGray
+        label.textColor = .secondaryLabel
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -204,7 +204,7 @@ class SettingsViewController: UIViewController {
         let savedDeviceToken = UserDefaults.standard.string(forKey: "deviceTokenForDisplay")
         devicetokenLabel.text = "Device Token: \(savedDeviceToken ?? "Not saved")"
         devicetokenLabel.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        devicetokenLabel.textColor = .darkGray
+        devicetokenLabel.textColor = .secondaryLabel
         devicetokenLabel.numberOfLines = 0
         return devicetokenLabel
     }()
@@ -274,9 +274,9 @@ class SettingsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Settings"
-        view.backgroundColor = .white
-        scrollView.backgroundColor = .white
-        contentView.backgroundColor = .white
+        view.backgroundColor = .systemBackground
+        scrollView.backgroundColor = .systemBackground
+        contentView.backgroundColor = .systemBackground
         if let navBar = navigationController?.navigationBar {
             navBar.barTintColor = UIColor(red: 1, green: 0.773, blue: 0.725, alpha: 1)
             navBar.isTranslucent = false
@@ -332,7 +332,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(logOutButton)
 
         let divider = UIView()
-        divider.backgroundColor = .lightGray
+        divider.backgroundColor = .separator
         divider.translatesAutoresizingMaskIntoConstraints = false
         divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
         stackView.addArrangedSubview(divider)
@@ -352,7 +352,7 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(v2Row)
 
         let divider2 = UIView()
-        divider2.backgroundColor = .lightGray
+        divider2.backgroundColor = .separator
         divider2.translatesAutoresizingMaskIntoConstraints = false
         divider2.heightAnchor.constraint(equalToConstant: 1).isActive = true
         stackView.addArrangedSubview(divider2)
@@ -386,7 +386,7 @@ class SettingsViewController: UIViewController {
             ]
             allButtons.forEach {
                 $0.titleLabel?.font = degular
-                $0.titleLabel?.tintColor = .black
+                $0.titleLabel?.tintColor = .label
             }
             currentEmailLabel.font = degular
             currentPhoneLabel.font = degular
@@ -413,7 +413,7 @@ class SettingsViewController: UIViewController {
             [addEmailButton, optInEmailButton, optOutEmailButton,
              addPhoneButton, optInPhoneButton, optOutPhoneButton].forEach {
                 $0.titleLabel?.font = degular
-                $0.titleLabel?.tintColor = .black
+                $0.titleLabel?.tintColor = .label
             }
         }
     }
