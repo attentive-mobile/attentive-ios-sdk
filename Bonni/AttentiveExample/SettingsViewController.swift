@@ -156,6 +156,20 @@ class SettingsViewController: UIViewController {
         return button
     }()
 
+    private let pushEnabledToggle: UISwitch = {
+        let toggle = UISwitch()
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        return toggle
+    }()
+
+    private let pushEnabledLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Push enabled"
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     private let v2EndpointToggle: UISwitch = {
         let toggle = UISwitch()
         toggle.translatesAutoresizingMaskIntoConstraints = false
@@ -322,6 +336,13 @@ class SettingsViewController: UIViewController {
         divider.translatesAutoresizingMaskIntoConstraints = false
         divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
         stackView.addArrangedSubview(divider)
+
+        let pushRow = UIStackView(arrangedSubviews: [pushEnabledLabel, pushEnabledToggle])
+        pushRow.axis = .horizontal
+        pushRow.spacing = 8
+        pushEnabledToggle.isOn = getAttentiveSdk().pushEnabled
+        pushEnabledToggle.addTarget(self, action: #selector(pushEnabledToggleChanged), for: .valueChanged)
+        stackView.addArrangedSubview(pushRow)
 
         let v2Row = UIStackView(arrangedSubviews: [v2EndpointLabel, v2EndpointToggle])
         v2Row.axis = .horizontal
@@ -645,6 +666,16 @@ class SettingsViewController: UIViewController {
         getAttentiveSdk().clearUser()
         refreshSdkInfoLabels()
         showToast(with: "User cleared")
+    }
+
+    @objc private func pushEnabledToggleChanged(_ sender: UISwitch) {
+        UserDefaults.standard.set(sender.isOn, forKey: "attentivePushEnabled")
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        appDelegate.initializeAttentiveSdk()
+        refreshSdkInfoLabels()
+        showToast(with: sender.isOn
+            ? "Push enabled — relaunch to register token"
+            : "Push disabled — push calls will be skipped")
     }
 
     @objc private func v2ToggleChanged(_ sender: UISwitch) {
