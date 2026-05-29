@@ -29,7 +29,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Intialize the Attentive SDK. Replace with your Attentive domain to test
         // with your Attentive account.
         // This only has to be done once per application lifecycle
-        let sdk = ATTNSDK(domain: "games", mode: .production)
+        let pushEnabled = UserDefaults.standard.object(forKey: "attentivePushEnabled") as? Bool ?? true
+        let sdk = ATTNSDK(domain: "games", mode: .production, pushEnabled: pushEnabled)
         attentiveSdk = sdk
 
         // Initialize the ATTNEventTracker. This must be done before the ATTNEventTracker can be used to send any events. It only has to be done once per applicaiton lifecycle.

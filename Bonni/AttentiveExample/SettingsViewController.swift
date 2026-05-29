@@ -156,6 +156,20 @@ class SettingsViewController: UIViewController {
         return button
     }()
 
+    private let pushEnabledToggle: UISwitch = {
+        let toggle = UISwitch()
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        return toggle
+    }()
+
+    private let pushEnabledLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Push enabled"
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     private let v2EndpointToggle: UISwitch = {
         let toggle = UISwitch()
         toggle.translatesAutoresizingMaskIntoConstraints = false
@@ -322,6 +336,13 @@ class SettingsViewController: UIViewController {
         divider.translatesAutoresizingMaskIntoConstraints = false
         divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
         stackView.addArrangedSubview(divider)
+
+        let pushRow = UIStackView(arrangedSubviews: [pushEnabledLabel, pushEnabledToggle])
+        pushRow.axis = .horizontal
+        pushRow.spacing = 8
+        pushEnabledToggle.isOn = getAttentiveSdk().pushEnabled
+        pushEnabledToggle.addTarget(self, action: #selector(pushEnabledToggleChanged), for: .valueChanged)
+        stackView.addArrangedSubview(pushRow)
 
         let v2Row = UIStackView(arrangedSubviews: [v2EndpointLabel, v2EndpointToggle])
         v2Row.axis = .horizontal
@@ -645,6 +666,23 @@ class SettingsViewController: UIViewController {
         getAttentiveSdk().clearUser()
         refreshSdkInfoLabels()
         showToast(with: "User cleared")
+    }
+
+    @objc private func pushEnabledToggleChanged(_ sender: UISwitch) {
+        UserDefaults.standard.set(sender.isOn, forKey: "attentivePushEnabled")
+        if !sender.isOn {
+            UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        }
+
+        let message = sender.isOn
+            ? "Push enabled. App will close — relaunch to apply."
+            : "Push disabled. App will close — relaunch to apply."
+
+        let alert = UIAlertController(title: "Push Config Changed", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            exit(0)
+        })
+        present(alert, animated: true)
     }
 
     @objc private func v2ToggleChanged(_ sender: UISwitch) {
