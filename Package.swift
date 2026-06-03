@@ -10,10 +10,10 @@ let package = Package(
         .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
     ],
     targets: [
-        .target(
+        .binaryTarget(
             name: "ATTNSDKFramework",
-            path: "Sources",
-            resources: [.process("Resources")]
+            url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/2.0.15/ATTNSDKFramework.xcframework.zip",
+            checksum: "27e8c8913432af004d934105488ef4a80ad0fb612f6b9a2c2e86f8d24398bda8"
         )
     ]
 )
