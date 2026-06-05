@@ -376,6 +376,78 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         task.resume()
     }
+
+    // MARK: - Inbox
+
+    /// Fetches the unread inbox message count for the current user.
+    ///
+    /// Per RFC: this endpoint is identifier-based and unauthenticated. The server scopes the
+    /// response by resolving identity from the supplied push token (and other identifiers).
+    func fetchInboxUnreadCount(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        userIdentity: ATTNUserIdentity
+    ) async throws -> Int {
+        Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
+
+        var payload: [String: Any] = [
+            "visitor_id": userIdentity.visitorId
+        ]
+        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+        if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+            payload["email"] = email
+        }
+        if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
+            payload["phone"] = phone
+        }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/unread/count") else {
+            Loggers.network.error("Invalid inbox unread count URL")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /inbox/messages/unread/count payload: \(payload, privacy: .public)")
+
+        let (data, response): (Data, URLResponse) = try await withCheckedThrowingContinuation { continuation in
+            let task = urlSession.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let data = data, let response = response else {
+                    continuation.resume(throwing: ATTNError.inboxResponseDecodeFailed)
+                    return
+                }
+                continuation.resume(returning: (data, response))
+            }
+            task.resume()
+        }
+
+        if let http = response as? HTTPURLResponse {
+            Loggers.network.debug("Inbox unread count status code: \(http.statusCode, privacy: .public)")
+            guard (200..<300).contains(http.statusCode) else {
+                Loggers.network.error("Inbox unread count API returned status \(http.statusCode, privacy: .public)")
+                throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+            }
+        }
+
+        do {
+            let decoded = try JSONDecoder().decode(InboxUnreadCountResponse.self, from: data)
+            Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
+            return decoded.unreadCount
+        } catch {
+            Loggers.network.error("Failed to decode inbox unread count response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
 }
 
 fileprivate extension ATTNAPI {

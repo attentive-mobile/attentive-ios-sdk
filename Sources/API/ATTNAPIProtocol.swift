@@ -74,4 +74,12 @@ protocol ATTNAPIProtocol {
         operationContext: String,
         callback: ATTNAPICallback?
     )
+
+    // MARK: - Inbox
+    func fetchInboxUnreadCount(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        userIdentity: ATTNUserIdentity
+    ) async throws -> Int
 }

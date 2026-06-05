@@ -51,7 +51,19 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
-    private let inboxManager = InboxManager()
+    private lazy var inboxManager: InboxManager = {
+        InboxManager(api: api, identityProvider: { [weak self] in
+            guard let self = self else {
+                return (ATTNUserIdentity(), "", nil, nil)
+            }
+            return (
+                self.userIdentity,
+                self.currentPushToken,
+                self.userIdentity.identifiers[ATTNIdentifierType.email] as? String,
+                self.userIdentity.identifiers[ATTNIdentifierType.phone] as? String
+            )
+        })
+    }()
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -259,11 +271,19 @@ public final class ATTNSDK: NSObject {
         }
     }
 
-    /// Async accessor for unread count.
+    /// Async accessor for unread count. Returns the most recently fetched server-authoritative
+    /// value. Call `refreshInboxUnreadCount()` to fetch the latest from the server.
     public var unreadCount: Int {
         get async {
             await inboxManager.unreadCount
         }
+    }
+
+    /// Refreshes the unread inbox message count from the server.
+    /// Per RFC, host apps should call this when navigating to the app's main page (e.g. on app launch)
+    /// and after opening a push notification.
+    public func refreshInboxUnreadCount() async {
+        await inboxManager.refreshUnreadCount()
     }
 
     @MainActor

@@ -10,8 +10,15 @@ import Foundation
 
 class NSURLSessionMock: URLSession {
     var didCallEventsApi = false
+    var didCallInboxUnreadCountApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
+
+    /// Override the response returned for the inbox unread count endpoint.
+    /// Default: 200 with `{ "unread_count": 5 }`.
+    var inboxUnreadCountStatusCode: Int = 200
+    var inboxUnreadCountResponseBody: Data = Data("{\"unread_count\": 5}".utf8)
+    var inboxUnreadCountError: Error?
 
     override init() {
         super.init()
@@ -27,6 +34,16 @@ class NSURLSessionMock: URLSession {
                 didCallEventsApi = true
                 return NSURLSessionDataTaskMock { data, response, error in
                     completionHandler(Data(), HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil), nil)
+                }
+            }
+
+            if url.absoluteString.contains("/inbox/messages/unread/count") {
+                didCallInboxUnreadCountApi = true
+                let body = inboxUnreadCountResponseBody
+                let status = inboxUnreadCountStatusCode
+                let error = inboxUnreadCountError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }
             }
         }

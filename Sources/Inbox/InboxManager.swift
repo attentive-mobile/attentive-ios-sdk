@@ -13,11 +13,23 @@ public enum InboxState: Sendable {
     case error(Error)
 }
 
+/// Closure that supplies the identifiers needed to call the inbox endpoints.
+/// Resolved at call-time so the manager always uses the latest values from `ATTNSDK`.
+typealias InboxIdentityProvider = @Sendable () -> (userIdentity: ATTNUserIdentity, pushToken: String, email: String?, phone: String?)
+
 actor InboxManager {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
     private var currentState: InboxState = .loading
     private var continuations: [UUID: AsyncStream<InboxState>.Continuation] = [:]
+
+    /// Server-authoritative unread count. Updated only by `refreshUnreadCount()` and (future)
+    /// mark-read/mark-unread/delete API responses — local `markRead`/`markUnread` mutations
+    /// do not change this value.
+    private(set) var unreadCount: Int = 0
+
+    private let api: ATTNAPIProtocol?
+    private let identityProvider: InboxIdentityProvider?
 
     var allMessages: [Message] {
         if let cached = cachedSortedMessages {
@@ -26,10 +38,6 @@ actor InboxManager {
         let sorted = messagesByID.values.sorted { $0.timestamp > $1.timestamp }
         cachedSortedMessages = sorted
         return sorted
-    }
-
-    var unreadCount: Int {
-        messagesByID.values.filter { !$0.isRead }.count
     }
 
     /// Returns an AsyncStream that immediately emits the current state,
@@ -52,10 +60,37 @@ actor InboxManager {
         }
     }
 
-    init() {
+    init(api: ATTNAPIProtocol? = nil, identityProvider: InboxIdentityProvider? = nil) {
+        self.api = api
+        self.identityProvider = identityProvider
         Task {
             await send(.loading)
-            await updateMessages(Self.getMockInbox().messages)
+            // Run mock-message load and unread-count fetch concurrently — they touch
+            // independent state and the network call should not wait on the local mock.
+            async let messages: Void = updateMessages(Self.getMockInbox().messages)
+            async let count: Void = refreshUnreadCount()
+            _ = await (messages, count)
+        }
+    }
+
+    /// Fetches the latest unread count from the server and stores it as the
+    /// authoritative value. Errors are logged; the previously stored count is preserved.
+    func refreshUnreadCount() async {
+        guard let api = api, let identityProvider = identityProvider else {
+            Loggers.network.debug("Skipping refreshUnreadCount — no API or identity provider configured")
+            return
+        }
+
+        let (userIdentity, pushToken, email, phone) = identityProvider()
+        do {
+            unreadCount = try await api.fetchInboxUnreadCount(
+                pushToken: pushToken,
+                email: email,
+                phone: phone,
+                userIdentity: userIdentity
+            )
+        } catch {
+            Loggers.network.error("Failed to refresh inbox unread count: \(error.localizedDescription, privacy: .public)")
         }
     }
 
