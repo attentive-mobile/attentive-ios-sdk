@@ -18,6 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     public var productListViewModel: ProductListViewModel?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Capture SDK logs into the in-app debug overlay. Must be set before SDK init
+        // so initialization logs are retained.
+        ATTNSDK.isLogCaptureEnabled = true
         initializeAttentiveSdk()
         UNUserNotificationCenter.current().delegate = self
         // Show push permission prompt

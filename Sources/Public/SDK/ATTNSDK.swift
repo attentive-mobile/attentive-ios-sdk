@@ -70,6 +70,27 @@ public final class ATTNSDK: NSObject {
     /// The marketing version of the SDK (e.g. `"2.0.13"`).
     @objc public static var sdkVersion: String { ATTNConstants.sdkVersion }
 
+    /// Enables in-app log capture. Off by default; apps that don't display the SDK
+    /// log overlay pay zero buffer overhead. Set this once at launch (e.g. before
+    /// constructing the SDK) and the buffer will retain subsequent entries.
+    @objc public static var isLogCaptureEnabled: Bool {
+        get { ATTNLogBuffer.shared.isCapturing }
+        set { ATTNLogBuffer.shared.isCapturing = newValue }
+    }
+
+    /// Recent SDK log entries from the in-process ring buffer. Returns an empty
+    /// array when log capture is disabled (the default).
+    /// - Parameter since: Optional cutoff; entries older than this are filtered out.
+    @objc public static func recentLogs(since: Date? = nil) -> [ATTNLogEntry] {
+        ATTNLogBuffer.shared.snapshot(since: since)
+    }
+
+    /// Async stream that yields each SDK log entry as it is recorded after capture
+    /// is enabled. Use this to drive a live debug overlay.
+    public static var logStream: AsyncStream<ATTNLogEntry> {
+        ATTNLogBuffer.shared.stream()
+    }
+
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
 
