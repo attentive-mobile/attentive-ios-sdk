@@ -76,8 +76,10 @@ actor InboxManager {
     /// Fetches the latest unread count from the server and stores it as the
     /// authoritative value. Errors are logged; the previously stored count is preserved.
     func refreshUnreadCount() async {
+        print("[MSDK-377] InboxManager.refreshUnreadCount() entered")
         guard let api = api, let identityProvider = identityProvider else {
             Loggers.network.debug("Skipping refreshUnreadCount — no API or identity provider configured")
+            print("[MSDK-377] ⚠️ skipped: api=\(api == nil ? "nil" : "set") identityProvider=\(identityProvider == nil ? "nil" : "set")")
             return
         }
 
@@ -89,8 +91,13 @@ actor InboxManager {
                 phone: phone,
                 userIdentity: userIdentity
             )
+            print("[MSDK-377] InboxManager.unreadCount updated to \(unreadCount)")
+            // Re-emit current state so observers re-read the updated `unreadCount`.
+            // The state value itself is unchanged; this is a nudge for badge UIs.
+            send(currentState)
         } catch {
             Loggers.network.error("Failed to refresh inbox unread count: \(error.localizedDescription, privacy: .public)")
+            print("[MSDK-377] ❌ refreshUnreadCount error: \(error.localizedDescription)")
         }
     }
 

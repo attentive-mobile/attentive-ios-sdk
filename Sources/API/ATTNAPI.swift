@@ -390,6 +390,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         userIdentity: ATTNUserIdentity
     ) async throws -> Int {
         Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
+        print("[MSDK-377] fetchInboxUnreadCount called — visitorId=\(userIdentity.visitorId), pushToken=\(pushToken.isEmpty ? "<empty>" : pushToken), email=\(email ?? "nil"), phone=\(phone ?? "nil")")
 
         var payload: [String: Any] = [
             "visitor_id": userIdentity.visitorId
@@ -404,6 +405,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/unread/count") else {
             Loggers.network.error("Invalid inbox unread count URL")
+            print("[MSDK-377] ❌ Invalid URL")
             throw ATTNError.badURL
         }
 
@@ -415,6 +417,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
 
         Loggers.network.debug("POST /inbox/messages/unread/count payload: \(payload, privacy: .public)")
+        print("[MSDK-377] ➡️ POST \(url.absoluteString) — payload=\(payload)")
 
         let (data, response): (Data, URLResponse) = try await withCheckedThrowingContinuation { continuation in
             let task = urlSession.dataTask(with: request) { data, response, error in
@@ -431,20 +434,26 @@ final class ATTNAPI: ATTNAPIProtocol {
             task.resume()
         }
 
+        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
         if let http = response as? HTTPURLResponse {
             Loggers.network.debug("Inbox unread count status code: \(http.statusCode, privacy: .public)")
+            print("[MSDK-377] ⬅️ status=\(http.statusCode) body=\(bodyStr)")
             guard (200..<300).contains(http.statusCode) else {
                 Loggers.network.error("Inbox unread count API returned status \(http.statusCode, privacy: .public)")
                 throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
             }
+        } else {
+            print("[MSDK-377] ⬅️ non-HTTP response body=\(bodyStr)")
         }
 
         do {
             let decoded = try JSONDecoder().decode(InboxUnreadCountResponse.self, from: data)
             Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
+            print("[MSDK-377] ✅ decoded unread_count=\(decoded.unreadCount)")
             return decoded.unreadCount
         } catch {
             Loggers.network.error("Failed to decode inbox unread count response: \(error.localizedDescription, privacy: .public)")
+            print("[MSDK-377] ❌ decode failed: \(error.localizedDescription) — body was: \(bodyStr)")
             throw ATTNError.inboxResponseDecodeFailed
         }
     }
