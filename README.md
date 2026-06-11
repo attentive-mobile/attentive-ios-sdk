@@ -56,6 +56,24 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/m
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
 
+### Setup with an AI coding agent
+
+If you use Claude Code, Cursor, Copilot, Codex, or another AI coding agent, you can have the agent walk you through setup. Point it at [`AGENTS.md`](./AGENTS.md) in this repo — it's a step-by-step integration guide written for agents that handles SPM/CocoaPods wiring, `AppDelegate` initialization, and an interactive push-setup flow (APNs entitlement detection, `UNUserNotificationCenterDelegate` hooks, optional Notification Service Extension, and deep-link routing).
+
+**To trigger the flow**, open your project in your agent of choice and paste a prompt like:
+
+> Integrate the Attentive iOS SDK into this app. Follow the guide at https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/AGENTS.md top-to-bottom and ask me any questions it tells you to ask before writing code.
+
+The agent will collect your Attentive domain, inspect the project (dependency manager, app lifecycle, deployment target), add the dependency, wire up `ATTNSDK.initialize` and `ATTNEventTracker.setup` in your `AppDelegate`, and then ask whether you want push notifications enabled before going further.
+
+**What the agent flow intentionally does not do:**
+
+- **`identify` / `clearUser` / `updateUser` wiring.** These hook into your login, logout, and account-switch flows, which are sensitive auth-adjacent code paths. You should decide where they go.
+- **Event recording (`ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, `ATTNCustomEvent`).** Where and how you fire these is highly domain-specific (your checkout, cart, and PDP code is yours), so the agent leaves them to you.
+- **Showing Creatives.** Creatives are optional functionality, so the agent doesn't wire them up by default.
+
+For all of these, follow the relevant sections of this README.
+
 ### SDK Logging
 
 In addition to the SDK’s standard logging (e.g., Xcode’s debug console), Attentive iOS SDK logs are also emitted to Apple’s unified logging system. To view them in Console.app, run your app on a simulator or device, open Console, and filter for **attentive-ios-sdk** to see all SDK log output.
