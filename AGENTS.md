@@ -113,7 +113,7 @@ If you cannot edit `Package.swift` (e.g. SPM is managed via Xcode's GUI), tell t
 Edit the **app target's** `Podfile` and add:
 
 ```ruby
-pod 'attentive-ios-sdk', '<VERSION>'
+pod 'ATTNSDKFramework', '<VERSION>'
 ```
 
 Then run (from the directory containing the `Podfile`):
@@ -126,7 +126,7 @@ pod install
 
 After install, the user must open the `.xcworkspace` (not the `.xcodeproj`).
 
-> **Note:** `attentive-ios-sdk` is the static-library podspec. There is also `ATTNSDKFramework` (the dynamic XCFramework podspec), but the static `attentive-ios-sdk` pod is the standard CocoaPods choice and is what the SDK README documents. Use it unless the user has a specific reason to prefer the framework variant.
+> **Note:** Use `ATTNSDKFramework` — that is the supported pod name. The older `attentive-ios-sdk` pod is **deprecated** and CocoaPods will warn the user if they use it; it points at the same source but exists only for legacy consumers who haven't migrated yet. Do not add it for new integrations.
 
 #### XCFramework (manual)
 
@@ -235,7 +235,7 @@ func application(
 // inside AppDelegate.m didFinishLaunchingWithOptions:
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"debug"];
 self.attentiveSdk = sdk;
-[ATTNEventTracker setupWithSDk:sdk];
+[ATTNEventTracker setupWithSdk:sdk];
 ```
 
 (For Objective-C consumers, the synchronous `initWithDomain:mode:` form is the standard pattern — the async `initialize:completion:` is Swift-only.)
@@ -314,16 +314,38 @@ Add the following four pieces (in addition to the init from Step 3):
 
 ##### 1. Set the delegate and request permission
 
-In `application(_:didFinishLaunchingWithOptions:)`, after the SDK init:
+In `application(_:didFinishLaunchingWithOptions:)`, set the delegate immediately. The push permission prompt **must** be requested from inside the `ATTNSDK.initialize` `.success` branch, because the async initializer assigns `self.attentiveSdk` from the completion handler — calling `attentiveSdk?.registerForPushNotifications(...)` outside that branch hits a still-`nil` reference and silently no-ops.
+
+Update the init you wrote in Step 3 to also request push registration on success:
 
 ```swift
 UNUserNotificationCenter.current().delegate = self
-attentiveSdk?.registerForPushNotifications { granted, error in
-    if let error = error {
-        // Permission flow errored — usually safe to log and continue.
+
+ATTNSDK.initialize(domain: "YOUR_ATTENTIVE_DOMAIN", mode: .debug) { result in
+    switch result {
+    case .success(let sdk):
+        self.attentiveSdk = sdk
+        ATTNEventTracker.setup(with: sdk)
+        sdk.registerForPushNotifications { granted, error in
+            if let error = error {
+                // Permission flow errored — usually safe to log and continue.
+            }
+            // `granted` reflects whether the user accepted the prompt.
+        }
+    case .failure(let error):
+        print("Attentive SDK failed to initialize: \(error)")
     }
-    // `granted` reflects whether the user accepted the prompt.
 }
+```
+
+For Objective-C hosts using the synchronous `initWithDomain:mode:`, the registration call can stay outside the init because the SDK is assigned synchronously:
+
+```objective-c
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_ATTENTIVE_DOMAIN" mode:@"debug"];
+self.attentiveSdk = sdk;
+[ATTNEventTracker setupWithSdk:sdk];
+[UNUserNotificationCenter currentNotificationCenter].delegate = self;
+[sdk registerForPushNotifications];
 ```
 
 `registerForPushNotifications` shows the system permission prompt (if not yet shown) and, on grant, calls APNs to begin remote-notification registration. Do not also call `UIApplication.shared.registerForRemoteNotifications()` — the SDK handles that.
