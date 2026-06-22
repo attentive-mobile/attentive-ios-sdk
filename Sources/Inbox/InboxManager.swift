@@ -76,13 +76,9 @@ actor InboxManager {
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
-        // `currentState` is already `.loading`; kick off the mock-message load and the
-        // unread-count fetch concurrently. Both run on this actor so they're serialized
-        // at write boundaries — the parallelism is for the awaits, not the state mutations.
         Task {
-            async let messages: Void = updateMessages(Self.getMockInbox().messages)
-            async let count: Void = refreshUnreadCount()
-            _ = await (messages, count)
+            await updateMessages(Self.getMockInbox().messages)
+            await refreshUnreadCount()
         }
     }
 
@@ -138,8 +134,8 @@ actor InboxManager {
         send(.loaded(allMessages))
     }
 
-    func refresh() async {
-        await updateMessages(Self.getMockInbox().messages)
+    func refresh() {
+        updateMessages(Self.getMockInbox().messages)
     }
 }
 
@@ -183,9 +179,7 @@ extension InboxManager {
 }
 
 fileprivate extension InboxManager {
-    private static func getMockInbox() async -> InboxResponse {
-        #warning("Artificial delay to simulate delayed network response, should be removed in production.")
-        try? await Task.sleep(nanoseconds: 2000000000)
+    private static func getMockInbox() -> InboxResponse {
         let messages: [Message] = [
             Message(
                 id: "1",
