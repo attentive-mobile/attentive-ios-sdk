@@ -209,6 +209,6 @@ fileprivate extension InboxManager {
                 actionURLString: "https://example.com/track/12345"
             )
         ]
-        return InboxResponse(messages: messages, unreadCount: 2)
+        return InboxResponse(messages: messages)
     }
 }
