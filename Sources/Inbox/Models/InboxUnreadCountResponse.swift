@@ -5,6 +5,8 @@
 //  Created by Adela Gao on 6/4/26.
 //
 
+import Foundation
+
 struct InboxUnreadCountResponse: Codable {
     let unreadCount: Int
 

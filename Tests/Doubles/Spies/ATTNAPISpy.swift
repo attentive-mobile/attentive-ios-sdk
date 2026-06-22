@@ -155,6 +155,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var lastInboxPushToken: String?
     private(set) var lastInboxEmail: String?
     private(set) var lastInboxPhone: String?
+    private(set) var lastInboxVisitorId: String?
     var stubbedUnreadCount: Int = 0
     var stubbedInboxError: Error?
 
@@ -162,13 +163,14 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         pushToken: String,
         email: String?,
         phone: String?,
-        userIdentity: ATTNUserIdentity
+        visitorId: String
     ) async throws -> Int {
         fetchInboxUnreadCountWasCalled = true
         fetchInboxUnreadCountCallCount += 1
         lastInboxPushToken = pushToken
         lastInboxEmail = email
         lastInboxPhone = phone
+        lastInboxVisitorId = visitorId
         if let error = stubbedInboxError { throw error }
         return stubbedUnreadCount
     }

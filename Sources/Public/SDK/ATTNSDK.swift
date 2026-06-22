@@ -54,13 +54,14 @@ public final class ATTNSDK: NSObject {
     private lazy var inboxManager: InboxManager = {
         InboxManager(api: api, identityProvider: { [weak self] in
             guard let self = self else {
-                return (ATTNUserIdentity(), "", nil, nil)
+                return InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
             }
-            return (
-                self.userIdentity,
-                self.currentPushToken,
-                self.userIdentity.identifiers[ATTNIdentifierType.email] as? String,
-                self.userIdentity.identifiers[ATTNIdentifierType.phone] as? String
+            let identifiers = self.userIdentity.identifiers
+            return InboxIdentitySnapshot(
+                visitorId: self.userIdentity.visitorId,
+                pushToken: self.currentPushToken,
+                email: identifiers[ATTNIdentifierType.email] as? String,
+                phone: identifiers[ATTNIdentifierType.phone] as? String
             )
         })
     }()
@@ -272,7 +273,10 @@ public final class ATTNSDK: NSObject {
     }
 
     /// Async accessor for unread count. Returns the most recently fetched server-authoritative
-    /// value. Call `refreshInboxUnreadCount()` to fetch the latest from the server.
+    /// value, or `0` until the first successful refresh completes. Because the initial value
+    /// and the "no unread messages" value are both `0`, callers that need to distinguish
+    /// "loading" from "zero unread" should track that state themselves (e.g. via
+    /// `inboxStateStream`). Call `refreshInboxUnreadCount()` to fetch the latest from the server.
     public var unreadCount: Int {
         get async {
             await inboxManager.unreadCount

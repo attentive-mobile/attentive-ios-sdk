@@ -80,6 +80,6 @@ protocol ATTNAPIProtocol {
         pushToken: String,
         email: String?,
         phone: String?,
-        userIdentity: ATTNUserIdentity
+        visitorId: String
     ) async throws -> Int
 }

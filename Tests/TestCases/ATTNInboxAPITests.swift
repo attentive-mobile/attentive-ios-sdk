@@ -38,7 +38,7 @@ final class ATTNInboxAPITests: XCTestCase {
             pushToken: pushToken,
             email: email,
             phone: phone,
-            userIdentity: identity ?? userIdentity
+            visitorId: (identity ?? userIdentity).visitorId
         )
     }
 

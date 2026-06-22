@@ -387,14 +387,11 @@ final class ATTNAPI: ATTNAPIProtocol {
         pushToken: String,
         email: String?,
         phone: String?,
-        userIdentity: ATTNUserIdentity
+        visitorId: String
     ) async throws -> Int {
-        Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
-        print("[MSDK-377] fetchInboxUnreadCount called — visitorId=\(userIdentity.visitorId), pushToken=\(pushToken.isEmpty ? "<empty>" : pushToken), email=\(email ?? "nil"), phone=\(phone ?? "nil")")
+        Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
-        var payload: [String: Any] = [
-            "visitor_id": userIdentity.visitorId
-        ]
+        var payload: [String: Any] = ["visitor_id": visitorId]
         if !pushToken.isEmpty { payload["push_token"] = pushToken }
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
             payload["email"] = email
@@ -405,7 +402,6 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/unread/count") else {
             Loggers.network.error("Invalid inbox unread count URL")
-            print("[MSDK-377] ❌ Invalid URL")
             throw ATTNError.badURL
         }
 
@@ -414,47 +410,51 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+        // Throw, don't `try?`: silently dropping the body would send a request the server
+        // can't service and surface as an opaque 4xx — much harder to debug than a clear error.
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
-        Loggers.network.debug("POST /inbox/messages/unread/count payload: \(payload, privacy: .public)")
-        print("[MSDK-377] ➡️ POST \(url.absoluteString) — payload=\(payload)")
+        Loggers.network.debug("POST /inbox/messages/unread/count")
 
-        let (data, response): (Data, URLResponse) = try await withCheckedThrowingContinuation { continuation in
-            let task = urlSession.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let data = data, let response = response else {
-                    continuation.resume(throwing: ATTNError.inboxResponseDecodeFailed)
-                    return
-                }
-                continuation.resume(returning: (data, response))
-            }
-            task.resume()
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox unread count returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
         }
-
-        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
-        if let http = response as? HTTPURLResponse {
-            Loggers.network.debug("Inbox unread count status code: \(http.statusCode, privacy: .public)")
-            print("[MSDK-377] ⬅️ status=\(http.statusCode) body=\(bodyStr)")
-            guard (200..<300).contains(http.statusCode) else {
-                Loggers.network.error("Inbox unread count API returned status \(http.statusCode, privacy: .public)")
-                throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
-            }
-        } else {
-            print("[MSDK-377] ⬅️ non-HTTP response body=\(bodyStr)")
+        Loggers.network.debug("Inbox unread count status code: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox unread count API returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
         }
 
         do {
             let decoded = try JSONDecoder().decode(InboxUnreadCountResponse.self, from: data)
             Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
-            print("[MSDK-377] ✅ decoded unread_count=\(decoded.unreadCount)")
             return decoded.unreadCount
         } catch {
             Loggers.network.error("Failed to decode inbox unread count response: \(error.localizedDescription, privacy: .public)")
-            print("[MSDK-377] ❌ decode failed: \(error.localizedDescription) — body was: \(bodyStr)")
             throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    /// async/await bridge over `URLSession.dataTask(with:completionHandler:)`. Used instead of
+    /// `URLSession.data(for:)` because the latter cannot be intercepted by `URLSession`
+    /// subclasses (it's defined in an extension and is non-`@objc`), which `NSURLSessionMock`
+    /// relies on for testing. Per URLSession's documented contract, when `error` is nil both
+    /// `data` and `response` are non-nil — the guard below is belt-and-suspenders only.
+    private func dataTask(with request: URLRequest) async throws -> (Data, URLResponse) {
+        try await withCheckedThrowingContinuation { continuation in
+            let task = urlSession.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let data = data, let response = response {
+                    continuation.resume(returning: (data, response))
+                } else {
+                    continuation.resume(throwing: URLError(.badServerResponse))
+                }
+            }
+            task.resume()
         }
     }
 }

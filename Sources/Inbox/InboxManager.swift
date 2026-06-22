@@ -13,9 +13,17 @@ public enum InboxState: Sendable {
     case error(Error)
 }
 
+/// Identifiers needed to call the inbox endpoints.
+struct InboxIdentitySnapshot: Sendable {
+    let visitorId: String
+    let pushToken: String
+    let email: String?
+    let phone: String?
+}
+
 /// Closure that supplies the identifiers needed to call the inbox endpoints.
 /// Resolved at call-time so the manager always uses the latest values from `ATTNSDK`.
-typealias InboxIdentityProvider = @Sendable () -> (userIdentity: ATTNUserIdentity, pushToken: String, email: String?, phone: String?)
+typealias InboxIdentityProvider = @Sendable () -> InboxIdentitySnapshot
 
 actor InboxManager {
     private var messagesByID: [Message.ID: Message] = [:]
@@ -25,11 +33,16 @@ actor InboxManager {
 
     /// Server-authoritative unread count. Updated only by `refreshUnreadCount()` and (future)
     /// mark-read/mark-unread/delete API responses — local `markRead`/`markUnread` mutations
-    /// do not change this value.
+    /// do not change this value. Defaults to 0 until the first successful refresh, so callers
+    /// cannot distinguish "no unread" from "not yet fetched".
     private(set) var unreadCount: Int = 0
 
-    private let api: ATTNAPIProtocol?
-    private let identityProvider: InboxIdentityProvider?
+    private let api: ATTNAPIProtocol
+    private let identityProvider: InboxIdentityProvider
+
+    /// Monotonic counter used to discard responses from refresh calls that have been
+    /// superseded by a newer in-flight call.
+    private var refreshGeneration: UInt = 0
 
     var allMessages: [Message] {
         if let cached = cachedSortedMessages {
@@ -60,13 +73,13 @@ actor InboxManager {
         }
     }
 
-    init(api: ATTNAPIProtocol? = nil, identityProvider: InboxIdentityProvider? = nil) {
+    init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
+        // `currentState` is already `.loading`; kick off the mock-message load and the
+        // unread-count fetch concurrently. Both run on this actor so they're serialized
+        // at write boundaries — the parallelism is for the awaits, not the state mutations.
         Task {
-            await send(.loading)
-            // Run mock-message load and unread-count fetch concurrently — they touch
-            // independent state and the network call should not wait on the local mock.
             async let messages: Void = updateMessages(Self.getMockInbox().messages)
             async let count: Void = refreshUnreadCount()
             _ = await (messages, count)
@@ -75,29 +88,35 @@ actor InboxManager {
 
     /// Fetches the latest unread count from the server and stores it as the
     /// authoritative value. Errors are logged; the previously stored count is preserved.
+    /// If multiple refreshes are in flight, only the most recently issued one is honored.
     func refreshUnreadCount() async {
-        print("[MSDK-377] InboxManager.refreshUnreadCount() entered")
-        guard let api = api, let identityProvider = identityProvider else {
-            Loggers.network.debug("Skipping refreshUnreadCount — no API or identity provider configured")
-            print("[MSDK-377] ⚠️ skipped: api=\(api == nil ? "nil" : "set") identityProvider=\(identityProvider == nil ? "nil" : "set")")
+        let identity = identityProvider()
+        // Without a visitor ID the server can't scope the request — skip rather than send
+        // an unscoped call that would 4xx and pollute logs.
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox unread count refresh: empty visitor ID")
             return
         }
-
-        let (userIdentity, pushToken, email, phone) = identityProvider()
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         do {
-            unreadCount = try await api.fetchInboxUnreadCount(
-                pushToken: pushToken,
-                email: email,
-                phone: phone,
-                userIdentity: userIdentity
+            let count = try await api.fetchInboxUnreadCount(
+                pushToken: identity.pushToken,
+                email: identity.email,
+                phone: identity.phone,
+                visitorId: identity.visitorId
             )
-            print("[MSDK-377] InboxManager.unreadCount updated to \(unreadCount)")
-            // Re-emit current state so observers re-read the updated `unreadCount`.
-            // The state value itself is unchanged; this is a nudge for badge UIs.
-            send(currentState)
+            // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
+            guard generation == refreshGeneration else { return }
+            unreadCount = count
+            // Nudge observers to re-read `unreadCount` once we already have messages.
+            // Skip the nudge while still loading or in error — re-emitting `.loading`
+            // would clobber the loaded list once it arrives.
+            if case .loaded = currentState {
+                send(currentState)
+            }
         } catch {
             Loggers.network.error("Failed to refresh inbox unread count: \(error.localizedDescription, privacy: .public)")
-            print("[MSDK-377] ❌ refreshUnreadCount error: \(error.localizedDescription)")
         }
     }
 
