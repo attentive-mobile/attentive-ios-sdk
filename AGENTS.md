@@ -35,6 +35,22 @@ Do not invent a domain. Always initialize the SDK in `.debug` mode for first-tim
 
 ---
 
+## Step 0 — Confirm the host builds clean
+
+Before touching anything, confirm the host produces a clean baseline build. This prevents you from mis-attributing pre-existing host issues to the SDK integration later.
+
+1. Look for a project-specific bootstrap script or setup command in the repo's `README`, `Makefile`, `Justfile`, `bin/`, or `scripts/` directory (e.g. `bin/setup`, `make bootstrap`, `bundle install && pod install`). If one exists, run it.
+2. Build the host with its standard command — e.g. `xcodebuild -workspace <…>.xcworkspace -scheme <…> -destination 'generic/platform=iOS Simulator' build`, or whatever the project documents.
+3. If the baseline build fails, **stop** and tell the user:
+
+   > "I tried to build the host before integrating Attentive and the build failed with `<error>`. This looks unrelated to the SDK — can you fix the host first (or confirm it's expected and you want me to proceed anyway)? I don't want to attribute pre-existing failures to the integration."
+
+   Do not attempt to debug pre-existing host issues as part of this integration.
+
+Only proceed to Step 1 once you have a clean baseline build (or the user has explicitly told you to continue anyway).
+
+---
+
 ## Step 1 — Inspect the client codebase
 
 Before editing anything, determine:
@@ -80,19 +96,31 @@ If the lookup fails (no network, rate-limited, etc.), tell the user and ask them
 
 Use the resolved version (e.g. `2.0.15`) in place of `<VERSION>` below.
 
+> **Note on version drift:** the version Xcode's resolver actually pins can differ from what you looked up (a stale package cache or an existing `Package.resolved` will hold an older version, even with a `from:` constraint). After installing — Step 2c — you must read back the *resolved* version and report **that** to the user, not the latest-tag lookup result. Step 2c spells out where to read it.
+
 ### 2b. Add the dependency
 
 #### Swift Package Manager (recommended)
 
-If the host uses SPM, add the package via Xcode's UI **or** edit the project's `Package.swift` / Xcode-managed package list. The remote URL is:
+For most iOS app hosts, SPM is managed through Xcode's GUI — package references live inside `project.pbxproj`, not in an editable app-level `Package.swift` — so the package add is a **user-driven step you cannot perform yourself**. Treat this as the primary path; the `Package.swift` variant below is only for the smaller case where the host *is* an SPM package.
 
-```
-https://github.com/attentive-mobile/attentive-ios-sdk
-```
+The package coordinates:
 
-Pin to `<VERSION>` (exact) or `from: "<VERSION>"` (semver-compatible — recommended). The product name to link against the app target is **`ATTNSDKFramework`**.
+- **URL:** `https://github.com/attentive-mobile/attentive-ios-sdk`
+- **Version rule:** `Up to Next Major Version` from `<VERSION>` (semver-compatible — recommended), or `Exact` `<VERSION>` if the host prefers strict pinning.
+- **Product to link:** `ATTNSDKFramework`
 
-If the host has a `Package.swift` (i.e. the app itself is an SPM package), add to its dependencies:
+##### Primary path — Xcode GUI handoff
+
+Tell the user:
+
+> "Open the project in Xcode → File → Add Package Dependencies… → paste `https://github.com/attentive-mobile/attentive-ios-sdk` → choose `Up to Next Major Version` from `<VERSION>` → add `ATTNSDKFramework` to your app target. Let me know once it resolves and I'll wire up the init."
+
+Wait for the user to confirm the package resolved before continuing. You cannot add an SPM package by editing files for an Xcode-managed app target.
+
+##### Variant — host *is* an SPM package
+
+Only use this path if you found a top-level `Package.swift` in the repo (i.e. the host is itself a Swift package, not an Xcode app project). Add to its dependencies:
 
 ```swift
 .package(url: "https://github.com/attentive-mobile/attentive-ios-sdk", from: "<VERSION>")
@@ -103,10 +131,6 @@ If the host has a `Package.swift` (i.e. the app itself is an SPM package), add t
 ```swift
 .product(name: "ATTNSDKFramework", package: "attentive-ios-sdk")
 ```
-
-If you cannot edit `Package.swift` (e.g. SPM is managed via Xcode's GUI), tell the user:
-
-> "Open the project in Xcode → File → Add Package Dependencies… → paste `https://github.com/attentive-mobile/attentive-ios-sdk` → choose `Up to Next Major Version` from `<VERSION>` → add `ATTNSDKFramework` to your app target. Let me know once it resolves and I'll wire up the init."
 
 #### CocoaPods
 
@@ -132,7 +156,7 @@ After install, the user must open the `.xcworkspace` (not the `.xcodeproj`).
 
 Only fall back to manual XCFramework integration if the user explicitly requests it or both SPM and CocoaPods are unavailable. The README has the full instructions; warn the user that incorrect embedding can cause App Store submission failures.
 
-### 2c. Verify the dependency resolves
+### 2c. Verify the dependency resolves, and read back the resolved version
 
 Before writing any code that imports `ATTNSDKFramework`, make sure the project builds:
 
@@ -140,6 +164,23 @@ Before writing any code that imports `ATTNSDKFramework`, make sure the project b
 - **CocoaPods**: confirm `pod install` reported success and the workspace builds.
 
 Do not move on to Step 3 until the dependency resolves; otherwise the `import ATTNSDKFramework` you add next will fail.
+
+**Then read back the version that was actually pinned** (it can differ from the latest-tag lookup in Step 2a — a stale Xcode package cache or an existing `Package.resolved` will hold an older version even with a `from:` constraint):
+
+- **SPM**: read `<…>.xcodeproj/project.workspaceData/xcshareddata/swiftpm/Package.resolved` or `<…>.xcworkspace/xcshareddata/swiftpm/Package.resolved` and find the entry for `attentive-ios-sdk` — the `state.version` field is the truth.
+
+  ```bash
+  jq -r '.pins[] | select(.identity == "attentive-ios-sdk") | .state.version' \
+    "$(find . -name Package.resolved -path '*/swiftpm/*' | head -n1)"
+  ```
+
+- **CocoaPods**: read `Podfile.lock` for the `ATTNSDKFramework` entry under `PODS:`:
+
+  ```bash
+  grep -E '^\s*-?\s*ATTNSDKFramework' Podfile.lock | head -n1
+  ```
+
+Report the **resolved** version to the user (e.g. "Attentive SDK 2.0.14 is now installed."), not the latest-tag value. If it differs from what you looked up, tell them explicitly so they aren't surprised that the runtime log shows a different version than what they asked for.
 
 ---
 
@@ -174,6 +215,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 self.attentiveSdk = sdk
                 ATTNEventTracker.setup(with: sdk)
             case .failure(let error):
+                // TODO(attentive): route to the host's logger if one exists.
                 print("Attentive SDK failed to initialize: \(error)")
             }
         }
@@ -217,6 +259,7 @@ func application(
             self.attentiveSdk = sdk
             ATTNEventTracker.setup(with: sdk)
         case .failure(let error):
+            // TODO(attentive): route to the host's logger if one exists.
             print("Attentive SDK failed to initialize: \(error)")
         }
     }
@@ -250,9 +293,34 @@ If the existing `AppDelegate` already stores other SDK instances on properties, 
 2. If the build fails, fix it before moving on. Common issues:
    - **`No such module 'ATTNSDKFramework'`** — SPM/CocoaPods didn't resolve. Re-run `pod install` or have Xcode resolve packages.
    - **CocoaPods + Xcode opens the wrong file** — make sure you're working in `<…>.xcworkspace`, not `<…>.xcodeproj`.
-3. Once the build succeeds, proceed to Step 5.
+3. Once the build succeeds, proceed to Step 4.5.
 
-Do not run the app on a simulator or device unless asked.
+---
+
+## Step 4.5 — Confirm the SDK initializes at runtime
+
+A green build does **not** mean the SDK came up. The failure branch only `print()`s, so a misconfiguration (bad domain, missing entitlement on later steps, etc.) is silent unless someone reads the console. Verify the init actually fires before handing off.
+
+1. Boot a simulator and install the app — either via Xcode (⌘R, then immediately stop the app) or with `xcodebuild` + `xcrun simctl install`.
+2. In another shell, start streaming the system log:
+
+   ```bash
+   xcrun simctl spawn booted log stream --level debug --predicate 'eventMessage CONTAINS "ATTNSDK"'
+   ```
+
+3. Launch the app. Within a few seconds you should see two lines:
+
+   ```
+   Initializing ATTNSDK v<version>, Mode: debug, Domain: <…>, PushEnabled: <…>
+   ATTNSDK initialization successful - Visitor ID: <…>
+   ```
+
+4. If you instead see `Attentive SDK failed to initialize: <error>`, surface the error to the user and stop. Do not proceed.
+5. Once you've confirmed `ATTNSDK initialization successful`, terminate the app and stop the log stream. Then proceed to Step 5.
+
+This is the cheapest runtime check you can run without asking the user — do it before declaring the integration done.
+
+> **Carve-out from the "do not run" rule below:** Step 4.5 (and the equivalent runtime check at the end of Step 6) is the one place you *may* briefly launch the app yourself — to confirm SDK init, then terminate. Don't run it for demo, interactive testing, or any reason beyond reading the init log.
 
 ---
 
@@ -333,6 +401,7 @@ ATTNSDK.initialize(domain: "YOUR_ATTENTIVE_DOMAIN", mode: .debug) { result in
             // `granted` reflects whether the user accepted the prompt.
         }
     case .failure(let error):
+        // TODO(attentive): route to the host's logger if one exists.
         print("Attentive SDK failed to initialize: \(error)")
     }
 }
@@ -494,7 +563,9 @@ if let url = attentiveSdk?.consumeDeepLink() {
    - [Skip fatigue on creatives](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/README.md#skip-fatigue-on-creative) — debug helper to bypass creative fatigue rules.
    ```
 
-Do not run the app on a simulator or device unless asked.
+4. Re-run the Step 4.5 runtime check after wiring push (or after any push-flow change). The same `xcrun simctl spawn booted log stream` invocation will surface push-related init logs in addition to the standard init line.
+
+Do not run the app on a simulator or device beyond the brief launch-and-terminate needed for the Step 4.5 init check (and the equivalent re-check here). No demo runs, no interactive testing — read the log, confirm init, stop.
 
 ---
 
