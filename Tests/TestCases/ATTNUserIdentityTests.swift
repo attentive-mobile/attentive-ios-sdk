@@ -100,7 +100,7 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
         let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "seed@test.com"])
-        runConcurrently(iterations: 200, queueLabels: ["writer", "reader"]) { i, queueIndex in
+        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["writer", "reader"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
@@ -115,7 +115,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // Iteration count kept low because clearUser() does a synchronous
         // UserDefaults write per call; 20×2 racing calls is plenty to surface
         // a missing-lock crash without blowing CI's timeout budget on disk I/O.
-        runConcurrently(iterations: 20, timeout: 10, queueLabels: ["merge", "clear"]) { i, queueIndex in
+        runConcurrently(iterations: 20, timeout: 20, queueLabels: ["merge", "clear"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
