@@ -63,6 +63,7 @@ final class ATTNInboxAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
+        XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
         XCTAssertEqual(json["push_token"] as? String, "fcm:abc123")
         XCTAssertEqual(json["email"] as? String, "user@example.com")
@@ -77,6 +78,7 @@ final class ATTNInboxAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
+        XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, emptyIdentity.visitorId)
         XCTAssertNil(json["push_token"])
         XCTAssertNil(json["email"])
