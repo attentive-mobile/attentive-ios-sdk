@@ -137,6 +137,17 @@ actor InboxManager {
     func refresh() {
         updateMessages(Self.getMockInbox().messages)
     }
+
+    /// Resets the cached unread count to 0 and bumps the refresh generation so any in-flight
+    /// fetch from the previous identity is discarded when it returns. Called on identity changes
+    /// (`clearUser`, `updateUser`) so a logged-out account's badge is not surfaced to the next user.
+    func resetUnreadCount() {
+        refreshGeneration &+= 1
+        unreadCount = 0
+        if case .loaded = currentState {
+            send(currentState)
+        }
+    }
 }
 
 // MARK: - Private methods
