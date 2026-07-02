@@ -125,6 +125,40 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"]
 [ATTNEventTracker setupWithSDk:sdk];
 ```
 
+### Opting out of push (for apps that don't use Attentive for push)
+
+If another provider owns push on your app, pass `pushEnabled: false` at init. The SDK will then:
+
+- **Not** request push permission, register with APNs, or store any push token.
+- **Not** observe `UIApplication.didBecomeActiveNotification`, so `handleRegularOpen` is never fired automatically.
+- Treat every push entry point (`registerForPushNotifications`, `registerDeviceToken`, `failedToRegisterForPush`, `handleRegularOpen`, `handleForegroundPush`, `handlePushOpen`) as a no-op if you call them.
+- Continue to support all other features completely: identity (`identify` / `clearUser` / `updateUser`), events (Step 3), email/SMS subscriptions (Step 5), and creatives (Step 6).
+
+Email/SMS opt-in and opt-out (Step 5) still work: with `pushEnabled: false`, requests are sent immediately without a push token (rather than queueing until one is available, which is the push-enabled behavior).
+
+The default is `pushEnabled: true`; only set this to `false` if Attentive is not your push provider.
+
+#### Swift
+```swift
+ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production, pushEnabled: false) { result in
+  switch result {
+  case .success(let sdk):
+    self.attentiveSdk = sdk
+    ATTNEventTracker.setup(with: sdk)
+  case .failure(let error):
+    print("Attentive SDK failed to initialize: \(error)")
+  }
+}
+```
+
+#### Objective-C
+```objective-c
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"production" pushEnabled:NO];
+[ATTNEventTracker setupWithSDk:sdk];
+```
+
+When `pushEnabled` is `false`, you can skip **Step 4 - Integrate With Push** entirely; the calls in that section are no-ops in this mode.
+
 ## Step 2 - Identify the current user
 
 When you gather information about the current user (user ID, email, phone, etc), you can pass it to Attentive for identification purposes via the `identify` function. You can call identify every time to add any additional information about the user.
@@ -395,6 +429,9 @@ ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert V
 ```
 
 ## Step 4 - Integrate With Push
+
+> If Attentive is not your push provider, initialize the SDK with `pushEnabled: false` and skip this step — see [Opting out of push](#opting-out-of-push-for-apps-that-dont-use-attentive-for-push) under Step 1.
+
 #### Swift
 
 Show push permission prompt:
