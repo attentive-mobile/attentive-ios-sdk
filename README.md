@@ -122,7 +122,7 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain"];
 
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"];
 
-[ATTNEventTracker setupWithSDk:sdk];
+[ATTNEventTracker setupWithSdk:sdk];
 ```
 
 ### Opting out of push (for apps that don't use Attentive for push)
@@ -132,7 +132,10 @@ If another provider owns push on your app, pass `pushEnabled: false` at init. Th
 - **Not** request push permission, register with APNs, or store any push token.
 - **Not** observe `UIApplication.didBecomeActiveNotification`, so `handleRegularOpen` is never fired automatically.
 - Treat every push entry point (`registerForPushNotifications`, `registerDeviceToken`, `failedToRegisterForPush`, `handleRegularOpen`, `handleForegroundPush`, `handlePushOpen`) as a no-op if you call them.
-- Continue to support all other features completely: identity (`identify` / `clearUser` / `updateUser`), events (Step 3), email/SMS subscriptions (Step 5), and creatives (Step 6).
+- Continue to support: `identify` and `clearUser`, events (Step 3), email/SMS subscriptions (Step 5), and creatives (Step 6).
+
+> [!NOTE]
+> **`updateUser` currently requires a push token.** `updateUser(email:phone:callback:)` will abort with `ATTNSDKError.missingPushToken` when no token is available, which will always be the case with `pushEnabled: false`. Use `clearUser()` followed by `identify(...)` to switch users on non-push installs until this is relaxed in a future SDK release.
 
 Email/SMS opt-in and opt-out (Step 5) still work: with `pushEnabled: false`, requests are sent immediately without a push token (rather than queueing until one is available, which is the push-enabled behavior).
 
@@ -154,7 +157,7 @@ ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production, pushEnabled: fa
 #### Objective-C
 ```objective-c
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"production" pushEnabled:NO];
-[ATTNEventTracker setupWithSDk:sdk];
+[ATTNEventTracker setupWithSdk:sdk];
 ```
 
 When `pushEnabled` is `false`, you can skip **Step 4 - Integrate With Push** entirely; the calls in that section are no-ops in this mode.
