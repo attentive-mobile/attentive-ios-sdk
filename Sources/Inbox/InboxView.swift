@@ -42,6 +42,13 @@ struct InboxView: View {
                                 }
                                 .tint(.blue)
                             }
+                            .onAppear {
+                                // Pull-up-to-load-more: when the last row scrolls into view, ask for
+                                // the next page. The manager is a no-op when nothing more is available.
+                                if message.id == messages.last?.id {
+                                    viewModel.loadNextPage()
+                                }
+                            }
                     }
                 }
             }

@@ -441,6 +441,75 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
     }
 
+    /// Fetches a page of inbox messages. See the doc comment on `ATTNAPIProtocol.fetchInboxMessages`.
+    func fetchInboxMessages(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse {
+        Loggers.network.debug("Fetching inbox messages - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Page Size: \(pageSize, privacy: .public), Page Token: \(pageToken ?? "nil", privacy: .public)")
+
+        var payload: [String: Any] = [
+            "c": domain,
+            "visitor_id": visitorId,
+            "page_size": pageSize
+        ]
+        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+        if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+            payload["email"] = email
+        }
+        if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
+            payload["phone"] = phone
+        }
+        if let pageToken = pageToken, !pageToken.isEmpty {
+            payload["page_token"] = pageToken
+        }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages") else {
+            Loggers.network.error("Invalid inbox messages URL")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("POST /inbox/messages")
+
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox messages returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+        Loggers.network.debug("Inbox messages status code: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox messages API returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+        }
+
+        do {
+            let decoded = try Self.inboxJSONDecoder.decode(InboxResponse.self, from: data)
+            Loggers.network.debug("Inbox messages fetched: count=\(decoded.messages.count, privacy: .public), hasNextPage=\(decoded.nextPageToken?.isEmpty == false, privacy: .public)")
+            return decoded
+        } catch {
+            Loggers.network.error("Failed to decode inbox messages response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    private static let inboxJSONDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+
     /// async bridge over `URLSession.dataTask(with:completionHandler:)` — `URLSession.data(for:)`
     /// is an extension method and can't be intercepted by `NSURLSessionMock`.
     private func dataTask(with request: URLRequest) async throws -> (Data, URLResponse) {

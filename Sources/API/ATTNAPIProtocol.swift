@@ -82,4 +82,17 @@ protocol ATTNAPIProtocol {
         phone: String?,
         visitorId: String
     ) async throws -> Int
+
+    /// Fetches a page of inbox messages for the current user.
+    /// - Parameters:
+    ///   - pageSize: max number of messages to return; server clamps to its own upper bound.
+    ///   - pageToken: opaque cursor from a previous response's `next_page_token`; `nil` for the first page.
+    func fetchInboxMessages(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse
 }

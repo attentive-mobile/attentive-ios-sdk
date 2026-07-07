@@ -45,6 +45,14 @@ class InboxViewModel: ObservableObject {
         await inboxManager.refresh()
     }
 
+    /// Called by the view when the last row appears, triggering an infinite-scroll page fetch.
+    /// The manager guards against overlapping calls and no-ops when no more pages are available.
+    func loadNextPage() {
+        Task { [inboxManager] in
+            await inboxManager.loadNextPage()
+        }
+    }
+
     func markAsRead(_ messageID: Message.ID) {
         Task {
             await inboxManager.markRead(messageID)
