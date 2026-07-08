@@ -76,10 +76,12 @@ actor InboxManager {
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
-        // No init-time network fetch: host apps that never touch the inbox surface should
-        // not incur an unread-count call. The first `refresh()` (invoked by `InboxView.task`
-        // on open, by `InboxViewModel.refresh()` for pull-to-refresh, or by the host calling
-        // `refreshInboxUnreadCount()`) loads data.
+        // Kick off an initial unread-count fetch so hosts that consume the count via a
+        // passive badge (`await sdk.unreadCount`) don't have to also call `refreshInboxUnreadCount()`
+        // on their own to see a value. Host apps that never interact with the inbox surface
+        // never construct this manager — `ATTNSDK.materializedInboxManager()` gates construction
+        // on active use, so this fetch is not paid by non-inbox hosts.
+        Task { await refreshUnreadCount() }
     }
 
     /// Fetches the latest unread count from the server and stores it as the

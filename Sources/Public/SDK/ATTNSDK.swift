@@ -268,25 +268,26 @@ public final class ATTNSDK: NSObject {
         }
     }
 
-    /// Async accessor for all messages. Returns `[]` if the inbox has never been loaded.
-    /// Reading this property does not trigger a network fetch.
+    /// Async accessor for all messages. Materializes the inbox manager (reading messages counts
+    /// as active inbox use), which triggers a background unread-count fetch on first access.
     public var allMessages: [Message] {
         get async {
-            guard let manager = _inboxManager else { return [] }
-            return await manager.allMessages
+            await materializedInboxManager().allMessages
         }
     }
 
     /// Async accessor for unread count. Returns the most recently fetched server-authoritative
-    /// value, or `0` if the inbox has never been loaded on this device. Because the initial
-    /// value and the "no unread messages" value are both `0`, callers that need to distinguish
-    /// "loading" from "zero unread" should track that state themselves (e.g. via
-    /// `inboxStateStream`). Call `refreshInboxUnreadCount()` to fetch the latest from the server.
-    /// Reading this property does not trigger a network fetch.
+    /// value, or `0` until the first fetch completes. Because the initial value and the
+    /// "no unread messages" value are both `0`, callers that need to distinguish "loading" from
+    /// "zero unread" should track that state themselves (e.g. via `inboxStateStream`).
+    ///
+    /// Materializes the inbox manager on first read — passive-badge use cases (host reads
+    /// `sdk.unreadCount` without ever opening the inbox view) get an automatic refresh via
+    /// the manager's init. For latest-value semantics after known state changes (app launch,
+    /// push open), call `refreshInboxUnreadCount()` explicitly per the RFC.
     public var unreadCount: Int {
         get async {
-            guard let manager = _inboxManager else { return 0 }
-            return await manager.unreadCount
+            await materializedInboxManager().unreadCount
         }
     }
 
