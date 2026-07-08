@@ -76,10 +76,10 @@ actor InboxManager {
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
-        Task {
-            await updateMessages(Self.getMockInbox().messages)
-            await refreshUnreadCount()
-        }
+        // No init-time network fetch: host apps that never touch the inbox surface should
+        // not incur an unread-count call. The first `refresh()` (invoked by `InboxView.task`
+        // on open, by `InboxViewModel.refresh()` for pull-to-refresh, or by the host calling
+        // `refreshInboxUnreadCount()`) loads data.
     }
 
     /// Fetches the latest unread count from the server and stores it as the
@@ -134,8 +134,14 @@ actor InboxManager {
         send(.loaded(allMessages))
     }
 
-    func refresh() {
-        updateMessages(Self.getMockInbox().messages)
+    /// Reloads inbox messages and re-fetches the server-authoritative unread count.
+    /// Called on inbox open, pull-to-refresh, and (indirectly, via the host app) push open.
+    /// Runs the two fetches concurrently so pull-to-refresh does not double the perceived latency.
+    func refresh() async {
+        // Local mock reload is synchronous; wrap so `async let` schedules it alongside the network call.
+        async let messageReload: Void = updateMessages(Self.getMockInbox().messages)
+        async let countRefresh: Void = refreshUnreadCount()
+        _ = await (messageReload, countRefresh)
     }
 
     /// Resets the cached unread count to 0 and bumps the refresh generation so any in-flight

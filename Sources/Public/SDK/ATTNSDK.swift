@@ -52,11 +52,10 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
-    private lazy var inboxManager: InboxManager = {
-        InboxManager(api: api, identityProvider: { [weak self] in
-            self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
-        })
-    }()
+    // Backing storage for the inbox manager. Optional (not `lazy var`) so `clearUser()` can
+    // reset an already-materialized manager without creating one for hosts that never used inbox.
+    // See `materializedInboxManager()` for the construction path.
+    private var _inboxManager: InboxManager?
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -224,8 +223,12 @@ public final class ATTNSDK: NSObject {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
         publishIdentitySnapshot()
-        // Drop the previous user's cached unread count so the next user doesn't see their badge.
-        Task { [inboxManager] in await inboxManager.resetUnreadCount() }
+        // Drop the previous user's cached unread count so the next user doesn't see their badge —
+        // but only if the manager has already been materialized. Constructing it here would issue
+        // an unread-count fetch for host apps that never touch the inbox surface.
+        if let manager = _inboxManager {
+            Task { await manager.resetUnreadCount() }
+        }
         Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
@@ -256,27 +259,34 @@ public final class ATTNSDK: NSObject {
     /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
     /// then emits on any subsequent change.
     /// Usage: `for await state in await sdk.inboxStateStream { ... }`
+    ///
+    /// Reading this property materializes the inbox manager (subscribing to updates is
+    /// an active use).
     public var inboxStateStream: AsyncStream<InboxState> {
         get async {
-            await inboxManager.stateStream
+            await materializedInboxManager().stateStream
         }
     }
 
-    /// Async accessor for all messages.
+    /// Async accessor for all messages. Returns `[]` if the inbox has never been loaded.
+    /// Reading this property does not trigger a network fetch.
     public var allMessages: [Message] {
         get async {
-            await inboxManager.allMessages
+            guard let manager = _inboxManager else { return [] }
+            return await manager.allMessages
         }
     }
 
     /// Async accessor for unread count. Returns the most recently fetched server-authoritative
-    /// value, or `0` until the first successful refresh completes. Because the initial value
-    /// and the "no unread messages" value are both `0`, callers that need to distinguish
+    /// value, or `0` if the inbox has never been loaded on this device. Because the initial
+    /// value and the "no unread messages" value are both `0`, callers that need to distinguish
     /// "loading" from "zero unread" should track that state themselves (e.g. via
     /// `inboxStateStream`). Call `refreshInboxUnreadCount()` to fetch the latest from the server.
+    /// Reading this property does not trigger a network fetch.
     public var unreadCount: Int {
         get async {
-            await inboxManager.unreadCount
+            guard let manager = _inboxManager else { return 0 }
+            return await manager.unreadCount
         }
     }
 
@@ -284,12 +294,12 @@ public final class ATTNSDK: NSObject {
     /// Per RFC, host apps should call this when navigating to the app's main page (e.g. on app launch)
     /// and after opening a push notification.
     public func refreshInboxUnreadCount() async {
-        await inboxManager.refreshUnreadCount()
+        await materializedInboxManager().refreshUnreadCount()
     }
 
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
-        InboxView(viewModel: InboxViewModel(inboxManager: inboxManager, style: style))
+        InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style))
     }
 
     @MainActor
@@ -298,15 +308,15 @@ public final class ATTNSDK: NSObject {
     }
 
     public func markRead(for messageID: Message.ID) async {
-        await inboxManager.markRead(messageID)
+        await materializedInboxManager().markRead(messageID)
     }
 
     public func markUnread(for messageID: Message.ID) async {
-        await inboxManager.markUnread(messageID)
+        await materializedInboxManager().markUnread(messageID)
     }
 
     public func delete(messageID: Message.ID) async {
-        await inboxManager.delete(messageID)
+        await materializedInboxManager().delete(messageID)
     }
 
     // MARK: Push Permissions & Token
@@ -931,6 +941,19 @@ extension ATTNSDK: ATTNWebViewProviding {
 
 // MARK: Private Helpers
 fileprivate extension ATTNSDK {
+    /// Returns the existing `InboxManager` or lazily constructs one bound to this SDK
+    /// instance's api + identity store. Called on *active* inbox use only (opening the view,
+    /// explicit `refreshInboxUnreadCount()`, message mutations) so that hosts which never
+    /// interact with the inbox surface never trigger the manager's network activity.
+    func materializedInboxManager() -> InboxManager {
+        if let existing = _inboxManager { return existing }
+        let manager = InboxManager(api: api, identityProvider: { [weak self] in
+            self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+        })
+        _inboxManager = manager
+        return manager
+    }
+
     /// Publishes the current identity (visitor id, push token, email, phone) into the
     /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
     /// Call after any mutation of `userIdentity` or `currentPushToken`.
