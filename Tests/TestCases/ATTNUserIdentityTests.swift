@@ -117,7 +117,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             identifiers: [:],
             visitorService: ATTNVisitorService(persistentStorage: ATTNPersistentStorageMock())
         )
-        runConcurrently(iterations: 200, queueLabels: ["merge", "clear"]) { i, queueIndex in
+        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["merge", "clear"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
