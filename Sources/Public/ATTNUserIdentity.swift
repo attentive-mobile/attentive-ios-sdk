@@ -34,10 +34,14 @@ public final class ATTNUserIdentity: NSObject {
     }
 
     @objc(initWithIdentifiers:)
-    public init(identifiers: [String: Any]) {
-        self.visitorService = .init()
+    public convenience init(identifiers: [String: Any]) {
+        self.init(identifiers: identifiers, visitorService: .init())
+    }
+
+    init(identifiers: [String: Any], visitorService: ATTNVisitorService) {
+        self.visitorService = visitorService
         self._identifiers = identifiers
-        self._visitorId = self.visitorService.getVisitorId()
+        self._visitorId = visitorService.getVisitorId()
         super.init()
     }
 

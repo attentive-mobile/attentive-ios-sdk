@@ -31,6 +31,7 @@
 		FB080C7F2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB080C7E2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift */; };
 		FB2983E42C0F73990039759C /* ATTNAppInfoMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */; };
 		FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */; };
+		A9D1C316A0001000000000001 /* ATTNPersistentStorageMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */; };
 		FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */; };
 		FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */; };
 		FB2983F82C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */; };
@@ -157,6 +158,7 @@
 		FB0E49E52BFBB1900025E281 /* Package.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNAppInfoMock.swift; sourceTree = "<group>"; };
 		FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNUserAgentBuilderMock.swift; sourceTree = "<group>"; };
+		A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNPersistentStorageMock.swift; sourceTree = "<group>"; };
 		FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNVisitorServiceTests.swift; sourceTree = "<group>"; };
 		FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityTests.swift; sourceTree = "<group>"; };
 		FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserAgentBuilderTests.swift; sourceTree = "<group>"; };
@@ -340,6 +342,7 @@
 			children = (
 				FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */,
 				FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */,
+				A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */,
 				FB90EF0C2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift */,
 				FB90EF0E2C10A81E004DFC4A /* NSURLSessionMock.swift */,
 			);
@@ -787,6 +790,7 @@
 				F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */,
 				FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */,
 				FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */,
+				A9D1C316A0001000000000001 /* ATTNPersistentStorageMock.swift in Sources */,
 				FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,
