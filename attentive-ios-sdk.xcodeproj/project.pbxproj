@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0AACCF0A2FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */; };
 		54226504E51EC95F3B2E536D /* HTTPURLResponse+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7CCF9D9D01AB01BB9BA5D /* HTTPURLResponse+Extension.swift */; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
@@ -14,6 +15,9 @@
 		58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58B01AB6294D44140001CEBF /* libOCMock.a */; };
 		58D52E1D292EC52B00CF32DE /* ATTNSDKFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */; };
 		7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */; };
+		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
+		A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */; };
+		A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */; };
 		F934CE262D495029003021C3 /* ATTNWebViewHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */; };
 		F939F2462D64DF75002CC012 /* ATTNCreativeStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */; };
 		F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */; };
@@ -31,7 +35,6 @@
 		FB080C7F2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB080C7E2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift */; };
 		FB2983E42C0F73990039759C /* ATTNAppInfoMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */; };
 		FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */; };
-		A9D1C316A0001000000000001 /* ATTNPersistentStorageMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */; };
 		FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */; };
 		FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */; };
 		FB2983F82C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */; };
@@ -48,8 +51,6 @@
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
 		FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */; };
 		FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */; };
-		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
-		A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */; };
 		FB35C1852C0E35E7009FA048 /* ATTNJsonUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */; };
 		FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */; };
 		FB35C1892C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1882C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift */; };
@@ -64,7 +65,6 @@
 		FB4E3FE52C36F7BF004B8FF0 /* ATTNWebViewHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */; };
 		FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */; };
 		FB56D4DA2C208BAD00AF7530 /* ATTNSDK+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */; };
-		A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */; };
 		FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */; };
 		FB56D4DE2C208DC100AF7530 /* String+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DD2C208DC100AF7530 /* String+Extension.swift */; };
 		FB56D4E12C20925500AF7530 /* ProcessInfo+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */; };
@@ -119,6 +119,7 @@
 
 /* Begin PBXFileReference section */
 		0A812DF42F1827C50082B133 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPersistentStorageMock.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -139,6 +140,9 @@
 		58B01AC4294D44140001CEBF /* OCMArg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OCMArg.h; sourceTree = "<group>"; };
 		58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "attentive-ios-sdk Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ATTNErrorTests.swift; sourceTree = "<group>"; };
+		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
+		A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+Concurrency.swift"; sourceTree = "<group>"; };
+		A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+MarketingSubscriptions.swift"; sourceTree = "<group>"; };
 		DCF28F9F2D692A6A00A7164F /* ATTNWebViewHandlerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerUITests.swift; sourceTree = "<group>"; };
 		EAA7CCF9D9D01AB01BB9BA5D /* HTTPURLResponse+Extension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HTTPURLResponse+Extension.swift"; sourceTree = "<group>"; };
 		F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerTests.swift; sourceTree = "<group>"; };
@@ -158,7 +162,6 @@
 		FB0E49E52BFBB1900025E281 /* Package.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNAppInfoMock.swift; sourceTree = "<group>"; };
 		FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNUserAgentBuilderMock.swift; sourceTree = "<group>"; };
-		A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ATTNPersistentStorageMock.swift; sourceTree = "<group>"; };
 		FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNVisitorServiceTests.swift; sourceTree = "<group>"; };
 		FB2983F52C0F7CF10039759C /* ATTNUserIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityTests.swift; sourceTree = "<group>"; };
 		FB2983F72C0F7FB60039759C /* ATTNUserAgentBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserAgentBuilderTests.swift; sourceTree = "<group>"; };
@@ -175,8 +178,6 @@
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
 		FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNConstants.swift; sourceTree = "<group>"; };
 		FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Extension.swift"; sourceTree = "<group>"; };
-		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
-		A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+Concurrency.swift"; sourceTree = "<group>"; };
 		FB35C1842C0E35E7009FA048 /* ATTNJsonUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNJsonUtils.swift; sourceTree = "<group>"; };
 		FB35C1862C0E3929009FA048 /* ATTNEventTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTypes.swift; sourceTree = "<group>"; };
 		FB35C1882C0E3AF8009FA048 /* ATTNExternalVendorTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNExternalVendorTypes.swift; sourceTree = "<group>"; };
@@ -191,7 +192,6 @@
 		FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandling.swift; sourceTree = "<group>"; };
 		FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewProviding.swift; sourceTree = "<group>"; };
 		FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+Extension.swift"; sourceTree = "<group>"; };
-		A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+MarketingSubscriptions.swift"; sourceTree = "<group>"; };
 		FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Boolean+Extension.swift"; sourceTree = "<group>"; };
 		FB56D4DD2C208DC100AF7530 /* String+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extension.swift"; sourceTree = "<group>"; };
 		FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProcessInfo+Extension.swift"; sourceTree = "<group>"; };
@@ -340,9 +340,9 @@
 		FB2983D22C0F73990039759C /* Mocks */ = {
 			isa = PBXGroup;
 			children = (
+				0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */,
 				FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */,
 				FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */,
-				A9D1C316A0001000000000002 /* ATTNPersistentStorageMock.swift */,
 				FB90EF0C2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift */,
 				FB90EF0E2C10A81E004DFC4A /* NSURLSessionMock.swift */,
 			);
@@ -788,9 +788,9 @@
 				FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */,
 				FB2983FA2C0F80A30039759C /* ATTNPersistentStorageTests.swift in Sources */,
 				F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */,
+				0AACCF0A2FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift in Sources */,
 				FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */,
 				FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */,
-				A9D1C316A0001000000000001 /* ATTNPersistentStorageMock.swift in Sources */,
 				FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,
