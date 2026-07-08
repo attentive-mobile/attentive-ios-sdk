@@ -392,7 +392,6 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
         var payload: [String: Any] = [
-            "c": domain,
             "visitor_id": visitorId
         ]
         if !pushToken.isEmpty { payload["push_token"] = pushToken }
