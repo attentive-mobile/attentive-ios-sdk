@@ -244,4 +244,34 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         if let error = stubbedMarkReadError { throw error }
         return stubbedMarkReadResponse
     }
+
+    // MARK: - Mark Messages Unread
+    private(set) var markMessagesUnreadWasCalled = false
+    private(set) var markMessagesUnreadCallCount = 0
+    private(set) var lastMarkUnreadPushToken: String?
+    private(set) var lastMarkUnreadVisitorId: String?
+    private(set) var lastMarkUnreadMessageIds: [String]?
+    var stubbedMarkUnreadError: Error?
+    var stubbedMarkUnreadResponse: UpdateReadStatusResponse = UpdateReadStatusResponse(
+        messages: [],
+        unreadCount: 0
+    )
+    /// Invoked while the mark-unread call is "in flight" (after recording, before returning),
+    /// letting a test interleave an identity change/refresh to exercise stale-response handling.
+    var onMarkMessagesUnread: (@Sendable () async -> Void)?
+
+    func markMessagesUnread(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse {
+        markMessagesUnreadWasCalled = true
+        markMessagesUnreadCallCount += 1
+        lastMarkUnreadPushToken = pushToken
+        lastMarkUnreadVisitorId = visitorId
+        lastMarkUnreadMessageIds = messageIds
+        if let hook = onMarkMessagesUnread { await hook() }
+        if let error = stubbedMarkUnreadError { throw error }
+        return stubbedMarkUnreadResponse
+    }
 }

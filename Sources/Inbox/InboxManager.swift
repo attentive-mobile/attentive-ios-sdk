@@ -52,10 +52,10 @@ actor InboxManager {
     /// load returning inside the refresh window resets that flag but must not release this one.
     private var isRefreshingFirstPage: Bool = false
 
-    /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read
-    /// API response (see `applyReadStatusResponse`); local `markUnread` does not touch it. Reads
-    /// should go through the `unreadCount` accessor, which awaits the init-time refresh so the
-    /// first read never returns a stale 0.
+    /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read /
+    /// mark-unread API responses (see `applyReadStatusResponse`). Reads should go through the
+    /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
+    /// a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
@@ -373,10 +373,44 @@ actor InboxManager {
         }
     }
 
-    func markUnread(_ messageID: Message.ID) {
-        guard messagesByID[messageID]?.isRead == true else { return }
-        messagesByID[messageID]?.isRead = false
-        send(.loaded(orderedMessagesSnapshot()))
+    /// Marks a message unread. Optimistically flips the local state, then reconciles from the
+    /// server response. On failure the local flip is reverted so the UI reflects true state.
+    func markUnread(_ messageID: Message.ID) async {
+        guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
+
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox mark-unread: empty visitor ID")
+            return
+        }
+
+        if previousIsRead {
+            messagesByID[messageID]?.isRead = false
+            send(.loaded(orderedMessagesSnapshot()))
+        }
+
+        // Snapshot the refresh generation before the request. If an identity change
+        // (`resetForIdentityChange`) or a newer `refreshUnreadCount` lands while the PATCH is in
+        // flight, the generation advances and we drop this now-stale response instead of
+        // restoring an old unread count.
+        let generation = refreshGeneration
+
+        do {
+            let response = try await api.markMessagesUnread(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageIds: [messageID]
+            )
+            guard generation == refreshGeneration else { return }
+            applyReadStatusResponse(response)
+        } catch {
+            Loggers.network.error("Failed to mark inbox message unread: \(error.localizedDescription, privacy: .public)")
+            guard generation == refreshGeneration else { return }
+            if messagesByID[messageID] != nil, previousIsRead {
+                messagesByID[messageID]?.isRead = previousIsRead
+                send(.loaded(orderedMessagesSnapshot()))
+            }
+        }
     }
 
     func delete(_ messageID: Message.ID) {

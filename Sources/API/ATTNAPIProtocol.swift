@@ -103,4 +103,12 @@ protocol ATTNAPIProtocol {
         visitorId: String,
         messageIds: [String]
     ) async throws -> UpdateReadStatusResponse
+
+    /// Marks the supplied messages as unread on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesUnread(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
 }
