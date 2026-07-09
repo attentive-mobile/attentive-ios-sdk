@@ -104,8 +104,10 @@ actor InboxManager {
         // Passive-badge hosts read `sdk.unreadCount` without opening the inbox surface, so
         // the manager fetches on construction. Non-inbox hosts never construct it — see
         // `ATTNSDK.materializedInboxManager()`.
+        // The init task calls `performUnreadCountFetch` directly (not `refreshUnreadCount`)
+        // so it doesn't try to coalesce with itself.
         initialRefreshTask = Task { [weak self] in
-            await self?.refreshUnreadCount()
+            await self?.performUnreadCountFetch(skipNotify: false)
         }
     }
 
@@ -113,13 +115,6 @@ actor InboxManager {
     /// authoritative value. Errors are logged; the previously stored count is preserved.
     /// If multiple refreshes are in flight, only the most recently issued one is honored.
     func refreshUnreadCount() async {
-        await refreshUnreadCount(skipNotify: false)
-    }
-
-    /// Internal variant. `skipNotify == true` when the caller (e.g. `refresh()`) already
-    /// emits `.loaded` after `updateMessages`, so re-sending the same state here would
-    /// force subscribers to re-diff the identical payload.
-    private func refreshUnreadCount(skipNotify: Bool) async {
         // Coalesce with the init-time fetch. A host that follows the RFC and calls
         // `refreshInboxUnreadCount()` on app launch would otherwise race the manager's own
         // init fetch and produce two identical POSTs.
@@ -128,6 +123,13 @@ actor InboxManager {
             await task.value
             return
         }
+        await performUnreadCountFetch(skipNotify: false)
+    }
+
+    /// Internal worker. Always fires a network request — no coalesce check — so the init
+    /// task can call this without deadlocking on itself. `skipNotify == true` when the
+    /// caller (e.g. `refresh()`) will emit its own `.loaded` after `updateMessages`.
+    private func performUnreadCountFetch(skipNotify: Bool) async {
         let identity = identityProvider()
         // Without a visitor ID the server can't scope the request — skip rather than send
         // an unscoped call that would 4xx and pollute logs.
@@ -182,7 +184,8 @@ actor InboxManager {
     /// `async let` so the two network calls run concurrently.
     func refresh() async {
         updateMessages(Self.getMockInbox().messages)
-        await refreshUnreadCount(skipNotify: true)
+        // skipNotify because updateMessages above already emitted `.loaded`.
+        await performUnreadCountFetch(skipNotify: true)
     }
 
     /// Resets the cached unread count to 0 and bumps the refresh generation so any in-flight
