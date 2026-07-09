@@ -31,26 +31,22 @@ actor InboxManager {
     private var currentState: InboxState = .loading
     private var continuations: [UUID: AsyncStream<InboxState>.Continuation] = [:]
 
-    /// Server-authoritative unread count. Updated only by `refreshUnreadCount()` and (future)
-    /// mark-read/mark-unread/delete API responses — local `markRead`/`markUnread` mutations
-    /// do not change this value. Prefer reading via the async `unreadCount` accessor below,
-    /// which awaits the init-time fetch on first read so callers don't see a stale 0.
+    /// Server-authoritative unread count. Only `refreshUnreadCount()` writes it; local
+    /// `markRead` / `markUnread` do not. Reads should go through the `unreadCount` accessor,
+    /// which awaits the init-time refresh so the first read never returns a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
     private let identityProvider: InboxIdentityProvider
 
-    /// Init-time refresh task. `unreadCount` / `allMessages` await it once so passive-badge
-    /// callers see the server-authoritative value on their first read rather than the
-    /// pre-fetch default of 0.
+    /// Drained exactly once by `awaitInitialRefresh()` before the first `unreadCount` /
+    /// `allMessages` read returns.
     private var initialRefreshTask: Task<Void, Never>?
 
     /// Monotonic counter used to discard responses from refresh calls that have been
-    /// superseded by a newer in-flight call.
+    /// superseded by a newer in-flight call or an identity reset.
     private var refreshGeneration: UInt = 0
 
-    /// Async accessor for all messages. Awaits the init-time refresh on first read so passive
-    /// callers see server-authoritative state instead of a pre-fetch empty list.
     var allMessages: [Message] {
         get async {
             await awaitInitialRefresh()
@@ -58,8 +54,6 @@ actor InboxManager {
         }
     }
 
-    /// Async accessor for the server-authoritative unread count. Awaits the init-time refresh
-    /// on first read so passive callers don't see the pre-fetch default of 0.
     var unreadCount: Int {
         get async {
             await awaitInitialRefresh()
@@ -107,15 +101,9 @@ actor InboxManager {
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
-        // Kick off an initial unread-count fetch so hosts that consume the count via a
-        // passive badge (`await sdk.unreadCount`) don't have to also call `refreshInboxUnreadCount()`
-        // on their own to see a value. Host apps that never interact with the inbox surface
-        // never construct this manager — `ATTNSDK.materializedInboxManager()` gates construction
-        // on active use, so this fetch is not paid by non-inbox hosts.
-        //
-        // Held as `initialRefreshTask` so that the first `unreadCount` / `allMessages` read
-        // awaits it — otherwise a passive-badge UI reads `storedUnreadCount == 0` before the
-        // background fetch lands and never re-reads.
+        // Passive-badge hosts read `sdk.unreadCount` without opening the inbox surface, so
+        // the manager fetches on construction. Non-inbox hosts never construct it — see
+        // `ATTNSDK.materializedInboxManager()`.
         initialRefreshTask = Task { [weak self] in
             await self?.refreshUnreadCount()
         }
@@ -125,6 +113,21 @@ actor InboxManager {
     /// authoritative value. Errors are logged; the previously stored count is preserved.
     /// If multiple refreshes are in flight, only the most recently issued one is honored.
     func refreshUnreadCount() async {
+        await refreshUnreadCount(skipNotify: false)
+    }
+
+    /// Internal variant. `skipNotify == true` when the caller (e.g. `refresh()`) already
+    /// emits `.loaded` after `updateMessages`, so re-sending the same state here would
+    /// force subscribers to re-diff the identical payload.
+    private func refreshUnreadCount(skipNotify: Bool) async {
+        // Coalesce with the init-time fetch. A host that follows the RFC and calls
+        // `refreshInboxUnreadCount()` on app launch would otherwise race the manager's own
+        // init fetch and produce two identical POSTs.
+        if let task = initialRefreshTask {
+            initialRefreshTask = nil
+            await task.value
+            return
+        }
         let identity = identityProvider()
         // Without a visitor ID the server can't scope the request — skip rather than send
         // an unscoped call that would 4xx and pollute logs.
@@ -144,10 +147,10 @@ actor InboxManager {
             // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
             guard generation == refreshGeneration else { return }
             storedUnreadCount = count
-            // Nudge observers to re-read `unreadCount` once we already have messages.
-            // Skip the nudge while still loading or in error — re-emitting `.loading`
-            // would clobber the loaded list once it arrives.
-            if case .loaded = currentState {
+            // Nudge observers so passive-badge subscribers re-read `unreadCount` once messages
+            // are already loaded. Skip when still loading / errored (re-emitting `.loading`
+            // would clobber the loaded list) or when the caller will emit its own `.loaded`.
+            if !skipNotify, case .loaded = currentState {
                 send(currentState)
             }
         } catch {
@@ -175,12 +178,11 @@ actor InboxManager {
 
     /// Reloads inbox messages and re-fetches the server-authoritative unread count.
     /// Called on inbox open, pull-to-refresh, and (indirectly, via the host app) push open.
-    /// Runs the two fetches concurrently so pull-to-refresh does not double the perceived latency.
+    /// Once the real messages endpoint replaces `getMockInbox()` this should switch to
+    /// `async let` so the two network calls run concurrently.
     func refresh() async {
-        // Local mock reload is synchronous; wrap so `async let` schedules it alongside the network call.
-        async let messageReload: Void = updateMessages(Self.getMockInbox().messages)
-        async let countRefresh: Void = refreshUnreadCount()
-        _ = await (messageReload, countRefresh)
+        updateMessages(Self.getMockInbox().messages)
+        await refreshUnreadCount(skipNotify: true)
     }
 
     /// Resets the cached unread count to 0 and bumps the refresh generation so any in-flight
