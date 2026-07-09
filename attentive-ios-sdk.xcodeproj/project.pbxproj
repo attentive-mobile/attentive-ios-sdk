@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A411B432F31DE0400563599 /* InboxResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A411B422F31DDFA00563599 /* InboxResponse.swift */; };
 		0AE0001A377A1AAA00563599 /* InboxUnreadCountResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00019377A1AAA00563599 /* InboxUnreadCountResponse.swift */; };
+		0AE0001D411A1AAA00563599 /* UpdateReadStatusResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE0001E411A1AAA00563599 /* UpdateReadStatusResponse.swift */; };
 		0A83DEAE2F21A1AA003FD456 /* InboxManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */; };
 		0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEAC2F21A1AA003FD456 /* Message.swift */; };
 		0A83DEB22F22C309003FD456 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB12F22C2F9003FD456 /* InboxView.swift */; };
@@ -53,6 +54,7 @@
 		0AE0001C377A1AAC00563599 /* ATTNInboxAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */; };
 		0A413001413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */; };
 		0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413002413A1AAA00563599 /* InboxManagerTests.swift */; };
+		0AE00021410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */; };
 		FB2F35B12C18CFFA0016CAE8 /* ATTNSDKFramework.podspec in Resources */ = {isa = PBXBuildFile; fileRef = FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */; };
 		FB35C1792C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */; };
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
@@ -127,6 +129,7 @@
 /* Begin PBXFileReference section */
 		0A411B422F31DDFA00563599 /* InboxResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxResponse.swift; sourceTree = "<group>"; };
 		0AE00019377A1AAA00563599 /* InboxUnreadCountResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxUnreadCountResponse.swift; sourceTree = "<group>"; };
+		0AE0001E411A1AAA00563599 /* UpdateReadStatusResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateReadStatusResponse.swift; sourceTree = "<group>"; };
 		0A812DF42F1827C50082B133 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManager.swift; sourceTree = "<group>"; };
 		0A83DEAC2F21A1AA003FD456 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
@@ -186,6 +189,7 @@
 		0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxAPITests.swift; sourceTree = "<group>"; };
 		0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMessagesAPITests.swift; sourceTree = "<group>"; };
 		0A413002413A1AAA00563599 /* InboxManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManagerTests.swift; sourceTree = "<group>"; };
+		0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMarkReadAPITests.swift; sourceTree = "<group>"; };
 		FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ATTNSDKFramework.podspec; sourceTree = "<group>"; };
 		FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeTriggerStatus.swift; sourceTree = "<group>"; };
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
@@ -283,6 +287,7 @@
 				0A411B422F31DDFA00563599 /* InboxResponse.swift */,
 				0AE00019377A1AAA00563599 /* InboxUnreadCountResponse.swift */,
 				0A83DEAC2F21A1AA003FD456 /* Message.swift */,
+				0AE0001E411A1AAA00563599 /* UpdateReadStatusResponse.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -437,6 +442,7 @@
 				FB2984072C0FAE040039759C /* ATTNAPITests.swift */,
 				0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */,
 				0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */,
+				0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */,
 				0A413002413A1AAA00563599 /* InboxManagerTests.swift */,
 				FB90EF0A2C109CB4004DFC4A /* ATTNAPIITTests.swift */,
 				FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */,
@@ -775,6 +781,7 @@
 				FB35C1832C0E1FD7009FA048 /* URLSession+Extension.swift in Sources */,
 				0A411B432F31DE0400563599 /* InboxResponse.swift in Sources */,
 				0AE0001A377A1AAA00563599 /* InboxUnreadCountResponse.swift in Sources */,
+				0AE0001D411A1AAA00563599 /* UpdateReadStatusResponse.swift in Sources */,
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,
@@ -849,6 +856,7 @@
 				FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */,
 				0AE0001C377A1AAC00563599 /* ATTNInboxAPITests.swift in Sources */,
 				0A413001413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift in Sources */,
+				0AE00021410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift in Sources */,
 				0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,

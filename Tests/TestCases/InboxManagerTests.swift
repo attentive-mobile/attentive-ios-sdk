@@ -296,19 +296,79 @@ final class InboxManagerTests: XCTestCase {
         }
     }
 
-    // MARK: - Local mutations
+    // MARK: - Mark Read
 
-    func testMarkRead_updatesLocalMessageState() async {
+    func testMarkRead_success_flipsLocalAndSyncsUnreadCountFromServer() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
         ]
+        apiSpy.stubbedUnreadCount = 1
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertTrue(messages.first?.isRead ?? false)
+        XCTAssertEqual(unread, 0, "unread_count from response should be authoritative")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkReadMessageIds, ["1"])
+        XCTAssertEqual(apiSpy.lastMarkReadVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkReadPushToken, "fcm:abc")
+    }
+
+    func testMarkRead_failure_revertsLocalFlip() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
 
         await manager.markRead("1")
 
         let messages = await manager.allMessages
-        XCTAssertTrue(messages.first?.isRead == true)
+        XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
+    }
+
+    func testMarkRead_alreadyRead_noOpsOnLocalStateButStillCallsApi() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markRead("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0)
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1)
+    }
+
+    func testMarkRead_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markRead("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0, "Unknown message ID must not hit the network")
     }
 
     func testDelete_removesMessageFromList() async {

@@ -52,9 +52,10 @@ actor InboxManager {
     /// load returning inside the refresh window resets that flag but must not release this one.
     private var isRefreshingFirstPage: Bool = false
 
-    /// Server-authoritative unread count. Only `refreshUnreadCount()` writes it; local
-    /// `markRead` / `markUnread` do not. Reads should go through the `unreadCount` accessor,
-    /// which awaits the init-time refresh so the first read never returns a stale 0.
+    /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read
+    /// API response (see `applyReadStatusResponse`); local `markUnread` does not touch it. Reads
+    /// should go through the `unreadCount` accessor, which awaits the init-time refresh so the
+    /// first read never returns a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
@@ -332,10 +333,35 @@ actor InboxManager {
         }
     }
 
-    func markRead(_ messageID: Message.ID) {
-        guard messagesByID[messageID]?.isRead == false else { return }
-        messagesByID[messageID]?.isRead = true
-        send(.loaded(orderedMessagesSnapshot()))
+    /// Marks a message read. Optimistically flips the local state, then reconciles from the
+    /// server response. On failure the local flip is reverted so the UI reflects true state.
+    func markRead(_ messageID: Message.ID) async {
+        guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
+        if !previousIsRead {
+            messagesByID[messageID]?.isRead = true
+            send(.loaded(allMessages))
+        }
+
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox mark-read: empty visitor ID")
+            return
+        }
+
+        do {
+            let response = try await api.markMessagesRead(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageIds: [messageID]
+            )
+            applyReadStatusResponse(response)
+        } catch {
+            Loggers.network.error("Failed to mark inbox message read: \(error.localizedDescription, privacy: .public)")
+            if messagesByID[messageID] != nil, !previousIsRead {
+                messagesByID[messageID]?.isRead = previousIsRead
+                send(.loaded(allMessages))
+            }
+        }
     }
 
     func markUnread(_ messageID: Message.ID) {
@@ -417,5 +443,15 @@ extension InboxManager {
             messagesByID[message.id] = message
             messageOrder.append(message.id)
         }
+    }
+
+    /// Reconcile per-message read status and the authoritative unread count from a
+    /// mark-read/mark-unread response.
+    private func applyReadStatusResponse(_ response: UpdateReadStatusResponse) {
+        for status in response.messages {
+            messagesByID[status.messageId]?.isRead = status.isRead
+        }
+        unreadCount = response.unreadCount
+        send(.loaded(allMessages))
     }
 }

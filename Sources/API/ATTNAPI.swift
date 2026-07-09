@@ -490,6 +490,58 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
     }
 
+    /// Marks the supplied messages as read on the server.
+    ///
+    /// PATCH /inbox/messages/read — identifier-based (visitor_id + push_token), body carries
+    /// the list of message ids. The response echoes the per-message read status and the
+    /// updated unread count so the caller can reconcile local state without a follow-up fetch.
+    func markMessagesRead(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse {
+        Loggers.network.debug("Marking inbox messages read - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
+
+        var payload: [String: Any] = [
+            "visitor_id": visitorId,
+            "message_ids": messageIds
+        ]
+        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/read") else {
+            Loggers.network.error("Invalid inbox mark-read URL")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("PATCH /inbox/messages/read")
+
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox mark-read returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+        Loggers.network.debug("Inbox mark-read status code: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox mark-read API returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+        }
+
+        do {
+            return try JSONDecoder().decode(UpdateReadStatusResponse.self, from: data)
+        } catch {
+            Loggers.network.error("Failed to decode inbox mark-read response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
     private static let inboxJSONDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
         // Accept ISO-8601 timestamps with or without fractional seconds. Foundation's built-in

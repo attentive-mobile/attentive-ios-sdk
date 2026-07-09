@@ -95,4 +95,12 @@ protocol ATTNAPIProtocol {
         pageSize: Int,
         pageToken: String?
     ) async throws -> InboxResponse
+
+    /// Marks the supplied messages as read on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesRead(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
 }
