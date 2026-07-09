@@ -29,7 +29,7 @@ final class ATTNInboxAPITests: XCTestCase {
     }
 
     private func fetch(
-        pushToken: String = "fcm:abc123",
+        pushToken: String = "abc123",
         email: String? = nil,
         phone: String? = nil,
         identity: ATTNUserIdentity? = nil
@@ -65,7 +65,7 @@ final class ATTNInboxAPITests: XCTestCase {
 
         XCTAssertNil(json["c"], "domain must not be sent — the server currently rejects it")
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
-        XCTAssertEqual(json["push_token"] as? String, "fcm:abc123")
+        XCTAssertEqual(json["push_token"] as? String, "apns:abc123", "SDK must prefix the raw device token with the APNs transport scheme")
         XCTAssertEqual(json["email"] as? String, "user@example.com")
         XCTAssertEqual(json["phone"] as? String, "+15551234567")
     }

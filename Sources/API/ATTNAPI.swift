@@ -394,7 +394,9 @@ final class ATTNAPI: ATTNAPIProtocol {
         var payload: [String: Any] = [
             "visitor_id": visitorId
         ]
-        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+        // Prefix with the transport scheme so the server can route the token to APNs.
+        // Matches the RFC's `fcm:...` example on Android; iOS uses `apns:`.
+        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
             payload["email"] = email
         }
