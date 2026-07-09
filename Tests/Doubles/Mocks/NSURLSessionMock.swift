@@ -13,6 +13,7 @@ class NSURLSessionMock: URLSession {
     var didCallInboxUnreadCountApi = false
     var didCallInboxMessagesApi = false
     var didCallInboxMarkReadApi = false
+    var didCallInboxMarkUnreadApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
 
@@ -34,6 +35,12 @@ class NSURLSessionMock: URLSession {
     var inboxMarkReadResponseBody: Data = Data("{\"messages\": [], \"unread_count\": 0}".utf8)
     var inboxMarkReadError: Error?
 
+    /// Override the response returned for the mark-unread endpoint.
+    /// Default: 200 with an empty per-message list and unread_count=0.
+    var inboxMarkUnreadStatusCode: Int = 200
+    var inboxMarkUnreadResponseBody: Data = Data("{\"messages\": [], \"unread_count\": 0}".utf8)
+    var inboxMarkUnreadError: Error?
+
     override init() {
         super.init()
     }
@@ -52,8 +59,8 @@ class NSURLSessionMock: URLSession {
             }
 
             // Order matters: check the more specific `/inbox/messages/unread/count` before the
-            // `/inbox/messages/read` and `/inbox/messages` prefixes so the general checks
-            // don't shadow it.
+            // `/inbox/messages/read`, `/inbox/messages/unread`, and `/inbox/messages` prefixes
+            // so the general checks don't shadow it.
             if url.absoluteString.contains("/inbox/messages/unread/count") {
                 didCallInboxUnreadCountApi = true
                 let body = inboxUnreadCountResponseBody
@@ -69,6 +76,16 @@ class NSURLSessionMock: URLSession {
                 let body = inboxMarkReadResponseBody
                 let status = inboxMarkReadStatusCode
                 let error = inboxMarkReadError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                }
+            }
+
+            if url.absoluteString.hasSuffix("/inbox/messages/unread") {
+                didCallInboxMarkUnreadApi = true
+                let body = inboxMarkUnreadResponseBody
+                let status = inboxMarkUnreadStatusCode
+                let error = inboxMarkUnreadError
                 return NSURLSessionDataTaskMock { _, _, _ in
                     completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }

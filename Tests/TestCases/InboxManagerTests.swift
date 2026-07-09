@@ -395,6 +395,105 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0, "Unknown message ID must not hit the network")
     }
 
+    // MARK: - Mark Unread
+
+    func testMarkUnread_success_flipsLocalAndSyncsUnreadCountFromServer() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 7
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertFalse(messages.first?.isRead ?? true)
+        XCTAssertEqual(unread, 7, "unread_count from response should be authoritative")
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkUnreadMessageIds, ["1"])
+        XCTAssertEqual(apiSpy.lastMarkUnreadVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkUnreadPushToken, "fcm:abc")
+    }
+
+    func testMarkUnread_failure_revertsLocalFlip() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkUnreadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "Failed mark-unread must revert the local flip")
+    }
+
+    func testMarkUnread_identityChangeDuringRequest_discardsStaleResponse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 99 // stale value that must not survive the identity change
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
+        // bumping the generation and zeroing the count for the new (logged-out) identity.
+        apiSpy.onMarkMessagesUnread = { await manager.resetForIdentityChange() }
+
+        await manager.markUnread("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Stale mark-unread response must not overwrite the post-reset unread count")
+    }
+
+    func testMarkUnread_alreadyUnread_noOpsOnLocalStateButStillCallsApi() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2)
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 1)
+    }
+
+    func testMarkUnread_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
     func testDelete_removesMessageFromList() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
