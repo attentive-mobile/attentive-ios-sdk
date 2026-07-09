@@ -12,6 +12,7 @@ class NSURLSessionMock: URLSession {
     var didCallEventsApi = false
     var didCallInboxUnreadCountApi = false
     var didCallInboxMessagesApi = false
+    var didCallInboxMarkReadApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
 
@@ -26,6 +27,12 @@ class NSURLSessionMock: URLSession {
     var inboxMessagesStatusCode: Int = 200
     var inboxMessagesResponseBody: Data = Data("{\"messages\": []}".utf8)
     var inboxMessagesError: Error?
+
+    /// Override the response returned for the mark-read endpoint.
+    /// Default: 200 with an empty per-message list and unread_count=0.
+    var inboxMarkReadStatusCode: Int = 200
+    var inboxMarkReadResponseBody: Data = Data("{\"messages\": [], \"unread_count\": 0}".utf8)
+    var inboxMarkReadError: Error?
 
     override init() {
         super.init()
@@ -45,12 +52,23 @@ class NSURLSessionMock: URLSession {
             }
 
             // Order matters: check the more specific `/inbox/messages/unread/count` before the
-            // `/inbox/messages` prefix so the general check doesn't shadow it.
+            // `/inbox/messages/read` and `/inbox/messages` prefixes so the general checks
+            // don't shadow it.
             if url.absoluteString.contains("/inbox/messages/unread/count") {
                 didCallInboxUnreadCountApi = true
                 let body = inboxUnreadCountResponseBody
                 let status = inboxUnreadCountStatusCode
                 let error = inboxUnreadCountError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                }
+            }
+
+            if url.absoluteString.hasSuffix("/inbox/messages/read") {
+                didCallInboxMarkReadApi = true
+                let body = inboxMarkReadResponseBody
+                let status = inboxMarkReadStatusCode
+                let error = inboxMarkReadError
                 return NSURLSessionDataTaskMock { _, _, _ in
                     completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }

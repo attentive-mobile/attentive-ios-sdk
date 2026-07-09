@@ -214,4 +214,30 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         let index = min(callIndex, stubbedInboxMessagesResponses.count - 1)
         return stubbedInboxMessagesResponses[index]
     }
+
+    // MARK: - Mark Messages Read
+    private(set) var markMessagesReadWasCalled = false
+    private(set) var markMessagesReadCallCount = 0
+    private(set) var lastMarkReadPushToken: String?
+    private(set) var lastMarkReadVisitorId: String?
+    private(set) var lastMarkReadMessageIds: [String]?
+    var stubbedMarkReadError: Error?
+    var stubbedMarkReadResponse: UpdateReadStatusResponse = UpdateReadStatusResponse(
+        messages: [],
+        unreadCount: 0
+    )
+
+    func markMessagesRead(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse {
+        markMessagesReadWasCalled = true
+        markMessagesReadCallCount += 1
+        lastMarkReadPushToken = pushToken
+        lastMarkReadVisitorId = visitorId
+        lastMarkReadMessageIds = messageIds
+        if let error = stubbedMarkReadError { throw error }
+        return stubbedMarkReadResponse
+    }
 }
