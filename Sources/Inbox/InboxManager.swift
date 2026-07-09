@@ -33,18 +33,49 @@ actor InboxManager {
 
     /// Server-authoritative unread count. Updated only by `refreshUnreadCount()` and (future)
     /// mark-read/mark-unread/delete API responses — local `markRead`/`markUnread` mutations
-    /// do not change this value. Defaults to 0 until the first successful refresh, so callers
-    /// cannot distinguish "no unread" from "not yet fetched".
-    private(set) var unreadCount: Int = 0
+    /// do not change this value. Prefer reading via the async `unreadCount` accessor below,
+    /// which awaits the init-time fetch on first read so callers don't see a stale 0.
+    private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
     private let identityProvider: InboxIdentityProvider
+
+    /// Init-time refresh task. `unreadCount` / `allMessages` await it once so passive-badge
+    /// callers see the server-authoritative value on their first read rather than the
+    /// pre-fetch default of 0.
+    private var initialRefreshTask: Task<Void, Never>?
 
     /// Monotonic counter used to discard responses from refresh calls that have been
     /// superseded by a newer in-flight call.
     private var refreshGeneration: UInt = 0
 
+    /// Async accessor for all messages. Awaits the init-time refresh on first read so passive
+    /// callers see server-authoritative state instead of a pre-fetch empty list.
     var allMessages: [Message] {
+        get async {
+            await awaitInitialRefresh()
+            return sortedMessagesSnapshot()
+        }
+    }
+
+    /// Async accessor for the server-authoritative unread count. Awaits the init-time refresh
+    /// on first read so passive callers don't see the pre-fetch default of 0.
+    var unreadCount: Int {
+        get async {
+            await awaitInitialRefresh()
+            return storedUnreadCount
+        }
+    }
+
+    private func awaitInitialRefresh() async {
+        // Drain the init-time refresh exactly once; subsequent reads are constant-time.
+        if let task = initialRefreshTask {
+            await task.value
+            initialRefreshTask = nil
+        }
+    }
+
+    private func sortedMessagesSnapshot() -> [Message] {
         if let cached = cachedSortedMessages {
             return cached
         }
@@ -81,7 +112,13 @@ actor InboxManager {
         // on their own to see a value. Host apps that never interact with the inbox surface
         // never construct this manager — `ATTNSDK.materializedInboxManager()` gates construction
         // on active use, so this fetch is not paid by non-inbox hosts.
-        Task { await refreshUnreadCount() }
+        //
+        // Held as `initialRefreshTask` so that the first `unreadCount` / `allMessages` read
+        // awaits it — otherwise a passive-badge UI reads `storedUnreadCount == 0` before the
+        // background fetch lands and never re-reads.
+        initialRefreshTask = Task { [weak self] in
+            await self?.refreshUnreadCount()
+        }
     }
 
     /// Fetches the latest unread count from the server and stores it as the
@@ -106,7 +143,7 @@ actor InboxManager {
             )
             // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
             guard generation == refreshGeneration else { return }
-            unreadCount = count
+            storedUnreadCount = count
             // Nudge observers to re-read `unreadCount` once we already have messages.
             // Skip the nudge while still loading or in error — re-emitting `.loading`
             // would clobber the loaded list once it arrives.
@@ -121,19 +158,19 @@ actor InboxManager {
     func markRead(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = true
         updateCachedMessage(messageID)
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     func markUnread(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = false
         updateCachedMessage(messageID)
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     func delete(_ messageID: Message.ID) {
         messagesByID.removeValue(forKey: messageID)
         invalidateCache()
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     /// Reloads inbox messages and re-fetches the server-authoritative unread count.
@@ -151,7 +188,7 @@ actor InboxManager {
     /// (`clearUser`, `updateUser`) so a logged-out account's badge is not surfaced to the next user.
     func resetUnreadCount() {
         refreshGeneration &+= 1
-        unreadCount = 0
+        storedUnreadCount = 0
         if case .loaded = currentState {
             send(currentState)
         }
@@ -177,7 +214,7 @@ extension InboxManager {
             $0[$1.id] = $1
         }
         invalidateCache()
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     private func invalidateCache() {
