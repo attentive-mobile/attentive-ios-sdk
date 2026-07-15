@@ -63,7 +63,7 @@ final class ATTNInboxAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
-        XCTAssertNil(json["c"], "domain must not be sent — the server currently rejects it")
+        XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
         XCTAssertEqual(json["push_token"] as? String, "apns:abc123", "SDK must prefix the raw device token with the APNs transport scheme")
         XCTAssertEqual(json["email"] as? String, "user@example.com")
@@ -78,7 +78,7 @@ final class ATTNInboxAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
-        XCTAssertNil(json["c"])
+        XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, emptyIdentity.visitorId)
         XCTAssertNil(json["push_token"])
         XCTAssertNil(json["email"])

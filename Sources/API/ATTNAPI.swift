@@ -392,6 +392,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
         var payload: [String: Any] = [
+            "c": domain,
             "visitor_id": visitorId
         ]
         // Prefix with the transport scheme so the server can route the token to APNs.
@@ -414,8 +415,6 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-        // Throw, don't `try?`: silently dropping the body would send a request the server
-        // can't service and surface as an opaque 4xx — much harder to debug than a clear error.
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
         Loggers.network.debug("POST /inbox/messages/unread/count")
@@ -442,11 +441,8 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
     }
 
-    /// async/await bridge over `URLSession.dataTask(with:completionHandler:)`. Used instead of
-    /// `URLSession.data(for:)` because the latter cannot be intercepted by `URLSession`
-    /// subclasses (it's defined in an extension and is non-`@objc`), which `NSURLSessionMock`
-    /// relies on for testing. Per URLSession's documented contract, when `error` is nil both
-    /// `data` and `response` are non-nil — the guard below is belt-and-suspenders only.
+    /// async bridge over `URLSession.dataTask(with:completionHandler:)` — `URLSession.data(for:)`
+    /// is an extension method and can't be intercepted by `NSURLSessionMock`.
     private func dataTask(with request: URLRequest) async throws -> (Data, URLResponse) {
         try await withCheckedThrowingContinuation { continuation in
             let task = urlSession.dataTask(with: request) { data, response, error in
