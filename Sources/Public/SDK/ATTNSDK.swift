@@ -280,11 +280,7 @@ public final class ATTNSDK: NSObject {
     /// value, or `0` until the first fetch completes. Because the initial value and the
     /// "no unread messages" value are both `0`, callers that need to distinguish "loading" from
     /// "zero unread" should track that state themselves (e.g. via `inboxStateStream`).
-    ///
-    /// Materializes the inbox manager on first read — passive-badge use cases (host reads
-    /// `sdk.unreadCount` without ever opening the inbox view) get an automatic refresh via
-    /// the manager's init. For latest-value semantics after known state changes (app launch,
-    /// push open), call `refreshInboxUnreadCount()` explicitly per the RFC.
+    /// Call `refreshInboxUnreadCount()` after known state changes (app launch, push open).
     public var unreadCount: Int {
         get async {
             await materializedInboxManager().unreadCount

@@ -148,11 +148,11 @@ actor InboxManager {
             )
             // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
             guard generation == refreshGeneration else { return }
+            let previous = storedUnreadCount
             storedUnreadCount = count
-            // Nudge observers so passive-badge subscribers re-read `unreadCount` once messages
-            // are already loaded. Skip when still loading / errored (re-emitting `.loading`
-            // would clobber the loaded list) or when the caller will emit its own `.loaded`.
-            if !skipNotify, case .loaded = currentState {
+            // Re-emit only when the value actually changed and we're in a loaded state — avoids
+            // waking subscribers with an identical payload on every no-op refresh.
+            if !skipNotify, count != previous, case .loaded = currentState {
                 send(currentState)
             }
         } catch {
@@ -193,6 +193,7 @@ actor InboxManager {
     /// (`clearUser`, `updateUser`) so a logged-out account's badge is not surfaced to the next user.
     func resetUnreadCount() {
         refreshGeneration &+= 1
+        guard storedUnreadCount != 0 else { return }
         storedUnreadCount = 0
         if case .loaded = currentState {
             send(currentState)

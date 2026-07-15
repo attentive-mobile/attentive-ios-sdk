@@ -46,9 +46,6 @@ struct InboxView: View {
                 }
             }
         }
-        // Trigger the first load when the view appears. Cancels automatically when the view
-        // disappears; SwiftUI re-runs it whenever the identity provided by the `.task` id changes,
-        // but there's no id here so it runs once per appearance.
         .task {
             await viewModel.refresh()
         }
@@ -59,10 +56,6 @@ struct InboxView: View {
             .listStyle(.plain)
             .navigationTitle(String.inbox)
             .navigationBarTitleDisplayMode(.inline)
-            // Wrap in a closure rather than passing `viewModel.refresh` directly: the method
-            // reference isn't `@Sendable` (viewModel is a `@MainActor ObservableObject`) and
-            // `.refreshable` requires a `@Sendable () async -> Void`. The closure hops onto
-            // the main actor via the `await`, satisfying both sides.
             .refreshable {
                 await viewModel.refresh()
             }
