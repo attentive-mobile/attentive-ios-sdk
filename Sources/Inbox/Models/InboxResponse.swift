@@ -7,5 +7,4 @@
 
 struct InboxResponse: Codable {
     var messages: [Message]
-    var unreadCount: Int
 }

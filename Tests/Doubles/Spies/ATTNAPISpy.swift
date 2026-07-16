@@ -148,4 +148,30 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastOperationContext = operationContext
         callback?(nil, nil, nil, nil)
     }
+
+    // MARK: - Inbox
+    private(set) var fetchInboxUnreadCountWasCalled = false
+    private(set) var fetchInboxUnreadCountCallCount = 0
+    private(set) var lastInboxPushToken: String?
+    private(set) var lastInboxEmail: String?
+    private(set) var lastInboxPhone: String?
+    private(set) var lastInboxVisitorId: String?
+    var stubbedUnreadCount: Int = 0
+    var stubbedInboxError: Error?
+
+    func fetchInboxUnreadCount(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) async throws -> Int {
+        fetchInboxUnreadCountWasCalled = true
+        fetchInboxUnreadCountCallCount += 1
+        lastInboxPushToken = pushToken
+        lastInboxEmail = email
+        lastInboxPhone = phone
+        lastInboxVisitorId = visitorId
+        if let error = stubbedInboxError { throw error }
+        return stubbedUnreadCount
+    }
 }

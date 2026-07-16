@@ -13,23 +13,69 @@ public enum InboxState: Sendable {
     case error(Error)
 }
 
+/// Identifiers needed to call the inbox endpoints.
+struct InboxIdentitySnapshot: Sendable {
+    let visitorId: String
+    let pushToken: String
+    let email: String?
+    let phone: String?
+}
+
+/// Closure that supplies the identifiers needed to call the inbox endpoints.
+/// Resolved at call-time so the manager always uses the latest values from `ATTNSDK`.
+typealias InboxIdentityProvider = @Sendable () -> InboxIdentitySnapshot
+
 actor InboxManager {
     private var messagesByID: [Message.ID: Message] = [:]
     private var cachedSortedMessages: [Message]?
     private var currentState: InboxState = .loading
     private var continuations: [UUID: AsyncStream<InboxState>.Continuation] = [:]
 
+    /// Server-authoritative unread count. Only `refreshUnreadCount()` writes it; local
+    /// `markRead` / `markUnread` do not. Reads should go through the `unreadCount` accessor,
+    /// which awaits the init-time refresh so the first read never returns a stale 0.
+    private var storedUnreadCount: Int = 0
+
+    private let api: ATTNAPIProtocol
+    private let identityProvider: InboxIdentityProvider
+
+    /// Drained exactly once by `awaitInitialRefresh()` before the first `unreadCount` /
+    /// `allMessages` read returns.
+    private var initialRefreshTask: Task<Void, Never>?
+
+    /// Monotonic counter used to discard responses from refresh calls that have been
+    /// superseded by a newer in-flight call or an identity reset.
+    private var refreshGeneration: UInt = 0
+
     var allMessages: [Message] {
+        get async {
+            await awaitInitialRefresh()
+            return sortedMessagesSnapshot()
+        }
+    }
+
+    var unreadCount: Int {
+        get async {
+            await awaitInitialRefresh()
+            return storedUnreadCount
+        }
+    }
+
+    private func awaitInitialRefresh() async {
+        // Drain the init-time refresh exactly once; subsequent reads are constant-time.
+        if let task = initialRefreshTask {
+            await task.value
+            initialRefreshTask = nil
+        }
+    }
+
+    private func sortedMessagesSnapshot() -> [Message] {
         if let cached = cachedSortedMessages {
             return cached
         }
         let sorted = messagesByID.values.sorted { $0.timestamp > $1.timestamp }
         cachedSortedMessages = sorted
         return sorted
-    }
-
-    var unreadCount: Int {
-        messagesByID.values.filter { !$0.isRead }.count
     }
 
     /// Returns an AsyncStream that immediately emits the current state,
@@ -52,33 +98,116 @@ actor InboxManager {
         }
     }
 
-    init() {
-        Task {
-            await send(.loading)
-            await updateMessages(Self.getMockInbox().messages)
+    init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
+        self.api = api
+        self.identityProvider = identityProvider
+        // Populate mock messages and fetch the unread count on construction so passive-badge
+        // hosts (`sdk.unreadCount`) and stream/`allMessages` consumers both resolve without
+        // needing to present `inboxView()`. Non-inbox hosts never construct the manager — see
+        // `ATTNSDK.materializedInboxManager()`. Calls `performUnreadCountFetch` directly (not
+        // `refreshUnreadCount`) so it doesn't try to coalesce with itself.
+        initialRefreshTask = Task { [weak self] in
+            await self?.loadInitialMessagesAndUnreadCount()
+        }
+    }
+
+    /// Fetches the latest unread count from the server and stores it as the
+    /// authoritative value. Errors are logged; the previously stored count is preserved.
+    /// If multiple refreshes are in flight, only the most recently issued one is honored.
+    func refreshUnreadCount() async {
+        // Coalesce with the init-time fetch. A host that follows the RFC and calls
+        // `refreshInboxUnreadCount()` on app launch would otherwise race the manager's own
+        // init fetch and produce two identical POSTs.
+        if let task = initialRefreshTask {
+            initialRefreshTask = nil
+            await task.value
+            return
+        }
+        await performUnreadCountFetch(skipNotify: false)
+    }
+
+    /// Init-time seed: populate mock messages so `allMessages` / `inboxStateStream` resolve
+    /// for hosts that never present `inboxView()`, then fetch the server-authoritative unread
+    /// count. `updateMessages` emits `.loaded` immediately; the count fetch runs with
+    /// `skipNotify: false` so subscribers get a nudge to re-read `unreadCount` when the
+    /// server value arrives.
+    private func loadInitialMessagesAndUnreadCount() async {
+        updateMessages(Self.getMockInbox().messages)
+        await performUnreadCountFetch(skipNotify: false)
+    }
+
+    /// Internal worker. Always fires a network request — no coalesce check — so the init
+    /// task can call this without deadlocking on itself. `skipNotify == true` when the
+    /// caller (e.g. `refresh()`) will emit its own `.loaded` after `updateMessages`.
+    private func performUnreadCountFetch(skipNotify: Bool) async {
+        let identity = identityProvider()
+        // Without a visitor ID the server can't scope the request — skip rather than send
+        // an unscoped call that would 4xx and pollute logs.
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox unread count refresh: empty visitor ID")
+            return
+        }
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        do {
+            let count = try await api.fetchInboxUnreadCount(
+                pushToken: identity.pushToken,
+                email: identity.email,
+                phone: identity.phone,
+                visitorId: identity.visitorId
+            )
+            // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
+            guard generation == refreshGeneration else { return }
+            let previous = storedUnreadCount
+            storedUnreadCount = count
+            // Re-emit only when the value actually changed and we're in a loaded state — avoids
+            // waking subscribers with an identical payload on every no-op refresh.
+            if !skipNotify, count != previous, case .loaded = currentState {
+                send(currentState)
+            }
+        } catch {
+            Loggers.network.error("Failed to refresh inbox unread count: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func markRead(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = true
         updateCachedMessage(messageID)
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     func markUnread(_ messageID: Message.ID) {
         messagesByID[messageID]?.isRead = false
         updateCachedMessage(messageID)
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     func delete(_ messageID: Message.ID) {
         messagesByID.removeValue(forKey: messageID)
         invalidateCache()
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
+    /// Reloads inbox messages and re-fetches the server-authoritative unread count.
+    /// Called on inbox open, pull-to-refresh, and (indirectly, via the host app) push open.
+    /// Once the real messages endpoint replaces `getMockInbox()` this should switch to
+    /// `async let` so the two network calls run concurrently.
     func refresh() async {
-        await updateMessages(Self.getMockInbox().messages)
+        updateMessages(Self.getMockInbox().messages)
+        // skipNotify because updateMessages above already emitted `.loaded`.
+        await performUnreadCountFetch(skipNotify: true)
+    }
+
+    /// Resets the cached unread count to 0 and bumps the refresh generation so any in-flight
+    /// fetch from the previous identity is discarded when it returns. Called on identity changes
+    /// (`clearUser`, `updateUser`) so a logged-out account's badge is not surfaced to the next user.
+    func resetUnreadCount() {
+        refreshGeneration &+= 1
+        guard storedUnreadCount != 0 else { return }
+        storedUnreadCount = 0
+        if case .loaded = currentState {
+            send(currentState)
+        }
     }
 }
 
@@ -101,7 +230,7 @@ extension InboxManager {
             $0[$1.id] = $1
         }
         invalidateCache()
-        send(.loaded(allMessages))
+        send(.loaded(sortedMessagesSnapshot()))
     }
 
     private func invalidateCache() {
@@ -122,9 +251,7 @@ extension InboxManager {
 }
 
 fileprivate extension InboxManager {
-    private static func getMockInbox() async -> InboxResponse {
-        #warning("Artificial delay to simulate delayed network response, should be removed in production.")
-        try? await Task.sleep(nanoseconds: 2000000000)
+    private static func getMockInbox() -> InboxResponse {
         let messages: [Message] = [
             Message(
                 id: "1",
@@ -154,6 +281,6 @@ fileprivate extension InboxManager {
                 actionURLString: "https://example.com/track/12345"
             )
         ]
-        return InboxResponse(messages: messages, unreadCount: 2)
+        return InboxResponse(messages: messages)
     }
 }

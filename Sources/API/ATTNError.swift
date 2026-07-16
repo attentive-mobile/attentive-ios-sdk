@@ -14,6 +14,8 @@ public enum ATTNError: Error {
     case geoDomainUnavailable
     case badURL
     case invalidDomain
+    case inboxRequestFailed(statusCode: Int)
+    case inboxResponseDecodeFailed
 }
 
 extension ATTNError: LocalizedError {
@@ -29,6 +31,10 @@ extension ATTNError: LocalizedError {
             return "Invalid URL"
         case .invalidDomain:
             return "The provided domain is not recognized. Please verify that the domain matches your Attentive settings."
+        case .inboxRequestFailed(let statusCode):
+            return "Inbox request failed with status code \(statusCode)"
+        case .inboxResponseDecodeFailed:
+            return "Failed to decode inbox response"
         }
     }
 }

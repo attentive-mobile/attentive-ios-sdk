@@ -8,7 +8,7 @@
 import Foundation
 
 public struct Message: Codable, Identifiable, Sendable {
-    public enum Style: Codable {
+    public enum Style: Codable, Sendable {
         case small
         case large
     }

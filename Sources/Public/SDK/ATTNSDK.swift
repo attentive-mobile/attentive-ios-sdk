@@ -39,6 +39,7 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
+    private let identityStore = IdentitySnapshotStore()
     private let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
     private var pendingMarketingRequests: [PendingMarketingRequest] = []
     private var pendingMarketingExpiryTimer: DispatchSourceTimer?
@@ -51,7 +52,10 @@ public final class ATTNSDK: NSObject {
     // Single accessor used across the SDK
     private var currentPushToken: String { pushTokenStore.token }
 
-    private let inboxManager = InboxManager()
+    // Backing storage for the inbox manager. Optional (not `lazy var`) so `clearUser()` can
+    // reset an already-materialized manager without creating one for hosts that never used inbox.
+    // See `materializedInboxManager()` for the construction path.
+    private var _inboxManager: InboxManager?
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -96,6 +100,7 @@ public final class ATTNSDK: NSObject {
         )
 
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
+        self.publishIdentitySnapshot()
         self.sendInfoEvent()
         self.initializeSkipFatigueOnCreatives()
 
@@ -144,6 +149,7 @@ public final class ATTNSDK: NSObject {
     public func identify(_ userIdentifiers: [String: Any]) {
         Loggers.event.debug("Identifying user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Identifiers: \(userIdentifiers, privacy: .public)")
         userIdentity.mergeIdentifiers(userIdentifiers)
+        publishIdentitySnapshot()
         api.send(userIdentity: userIdentity)
         Loggers.event.debug("User identity sent successfully - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
@@ -216,6 +222,13 @@ public final class ATTNSDK: NSObject {
     private func clearUserIdentifiers() {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
+        publishIdentitySnapshot()
+        // Drop the previous user's cached unread count so the next user doesn't see their badge —
+        // but only if the manager has already been materialized. Constructing it here would issue
+        // an unread-count fetch for host apps that never touch the inbox surface.
+        if let manager = _inboxManager {
+            Task { await manager.resetUnreadCount() }
+        }
         Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
@@ -246,29 +259,44 @@ public final class ATTNSDK: NSObject {
     /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
     /// then emits on any subsequent change.
     /// Usage: `for await state in await sdk.inboxStateStream { ... }`
+    ///
+    /// Reading this property materializes the inbox manager (subscribing to updates is
+    /// an active use).
     public var inboxStateStream: AsyncStream<InboxState> {
         get async {
-            await inboxManager.stateStream
+            await materializedInboxManager().stateStream
         }
     }
 
-    /// Async accessor for all messages.
+    /// Async accessor for all messages. Materializes the inbox manager (reading messages counts
+    /// as active inbox use), which triggers a background unread-count fetch on first access.
     public var allMessages: [Message] {
         get async {
-            await inboxManager.allMessages
+            await materializedInboxManager().allMessages
         }
     }
 
-    /// Async accessor for unread count.
+    /// Async accessor for unread count. Returns the most recently fetched server-authoritative
+    /// value, or `0` until the first fetch completes. Because the initial value and the
+    /// "no unread messages" value are both `0`, callers that need to distinguish "loading" from
+    /// "zero unread" should track that state themselves (e.g. via `inboxStateStream`).
+    /// Call `refreshInboxUnreadCount()` after known state changes (app launch, push open).
     public var unreadCount: Int {
         get async {
-            await inboxManager.unreadCount
+            await materializedInboxManager().unreadCount
         }
+    }
+
+    /// Refreshes the unread inbox message count from the server.
+    /// Per RFC, host apps should call this when navigating to the app's main page (e.g. on app launch)
+    /// and after opening a push notification.
+    public func refreshInboxUnreadCount() async {
+        await materializedInboxManager().refreshUnreadCount()
     }
 
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
-        InboxView(viewModel: InboxViewModel(inboxManager: inboxManager, style: style))
+        InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style))
     }
 
     @MainActor
@@ -277,15 +305,15 @@ public final class ATTNSDK: NSObject {
     }
 
     public func markRead(for messageID: Message.ID) async {
-        await inboxManager.markRead(messageID)
+        await materializedInboxManager().markRead(messageID)
     }
 
     public func markUnread(for messageID: Message.ID) async {
-        await inboxManager.markUnread(messageID)
+        await materializedInboxManager().markUnread(messageID)
     }
 
     public func delete(messageID: Message.ID) async {
-        await inboxManager.delete(messageID)
+        await materializedInboxManager().delete(messageID)
     }
 
     // MARK: Push Permissions & Token
@@ -318,6 +346,7 @@ public final class ATTNSDK: NSObject {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
+        publishIdentitySnapshot()
         flushPendingMarketingRequests(with: tokenString)
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -699,6 +728,7 @@ public final class ATTNSDK: NSObject {
                                     Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
                                     UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
                                     self.pushTokenStore.token = ""
+                                    self.publishIdentitySnapshot()
                                     await MainActor.run {
                                             UIApplication.shared.registerForRemoteNotifications()
                                     }
@@ -908,6 +938,32 @@ extension ATTNSDK: ATTNWebViewProviding {
 
 // MARK: Private Helpers
 fileprivate extension ATTNSDK {
+    /// Returns the existing `InboxManager` or lazily constructs one bound to this SDK
+    /// instance's api + identity store. Called on *active* inbox use only (opening the view,
+    /// explicit `refreshInboxUnreadCount()`, message mutations) so that hosts which never
+    /// interact with the inbox surface never trigger the manager's network activity.
+    func materializedInboxManager() -> InboxManager {
+        if let existing = _inboxManager { return existing }
+        let manager = InboxManager(api: api, identityProvider: { [weak self] in
+            self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+        })
+        _inboxManager = manager
+        return manager
+    }
+
+    /// Publishes the current identity (visitor id, push token, email, phone) into the
+    /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
+    /// Call after any mutation of `userIdentity` or `currentPushToken`.
+    func publishIdentitySnapshot() {
+        let identifiers = userIdentity.identifiers
+        identityStore.update(InboxIdentitySnapshot(
+            visitorId: userIdentity.visitorId,
+            pushToken: currentPushToken,
+            email: identifiers[ATTNIdentifierType.email] as? String,
+            phone: identifiers[ATTNIdentifierType.phone] as? String
+        ))
+    }
+
     func sendInfoEvent() {
         api.send(event: ATTNInfoEvent(), userIdentity: userIdentity)
     }
@@ -920,6 +976,26 @@ fileprivate extension ATTNSDK {
         webViewHandler?.launchCreative(parentView: view, creativeId: creativeId, handler: handler)
     }
 
+}
+
+// MARK: - Identity snapshot storage
+
+/// Thread-safe holder for the latest `InboxIdentitySnapshot`. Writers (on the main thread)
+/// publish via `update`; the inbox provider closure reads via `snapshot()` from the
+/// `InboxManager` actor executor. The serial queue serializes all access so the underlying
+/// snapshot is never read while being mutated, eliminating the data race on
+/// `userIdentity.identifiers`.
+private final class IdentitySnapshotStore: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "com.attentive.sdk.IdentitySnapshotStore", qos: .userInitiated)
+    private var current = InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+
+    func update(_ next: InboxIdentitySnapshot) {
+        queue.sync { current = next }
+    }
+
+    func snapshot() -> InboxIdentitySnapshot {
+        queue.sync { current }
+    }
 }
 
 // MARK: - PushToken storage
