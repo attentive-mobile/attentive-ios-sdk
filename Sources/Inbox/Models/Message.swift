@@ -34,6 +34,7 @@ public struct Message: Codable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id = "inbox_message_id"
+        case style
         case title
         case body
         case timestamp = "sent_at"
@@ -71,7 +72,9 @@ public struct Message: Codable, Identifiable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
-        self.style = .small
+        // The server does not return `style` today; default to `.small` when absent so
+        // synthesized encode-decode round-trips (e.g. host-app persistence) preserve the field.
+        self.style = try container.decodeIfPresent(Style.self, forKey: .style) ?? .small
         self.title = try container.decode(String.self, forKey: .title)
         self.body = try container.decode(String.self, forKey: .body)
         self.timestamp = try container.decode(Date.self, forKey: .timestamp)

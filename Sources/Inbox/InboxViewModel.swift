@@ -19,6 +19,10 @@ class InboxViewModel: ObservableObject {
     @Published
     var state: State = .loading
 
+    /// True while a `loadNextPage()` call is in flight. Drives the footer spinner in `InboxView`.
+    @Published
+    var isLoadingMore: Bool = false
+
     let style: InboxStyle
 
     private let inboxManager: InboxManager
@@ -46,10 +50,18 @@ class InboxViewModel: ObservableObject {
     }
 
     /// Called by the view when the last row appears, triggering an infinite-scroll page fetch.
-    /// The manager guards against overlapping calls and no-ops when no more pages are available.
+    /// The manager guards against overlapping calls and no-ops when no more pages are available;
+    /// its `Bool` return tells us whether a fetch actually started so we can toggle the footer
+    /// spinner off only when there was one to hide.
     func loadNextPage() {
-        Task { [inboxManager] in
-            await inboxManager.loadNextPage()
+        // Optimistically show the spinner; the manager will either fetch (spinner stays until the
+        // fetch returns) or no-op (we clear it immediately below). A brief flash on no-op is
+        // preferable to two actor hops on every last-row `.onAppear`.
+        isLoadingMore = true
+        Task { [weak self] in
+            guard let self = self else { return }
+            _ = await self.inboxManager.loadNextPage()
+            self.isLoadingMore = false
         }
     }
 

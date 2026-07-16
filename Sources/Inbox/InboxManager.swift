@@ -66,7 +66,7 @@ actor InboxManager {
     var allMessages: [Message] {
         get async {
             await awaitInitialRefresh()
-            return messageOrder.compactMap { messagesByID[$0] }
+            return orderedMessagesSnapshot()
         }
     }
 
@@ -77,8 +77,8 @@ actor InboxManager {
         }
     }
 
-    /// True when the last successful fetch reported a `next_page_token`. Used by the UI to
-    /// decide whether to attempt a pull-up load.
+    /// True when the last successful fetch reported a `next_page_token`. Used by tests and any
+    /// caller that wants a cheap "can we page further" signal without calling `loadNextPage()`.
     var hasMore: Bool {
         nextPageToken?.isEmpty == false
     }
@@ -121,24 +121,28 @@ actor InboxManager {
         // `ATTNSDK.materializedInboxManager()`. Calls `performUnreadCountFetch` directly (not
         // `refreshUnreadCount`) so it doesn't try to coalesce with itself.
         initialRefreshTask = Task { [weak self] in
-            await self?.loadInitialMessagesAndUnreadCount()
+            await self?.performMessagesAndUnreadCountRefresh()
         }
     }
 
-    /// Fetches the first page of inbox messages, replacing any previously loaded messages.
-    /// Callers should invoke this on inbox open / pull-to-refresh / push open.
+    /// Fetches the first page of inbox messages and the latest unread count, replacing any
+    /// previously loaded messages. The two fetches run concurrently. Callers should invoke
+    /// this on inbox open / pull-to-refresh / push open.
     func refresh() async {
-        await performMessagesRefresh()
+        await performMessagesAndUnreadCountRefresh()
     }
 
     /// Fetches the next page of messages using the stored `nextPageToken` and appends them.
     /// Safe to call repeatedly — no-ops when no more pages are available or another fetch is in flight.
-    func loadNextPage() async {
+    /// Returns `true` when a network fetch was actually started; callers can use this to gate a
+    /// "loading more" indicator without needing a separate probe.
+    @discardableResult
+    func loadNextPage() async -> Bool {
         guard hasFetchedFirstPage, !isLoadingNextPage, let pageToken = nextPageToken, !pageToken.isEmpty else {
-            return
+            return false
         }
         let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else { return }
+        guard !identity.visitorId.isEmpty else { return false }
 
         isLoadingNextPage = true
         let generation = messagesGeneration
@@ -155,7 +159,7 @@ actor InboxManager {
             guard generation == messagesGeneration else {
                 // Identity or refresh() moved on; discard this page.
                 isLoadingNextPage = false
-                return
+                return true
             }
             appendMessages(response.messages)
             nextPageToken = response.nextPageToken
@@ -166,6 +170,7 @@ actor InboxManager {
             isLoadingNextPage = false
             // Keep existing list; caller can retry by pulling up again.
         }
+        return true
     }
 
     /// Fetches the latest unread count from the server and stores it as the
@@ -183,12 +188,14 @@ actor InboxManager {
         await performUnreadCountFetch(skipNotify: false)
     }
 
-    /// Init-time seed: fetch the first page of messages and the server-authoritative unread
-    /// count. The count fetch runs with `skipNotify: false` so subscribers get a nudge to
-    /// re-read `unreadCount` when the server value arrives.
-    private func loadInitialMessagesAndUnreadCount() async {
-        await performMessagesRefresh()
-        await performUnreadCountFetch(skipNotify: false)
+    /// Fetches the first page of messages and the server-authoritative unread count concurrently.
+    /// Shared by init-time load and every `refresh()`. `skipNotify: false` lets subscribers get a
+    /// nudge to re-read `unreadCount` when the count arrives after the messages have already
+    /// emitted `.loaded` (order between the two `async let`s is non-deterministic).
+    private func performMessagesAndUnreadCountRefresh() async {
+        async let messages: Void = performMessagesRefresh()
+        async let count: Void = performUnreadCountFetch(skipNotify: false)
+        _ = await (messages, count)
     }
 
     /// Internal worker used by both the init task and the public `refresh()`. Fetches page 1,
@@ -202,9 +209,7 @@ actor InboxManager {
 
         messagesGeneration &+= 1
         let generation = messagesGeneration
-        // Reset pagination bookkeeping so a stale nextPageToken can't accidentally leak into
-        // this refresh's follow-up load.
-        nextPageToken = nil
+        // Cancel any in-flight page load; the bumped generation will make it a no-op on return.
         isLoadingNextPage = false
 
         // Only emit .loading on the very first refresh; on subsequent refreshes keep the last
@@ -230,8 +235,8 @@ actor InboxManager {
         } catch {
             guard generation == messagesGeneration else { return }
             Loggers.network.error("Failed to refresh inbox messages: \(error.localizedDescription, privacy: .public)")
-            // Preserve the previously loaded list on error; only surface `.error` if we
-            // never successfully loaded anything.
+            // Preserve the previously loaded list and its pagination cursor on error; only
+            // surface `.error` if we never successfully loaded anything.
             if hasFetchedFirstPage {
                 send(.loaded(orderedMessagesSnapshot()))
             } else {
@@ -275,11 +280,13 @@ actor InboxManager {
     }
 
     func markRead(_ messageID: Message.ID) {
+        guard messagesByID[messageID]?.isRead == false else { return }
         messagesByID[messageID]?.isRead = true
         send(.loaded(orderedMessagesSnapshot()))
     }
 
     func markUnread(_ messageID: Message.ID) {
+        guard messagesByID[messageID]?.isRead == true else { return }
         messagesByID[messageID]?.isRead = false
         send(.loaded(orderedMessagesSnapshot()))
     }
@@ -290,17 +297,23 @@ actor InboxManager {
         send(.loaded(orderedMessagesSnapshot()))
     }
 
-    /// Resets the cached unread count to 0 and bumps both generations so any in-flight
-    /// fetches from the previous identity are discarded when they return. Called on identity
-    /// changes (`clearUser`, `updateUser`) so a logged-out account's badge is not surfaced to
-    /// the next user.
-    func resetUnreadCount() {
+    /// Clears all cached inbox state (messages, unread count, pagination cursor) and bumps both
+    /// generations so any in-flight fetches from the previous identity are discarded when they
+    /// return. Called on identity changes (`clearUser`, `updateUser`) so a logged-out account's
+    /// messages and badge are not surfaced to the next user.
+    func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
-        guard storedUnreadCount != 0 else { return }
         storedUnreadCount = 0
+        messagesByID = [:]
+        messageOrder = []
+        nextPageToken = nil
+        hasFetchedFirstPage = false
+        isLoadingNextPage = false
+        // Only re-emit when we were already surfacing a loaded list — never override an
+        // in-flight .loading state, which would strand hosts that don't re-present InboxView.
         if case .loaded = currentState {
-            send(currentState)
+            send(.loaded([]))
         }
     }
 }
@@ -326,10 +339,7 @@ extension InboxManager {
     private func replaceMessages(with messages: [Message]) {
         messagesByID = [:]
         messageOrder = []
-        for message in messages where messagesByID[message.id] == nil {
-            messagesByID[message.id] = message
-            messageOrder.append(message.id)
-        }
+        appendMessages(messages)
     }
 
     private func appendMessages(_ messages: [Message]) {

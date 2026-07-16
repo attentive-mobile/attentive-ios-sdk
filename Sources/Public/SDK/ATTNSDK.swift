@@ -223,11 +223,12 @@ public final class ATTNSDK: NSObject {
         let oldVisitorId = userIdentity.visitorId
         userIdentity.clearUser()
         publishIdentitySnapshot()
-        // Drop the previous user's cached unread count so the next user doesn't see their badge —
-        // but only if the manager has already been materialized. Constructing it here would issue
-        // an unread-count fetch for host apps that never touch the inbox surface.
+        // Drop the previous user's cached inbox state (messages + unread count + pagination
+        // cursor) so the next user doesn't see the wrong data — but only if the manager has
+        // already been materialized. Constructing it here would issue an unread-count fetch for
+        // host apps that never touch the inbox surface.
         if let manager = _inboxManager {
-            Task { await manager.resetUnreadCount() }
+            Task { await manager.resetForIdentityChange() }
         }
         Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }

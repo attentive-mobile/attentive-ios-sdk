@@ -379,6 +379,8 @@ final class ATTNAPI: ATTNAPIProtocol {
 
     // MARK: - Inbox
 
+    private static let inboxHost = "https://mobile.attentivemobile.com"
+
     /// Fetches the unread inbox message count for the current user.
     ///
     /// Per RFC: this endpoint is identifier-based and unauthenticated. The server scopes the
@@ -390,55 +392,14 @@ final class ATTNAPI: ATTNAPIProtocol {
         visitorId: String
     ) async throws -> Int {
         Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
-
-        var payload: [String: Any] = [
-            "c": domain,
-            "visitor_id": visitorId
-        ]
-        // Prefix with the transport scheme so the server can route the token to APNs.
-        // Matches the RFC's `fcm:...` example on Android; iOS uses `apns:`.
-        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
-        if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
-            payload["email"] = email
-        }
-        if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
-            payload["phone"] = phone
-        }
-
-        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/unread/count") else {
-            Loggers.network.error("Invalid inbox unread count URL")
-            throw ATTNError.badURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 15
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
-
-        Loggers.network.debug("POST /inbox/messages/unread/count")
-
-        let (data, response) = try await dataTask(with: request)
-
-        guard let http = response as? HTTPURLResponse else {
-            Loggers.network.error("Inbox unread count returned a non-HTTP response")
-            throw ATTNError.inboxResponseDecodeFailed
-        }
-        Loggers.network.debug("Inbox unread count status code: \(http.statusCode, privacy: .public)")
-        guard (200..<300).contains(http.statusCode) else {
-            Loggers.network.error("Inbox unread count API returned status \(http.statusCode, privacy: .public)")
-            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
-        }
-
-        do {
-            let decoded = try JSONDecoder().decode(InboxUnreadCountResponse.self, from: data)
-            Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
-            return decoded.unreadCount
-        } catch {
-            Loggers.network.error("Failed to decode inbox unread count response: \(error.localizedDescription, privacy: .public)")
-            throw ATTNError.inboxResponseDecodeFailed
-        }
+        let payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        let decoded: InboxUnreadCountResponse = try await postInboxJSON(
+            path: "/inbox/messages/unread/count",
+            payload: payload,
+            decoder: JSONDecoder()
+        )
+        Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
+        return decoded.unreadCount
     }
 
     /// Fetches a page of inbox messages. See the doc comment on `ATTNAPIProtocol.fetchInboxMessages`.
@@ -451,25 +412,53 @@ final class ATTNAPI: ATTNAPIProtocol {
         pageToken: String?
     ) async throws -> InboxResponse {
         Loggers.network.debug("Fetching inbox messages - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Page Size: \(pageSize, privacy: .public), Page Token: \(pageToken ?? "nil", privacy: .public)")
+        var payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        payload["page_size"] = pageSize
+        if let pageToken = pageToken, !pageToken.isEmpty {
+            payload["page_token"] = pageToken
+        }
+        let decoded: InboxResponse = try await postInboxJSON(
+            path: "/inbox/messages",
+            payload: payload,
+            decoder: Self.inboxJSONDecoder
+        )
+        Loggers.network.debug("Inbox messages fetched: count=\(decoded.messages.count, privacy: .public), hasNextPage=\(decoded.nextPageToken?.isEmpty == false, privacy: .public)")
+        return decoded
+    }
 
+    /// Builds the identifier fields shared by every inbox endpoint: `c` (domain), `visitor_id`,
+    /// and the optional `push_token` / `email` / `phone`. Push token is prefixed with `apns:`
+    /// so the server can route it to APNs (Android sends `fcm:...`).
+    private func inboxIdentityPayload(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) -> [String: Any] {
         var payload: [String: Any] = [
             "c": domain,
-            "visitor_id": visitorId,
-            "page_size": pageSize
+            "visitor_id": visitorId
         ]
-        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
             payload["email"] = email
         }
         if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
             payload["phone"] = phone
         }
-        if let pageToken = pageToken, !pageToken.isEmpty {
-            payload["page_token"] = pageToken
-        }
+        return payload
+    }
 
-        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages") else {
-            Loggers.network.error("Invalid inbox messages URL")
+    /// Shared POST + JSON-decode scaffolding for inbox endpoints. Maps non-2xx status to
+    /// `inboxRequestFailed`, non-HTTP responses and decode failures to `inboxResponseDecodeFailed`,
+    /// and bad URLs to `badURL`. All other transport errors propagate.
+    private func postInboxJSON<T: Decodable>(
+        path: String,
+        payload: [String: Any],
+        decoder: JSONDecoder
+    ) async throws -> T {
+        guard let url = URL(string: Self.inboxHost + path) else {
+            Loggers.network.error("Invalid inbox URL for path \(path, privacy: .public)")
             throw ATTNError.badURL
         }
 
@@ -480,33 +469,47 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
-        Loggers.network.debug("POST /inbox/messages")
-
+        Loggers.network.debug("POST \(path, privacy: .public)")
         let (data, response) = try await dataTask(with: request)
 
         guard let http = response as? HTTPURLResponse else {
-            Loggers.network.error("Inbox messages returned a non-HTTP response")
+            Loggers.network.error("Inbox \(path, privacy: .public) returned a non-HTTP response")
             throw ATTNError.inboxResponseDecodeFailed
         }
-        Loggers.network.debug("Inbox messages status code: \(http.statusCode, privacy: .public)")
+        Loggers.network.debug("Inbox \(path, privacy: .public) status: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
-            Loggers.network.error("Inbox messages API returned status \(http.statusCode, privacy: .public)")
+            Loggers.network.error("Inbox \(path, privacy: .public) returned status \(http.statusCode, privacy: .public)")
             throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
         }
 
         do {
-            let decoded = try Self.inboxJSONDecoder.decode(InboxResponse.self, from: data)
-            Loggers.network.debug("Inbox messages fetched: count=\(decoded.messages.count, privacy: .public), hasNextPage=\(decoded.nextPageToken?.isEmpty == false, privacy: .public)")
-            return decoded
+            return try decoder.decode(T.self, from: data)
         } catch {
-            Loggers.network.error("Failed to decode inbox messages response: \(error.localizedDescription, privacy: .public)")
+            Loggers.network.error("Failed to decode inbox \(path, privacy: .public) response: \(error.localizedDescription, privacy: .public)")
             throw ATTNError.inboxResponseDecodeFailed
         }
     }
 
     private static let inboxJSONDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Accept ISO-8601 timestamps with or without fractional seconds. Foundation's built-in
+        // `.iso8601` strategy uses an ISO8601DateFormatter without `.withFractionalSeconds`, so
+        // a payload like `"2026-07-15T14:22:31.847Z"` would throw and fail the whole page.
+        let withFractional = ISO8601DateFormatter()
+        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let withoutFractional = ISO8601DateFormatter()
+        withoutFractional.formatOptions = [.withInternetDateTime]
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            if let date = withFractional.date(from: string) ?? withoutFractional.date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected ISO-8601 date string, got \(string)"
+            )
+        }
         return decoder
     }()
 

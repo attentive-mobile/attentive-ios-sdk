@@ -29,7 +29,7 @@ final class ATTNInboxMessagesAPITests: XCTestCase {
     }
 
     private func fetch(
-        pushToken: String = "fcm:abc123",
+        pushToken: String = "abc123",
         email: String? = nil,
         phone: String? = nil,
         pageSize: Int = 20,
@@ -101,7 +101,7 @@ final class ATTNInboxMessagesAPITests: XCTestCase {
 
         XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
-        XCTAssertEqual(json["push_token"] as? String, "fcm:abc123")
+        XCTAssertEqual(json["push_token"] as? String, "apns:abc123", "SDK must prefix the raw device token with the APNs transport scheme")
         XCTAssertEqual(json["email"] as? String, "user@example.com")
         XCTAssertEqual(json["phone"] as? String, "+15551234567")
         XCTAssertEqual(json["page_size"] as? Int, 20)

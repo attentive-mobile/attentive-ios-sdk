@@ -50,6 +50,14 @@ struct InboxView: View {
                                 }
                             }
                     }
+                    if viewModel.isLoadingMore {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .listRowSeparator(.hidden)
+                    }
                 }
             }
         }
@@ -58,7 +66,7 @@ struct InboxView: View {
         }
     }
 
-    private func buildListView<Content: View>(content: () -> Content) -> some View {
+    private func buildListView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         List(content: content)
             .listStyle(.plain)
             .navigationTitle(String.inbox)

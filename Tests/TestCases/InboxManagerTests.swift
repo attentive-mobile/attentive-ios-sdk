@@ -128,6 +128,22 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callCountBefore, "loadNextPage should not fire when no next page is available")
     }
 
+    func testLoadNextPage_returnsWhetherFetchStarted() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeMessage(id: "2")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        let didStartFirst = await manager.loadNextPage()
+        XCTAssertTrue(didStartFirst, "loadNextPage must report started when a page token is available")
+
+        let didStartSecond = await manager.loadNextPage()
+        XCTAssertFalse(didStartSecond, "loadNextPage must report no-op after the last page arrives")
+    }
+
     func testLoadNextPage_updatesNextTokenAndHasMoreFlag() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2"),
@@ -217,5 +233,62 @@ final class InboxManagerTests: XCTestCase {
 
         let messages = await manager.allMessages
         XCTAssertEqual(messages.map(\.id), ["2"])
+    }
+
+    // MARK: - Identity change
+
+    func testResetForIdentityChange_clearsMessagesAndCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2")
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.resetForIdentityChange()
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(messages.isEmpty, "previous user's messages must not survive an identity reset")
+        XCTAssertEqual(unread, 0)
+        XCTAssertFalse(hasMore, "pagination cursor must be dropped so next user doesn't fetch prev user's next page")
+    }
+
+    // MARK: - Pull-to-refresh includes unread count
+
+    func testRefresh_alsoRefreshesUnreadCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil),
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 1
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+        await manager.refresh()
+
+        XCTAssertGreaterThan(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "refresh() must also refresh the unread count")
+    }
+
+    // MARK: - Refresh error preserves pagination cursor
+
+    func testRefresh_errorAfterInitialSuccess_preservesNextPageToken() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2")
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Stub the next refresh to throw.
+        apiSpy.stubbedInboxMessagesResponses = []
+        apiSpy.stubbedInboxMessagesError = NSError(domain: "test", code: -1)
+
+        await manager.refresh()
+
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore, "refresh error must not wipe the pagination cursor from the last successful fetch")
     }
 }
