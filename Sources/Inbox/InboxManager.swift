@@ -101,13 +101,13 @@ actor InboxManager {
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
-        // Passive-badge hosts read `sdk.unreadCount` without opening the inbox surface, so
-        // the manager fetches on construction. Non-inbox hosts never construct it — see
-        // `ATTNSDK.materializedInboxManager()`.
-        // The init task calls `performUnreadCountFetch` directly (not `refreshUnreadCount`)
-        // so it doesn't try to coalesce with itself.
+        // Populate mock messages and fetch the unread count on construction so passive-badge
+        // hosts (`sdk.unreadCount`) and stream/`allMessages` consumers both resolve without
+        // needing to present `inboxView()`. Non-inbox hosts never construct the manager — see
+        // `ATTNSDK.materializedInboxManager()`. Calls `performUnreadCountFetch` directly (not
+        // `refreshUnreadCount`) so it doesn't try to coalesce with itself.
         initialRefreshTask = Task { [weak self] in
-            await self?.performUnreadCountFetch(skipNotify: false)
+            await self?.loadInitialMessagesAndUnreadCount()
         }
     }
 
@@ -123,6 +123,16 @@ actor InboxManager {
             await task.value
             return
         }
+        await performUnreadCountFetch(skipNotify: false)
+    }
+
+    /// Init-time seed: populate mock messages so `allMessages` / `inboxStateStream` resolve
+    /// for hosts that never present `inboxView()`, then fetch the server-authoritative unread
+    /// count. `updateMessages` emits `.loaded` immediately; the count fetch runs with
+    /// `skipNotify: false` so subscribers get a nudge to re-read `unreadCount` when the
+    /// server value arrives.
+    private func loadInitialMessagesAndUnreadCount() async {
+        updateMessages(Self.getMockInbox().messages)
         await performUnreadCountFetch(skipNotify: false)
     }
 
