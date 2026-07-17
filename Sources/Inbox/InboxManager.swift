@@ -129,6 +129,14 @@ actor InboxManager {
     /// previously loaded messages. The two fetches run concurrently. Callers should invoke
     /// this on inbox open / pull-to-refresh / push open.
     func refresh() async {
+        // Coalesce with the init-time fetch. `InboxView.task` fires immediately after
+        // materializing the manager, so without this the first open would double-POST and race
+        // its own init generation.
+        if let task = initialRefreshTask {
+            initialRefreshTask = nil
+            await task.value
+            return
+        }
         await performMessagesAndUnreadCountRefresh()
     }
 

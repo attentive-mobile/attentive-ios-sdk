@@ -86,6 +86,21 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertNil(apiSpy.lastInboxMessagesPageToken)
     }
 
+    func testRefresh_immediatelyAfterInit_coalescesWithInitTask() async {
+        // InboxView.task calls viewModel.refresh() immediately after materializing the manager;
+        // without coalescing, that races the init fetch and double-POSTs /inbox/messages.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 1
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        await manager.refresh()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "refresh() called during init must coalesce, not double-POST")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "refresh() called during init must not fire an extra unread-count POST")
+    }
+
     func testRefresh_emptyVisitorId_skipsNetworkCall() async {
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider(visitorId: ""))
         // Give the init Task a chance to run — no state transition expected since it should skip.
@@ -171,7 +186,8 @@ final class InboxManagerTests: XCTestCase {
         ]
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
-        _ = await waitForLoadedState(manager)
+        // Drain the init task so refresh() below is a real second fetch, not a coalesce.
+        _ = await manager.unreadCount
 
         await manager.refresh()
 
@@ -264,8 +280,9 @@ final class InboxManagerTests: XCTestCase {
         ]
         apiSpy.stubbedUnreadCount = 1
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
-        _ = await waitForLoadedState(manager)
-        await waitForUnreadCountFetch()
+        // Awaiting `unreadCount` drains `initialRefreshTask` so the subsequent refresh()
+        // does real work instead of coalescing with the init fetch.
+        _ = await manager.unreadCount
 
         let countBefore = apiSpy.fetchInboxUnreadCountCallCount
         await manager.refresh()
@@ -280,7 +297,8 @@ final class InboxManagerTests: XCTestCase {
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2")
         ]
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
-        _ = await waitForLoadedState(manager)
+        // Drain the init task so refresh() below is a real second fetch, not a coalesce.
+        _ = await manager.unreadCount
 
         // Stub the next refresh to throw.
         apiSpy.stubbedInboxMessagesResponses = []
