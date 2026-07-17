@@ -11,6 +11,7 @@ import Foundation
 class NSURLSessionMock: URLSession {
     var didCallEventsApi = false
     var didCallInboxUnreadCountApi = false
+    var didCallInboxMessagesApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
 
@@ -19,6 +20,12 @@ class NSURLSessionMock: URLSession {
     var inboxUnreadCountStatusCode: Int = 200
     var inboxUnreadCountResponseBody: Data = Data("{\"unread_count\": 5}".utf8)
     var inboxUnreadCountError: Error?
+
+    /// Override the response returned for the inbox messages endpoint.
+    /// Default: 200 with an empty message list and no next page.
+    var inboxMessagesStatusCode: Int = 200
+    var inboxMessagesResponseBody: Data = Data("{\"messages\": []}".utf8)
+    var inboxMessagesError: Error?
 
     override init() {
         super.init()
@@ -37,11 +44,23 @@ class NSURLSessionMock: URLSession {
                 }
             }
 
+            // Order matters: check the more specific `/inbox/messages/unread/count` before the
+            // `/inbox/messages` prefix so the general check doesn't shadow it.
             if url.absoluteString.contains("/inbox/messages/unread/count") {
                 didCallInboxUnreadCountApi = true
                 let body = inboxUnreadCountResponseBody
                 let status = inboxUnreadCountStatusCode
                 let error = inboxUnreadCountError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                }
+            }
+
+            if url.absoluteString.hasSuffix("/inbox/messages") {
+                didCallInboxMessagesApi = true
+                let body = inboxMessagesResponseBody
+                let status = inboxMessagesStatusCode
+                let error = inboxMessagesError
                 return NSURLSessionDataTaskMock { _, _, _ in
                     completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }

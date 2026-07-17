@@ -174,4 +174,44 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         if let error = stubbedInboxError { throw error }
         return stubbedUnreadCount
     }
+
+    // MARK: - Inbox Messages
+    private(set) var fetchInboxMessagesWasCalled = false
+    private(set) var fetchInboxMessagesCallCount = 0
+    private(set) var lastInboxMessagesPageSize: Int?
+    private(set) var lastInboxMessagesPageToken: String?
+    private(set) var lastInboxMessagesPushToken: String?
+    private(set) var lastInboxMessagesEmail: String?
+    private(set) var lastInboxMessagesPhone: String?
+    private(set) var lastInboxMessagesVisitorId: String?
+    var stubbedInboxMessagesError: Error?
+    /// Sequence of responses returned by successive `fetchInboxMessages` calls; the last entry is
+    /// reused if more calls arrive than the array has entries.
+    var stubbedInboxMessagesResponses: [InboxResponse] = [InboxResponse(messages: [], nextPageToken: nil)]
+    /// Invoked while a `fetchInboxMessages` call is "in flight" (after recording args, before
+    /// returning a response). Lets tests interleave a follow-up call to reproduce races.
+    var onFetchInboxMessages: (@Sendable (_ pageToken: String?) async -> Void)?
+
+    func fetchInboxMessages(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse {
+        fetchInboxMessagesWasCalled = true
+        let callIndex = fetchInboxMessagesCallCount
+        fetchInboxMessagesCallCount += 1
+        lastInboxMessagesPushToken = pushToken
+        lastInboxMessagesEmail = email
+        lastInboxMessagesPhone = phone
+        lastInboxMessagesVisitorId = visitorId
+        lastInboxMessagesPageSize = pageSize
+        lastInboxMessagesPageToken = pageToken
+        if let hook = onFetchInboxMessages { await hook(pageToken) }
+        if let error = stubbedInboxMessagesError { throw error }
+        let index = min(callIndex, stubbedInboxMessagesResponses.count - 1)
+        return stubbedInboxMessagesResponses[index]
+    }
 }

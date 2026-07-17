@@ -51,6 +51,8 @@
 		FB2984062C0FA2DA0039759C /* ATTNEventTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2984052C0FA2DA0039759C /* ATTNEventTrackerTests.swift */; };
 		FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2984072C0FAE040039759C /* ATTNAPITests.swift */; };
 		0AE0001C377A1AAC00563599 /* ATTNInboxAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */; };
+		0A413001413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */; };
+		0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413002413A1AAA00563599 /* InboxManagerTests.swift */; };
 		FB2F35B12C18CFFA0016CAE8 /* ATTNSDKFramework.podspec in Resources */ = {isa = PBXBuildFile; fileRef = FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */; };
 		FB35C1792C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */; };
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
@@ -182,6 +184,8 @@
 		FB2984052C0FA2DA0039759C /* ATTNEventTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTrackerTests.swift; sourceTree = "<group>"; };
 		FB2984072C0FAE040039759C /* ATTNAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPITests.swift; sourceTree = "<group>"; };
 		0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxAPITests.swift; sourceTree = "<group>"; };
+		0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMessagesAPITests.swift; sourceTree = "<group>"; };
+		0A413002413A1AAA00563599 /* InboxManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManagerTests.swift; sourceTree = "<group>"; };
 		FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ATTNSDKFramework.podspec; sourceTree = "<group>"; };
 		FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeTriggerStatus.swift; sourceTree = "<group>"; };
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
@@ -432,6 +436,8 @@
 				FB2984052C0FA2DA0039759C /* ATTNEventTrackerTests.swift */,
 				FB2984072C0FAE040039759C /* ATTNAPITests.swift */,
 				0AE0001B377A1AAC00563599 /* ATTNInboxAPITests.swift */,
+				0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */,
+				0A413002413A1AAA00563599 /* InboxManagerTests.swift */,
 				FB90EF0A2C109CB4004DFC4A /* ATTNAPIITTests.swift */,
 				FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */,
 				FB86C03D2C40611A00E35580 /* ATTNAddToCartEventTests.swift */,
@@ -842,6 +848,8 @@
 				FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */,
 				FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */,
 				0AE0001C377A1AAC00563599 /* ATTNInboxAPITests.swift in Sources */,
+				0A413001413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift in Sources */,
+				0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,
 				FB2983FE2C0F85770039759C /* ATTNCustomEventTests.swift in Sources */,

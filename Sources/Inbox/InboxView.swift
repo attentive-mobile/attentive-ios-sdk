@@ -42,6 +42,21 @@ struct InboxView: View {
                                 }
                                 .tint(.blue)
                             }
+                            .onAppear {
+                                // Pull-up-to-load-more: when the last row scrolls into view, ask for
+                                // the next page. The manager is a no-op when nothing more is available.
+                                if message.id == messages.last?.id {
+                                    viewModel.loadNextPage()
+                                }
+                            }
+                    }
+                    if viewModel.isLoadingMore {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .listRowSeparator(.hidden)
                     }
                 }
             }
@@ -51,7 +66,7 @@ struct InboxView: View {
         }
     }
 
-    private func buildListView<Content: View>(content: () -> Content) -> some View {
+    private func buildListView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         List(content: content)
             .listStyle(.plain)
             .navigationTitle(String.inbox)
