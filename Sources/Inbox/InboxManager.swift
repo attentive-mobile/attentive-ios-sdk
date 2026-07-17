@@ -34,6 +34,9 @@ actor InboxManager {
     private var messageOrder: [Message.ID] = []
     private var currentState: InboxState = .loading
     private var continuations: [UUID: AsyncStream<InboxState>.Continuation] = [:]
+    /// Broadcasts every `isLoadingNextPage` transition so the ViewModel can render a footer
+    /// spinner that tracks the manager's true fetch state, not an optimistic guess.
+    private var loadingMoreContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
 
     /// Cursor from the most recent successful page fetch. `nil` means "no more pages" (or "haven't
     /// fetched yet"); use `hasMore` for the caller-facing "can we page further" signal.
@@ -42,6 +45,12 @@ actor InboxManager {
     /// Guards against overlapping `loadNextPage()` calls when the SwiftUI list rapidly reports
     /// the last row appearing.
     private var isLoadingNextPage: Bool = false
+    /// Set while a first-page refresh is in flight. `loadNextPage()` refuses to run during this
+    /// window: without the gate, a page load fired mid-refresh (e.g. last-row `.onAppear` during
+    /// a pull-to-refresh) would pass the guard, capture the refresh's generation, and clobber
+    /// `nextPageToken` when both settle. Distinct from `isLoadingNextPage` because a stale page
+    /// load returning inside the refresh window resets that flag but must not release this one.
+    private var isRefreshingFirstPage: Bool = false
 
     /// Server-authoritative unread count. Only `refreshUnreadCount()` writes it; local
     /// `markRead` / `markUnread` do not. Reads should go through the `unreadCount` accessor,
@@ -112,6 +121,23 @@ actor InboxManager {
         }
     }
 
+    /// Returns an AsyncStream that immediately emits the current `isLoadingNextPage`, then
+    /// emits every subsequent transition. Distinct from `stateStream` so a paging-in-flight
+    /// signal doesn't force the list to re-render just because a footer spinner is (dis)appearing.
+    var loadingMoreStream: AsyncStream<Bool> {
+        let current = self.isLoadingNextPage
+        return AsyncStream { continuation in
+            let id = UUID()
+            continuation.yield(current)
+            self.loadingMoreContinuations[id] = continuation
+            continuation.onTermination = { [weak self] _ in
+                Task { [weak self] in
+                    await self?.removeLoadingMoreContinuation(id: id)
+                }
+            }
+        }
+    }
+
     init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
         self.api = api
         self.identityProvider = identityProvider
@@ -141,19 +167,23 @@ actor InboxManager {
     }
 
     /// Fetches the next page of messages using the stored `nextPageToken` and appends them.
-    /// Safe to call repeatedly — no-ops when no more pages are available or another fetch is in flight.
-    /// Returns `true` when a network fetch was actually started; callers can use this to gate a
-    /// "loading more" indicator without needing a separate probe.
-    @discardableResult
-    func loadNextPage() async -> Bool {
-        guard hasFetchedFirstPage, !isLoadingNextPage, let pageToken = nextPageToken, !pageToken.isEmpty else {
-            return false
+    /// Safe to call repeatedly — no-ops when no more pages are available, another fetch is in
+    /// flight, or a first-page refresh is running. Subscribers to `loadingMoreStream` observe
+    /// the in-flight state; callers do not need to inspect a return value.
+    func loadNextPage() async {
+        guard hasFetchedFirstPage,
+              !isRefreshingFirstPage,
+              !isLoadingNextPage,
+              let pageToken = nextPageToken,
+              !pageToken.isEmpty else {
+            return
         }
         let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else { return false }
+        guard !identity.visitorId.isEmpty else { return }
 
-        isLoadingNextPage = true
+        setLoadingNextPage(true)
         let generation = messagesGeneration
+        defer { setLoadingNextPage(false) }
 
         do {
             let response = try await api.fetchInboxMessages(
@@ -166,19 +196,15 @@ actor InboxManager {
             )
             guard generation == messagesGeneration else {
                 // Identity or refresh() moved on; discard this page.
-                isLoadingNextPage = false
-                return true
+                return
             }
             appendMessages(response.messages)
             nextPageToken = response.nextPageToken
-            isLoadingNextPage = false
             send(.loaded(orderedMessagesSnapshot()))
         } catch {
             Loggers.network.error("Failed to load next inbox page: \(error.localizedDescription, privacy: .public)")
-            isLoadingNextPage = false
             // Keep existing list; caller can retry by pulling up again.
         }
-        return true
     }
 
     /// Fetches the latest unread count from the server and stores it as the
@@ -218,7 +244,12 @@ actor InboxManager {
         messagesGeneration &+= 1
         let generation = messagesGeneration
         // Cancel any in-flight page load; the bumped generation will make it a no-op on return.
-        isLoadingNextPage = false
+        setLoadingNextPage(false)
+        // Block new page loads for the duration of this refresh — even one that fires between
+        // now and when the page-1 response arrives would otherwise race the refresh and clobber
+        // the fresh `nextPageToken` with a stale one.
+        isRefreshingFirstPage = true
+        defer { isRefreshingFirstPage = false }
 
         // Only emit .loading on the very first refresh; on subsequent refreshes keep the last
         // successful list visible until the new page arrives, mirroring iOS Mail behavior.
@@ -317,7 +348,8 @@ actor InboxManager {
         messageOrder = []
         nextPageToken = nil
         hasFetchedFirstPage = false
-        isLoadingNextPage = false
+        setLoadingNextPage(false)
+        isRefreshingFirstPage = false
         // Only re-emit when we were already surfacing a loaded list — never override an
         // in-flight .loading state, which would strand hosts that don't re-present InboxView.
         if case .loaded = currentState {
@@ -333,10 +365,24 @@ extension InboxManager {
         continuations.removeValue(forKey: id)
     }
 
+    private func removeLoadingMoreContinuation(id: UUID) {
+        loadingMoreContinuations.removeValue(forKey: id)
+    }
+
     private func send(_ state: InboxState) {
         currentState = state
         for continuation in continuations.values {
             continuation.yield(state)
+        }
+    }
+
+    /// Single write path for `isLoadingNextPage` so every transition also fans out on
+    /// `loadingMoreStream`. Skips the fan-out when the value hasn't actually changed.
+    private func setLoadingNextPage(_ newValue: Bool) {
+        guard isLoadingNextPage != newValue else { return }
+        isLoadingNextPage = newValue
+        for continuation in loadingMoreContinuations.values {
+            continuation.yield(newValue)
         }
     }
 

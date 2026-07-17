@@ -188,6 +188,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     /// Sequence of responses returned by successive `fetchInboxMessages` calls; the last entry is
     /// reused if more calls arrive than the array has entries.
     var stubbedInboxMessagesResponses: [InboxResponse] = [InboxResponse(messages: [], nextPageToken: nil)]
+    /// Invoked while a `fetchInboxMessages` call is "in flight" (after recording args, before
+    /// returning a response). Lets tests interleave a follow-up call to reproduce races.
+    var onFetchInboxMessages: (@Sendable (_ pageToken: String?) async -> Void)?
 
     func fetchInboxMessages(
         pushToken: String,
@@ -206,6 +209,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastInboxMessagesVisitorId = visitorId
         lastInboxMessagesPageSize = pageSize
         lastInboxMessagesPageToken = pageToken
+        if let hook = onFetchInboxMessages { await hook(pageToken) }
         if let error = stubbedInboxMessagesError { throw error }
         let index = min(callIndex, stubbedInboxMessagesResponses.count - 1)
         return stubbedInboxMessagesResponses[index]

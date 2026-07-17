@@ -143,20 +143,71 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callCountBefore, "loadNextPage should not fire when no next page is available")
     }
 
-    func testLoadNextPage_returnsWhetherFetchStarted() async {
+    func testLoadNextPage_firedDuringRefresh_isBlocked() async {
+        // Reproduce the race the reviewer flagged: a last-row `.onAppear` fires during a
+        // pull-to-refresh's in-flight window and captures the stale nextPageToken.
+        apiSpy.stubbedInboxMessagesResponses = [
+            // Initial page 1 (init-time)
+            InboxResponse(messages: [makeMessage(id: "old-1")], nextPageToken: "stale-cursor"),
+            // Refresh's page-1 response — set below via onFetchInboxMessages
+            InboxResponse(messages: [makeMessage(id: "new-1")], nextPageToken: "fresh-cursor"),
+            // Would-be stale page from the racing loadNextPage
+            InboxResponse(messages: [makeMessage(id: "STALE")], nextPageToken: "should-not-clobber")
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Drain init so refresh() below actually fires a new fetch.
+        _ = await manager.unreadCount
+
+        // On the refresh's fetch, interleave a loadNextPage before returning the response.
+        apiSpy.onFetchInboxMessages = { [weak self] pageToken in
+            guard let self = self else { return }
+            // Only interleave on the refresh (nil pageToken), not the racing loadNextPage.
+            guard pageToken == nil else { return }
+            // Fire the racing page load. It should be blocked by isRefreshingFirstPage.
+            await manager.loadNextPage()
+            // Clear the hook so it doesn't re-fire recursively.
+            self.apiSpy.onFetchInboxMessages = nil
+        }
+
+        await manager.refresh()
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new-1"], "stale page load must not clobber the refresh's result")
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore, "hasMore should reflect the refresh's fresh cursor, not a clobbered stale one")
+    }
+
+    func testLoadingMoreStream_emitsTransitionsForRealFetchesOnly() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2"),
             InboxResponse(messages: [makeMessage(id: "2")], nextPageToken: nil)
         ]
-
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
 
-        let didStartFirst = await manager.loadNextPage()
-        XCTAssertTrue(didStartFirst, "loadNextPage must report started when a page token is available")
+        // Collect stream values in the background so we can observe transitions.
+        var observed: [Bool] = []
+        let collectorReady = expectation(description: "collector subscribed")
+        let collector = Task {
+            let stream = await manager.loadingMoreStream
+            var iter = stream.makeAsyncIterator()
+            // First yield is the current value; consume it to prove subscription is live.
+            if let first = await iter.next() { observed.append(first) }
+            collectorReady.fulfill()
+            while let next = await iter.next() {
+                observed.append(next)
+                if !next && observed.count >= 3 { break } // saw true then false, done
+            }
+        }
+        await fulfillment(of: [collectorReady], timeout: 1)
 
-        let didStartSecond = await manager.loadNextPage()
-        XCTAssertFalse(didStartSecond, "loadNextPage must report no-op after the last page arrives")
+        // Real fetch — expect true then false.
+        await manager.loadNextPage()
+        // Final page reached — this call must no-op, i.e. not emit a new transition.
+        await manager.loadNextPage()
+
+        _ = await collector.value
+        XCTAssertEqual(observed, [false, true, false], "loadingMoreStream must emit true→false only for real fetches, not no-op calls")
     }
 
     func testLoadNextPage_updatesNextTokenAndHasMoreFlag() async {
