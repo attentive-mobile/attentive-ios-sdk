@@ -183,7 +183,14 @@ actor InboxManager {
 
         setLoadingNextPage(true)
         let generation = messagesGeneration
-        defer { setLoadingNextPage(false) }
+        // Guard the release on generation: a superseded page load returning after a newer
+        // refresh or another page load has bumped the counter must not clear the newer one's
+        // flag (would prematurely hide the spinner and re-open the guard for a duplicate fetch).
+        defer {
+            if generation == messagesGeneration {
+                setLoadingNextPage(false)
+            }
+        }
 
         do {
             let response = try await api.fetchInboxMessages(
@@ -249,7 +256,14 @@ actor InboxManager {
         // now and when the page-1 response arrives would otherwise race the refresh and clobber
         // the fresh `nextPageToken` with a stale one.
         isRefreshingFirstPage = true
-        defer { isRefreshingFirstPage = false }
+        // Guard the release on generation: if a newer refresh (or `resetForIdentityChange`)
+        // bumps the counter, it owns the flag and manages release itself — a superseded
+        // refresh clearing the gate would re-open the exact race this flag exists to prevent.
+        defer {
+            if generation == messagesGeneration {
+                isRefreshingFirstPage = false
+            }
+        }
 
         // Only emit .loading on the very first refresh; on subsequent refreshes keep the last
         // successful list visible until the new page arrives, mirroring iOS Mail behavior.

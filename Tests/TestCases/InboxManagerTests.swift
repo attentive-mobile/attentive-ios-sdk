@@ -169,12 +169,20 @@ final class InboxManagerTests: XCTestCase {
             self.apiSpy.onFetchInboxMessages = nil
         }
 
+        let callCountBeforeRefresh = apiSpy.fetchInboxMessagesCallCount
         await manager.refresh()
 
         let messages = await manager.allMessages
         XCTAssertEqual(messages.map(\.id), ["new-1"], "stale page load must not clobber the refresh's result")
         let hasMore = await manager.hasMore
         XCTAssertTrue(hasMore, "hasMore should reflect the refresh's fresh cursor, not a clobbered stale one")
+        // The discriminating check: on unfixed code, the racing loadNextPage would slip past
+        // the guard and hit the network (count +2). With the gate in place it must be blocked (+1).
+        XCTAssertEqual(
+            apiSpy.fetchInboxMessagesCallCount - callCountBeforeRefresh,
+            1,
+            "racing loadNextPage during refresh must be blocked, not fire a network call"
+        )
     }
 
     func testLoadingMoreStream_emitsTransitionsForRealFetchesOnly() async {
@@ -184,19 +192,23 @@ final class InboxManagerTests: XCTestCase {
         ]
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
+        let callCountBeforePaging = apiSpy.fetchInboxMessagesCallCount
 
-        // Collect stream values in the background so we can observe transitions.
-        var observed: [Bool] = []
+        // Collect stream values in the background for the full duration of both calls.
+        // Uses an actor-isolated box so the collector task can push values while the test
+        // reads them after cancellation.
+        actor Observed { var values: [Bool] = []; func append(_ v: Bool) { values.append(v) } }
+        let observed = Observed()
         let collectorReady = expectation(description: "collector subscribed")
         let collector = Task {
             let stream = await manager.loadingMoreStream
             var iter = stream.makeAsyncIterator()
             // First yield is the current value; consume it to prove subscription is live.
-            if let first = await iter.next() { observed.append(first) }
+            if let first = await iter.next() { await observed.append(first) }
             collectorReady.fulfill()
-            while let next = await iter.next() {
-                observed.append(next)
-                if !next && observed.count >= 3 { break } // saw true then false, done
+            // Keep collecting until the task is cancelled by the test.
+            while !Task.isCancelled, let next = await iter.next() {
+                await observed.append(next)
             }
         }
         await fulfillment(of: [collectorReady], timeout: 1)
@@ -206,8 +218,18 @@ final class InboxManagerTests: XCTestCase {
         // Final page reached — this call must no-op, i.e. not emit a new transition.
         await manager.loadNextPage()
 
-        _ = await collector.value
-        XCTAssertEqual(observed, [false, true, false], "loadingMoreStream must emit true→false only for real fetches, not no-op calls")
+        // Give the stream one runloop turn to deliver any pending emissions before we tear down.
+        await Task.yield()
+        collector.cancel()
+
+        let values = await observed.values
+        XCTAssertEqual(values, [false, true, false], "loadingMoreStream must emit true→false only for real fetches, not no-op calls")
+        // Discriminating check: the no-op second call must not fire a network request either.
+        XCTAssertEqual(
+            apiSpy.fetchInboxMessagesCallCount - callCountBeforePaging,
+            1,
+            "no-op loadNextPage after the last page must not hit the network"
+        )
     }
 
     func testLoadNextPage_updatesNextTokenAndHasMoreFlag() async {
