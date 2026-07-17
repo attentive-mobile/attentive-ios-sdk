@@ -339,6 +339,30 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
     }
 
+    func testMarkRead_identityChangeDuringRequest_discardsStaleResponse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 99 // stale value that must not survive the identity change
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
+        // bumping the generation and zeroing the count for the new (logged-out) identity.
+        apiSpy.onMarkMessagesRead = { await manager.resetForIdentityChange() }
+
+        await manager.markRead("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Stale mark-read response must not overwrite the post-reset unread count")
+    }
+
     func testMarkRead_alreadyRead_noOpsOnLocalStateButStillCallsApi() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)

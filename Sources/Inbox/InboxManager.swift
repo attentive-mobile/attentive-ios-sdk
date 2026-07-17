@@ -337,10 +337,6 @@ actor InboxManager {
     /// server response. On failure the local flip is reverted so the UI reflects true state.
     func markRead(_ messageID: Message.ID) async {
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
-        if !previousIsRead {
-            messagesByID[messageID]?.isRead = true
-            send(.loaded(allMessages))
-        }
 
         let identity = identityProvider()
         guard !identity.visitorId.isEmpty else {
@@ -348,18 +344,31 @@ actor InboxManager {
             return
         }
 
+        if !previousIsRead {
+            messagesByID[messageID]?.isRead = true
+            send(.loaded(orderedMessagesSnapshot()))
+        }
+
+        // Snapshot the refresh generation before the request. If an identity change
+        // (`resetForIdentityChange`) or a newer `refreshUnreadCount` lands while the PATCH is in
+        // flight, the generation advances and we drop this now-stale response instead of
+        // restoring an old unread count.
+        let generation = refreshGeneration
+
         do {
             let response = try await api.markMessagesRead(
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
                 messageIds: [messageID]
             )
+            guard generation == refreshGeneration else { return }
             applyReadStatusResponse(response)
         } catch {
             Loggers.network.error("Failed to mark inbox message read: \(error.localizedDescription, privacy: .public)")
+            guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, !previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
-                send(.loaded(allMessages))
+                send(.loaded(orderedMessagesSnapshot()))
             }
         }
     }
@@ -451,7 +460,7 @@ extension InboxManager {
         for status in response.messages {
             messagesByID[status.messageId]?.isRead = status.isRead
         }
-        unreadCount = response.unreadCount
-        send(.loaded(allMessages))
+        storedUnreadCount = response.unreadCount
+        send(.loaded(orderedMessagesSnapshot()))
     }
 }

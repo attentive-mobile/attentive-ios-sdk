@@ -502,11 +502,11 @@ final class ATTNAPI: ATTNAPIProtocol {
     ) async throws -> UpdateReadStatusResponse {
         Loggers.network.debug("Marking inbox messages read - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
 
-        var payload: [String: Any] = [
-            "visitor_id": visitorId,
-            "message_ids": messageIds
-        ]
-        if !pushToken.isEmpty { payload["push_token"] = pushToken }
+        let body = UpdateReadStatusRequest(
+            visitorId: visitorId,
+            pushToken: Self.inboxPushToken(pushToken),
+            messageIds: messageIds
+        )
 
         guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/read") else {
             Loggers.network.error("Invalid inbox mark-read URL")
@@ -518,7 +518,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        request.httpBody = try JSONEncoder().encode(body)
 
         Loggers.network.debug("PATCH /inbox/messages/read")
 
@@ -540,6 +540,13 @@ final class ATTNAPI: ATTNAPIProtocol {
             Loggers.network.error("Failed to decode inbox mark-read response: \(error.localizedDescription, privacy: .public)")
             throw ATTNError.inboxResponseDecodeFailed
         }
+    }
+
+    /// The inbox backend expects push tokens namespaced by transport (e.g. `apns:<token>`).
+    /// Returns `nil` for an empty token so `push_token` is omitted from the request body
+    /// rather than sent as an empty (and unusable) identifier.
+    private static func inboxPushToken(_ pushToken: String) -> String? {
+        pushToken.isEmpty ? nil : "apns:\(pushToken)"
     }
 
     private static let inboxJSONDecoder: JSONDecoder = {
