@@ -27,7 +27,7 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
     }
 
     private func markRead(
-        pushToken: String = "fcm:abc123",
+        pushToken: String = "abc123devicetoken",
         messageIds: [String] = ["msg-1"],
         identity: ATTNUserIdentity? = nil
     ) async throws -> UpdateReadStatusResponse {
@@ -71,7 +71,8 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
-        XCTAssertEqual(json["push_token"] as? String, "fcm:abc123")
+        // Push tokens are namespaced by transport for the inbox backend.
+        XCTAssertEqual(json["push_token"] as? String, "apns:abc123devicetoken")
         XCTAssertEqual(json["message_ids"] as? [String], ["msg-1", "msg-2"])
         // Contract carries only visitor_id / push_token / message_ids — no domain, email, phone.
         XCTAssertNil(json["c"])

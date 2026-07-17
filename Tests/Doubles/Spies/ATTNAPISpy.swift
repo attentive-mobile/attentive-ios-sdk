@@ -226,6 +226,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         messages: [],
         unreadCount: 0
     )
+    /// Invoked while the mark-read call is "in flight" (after recording, before returning), letting
+    /// a test interleave an identity change/refresh to exercise stale-response handling.
+    var onMarkMessagesRead: (@Sendable () async -> Void)?
 
     func markMessagesRead(
         pushToken: String,
@@ -237,6 +240,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastMarkReadPushToken = pushToken
         lastMarkReadVisitorId = visitorId
         lastMarkReadMessageIds = messageIds
+        if let hook = onMarkMessagesRead { await hook() }
         if let error = stubbedMarkReadError { throw error }
         return stubbedMarkReadResponse
     }
