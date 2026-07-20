@@ -86,6 +86,15 @@ class InboxViewModel: ObservableObject {
             await inboxManager.delete(messageID)
         }
     }
+
+    /// Fires the click-tracking POST and flips the row's read state. Called from `InboxView`
+    /// when the user taps a row. The view is responsible for opening the message's `actionURL`
+    /// (if any) so hosts can intercept for deep-link routing.
+    func click(_ messageID: Message.ID) {
+        Task {
+            await inboxManager.markClicked(messageID)
+        }
+    }
 }
 
 extension InboxState {

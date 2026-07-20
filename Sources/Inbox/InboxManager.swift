@@ -419,6 +419,43 @@ actor InboxManager {
         send(.loaded(orderedMessagesSnapshot()))
     }
 
+    /// Reports a message tap. Delegates the read side to `markRead` (server POST + optimistic
+    /// flip + count reconciliation + generation guarding) and separately fires the analytics-only
+    /// click-tracking POST — the two endpoints have independent contracts.
+    ///
+    /// The click POST is fire-and-forget: errors are logged, never surfaced. It is skipped when
+    /// the message has no `actionURL` because the server contract requires a non-blank
+    /// `action_url` (returns 400 otherwise).
+    func markClicked(_ messageID: Message.ID) async {
+        guard let message = messagesByID[messageID] else { return }
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox click tracking: empty visitor ID")
+            return
+        }
+
+        // Delegate the read side so the row's dot, the badge count, and the server all agree.
+        await markRead(messageID)
+
+        // Server rejects clicks without an action_url with a 400; skip rather than log a swallowed error.
+        let actionURL = message.actionURLString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !actionURL.isEmpty else {
+            Loggers.network.debug("Skipping inbox click tracking: message has no actionURL")
+            return
+        }
+
+        do {
+            try await api.markMessageClicked(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageId: messageID,
+                actionURL: actionURL
+            )
+        } catch {
+            Loggers.network.error("Failed to report inbox click: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     /// Clears all cached inbox state (messages, unread count, pagination cursor) and bumps both
     /// generations so any in-flight fetches from the previous identity are discarded when they
     /// return. Called on identity changes (`clearUser`, `updateUser`) so a logged-out account's

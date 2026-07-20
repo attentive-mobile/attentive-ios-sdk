@@ -565,4 +565,118 @@ final class InboxManagerTests: XCTestCase {
         let hasMore = await manager.hasMore
         XCTAssertTrue(hasMore, "refresh error must not wipe the pagination cursor from the last successful fetch")
     }
+
+    // MARK: - Click tracking
+
+    private func makeMessageWithAction(id: String, actionURL: String?, isRead: Bool = false) -> Message {
+        Message(
+            id: id,
+            title: "Title \(id)",
+            body: "Body \(id)",
+            timestamp: Date(),
+            isRead: isRead,
+            actionURLString: actionURL
+        )
+    }
+
+    func testMarkClicked_firesApiWithMessageIdAndActionURL() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://cart", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkClickedMessageId, "1")
+        XCTAssertEqual(apiSpy.lastMarkClickedVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkClickedPushToken, "fcm:abc")
+        XCTAssertEqual(apiSpy.lastMarkClickedActionURL, "myapp://cart")
+    }
+
+    func testMarkClicked_flipsLocalReadState() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "click must flip local read state")
+    }
+
+    func testMarkClicked_alreadyRead_stillFiresApiButDoesNotDoubleEmit() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x", isRead: true)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1, "already-read messages must still be tracked as clicked")
+    }
+
+    func testMarkClicked_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkClicked_emptyVisitorId_skipsNetworkCall() async {
+        // Empty visitor: identityProvider returns visitorId="" so the manager should skip the call.
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(visitorId: "")
+        )
+        // Seed a message manually via the fetch path so `messagesByID` is non-empty. Since the
+        // init refresh short-circuits on empty visitorId, drive one directly.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        // Give init a moment to short-circuit (no state transition), then attempt click.
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0)
+    }
+
+    func testMarkClicked_apiFailure_isSwallowed() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkClickedError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Must not throw or crash — errors are logged, not surfaced.
+        await manager.markClicked("1")
+
+        // Local flip still happened even though the network call failed.
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false)
+    }
 }

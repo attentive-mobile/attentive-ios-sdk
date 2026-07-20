@@ -426,6 +426,27 @@ final class ATTNAPI: ATTNAPIProtocol {
         return decoded
     }
 
+    /// Reports a message click to the server. Per RFC the endpoint carries only
+    /// `visitor_id` + `push_token` + `message_id` + `action_url` — no `c`, no email/phone —
+    /// and returns 204 No Content on success.
+    func markMessageClicked(
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws {
+        Loggers.network.debug("Reporting inbox click - Visitor ID: \(visitorId, privacy: .public), Message ID: \(messageId, privacy: .public)")
+        var payload: [String: Any] = [
+            "visitor_id": visitorId,
+            "message_id": messageId
+        ]
+        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
+        if let actionURL = actionURL, !actionURL.isEmpty {
+            payload["action_url"] = actionURL
+        }
+        try await postInbox(path: "/inbox/events/clicked", payload: payload)
+    }
+
     /// Builds the identifier fields shared by every inbox endpoint: `c` (domain), `visitor_id`,
     /// and the optional `push_token` / `email` / `phone`. Push token is prefixed with `apns:`
     /// so the server can route it to APNs (Android sends `fcm:...`).
@@ -449,14 +470,33 @@ final class ATTNAPI: ATTNAPIProtocol {
         return payload
     }
 
-    /// Shared POST + JSON-decode scaffolding for inbox endpoints. Maps non-2xx status to
-    /// `inboxRequestFailed`, non-HTTP responses and decode failures to `inboxResponseDecodeFailed`,
-    /// and bad URLs to `badURL`. All other transport errors propagate.
+    /// Shared POST + JSON-decode scaffolding for inbox endpoints that return a decodable body.
+    /// Maps non-2xx status to `inboxRequestFailed`, non-HTTP responses and decode failures to
+    /// `inboxResponseDecodeFailed`, and bad URLs to `badURL`. All other transport errors propagate.
     private func postInboxJSON<T: Decodable>(
         path: String,
         payload: [String: Any],
         decoder: JSONDecoder
     ) async throws -> T {
+        let data = try await postInboxRaw(path: path, payload: payload)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            Loggers.network.error("Failed to decode inbox \(path, privacy: .public) response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    /// Shared POST scaffolding for inbox endpoints that return no body (e.g. 204 No Content).
+    /// Same error mapping as `postInboxJSON`; response body (if any) is discarded.
+    private func postInbox(path: String, payload: [String: Any]) async throws {
+        _ = try await postInboxRaw(path: path, payload: payload)
+    }
+
+    /// Internal worker for `postInboxJSON` / `postInbox`. Builds and fires the request, maps
+    /// transport / non-2xx / non-HTTP failures to typed `ATTNError` cases, and returns the raw
+    /// response body for the caller to decode (or discard).
+    private func postInboxRaw(path: String, payload: [String: Any]) async throws -> Data {
         guard let url = URL(string: Self.inboxHost + path) else {
             Loggers.network.error("Invalid inbox URL for path \(path, privacy: .public)")
             throw ATTNError.badURL
@@ -481,13 +521,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             Loggers.network.error("Inbox \(path, privacy: .public) returned status \(http.statusCode, privacy: .public)")
             throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
         }
-
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            Loggers.network.error("Failed to decode inbox \(path, privacy: .public) response: \(error.localizedDescription, privacy: .public)")
-            throw ATTNError.inboxResponseDecodeFailed
-        }
+        return data
     }
 
     /// Marks the supplied messages as read on the server.
