@@ -63,14 +63,13 @@ final class ATTNInboxClickAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
+        XCTAssertEqual(json["c"] as? String, testDomain)
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
         // Push tokens are namespaced by transport for the inbox backend.
         XCTAssertEqual(json["push_token"] as? String, "apns:abc123devicetoken")
         XCTAssertEqual(json["message_id"] as? String, "msg-xyz")
         XCTAssertEqual(json["action_url"] as? String, "myapp://cart")
-        // Per RFC the click contract carries ONLY visitor_id / push_token / message_id / action_url.
-        // No `c`, no email, no phone.
-        XCTAssertNil(json["c"])
+        // Click contract does not carry email/phone (server scopes by identity).
         XCTAssertNil(json["email"])
         XCTAssertNil(json["phone"])
     }

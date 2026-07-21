@@ -426,9 +426,8 @@ final class ATTNAPI: ATTNAPIProtocol {
         return decoded
     }
 
-    /// Reports a message click to the server. Per RFC the endpoint carries only
-    /// `visitor_id` + `push_token` + `message_id` + `action_url` — no `c`, no email/phone —
-    /// and returns 204 No Content on success.
+    /// Reports a message click to the server. Body carries `c` (domain) + `visitor_id` +
+    /// `push_token` + `message_id` + `action_url`; server returns 204 No Content on success.
     func markMessageClicked(
         pushToken: String,
         visitorId: String,
@@ -437,6 +436,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     ) async throws {
         Loggers.network.debug("Reporting inbox click - Visitor ID: \(visitorId, privacy: .public), Message ID: \(messageId, privacy: .public)")
         var payload: [String: Any] = [
+            "c": domain,
             "visitor_id": visitorId,
             "message_id": messageId
         ]
