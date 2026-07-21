@@ -84,4 +84,45 @@ final class ATTNUserIdentityTests: XCTestCase {
         XCTAssertEqual(1, identity.identifiers.count)
         XCTAssertEqual("someValue", identity.identifiers[ATTNIdentifierType.clientUserId] as! String)
     }
+
+    // MARK: Concurrency
+
+    func testMergeIdentifiers_concurrentMerges_preservesAllKeys() {
+        let identity = ATTNUserIdentity()
+        // Each iteration writes a *different* top-level key. With non-atomic merge the
+        // read-modify-write would drop keys under contention; with proper locking every
+        // merge composes, so all 200 keys must survive.
+        DispatchQueue.concurrentPerform(iterations: 200) { i in
+            identity.mergeIdentifiers(["dynamic_key_\(i)": "value\(i)"])
+        }
+        XCTAssertEqual(identity.identifiers.count, 200)
+    }
+
+    func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
+        let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "seed@test.com"])
+        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["writer", "reader"]) { i, queueIndex in
+            if queueIndex == 0 {
+                identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
+            } else {
+                _ = identity.identifiers
+                _ = identity.visitorId
+            }
+        }
+    }
+
+    func testClearUser_concurrentClearAndMerge_doesNotCrash() {
+        // Inject in-memory storage so clearUser()'s per-call UserDefaults write
+        // doesn't dominate wall clock — the test asserts the lock, not disk I/O.
+        let identity = ATTNUserIdentity(
+            identifiers: [:],
+            visitorService: ATTNVisitorService(persistentStorage: ATTNPersistentStorageMock())
+        )
+        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["merge", "clear"]) { i, queueIndex in
+            if queueIndex == 0 {
+                identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
+            } else {
+                identity.clearUser()
+            }
+        }
+    }
 }

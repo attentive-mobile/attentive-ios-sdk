@@ -1,3 +1,9 @@
+## [2.0.15](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.14...2.0.15) (2026-06-03)
+Add pushEnabled init option to ATTNSDK (default true) — set to false when another provider owns push to disable SDK push handling and send marketing subscriptions without a token.
+
+## [2.0.14](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.13...2.0.14) (2026-05-01)
+Detach push token from the user on clearUser() and skip geo-domain adjustment for the mobile SDK
+
 ## [2.0.13](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.12...2.0.13) (2026-02-27)
 Bug Fixes & Improvements
 - Push token events are now sent on every app foreground, ensuring more reliable push notification delivery (#197)

@@ -21,4 +21,16 @@ final class ATTNEventTrackerTests: XCTestCase {
 
         XCTAssertNoThrow(ATTNEventTracker.sharedInstance())
     }
+
+    func testSharedInstance_concurrentSetupAndAccess_doesNotCrash() {
+        let sdk = ATTNSDK(domain: "domain")
+        runConcurrently(iterations: 200, queueLabels: ["setup", "access"]) { _, queueIndex in
+            if queueIndex == 0 {
+                ATTNEventTracker.setup(with: sdk)
+            } else {
+                _ = ATTNEventTracker.sharedInstance()
+            }
+        }
+        XCTAssertNotNil(ATTNEventTracker.sharedInstance())
+    }
 }

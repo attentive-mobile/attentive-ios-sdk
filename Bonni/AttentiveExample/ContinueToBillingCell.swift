@@ -19,8 +19,8 @@ class ContinueToBillingCell: UITableViewCell {
         let button = UIButton(type: .system)
         button.setTitle("Continue", for: .normal)
         button.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        button.backgroundColor = .black
-        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .label
+        button.setTitleColor(.systemBackground, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()

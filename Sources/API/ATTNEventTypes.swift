@@ -178,9 +178,11 @@ public struct ATTNPurchaseMetadata: Codable {
 /// Metadata for "MobileCustomEvent" events.
 public struct ATTNMobileCustomEventMetadata: Codable {
     public let eventType: String = "MobileCustomEvent"
+    public let type: String?
     public let customProperties: [String: String]?
 
-    public init(customProperties: [String: String]? = nil) {
+    public init(type: String? = nil, customProperties: [String: String]? = nil) {
+        self.type = type
         self.customProperties = customProperties
     }
 }

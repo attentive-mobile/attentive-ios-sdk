@@ -9,15 +9,24 @@ import Foundation
 
 @objc(ATTNUserIdentity)
 public final class ATTNUserIdentity: NSObject {
+    private let lock = NSLock()
+    private var _identifiers: [String: Any]
+    private var _visitorId: String
+    private let visitorService: ATTNVisitorService
+
     @objc public var identifiers: [String: Any] {
-        willSet {
-            guard !newValue.isEmpty else { return }
-            validate(identifiers: newValue)
+        get { lock.withLock { _identifiers } }
+        set {
+            if !newValue.isEmpty {
+                validate(identifiers: newValue)
+            }
+            lock.withLock { _identifiers = newValue }
         }
     }
 
-    @objc public var visitorId: String
-    private let visitorService: ATTNVisitorService
+    @objc public var visitorId: String {
+        lock.withLock { _visitorId }
+    }
 
     @objc
     override public convenience init() {
@@ -25,27 +34,37 @@ public final class ATTNUserIdentity: NSObject {
     }
 
     @objc(initWithIdentifiers:)
-    public init(identifiers: [String: Any]) {
-        self.visitorService = .init()
-        self.identifiers = identifiers
-        self.visitorId = self.visitorService.getVisitorId()
+    public convenience init(identifiers: [String: Any]) {
+        self.init(identifiers: identifiers, visitorService: .init())
+    }
+
+    init(identifiers: [String: Any], visitorService: ATTNVisitorService) {
+        self.visitorService = visitorService
+        self._identifiers = identifiers
+        self._visitorId = visitorService.getVisitorId()
         super.init()
     }
 
     @objc
     public func clearUser() {
-        identifiers = [:]
-        visitorId = visitorService.createNewVisitorId()
+        // Keep visitor-id generation inside the lock so the UserDefaults write
+        // order matches the in-memory swap order. If two threads race here and
+        // we generate outside the lock, the last write to disk could disagree
+        // with the last value of `_visitorId`, leaving the next app launch with
+        // a stale visitor id.
+        lock.withLock {
+            _identifiers = [:]
+            _visitorId = visitorService.createNewVisitorId()
+        }
     }
 
     @objc
     public func mergeIdentifiers(_ newIdentifiers: [String: Any]) {
         validate(identifiers: newIdentifiers)
-
-        var currentIdentifiers = identifiers
-        // In case of a key conflict, the new value from newIdentifiers should be used.
-        currentIdentifiers.merge(newIdentifiers) { (_, new) in new }
-        identifiers = currentIdentifiers
+        lock.withLock {
+            // In case of a key conflict, the new value from newIdentifiers should be used.
+            _identifiers.merge(newIdentifiers) { (_, new) in new }
+        }
     }
 }
 

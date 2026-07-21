@@ -13,7 +13,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.13'
+  pod 'attentive-ios-sdk', '2.0.15'
 end
 ```
 
@@ -58,6 +58,24 @@ See the [Bonni App](https://github.com/attentive-mobile/attentive-ios-sdk/tree/m
 
 > [!IMPORTANT]
 > Please refrain from using any internal or undocumented classes or methods as they may change between releases.
+
+### Setup with an AI coding agent
+
+If you use Claude Code, Cursor, Copilot, Codex, or another AI coding agent, you can have the agent walk you through setup. Point it at [`AGENTS.md`](./AGENTS.md) in this repo — it's a step-by-step integration guide written for agents that handles SPM/CocoaPods wiring, `AppDelegate` initialization, and an interactive push-setup flow (APNs entitlement detection, `UNUserNotificationCenterDelegate` hooks, optional Notification Service Extension, and deep-link routing).
+
+**To trigger the flow**, open your project in your agent of choice and paste a prompt like:
+
+> Integrate the Attentive iOS SDK into this app. Follow the guide at https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/AGENTS.md top-to-bottom and ask me any questions it tells you to ask before writing code.
+
+The agent will collect your Attentive domain, inspect the project (dependency manager, app lifecycle, deployment target), add the dependency, wire up `ATTNSDK.initialize` and `ATTNEventTracker.setup` in your `AppDelegate`, and then ask whether you want push notifications enabled before going further.
+
+**What the agent flow intentionally does not do:**
+
+- **`identify` / `clearUser` / `updateUser` wiring.** These hook into your login, logout, and account-switch flows, which are sensitive auth-adjacent code paths. You should decide where they go.
+- **Event recording (`ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProductViewEvent`, `ATTNCustomEvent`).** Where and how you fire these is highly domain-specific (your checkout, cart, and PDP code is yours), so the agent leaves them to you.
+- **Showing Creatives.** Creatives are optional functionality, so the agent doesn't wire them up by default.
+
+For all of these, follow the relevant sections of this README.
 
 ### SDK Logging
 
@@ -107,8 +125,45 @@ ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain"];
 
 ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"debug"];
 
-[ATTNEventTracker setupWithSDk:sdk];
+[ATTNEventTracker setupWithSdk:sdk];
 ```
+
+### Opting out of push (for apps that don't use Attentive for push)
+
+If another provider owns push on your app, pass `pushEnabled: false` at init. The SDK will then:
+
+- **Not** request push permission, register with APNs, or store any push token.
+- **Not** observe `UIApplication.didBecomeActiveNotification`, so `handleRegularOpen` is never fired automatically.
+- Treat every push entry point (`registerForPushNotifications`, `registerDeviceToken`, `failedToRegisterForPush`, `handleRegularOpen`, `handleForegroundPush`, `handlePushOpen`) as a no-op if you call them.
+- Continue to support: `identify` and `clearUser`, events (Step 3), email/SMS subscriptions (Step 5), and creatives (Step 6).
+
+> [!NOTE]
+> **`updateUser` currently requires a push token.** `updateUser(email:phone:callback:)` will abort with `ATTNSDKError.missingPushToken` when no token is available, which will always be the case with `pushEnabled: false`. Use `clearUser()` followed by `identify(...)` to switch users on non-push installs until this is relaxed in a future SDK release.
+
+Email/SMS opt-in and opt-out (Step 5) still work: with `pushEnabled: false`, requests are sent immediately without a push token (rather than queueing until one is available, which is the push-enabled behavior).
+
+The default is `pushEnabled: true`; only set this to `false` if Attentive is not your push provider.
+
+#### Swift
+```swift
+ATTNSDK.initialize(domain: "myCompanyDomain", mode: .production, pushEnabled: false) { result in
+  switch result {
+  case .success(let sdk):
+    self.attentiveSdk = sdk
+    ATTNEventTracker.setup(with: sdk)
+  case .failure(let error):
+    print("Attentive SDK failed to initialize: \(error)")
+  }
+}
+```
+
+#### Objective-C
+```objective-c
+ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"myCompanyDomain" mode:@"production" pushEnabled:NO];
+[ATTNEventTracker setupWithSdk:sdk];
+```
+
+When `pushEnabled` is `false`, you can skip **Step 4 - Integrate With Push** entirely; the calls in that section are no-ops in this mode.
 
 ## Step 2 - Identify the current user
 
@@ -380,6 +435,9 @@ ATTNCustomEvent* customEvent = [[ATTNCustomEvent alloc] initWithType:@"Concert V
 ```
 
 ## Step 4 - Integrate With Push
+
+> If Attentive is not your push provider, initialize the SDK with `pushEnabled: false` and skip this step — see [Opting out of push](#opting-out-of-push-for-apps-that-dont-use-attentive-for-push) under Step 1.
+
 #### Swift
 
 Show push permission prompt:

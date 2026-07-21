@@ -36,12 +36,11 @@ class CartViewController: UIViewController {
         super.viewDidLoad()
         
         title = "My Cart"
-        view.backgroundColor = .white
-        navigationController?.navigationBar.tintColor = .black
+        view.backgroundColor = .systemBackground
+        navigationController?.navigationBar.tintColor = .label
         setupSummaryView()
         setupTableView()
         setupCheckoutButton()
-        
     }
     
     private func setupTableView() {
@@ -51,11 +50,11 @@ class CartViewController: UIViewController {
         tableView.register(CartTableViewCell.self, forCellReuseIdentifier: "CartCell")
         tableView.rowHeight = 130
         tableView.separatorStyle = .singleLine
-        tableView.separatorColor = .black
+        tableView.separatorColor = .separator
         tableView.separatorInset = .init(top: 0, left: 8, bottom: 0, right: 0)
-        
+
         view.addSubview(tableView)
-        
+
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
@@ -72,9 +71,9 @@ class CartViewController: UIViewController {
 
         let couponButton = UIButton(type: .system)
         couponButton.setTitle("Apply Coupon", for: .normal)
-        couponButton.tintColor = .black
+        couponButton.tintColor = .label
         couponButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        couponButton.layer.borderColor = UIColor.black.cgColor
+        couponButton.layer.borderColor = UIColor.label.cgColor
         couponButton.layer.borderWidth = 1
         couponButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -133,7 +132,7 @@ class CartViewController: UIViewController {
         totalLabel.font    = mediumFont
         totalValueLabel.font = mediumFont;     totalValueLabel.textAlignment = .right
 
-        separator.backgroundColor = .black
+        separator.backgroundColor = .separator
 
         // add summaryView
         view.addSubview(summaryView)
@@ -176,11 +175,11 @@ class CartViewController: UIViewController {
     private func setupCheckoutButton() {
         let checkoutButton = UIButton(type: .system)
         checkoutButton.setTitle("CHECK OUT", for: .normal)
-        checkoutButton.tintColor = .black
+        checkoutButton.tintColor = .systemBackground
 
         checkoutButton.titleLabel?.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        checkoutButton.backgroundColor = .black
-        checkoutButton.setTitleColor(.white, for: .normal)
+        checkoutButton.backgroundColor = .label
+        checkoutButton.setTitleColor(.systemBackground, for: .normal)
         //checkoutButton.layer.cornerRadius = 10
         checkoutButton.addTarget(self, action: #selector(checkoutTapped), for: .touchUpInside)
         

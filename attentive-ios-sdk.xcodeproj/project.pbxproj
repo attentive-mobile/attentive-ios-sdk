@@ -19,11 +19,17 @@
 		0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */; };
 		0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */; };
 		0AE51BF22F7D8200004CC16E /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 0AE51BF32F7D8200004CC16E /* SnapshotTesting */; };
+		0AACCF0A2FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */; };
+		54226504E51EC95F3B2E536D /* HTTPURLResponse+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7CCF9D9D01AB01BB9BA5D /* HTTPURLResponse+Extension.swift */; };
 		58332EDD292EC25500B1ECF3 /* attentive-ios-sdk.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */; };
 		58332EE0292EC26000B1ECF3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDE292EC26000B1ECF3 /* README.md */; };
 		58332EE1292EC26000B1ECF3 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 58332EDF292EC26000B1ECF3 /* LICENSE */; };
 		58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58B01AB6294D44140001CEBF /* libOCMock.a */; };
 		58D52E1D292EC52B00CF32DE /* ATTNSDKFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */; };
+		7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */; };
+		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
+		A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */; };
+		A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */; };
 		F934CE262D495029003021C3 /* ATTNWebViewHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */; };
 		F939F2462D64DF75002CC012 /* ATTNCreativeStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */; };
 		F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */; };
@@ -60,6 +66,7 @@
 		0AE00021410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */; };
 		0AE0001F411A1AAC00563599 /* ATTNInboxMarkUnreadAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00020411A1AAC00563599 /* ATTNInboxMarkUnreadAPITests.swift */; };
 		FB2F35B12C18CFFA0016CAE8 /* ATTNSDKFramework.podspec in Resources */ = {isa = PBXBuildFile; fileRef = FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */; };
+		FB314CFA0001000000000001 /* ATTNSDKConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */; };
 		FB35C1792C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */; };
 		FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */; };
 		FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */; };
@@ -145,6 +152,7 @@
 		0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Strings.swift"; sourceTree = "<group>"; };
 		0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStyle.swift; sourceTree = "<group>"; };
 		0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSnapshotTestCase.swift; sourceTree = "<group>"; };
+		0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPersistentStorageMock.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		58332EDC292EC25500B1ECF3 /* attentive-ios-sdk.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "attentive-ios-sdk.podspec"; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		58332EDE292EC26000B1ECF3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -164,7 +172,12 @@
 		58B01AC3294D44140001CEBF /* OCMConstraint.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OCMConstraint.h; sourceTree = "<group>"; };
 		58B01AC4294D44140001CEBF /* OCMArg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OCMArg.h; sourceTree = "<group>"; };
 		58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "attentive-ios-sdk Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ATTNErrorTests.swift; sourceTree = "<group>"; };
+		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
+		A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+Concurrency.swift"; sourceTree = "<group>"; };
+		A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+MarketingSubscriptions.swift"; sourceTree = "<group>"; };
 		DCF28F9F2D692A6A00A7164F /* ATTNWebViewHandlerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerUITests.swift; sourceTree = "<group>"; };
+		EAA7CCF9D9D01AB01BB9BA5D /* HTTPURLResponse+Extension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HTTPURLResponse+Extension.swift"; sourceTree = "<group>"; };
 		F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerTests.swift; sourceTree = "<group>"; };
 		F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeStateManager.swift; sourceTree = "<group>"; };
 		F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKExtensionV2Tests.swift; sourceTree = "<group>"; };
@@ -201,6 +214,7 @@
 		0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMarkReadAPITests.swift; sourceTree = "<group>"; };
 		0AE00020411A1AAC00563599 /* ATTNInboxMarkUnreadAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMarkUnreadAPITests.swift; sourceTree = "<group>"; };
 		FB2F35AF2C18CFFA0016CAE8 /* ATTNSDKFramework.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ATTNSDKFramework.podspec; sourceTree = "<group>"; };
+		FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKConfiguration.swift; sourceTree = "<group>"; };
 		FB35C1782C0E030E009FA048 /* ATTNCreativeTriggerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeTriggerStatus.swift; sourceTree = "<group>"; };
 		FB35C17A2C0E0353009FA048 /* ATTNIdentifierType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNIdentifierType.swift; sourceTree = "<group>"; };
 		FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNConstants.swift; sourceTree = "<group>"; };
@@ -403,6 +417,7 @@
 		FB2983D22C0F73990039759C /* Mocks */ = {
 			isa = PBXGroup;
 			children = (
+				0AACCF092FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift */,
 				FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */,
 				FB2983D12C0F73990039759C /* ATTNUserAgentBuilderMock.swift */,
 				FB90EF0C2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift */,
@@ -426,6 +441,7 @@
 				FB2983F22C0F75600039759C /* TestCases */,
 				FB2983D32C0F73990039759C /* Doubles */,
 				FB2984032C0F9D650039759C /* ATTNTestEventUtils.swift */,
+				A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */,
 				FB56D4DF2C20923800AF7530 /* Extensions */,
 			);
 			path = Tests;
@@ -464,6 +480,7 @@
 				FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */,
 				FB86C03D2C40611A00E35580 /* ATTNAddToCartEventTests.swift */,
 				FB86C03F2C40669400E35580 /* ATTNProductViewEventTests.swift */,
+				727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */,
 			);
 			path = TestCases;
 			sourceTree = "<group>";
@@ -510,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				FBA9F9FC2C0A77AB00C65024 /* ATTNSDK.swift */,
+				A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */,
 				FBA9F9FD2C0A77AB00C65024 /* ATTNSDKMode.swift */,
 			);
 			path = SDK;
@@ -545,6 +563,7 @@
 				FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */,
 				FBA9F9E72C0A77AB00C65024 /* Dictionary+Extension.swift */,
 				FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */,
+				A9D1C312A0001000000000002 /* NSLock+Extension.swift */,
 				FB35C18A2C0E3F27009FA048 /* ATTNEvent+Extension.swift */,
 				FB35C18C2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift */,
 				FB35C1922C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift */,
@@ -553,6 +572,7 @@
 				FB35C1982C0E5365009FA048 /* ATTNInfoEvent+Extension.swift */,
 				FB35C19A2C0E53F9009FA048 /* ATTNCustomEvent+Extension.swift */,
 				FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */,
+				EAA7CCF9D9D01AB01BB9BA5D /* HTTPURLResponse+Extension.swift */,
 			);
 			path = Extension;
 			sourceTree = "<group>";
@@ -611,6 +631,7 @@
 				FBA9F9EE2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift */,
 				FBA9F9EF2C0A77AB00C65024 /* ATTNVisitorService.swift */,
 				FB35C17C2C0E039E009FA048 /* ATTNConstants.swift */,
+				FB314CFA0002000000000002 /* ATTNSDKConfiguration.swift */,
 				FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */,
 				FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */,
 				F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */,
@@ -774,7 +795,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    swiftlint\nelse\n    echo \"error: SwiftLint is required but not installed. Run 'brew install swiftlint' to install it.\"\n    exit 1\nfi\n";
+			shellScript = "if [ \"$CI\" = \"true\" ]\nthen\n    echo \"Skipping SwiftLint build phase in CI (handled by dedicated lint job)\"\n    exit 0\nfi\n\nif [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    swiftlint\nelse\n    echo \"error: SwiftLint is required but not installed. Run 'brew install swiftlint' to install it.\"\n    exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -802,6 +823,7 @@
 				0A411B432F31DE0400563599 /* InboxResponse.swift in Sources */,
 				0AE0001A377A1AAA00563599 /* InboxUnreadCountResponse.swift in Sources */,
 				0AE0001D411A1AAA00563599 /* UpdateReadStatusResponse.swift in Sources */,
+				A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */,
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,
@@ -840,15 +862,18 @@
 				FB65536C2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift in Sources */,
 				FB84E3032C3F30FF0011936B /* ATTNDeeplinkHandling.swift in Sources */,
 				FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */,
+				FB314CFA0001000000000001 /* ATTNSDKConfiguration.swift in Sources */,
 				F96E25382DD69244005AE2E3 /* ATTNLaunchManager.swift in Sources */,
 				FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */,
 				FBA9FA082C0A77AB00C65024 /* Dictionary+Extension.swift in Sources */,
 				FBA9FA152C0A77AB00C65024 /* ATTNOrder.swift in Sources */,
 				FBA9FA1A2C0A77AB00C65024 /* ATTNSDK.swift in Sources */,
+				A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */,
 				FBA9FA0E2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift in Sources */,
 				0A83DEAE2F21A1AA003FD456 /* InboxManager.swift in Sources */,
 				0A83DEAF2F21A1AA003FD456 /* Message.swift in Sources */,
 				FBA9FA0C2C0A77AB00C65024 /* ATTNParameterValidation.swift in Sources */,
+				54226504E51EC95F3B2E536D /* HTTPURLResponse+Extension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -872,6 +897,7 @@
 				FB2983FA2C0F80A30039759C /* ATTNPersistentStorageTests.swift in Sources */,
 				0AD0CE052F62A38000ABCDEF /* ATTNLogBufferTests.swift in Sources */,
 				F9CED4652DEF74D200780536 /* ATTNRetryingNetworkClientTests.swift in Sources */,
+				0AACCF0A2FFEF3FC00C0B50D /* ATTNPersistentStorageMock.swift in Sources */,
 				FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */,
 				FB2983E52C0F73990039759C /* ATTNUserAgentBuilderMock.swift in Sources */,
 				FB2984082C0FAE040039759C /* ATTNAPITests.swift in Sources */,
@@ -893,6 +919,8 @@
 				F952B5B62EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift in Sources */,
 				F952B5B72EC2915000E0E69D /* ATTNV2EventModelsTests.swift in Sources */,
 				FB2984042C0F9D650039759C /* ATTNTestEventUtils.swift in Sources */,
+				A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */,
+				7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
