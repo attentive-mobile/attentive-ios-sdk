@@ -52,11 +52,30 @@ final class DebugLogOverlay {
 /// A window that ignores taps on its empty regions, so the underlying app keeps
 /// receiving touches everywhere except on the LOGS button and the floating panel.
 private final class OverlayWindow: UIWindow {
+    /// Never become key: the app's main window must keep keyboard focus, and code
+    /// that resolves the key window (alerts, creatives) must not land on the overlay.
+    override var canBecomeKey: Bool { false }
+
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let view = super.hitTest(point, with: event)
         if view === rootViewController?.view { return nil }
         return view
     }
+}
+
+/// Clamps a proposed center so at least `minVisible` points of the view stay inside
+/// `bounds` on each axis, keeping dragged chrome reachable.
+private func clampedCenter(_ proposed: CGPoint, viewSize: CGSize, bounds: CGRect, minVisible: CGFloat = 24) -> CGPoint {
+    let visibleX = min(minVisible, viewSize.width)
+    let visibleY = min(minVisible, viewSize.height)
+    let minX = bounds.minX + visibleX - viewSize.width / 2
+    let maxX = bounds.maxX - visibleX + viewSize.width / 2
+    let minY = bounds.minY + visibleY - viewSize.height / 2
+    let maxY = bounds.maxY - visibleY + viewSize.height / 2
+    return CGPoint(
+        x: min(max(proposed.x, minX), maxX),
+        y: min(max(proposed.y, minY), maxY)
+    )
 }
 
 private final class OverlayContainerViewController: UIViewController {
@@ -87,12 +106,17 @@ private final class OverlayContainerViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // Preserve user-dragged position across rotations.
-        guard !didPositionToggle else { return }
-        didPositionToggle = true
-        let bounds = view.bounds
-        let safeBottom = view.safeAreaInsets.bottom
-        toggleButton.frame.origin = CGPoint(x: bounds.width - 76, y: bounds.height - safeBottom - 144)
+        if !didPositionToggle {
+            didPositionToggle = true
+            let bounds = view.bounds
+            let safeBottom = view.safeAreaInsets.bottom
+            toggleButton.frame.origin = CGPoint(x: bounds.width - 76, y: bounds.height - safeBottom - 144)
+        } else {
+            // Preserve user-dragged positions across rotations, but re-clamp so a
+            // position that was on-screen in the old orientation stays reachable.
+            toggleButton.center = clampedCenter(toggleButton.center, viewSize: toggleButton.bounds.size, bounds: view.bounds)
+            panel.center = clampedCenter(panel.center, viewSize: panel.bounds.size, bounds: view.bounds)
+        }
     }
 
     @objc private func togglePanel() {
@@ -104,7 +128,8 @@ private final class OverlayContainerViewController: UIViewController {
     @objc private func handleDrag(_ gesture: UIPanGestureRecognizer) {
         guard let target = gesture.view, let parent = target.superview else { return }
         let translation = gesture.translation(in: parent)
-        target.center = CGPoint(x: target.center.x + translation.x, y: target.center.y + translation.y)
+        let proposed = CGPoint(x: target.center.x + translation.x, y: target.center.y + translation.y)
+        target.center = clampedCenter(proposed, viewSize: target.bounds.size, bounds: parent.bounds)
         gesture.setTranslation(.zero, in: parent)
     }
 }
@@ -298,7 +323,8 @@ private final class DebugLogPanelView: UIView {
     @objc private func handleDrag(_ gesture: UIPanGestureRecognizer) {
         guard let parent = superview else { return }
         let translation = gesture.translation(in: parent)
-        center = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
+        let proposed = CGPoint(x: center.x + translation.x, y: center.y + translation.y)
+        center = clampedCenter(proposed, viewSize: bounds.size, bounds: parent.bounds)
         gesture.setTranslation(.zero, in: parent)
     }
 }
