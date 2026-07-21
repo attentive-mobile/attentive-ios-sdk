@@ -14,6 +14,7 @@ class NSURLSessionMock: URLSession {
     var didCallInboxMessagesApi = false
     var didCallInboxMarkReadApi = false
     var didCallInboxMarkUnreadApi = false
+    var didCallInboxClickedApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
 
@@ -40,6 +41,12 @@ class NSURLSessionMock: URLSession {
     var inboxMarkUnreadStatusCode: Int = 200
     var inboxMarkUnreadResponseBody: Data = Data("{\"messages\": [], \"unread_count\": 0}".utf8)
     var inboxMarkUnreadError: Error?
+
+    /// Override the response returned for the inbox click-tracking endpoint.
+    /// Default: 204 No Content (per RFC).
+    var inboxClickedStatusCode: Int = 204
+    var inboxClickedResponseBody: Data = Data()
+    var inboxClickedError: Error?
 
     override init() {
         super.init()
@@ -86,6 +93,16 @@ class NSURLSessionMock: URLSession {
                 let body = inboxMarkUnreadResponseBody
                 let status = inboxMarkUnreadStatusCode
                 let error = inboxMarkUnreadError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                }
+            }
+
+            if url.absoluteString.hasSuffix("/inbox/events/clicked") {
+                didCallInboxClickedApi = true
+                let body = inboxClickedResponseBody
+                let status = inboxClickedStatusCode
+                let error = inboxClickedError
                 return NSURLSessionDataTaskMock { _, _, _ in
                     completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }

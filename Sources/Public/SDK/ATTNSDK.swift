@@ -317,6 +317,13 @@ public final class ATTNSDK: NSObject {
         await materializedInboxManager().delete(messageID)
     }
 
+    /// Reports a message click to the tracking endpoint and flips the message's local read
+    /// state. Hosts rendering a custom inbox UI should call this on tap; hosts using the
+    /// built-in `inboxView()` get this wired up automatically.
+    public func markClicked(for messageID: Message.ID) async {
+        await materializedInboxManager().markClicked(messageID)
+    }
+
     // MARK: Push Permissions & Token
 
     /// Ask the user for push‐notification permission and register with APNs if granted.

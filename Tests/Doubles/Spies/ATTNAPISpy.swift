@@ -274,4 +274,28 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         if let error = stubbedMarkUnreadError { throw error }
         return stubbedMarkUnreadResponse
     }
+
+    // MARK: - Mark Messages Clicked
+    private(set) var markMessageClickedWasCalled = false
+    private(set) var markMessageClickedCallCount = 0
+    private(set) var lastMarkClickedPushToken: String?
+    private(set) var lastMarkClickedVisitorId: String?
+    private(set) var lastMarkClickedMessageId: String?
+    private(set) var lastMarkClickedActionURL: String?
+    var stubbedMarkClickedError: Error?
+
+    func markMessageClicked(
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws {
+        markMessageClickedWasCalled = true
+        markMessageClickedCallCount += 1
+        lastMarkClickedPushToken = pushToken
+        lastMarkClickedVisitorId = visitorId
+        lastMarkClickedMessageId = messageId
+        lastMarkClickedActionURL = actionURL
+        if let error = stubbedMarkClickedError { throw error }
+    }
 }

@@ -111,4 +111,14 @@ protocol ATTNAPIProtocol {
         visitorId: String,
         messageIds: [String]
     ) async throws -> UpdateReadStatusResponse
+
+    /// Reports a message click to `POST /inbox/events/clicked`. Fire-and-forget from the caller's
+    /// perspective — the endpoint returns 204 No Content. Throws on transport failure, non-2xx
+    /// status, or bad URL so the caller can decide whether to surface the error.
+    func markMessageClicked(
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws
 }

@@ -70,12 +70,12 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
+        XCTAssertEqual(json["c"] as? String, testDomain, "server requires clientDomainPrefix for company resolution")
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
         // Push tokens are namespaced by transport for the inbox backend.
         XCTAssertEqual(json["push_token"] as? String, "apns:abc123devicetoken")
         XCTAssertEqual(json["message_ids"] as? [String], ["msg-1", "msg-2"])
-        // Contract carries only visitor_id / push_token / message_ids — no domain, email, phone.
-        XCTAssertNil(json["c"])
+        // Contract does not carry email/phone.
         XCTAssertNil(json["email"])
         XCTAssertNil(json["phone"])
     }
@@ -88,6 +88,7 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
 
         XCTAssertNil(json["push_token"])
+        XCTAssertEqual(json["c"] as? String, testDomain, "clientDomainPrefix is required even when push_token is omitted")
         XCTAssertEqual(json["visitor_id"] as? String, userIdentity.visitorId)
     }
 
