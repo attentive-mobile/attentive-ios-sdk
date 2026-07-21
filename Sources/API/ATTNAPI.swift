@@ -535,6 +535,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Marking inbox messages read - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
 
         let body = UpdateReadStatusRequest(
+            clientDomainPrefix: domain,
             visitorId: visitorId,
             pushToken: Self.inboxPushToken(pushToken),
             messageIds: messageIds
@@ -594,6 +595,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Marking inbox messages unread - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
 
         let body = UpdateReadStatusRequest(
+            clientDomainPrefix: domain,
             visitorId: visitorId,
             pushToken: Self.inboxPushToken(pushToken),
             messageIds: messageIds
