@@ -53,9 +53,10 @@ actor InboxManager {
     private var isRefreshingFirstPage: Bool = false
 
     /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read /
-    /// mark-unread API responses (see `applyReadStatusResponse`). Reads should go through the
-    /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
-    /// a stale 0.
+    /// mark-unread API responses (see `applyReadStatusResponse`). `delete(_:)` also adjusts it
+    /// locally because the delete endpoint's response omits the count. Reads should go through
+    /// the `unreadCount` accessor, which awaits the init-time refresh so the first read never
+    /// returns a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
@@ -72,6 +73,13 @@ actor InboxManager {
     /// Monotonic counter used to discard responses from message refresh/pagination calls that
     /// have been superseded by a newer identity or a newer top-level `refresh()`.
     private var messagesGeneration: UInt = 0
+
+    /// Monotonic counter bumped every time the messages list is wholesale replaced from an
+    /// authoritative source (successful refresh or identity reset). Distinct from
+    /// `messagesGeneration`, which bumps at the *start* of a refresh — so a refresh that fails
+    /// mid-DELETE would bump `messagesGeneration` but not `messagesReplacedCount`, and the
+    /// delete's revert path should still apply. Read only by `delete(_:)` for that reason.
+    private var messagesReplacedCount: UInt = 0
 
     var allMessages: [Message] {
         get async {
@@ -394,10 +402,54 @@ actor InboxManager {
         }
     }
 
-    func delete(_ messageID: Message.ID) {
+    /// Deletes a message. Optimistically removes it locally, then issues the server delete.
+    /// On failure the local removal is reverted (message re-inserted at its original index)
+    /// so the UI reflects true state.
+    func delete(_ messageID: Message.ID) async {
+        guard let removedMessage = messagesByID[messageID],
+              let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
+
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox delete: empty visitor ID")
+            return
+        }
+
         messagesByID.removeValue(forKey: messageID)
-        messageOrder.removeAll { $0 == messageID }
+        messageOrder.remove(at: originalIndex)
+        // The delete endpoint returns only `{ message_id }` — no authoritative unread count
+        // like mark-read/unread's `UpdateReadStatusResponse`. Decrement locally so the badge
+        // stays honest until the next refresh; revert on failure below.
+        let didDecrementUnreadCount = !removedMessage.isRead && storedUnreadCount > 0
+        if didDecrementUnreadCount {
+            storedUnreadCount -= 1
+        }
         send(.loaded(orderedMessagesSnapshot()))
+
+        // Snapshot the *replaced* counter, not `messagesGeneration`, so the revert path drops
+        // only when a successful refresh or identity reset actually replaced the local list —
+        // a refresh that starts and fails during the DELETE preserves the current (already-
+        // optimistically-removed) state, and we still need to revert.
+        let replacedCountAtStart = messagesReplacedCount
+
+        do {
+            try await api.deleteInboxMessage(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageId: messageID
+            )
+        } catch {
+            Loggers.network.error("Failed to delete inbox message: \(error.localizedDescription, privacy: .public)")
+            guard replacedCountAtStart == messagesReplacedCount else { return }
+            guard messagesByID[messageID] == nil else { return }
+            messagesByID[messageID] = removedMessage
+            let insertIndex = min(originalIndex, messageOrder.count)
+            messageOrder.insert(messageID, at: insertIndex)
+            if didDecrementUnreadCount {
+                storedUnreadCount += 1
+            }
+            send(.loaded(orderedMessagesSnapshot()))
+        }
     }
 
     /// Reports a message tap. Delegates the read side to `markRead` (server POST + optimistic
@@ -449,6 +501,7 @@ actor InboxManager {
     func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
+        messagesReplacedCount &+= 1
         storedUnreadCount = 0
         messagesByID = [:]
         messageOrder = []
@@ -511,6 +564,7 @@ extension InboxManager {
     private func replaceMessages(with messages: [Message]) {
         messagesByID = [:]
         messageOrder = []
+        messagesReplacedCount &+= 1
         appendMessages(messages)
     }
 

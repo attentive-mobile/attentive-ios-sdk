@@ -494,10 +494,13 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0, "Unknown message ID must not hit the network")
     }
 
-    func testDelete_removesMessageFromList() async {
+    // MARK: - Delete
+
+    func testDelete_success_removesLocallyAndCallsApi() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
         ]
+
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
 
@@ -505,6 +508,158 @@ final class InboxManagerTests: XCTestCase {
 
         let messages = await manager.allMessages
         XCTAssertEqual(messages.map(\.id), ["2"])
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+        XCTAssertEqual(apiSpy.lastDeleteMessageId, "1")
+        XCTAssertEqual(apiSpy.lastDeleteVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastDeletePushToken, "fcm:abc")
+    }
+
+    func testDelete_failure_revertsAtOriginalPosition() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [
+                    makeMessage(id: "1"),
+                    makeMessage(id: "2"),
+                    makeMessage(id: "3")
+                ],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("2")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2", "3"], "Failed delete must revert to the original ordering")
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+    }
+
+    func testDelete_identityChangeDuringRequest_dropsRevert() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Identity reset lands while the DELETE is in flight — the revert path must not
+        // resurrect the removed message into the fresh (empty) list.
+        apiSpy.onDeleteInboxMessage = { await manager.resetForIdentityChange() }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.isEmpty, "Revert must be dropped when the generation has moved past this call")
+    }
+
+    func testDelete_failedRefreshDuringRequest_stillReverts() async {
+        // A refresh that starts mid-DELETE bumps `messagesGeneration` but if it fails, it
+        // preserves the current (already-optimistically-removed) list. The revert must still
+        // apply — otherwise the row is hidden until the next successful refresh.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        apiSpy.onDeleteInboxMessage = { [weak apiSpy] in
+            // Simulate a pull-to-refresh landing mid-delete that also fails.
+            apiSpy?.stubbedInboxMessagesError = NSError(domain: "test", code: -2)
+            await manager.refresh()
+        }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"], "A failed refresh mid-DELETE must not swallow the revert")
+    }
+
+    func testDelete_unreadMessage_success_decrementsUnreadCount() async {
+        // The delete endpoint returns only `{ message_id }`, so the SDK maintains the badge
+        // locally: deleting an unread message must decrement the stored count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2, "Deleting an unread message must decrement the badge")
+    }
+
+    func testDelete_readMessage_success_leavesUnreadCountUntouched() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 3, "Deleting an already-read message must not change the badge")
+    }
+
+    func testDelete_unreadMessage_failure_revertsUnreadCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 3, "Failed delete of an unread message must revert the badge decrement")
+    }
+
+    func testDelete_unreadMessage_zeroCount_doesNotUnderflow() async {
+        // Defensive: if the local count is somehow already 0 (out-of-sync with server truth),
+        // deleting an unread message must not push it to -1.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Unread count must clamp at 0")
+    }
+
+    func testDelete_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("does-not-exist")
+
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 0, "Unknown message ID must not hit the network")
     }
 
     // MARK: - Identity change

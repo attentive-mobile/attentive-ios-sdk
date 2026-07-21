@@ -445,6 +445,32 @@ final class ATTNAPI: ATTNAPIProtocol {
         try await postInbox(path: "/inbox/events/clicked", payload: payload)
     }
 
+    /// Deletes a single inbox message on the server.
+    ///
+    /// `DELETE /inbox/messages/{message_id}` — identifier-based (visitor_id + push_token),
+    /// scoped by `c` (domain). The body carries the identifiers because DELETE with a JSON
+    /// body is what the RFC contract specifies for this endpoint.
+    func deleteInboxMessage(
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws {
+        Loggers.network.debug("Deleting inbox message - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Message ID: \(messageId, privacy: .public)")
+        // The message ID occupies a single path segment. `.urlPathAllowed` leaves `/` unescaped,
+        // which would let an ID like "a/b" address the wrong route — escape it explicitly.
+        let encodedId = messageId.addingPercentEncoding(withAllowedCharacters: Self.messageIdAllowedCharacters) ?? messageId
+        let payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        _ = try await sendInboxRaw(path: "/inbox/messages/\(encodedId)", method: "DELETE", payload: payload)
+    }
+
+    /// URL-path-segment safe characters: `.urlPathAllowed` minus `/` so a message ID that
+    /// contains a slash becomes a single encoded segment (`a/b` → `a%2Fb`).
+    private static let messageIdAllowedCharacters: CharacterSet = {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/")
+        return allowed
+    }()
+
     /// Builds the identifier fields shared by every inbox endpoint: `c` (domain), `visitor_id`,
     /// and the optional `push_token` / `email` / `phone`. Push token is prefixed with `apns:`
     /// so the server can route it to APNs (Android sends `fcm:...`).
@@ -468,15 +494,14 @@ final class ATTNAPI: ATTNAPIProtocol {
         return payload
     }
 
-    /// Shared POST + JSON-decode scaffolding for inbox endpoints that return a decodable body.
-    /// Maps non-2xx status to `inboxRequestFailed`, non-HTTP responses and decode failures to
-    /// `inboxResponseDecodeFailed`, and bad URLs to `badURL`. All other transport errors propagate.
+    /// Shared JSON-decode wrapper for inbox endpoints that return a decodable body. Maps decode
+    /// failures to `inboxResponseDecodeFailed`; other error mapping happens in `sendInboxRaw`.
     private func postInboxJSON<T: Decodable>(
         path: String,
         payload: [String: Any],
         decoder: JSONDecoder
     ) async throws -> T {
-        let data = try await postInboxRaw(path: path, payload: payload)
+        let data = try await sendInboxRaw(path: path, method: "POST", payload: payload)
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
@@ -488,26 +513,29 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// Shared POST scaffolding for inbox endpoints that return no body (e.g. 204 No Content).
     /// Same error mapping as `postInboxJSON`; response body (if any) is discarded.
     private func postInbox(path: String, payload: [String: Any]) async throws {
-        _ = try await postInboxRaw(path: path, payload: payload)
+        _ = try await sendInboxRaw(path: path, method: "POST", payload: payload)
     }
 
-    /// Internal worker for `postInboxJSON` / `postInbox`. Builds and fires the request, maps
-    /// transport / non-2xx / non-HTTP failures to typed `ATTNError` cases, and returns the raw
-    /// response body for the caller to decode (or discard).
-    private func postInboxRaw(path: String, payload: [String: Any]) async throws -> Data {
+    /// Internal worker for the inbox helpers. Builds the URL, sets the standard headers
+    /// (`Content-Type: application/json`, `x-datadog-sampling-priority: 1`) and a 15s timeout,
+    /// encodes `payload` as the body, sends the request with the given HTTP method, and
+    /// validates the response. Maps non-2xx to `inboxRequestFailed`, non-HTTP responses to
+    /// `inboxResponseDecodeFailed`, and bad URLs to `badURL`. All other transport errors
+    /// propagate. Returns the raw response body for the caller to decode (or discard).
+    private func sendInboxRaw(path: String, method: String, payload: [String: Any]) async throws -> Data {
         guard let url = URL(string: Self.inboxHost + path) else {
             Loggers.network.error("Invalid inbox URL for path \(path, privacy: .public)")
             throw ATTNError.badURL
         }
 
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = method
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
-        Loggers.network.debug("POST \(path, privacy: .public)")
+        Loggers.network.debug("\(method, privacy: .public) \(path, privacy: .public)")
         let (data, response) = try await dataTask(with: request)
 
         guard let http = response as? HTTPURLResponse else {
