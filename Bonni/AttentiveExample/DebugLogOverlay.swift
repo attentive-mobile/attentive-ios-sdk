@@ -16,13 +16,27 @@ import ATTNSDKFramework
 ///
 /// Owned by `SceneDelegate` for the lifetime of the scene; tear down with `uninstall()`.
 final class DebugLogOverlay {
+    /// Persisted user preference for whether the overlay chrome (the LOGS button) is
+    /// shown at all. Defaults to visible so QA builds expose the overlay without any
+    /// setup; toggle it from Bonni's Settings screen. Log capture keeps running while
+    /// hidden, so re-showing the overlay still has the full buffer history.
+    static var isVisible: Bool {
+        get { UserDefaults.standard.object(forKey: visibilityKey) as? Bool ?? true }
+        set {
+            UserDefaults.standard.set(newValue, forKey: visibilityKey)
+            NotificationCenter.default.post(name: .debugLogOverlayVisibilityChanged, object: nil)
+        }
+    }
+    private static let visibilityKey = "debugLogOverlayVisible"
+
     private let window: OverlayWindow
     private let streamTask: Task<Void, Never>
+    private var visibilityObserver: NSObjectProtocol?
 
     init(windowScene: UIWindowScene) {
         let window = OverlayWindow(windowScene: windowScene)
         window.windowLevel = .alert + 1
-        window.isHidden = false
+        window.isHidden = !Self.isVisible
         let containerVC = OverlayContainerViewController()
         window.rootViewController = containerVC
         self.window = window
@@ -37,16 +51,33 @@ final class DebugLogOverlay {
                 }
             }
         }
+
+        self.visibilityObserver = NotificationCenter.default.addObserver(
+            forName: .debugLogOverlayVisibilityChanged, object: nil, queue: .main
+        ) { [weak window] _ in
+            window?.isHidden = !Self.isVisible
+        }
     }
 
     func uninstall() {
         streamTask.cancel()
         window.isHidden = true
+        if let visibilityObserver {
+            NotificationCenter.default.removeObserver(visibilityObserver)
+            self.visibilityObserver = nil
+        }
     }
 
     deinit {
         streamTask.cancel()
+        if let visibilityObserver {
+            NotificationCenter.default.removeObserver(visibilityObserver)
+        }
     }
+}
+
+extension Notification.Name {
+    static let debugLogOverlayVisibilityChanged = Notification.Name("DebugLogOverlayVisibilityChanged")
 }
 
 /// A window that ignores taps on its empty regions, so the underlying app keeps

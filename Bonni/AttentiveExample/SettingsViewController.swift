@@ -149,6 +149,20 @@ class SettingsViewController: UIViewController {
         return devicetokenLabel
     }()
 
+    private let logOverlayLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Show SDK Log Overlay"
+        label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
+        label.numberOfLines = 1
+        return label
+    }()
+
+    private let logOverlaySwitch: UISwitch = {
+        let toggle = UISwitch()
+        toggle.isOn = DebugLogOverlay.isVisible
+        return toggle
+    }()
+
     private let addEmailButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Add email", for: .normal)
@@ -277,6 +291,12 @@ class SettingsViewController: UIViewController {
         stackView.addArrangedSubview(devicetokenLabel)
         stackView.addArrangedSubview(copyDeviceTokenButton)
 
+        let logOverlayRow = UIStackView(arrangedSubviews: [logOverlayLabel, logOverlaySwitch])
+        logOverlayRow.axis = .horizontal
+        logOverlayRow.spacing = 12
+        logOverlayRow.alignment = .center
+        stackView.addArrangedSubview(logOverlayRow)
+
         if let degular = UIFont(name: "DegularDisplay-Regular", size: 16) {
             let allButtons: [UIButton] = [
                 switchAccountButton,
@@ -339,6 +359,7 @@ class SettingsViewController: UIViewController {
         cartDeepLinkButton.addTarget(self, action: #selector(cartDeepLinkTapped), for: .touchUpInside)
         clearUserButton.addTarget(self, action: #selector(clearUserTapped), for: .touchUpInside)
         clearCookiesButton.addTarget(self, action: #selector(clearCookiesTapped), for: .touchUpInside)
+        logOverlaySwitch.addTarget(self, action: #selector(logOverlaySwitchChanged(_:)), for: .valueChanged)
 
         addEmailButton.addTarget(self, action: #selector(addEmailTapped), for: .touchUpInside)
         optInEmailButton.addTarget(self, action: #selector(optInEmailTapped), for: .touchUpInside)
@@ -516,6 +537,10 @@ class SettingsViewController: UIViewController {
     @objc private func clearUserTapped() {
         getAttentiveSdk().clearUser()
         showToast(with: "User cleared")
+    }
+
+    @objc private func logOverlaySwitchChanged(_ sender: UISwitch) {
+        DebugLogOverlay.isVisible = sender.isOn
     }
 
     @objc private func clearCookiesTapped() {
