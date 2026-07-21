@@ -435,12 +435,10 @@ final class ATTNAPI: ATTNAPIProtocol {
         actionURL: String?
     ) async throws {
         Loggers.network.debug("Reporting inbox click - Visitor ID: \(visitorId, privacy: .public), Message ID: \(messageId, privacy: .public)")
-        var payload: [String: Any] = [
-            "c": domain,
-            "visitor_id": visitorId,
-            "message_id": messageId
-        ]
-        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
+        // Reuse `inboxIdentityPayload` so the `apns:` prefix + empty-token omission live in one place.
+        // Click contract carries no email/phone.
+        var payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        payload["message_id"] = messageId
         if let actionURL = actionURL, !actionURL.isEmpty {
             payload["action_url"] = actionURL
         }

@@ -598,10 +598,52 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastMarkClickedActionURL, "myapp://cart")
     }
 
-    func testMarkClicked_flipsLocalReadState() async {
+    func testMarkClicked_flipsLocalReadStateAndFiresMarkRead() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(
                 messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "click must flip local read state via markRead")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1, "click must delegate the read side to markRead")
+    }
+
+    func testMarkClicked_blankActionURL_skipsClickPostButStillMarksRead() async {
+        // Server rejects blank action_url with 400; SDK must not POST. Read side still runs.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "click POST must be skipped when actionURL is blank")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1, "mark-read still runs regardless of actionURL")
+    }
+
+    func testMarkClicked_emptyActionURLString_skipsClickPost() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "   ", isRead: false)],
                 nextPageToken: nil
             )
         ]
@@ -610,8 +652,7 @@ final class InboxManagerTests: XCTestCase {
 
         await manager.markClicked("1")
 
-        let messages = await manager.allMessages
-        XCTAssertTrue(messages.first?.isRead ?? false, "click must flip local read state")
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "whitespace-only actionURL is treated as blank")
     }
 
     func testMarkClicked_alreadyRead_stillFiresApiButDoesNotDoubleEmit() async {
@@ -642,18 +683,24 @@ final class InboxManagerTests: XCTestCase {
     }
 
     func testMarkClicked_emptyVisitorId_skipsNetworkCall() async {
-        // Empty visitor: identityProvider returns visitorId="" so the manager should skip the call.
-        let manager = InboxManager(
-            api: apiSpy,
-            identityProvider: identityProvider(visitorId: "")
-        )
-        // Seed a message manually via the fetch path so `messagesByID` is non-empty. Since the
-        // init refresh short-circuits on empty visitorId, drive one directly.
+        // Seed a message via a real init fetch (visitorId present), then flip identity to empty
+        // via a mutable provider so `markClicked` finds the message but hits the empty-visitor
+        // guard. Waiting on `waitForLoadedState` avoids a timing-based sleep.
         apiSpy.stubbedInboxMessagesResponses = [
-            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x")],
+                nextPageToken: nil
+            )
         ]
-        // Give init a moment to short-circuit (no state transition), then attempt click.
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        let visitorIdBox = MutableString(value: "v_test")
+        let provider: InboxIdentityProvider = {
+            InboxIdentitySnapshot(visitorId: visitorIdBox.value, pushToken: "abc", email: nil, phone: nil)
+        }
+        let manager = InboxManager(api: apiSpy, identityProvider: provider)
+        _ = await waitForLoadedState(manager)
+
+        // Identity change: subsequent operations should see an empty visitor id.
+        visitorIdBox.value = ""
 
         await manager.markClicked("1")
 
@@ -661,13 +708,20 @@ final class InboxManagerTests: XCTestCase {
     }
 
     func testMarkClicked_apiFailure_isSwallowed() async {
+        // Message has an actionURL so the click POST is actually attempted; failure must not
+        // propagate to the caller and must not undo the mark-read flip (mark-read is stubbed
+        // to succeed independently).
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(
-                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x", isRead: false)],
                 nextPageToken: nil
             )
         ]
         apiSpy.stubbedMarkClickedError = NSError(domain: "test", code: -1)
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
@@ -675,8 +729,16 @@ final class InboxManagerTests: XCTestCase {
         // Must not throw or crash — errors are logged, not surfaced.
         await manager.markClicked("1")
 
-        // Local flip still happened even though the network call failed.
         let messages = await manager.allMessages
-        XCTAssertTrue(messages.first?.isRead ?? false)
+        XCTAssertTrue(messages.first?.isRead ?? false, "mark-read flip must survive a click POST failure")
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1, "click POST is attempted (actionURL non-empty)")
     }
+}
+
+/// Mutable reference container used by tests that need to flip an identity field between
+/// operations without rebuilding the manager. Tests run single-threaded so no locking is
+/// required; `@unchecked Sendable` satisfies the `@Sendable` closure requirement.
+private final class MutableString: @unchecked Sendable {
+    var value: String
+    init(value: String) { self.value = value }
 }
