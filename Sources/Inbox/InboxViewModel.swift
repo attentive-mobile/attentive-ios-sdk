@@ -87,13 +87,22 @@ class InboxViewModel: ObservableObject {
         }
     }
 
-    /// Fires the click-tracking POST and flips the row's read state. Called from `InboxView`
-    /// when the user taps a row. The view is responsible for opening the message's `actionURL`
-    /// (if any) so hosts can intercept for deep-link routing.
-    func click(_ messageID: Message.ID) {
+    /// Called from `InboxView` when the user taps a row. Fires the click-tracking POST + flips
+    /// the row's read state, and broadcasts `ATTNSDKInboxMessageTapped` so host apps can route
+    /// to the message's `actionURL`. The SDK intentionally does not open the URL itself.
+    func click(_ message: Message) {
         Task {
-            await inboxManager.markClicked(messageID)
+            await inboxManager.markClicked(message.id)
         }
+        var userInfo: [AnyHashable: Any] = ["attentiveInboxMessageId": message.id]
+        if let url = message.actionURL {
+            userInfo["attentiveInboxActionUrl"] = url
+        }
+        NotificationCenter.default.post(
+            name: .ATTNSDKInboxMessageTapped,
+            object: nil,
+            userInfo: userInfo
+        )
     }
 }
 

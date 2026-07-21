@@ -29,9 +29,10 @@ struct InboxView: View {
                         InboxMessageRowView(message: message, style: viewModel.style)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                // Fires click tracking + local read flip. The SDK deliberately
-                                // does not open `actionURL` — host apps handle deep-link routing.
-                                viewModel.click(message.id)
+                                // Fires click tracking + local read flip, and broadcasts
+                                // `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL).
+                                // The SDK does not open the URL itself — host apps route it.
+                                viewModel.click(message)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
