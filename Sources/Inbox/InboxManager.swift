@@ -73,6 +73,13 @@ actor InboxManager {
     /// have been superseded by a newer identity or a newer top-level `refresh()`.
     private var messagesGeneration: UInt = 0
 
+    /// Monotonic counter bumped every time the messages list is wholesale replaced from an
+    /// authoritative source (successful refresh or identity reset). Distinct from
+    /// `messagesGeneration`, which bumps at the *start* of a refresh — so a refresh that fails
+    /// mid-DELETE would bump `messagesGeneration` but not `messagesReplacedCount`, and the
+    /// delete's revert path should still apply. Read only by `delete(_:)` for that reason.
+    private var messagesReplacedCount: UInt = 0
+
     var allMessages: [Message] {
         get async {
             await awaitInitialRefresh()
@@ -411,10 +418,11 @@ actor InboxManager {
         messageOrder.remove(at: originalIndex)
         send(.loaded(orderedMessagesSnapshot()))
 
-        // Snapshot the messages generation so an identity change or a fresh page refresh landing
-        // during the DELETE causes us to drop the revert path — reviving a message into a list
-        // that has since been reloaded from the server would strand a stale row.
-        let generation = messagesGeneration
+        // Snapshot the *replaced* counter, not `messagesGeneration`, so the revert path drops
+        // only when a successful refresh or identity reset actually replaced the local list —
+        // a refresh that starts and fails during the DELETE preserves the current (already-
+        // optimistically-removed) state, and we still need to revert.
+        let replacedCountAtStart = messagesReplacedCount
 
         do {
             try await api.deleteInboxMessage(
@@ -424,7 +432,7 @@ actor InboxManager {
             )
         } catch {
             Loggers.network.error("Failed to delete inbox message: \(error.localizedDescription, privacy: .public)")
-            guard generation == messagesGeneration else { return }
+            guard replacedCountAtStart == messagesReplacedCount else { return }
             guard messagesByID[messageID] == nil else { return }
             messagesByID[messageID] = removedMessage
             let insertIndex = min(originalIndex, messageOrder.count)
@@ -482,6 +490,7 @@ actor InboxManager {
     func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
+        messagesReplacedCount &+= 1
         storedUnreadCount = 0
         messagesByID = [:]
         messageOrder = []
@@ -544,6 +553,7 @@ extension InboxManager {
     private func replaceMessages(with messages: [Message]) {
         messagesByID = [:]
         messageOrder = []
+        messagesReplacedCount &+= 1
         appendMessages(messages)
     }
 

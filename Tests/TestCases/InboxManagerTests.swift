@@ -556,6 +556,30 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertTrue(messages.isEmpty, "Revert must be dropped when the generation has moved past this call")
     }
 
+    func testDelete_failedRefreshDuringRequest_stillReverts() async {
+        // A refresh that starts mid-DELETE bumps `messagesGeneration` but if it fails, it
+        // preserves the current (already-optimistically-removed) list. The revert must still
+        // apply — otherwise the row is hidden until the next successful refresh.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        apiSpy.onDeleteInboxMessage = { [weak apiSpy] in
+            // Simulate a pull-to-refresh landing mid-delete that also fails.
+            apiSpy?.stubbedInboxMessagesError = NSError(domain: "test", code: -2)
+            await manager.refresh()
+        }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"], "A failed refresh mid-DELETE must not swallow the revert")
+    }
+
     func testDelete_unknownMessage_isNoOp() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)

@@ -88,6 +88,18 @@ final class ATTNInboxDeleteAPITests: XCTestCase {
         XCTAssertFalse(urlString.contains(" "), "Raw spaces must not appear in the URL path")
     }
 
+    func testDelete_escapesForwardSlashesInMessageId() async throws {
+        // The message id occupies a single path segment. A slash in the id must be percent-
+        // encoded so it doesn't split the segment and address a different route.
+        try await deleteMessage(messageId: "abc/def")
+
+        XCTAssertEqual(sessionMock.urlCalls.count, 1)
+        XCTAssertEqual(
+            sessionMock.urlCalls[0].absoluteString,
+            "https://mobile.attentivemobile.com/inbox/messages/abc%2Fdef"
+        )
+    }
+
     func testDelete_serverError_throwsInboxRequestFailed() async {
         sessionMock.inboxDeleteStatusCode = 500
 
