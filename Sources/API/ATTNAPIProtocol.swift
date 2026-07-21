@@ -121,4 +121,12 @@ protocol ATTNAPIProtocol {
         messageId: String,
         actionURL: String?
     ) async throws
+
+    /// Deletes a single inbox message on the server. Throws on non-2xx responses; callers
+    /// are expected to revert any optimistic UI changes on error.
+    func deleteInboxMessage(
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws
 }

@@ -298,4 +298,27 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastMarkClickedActionURL = actionURL
         if let error = stubbedMarkClickedError { throw error }
     }
+
+    // MARK: - Inbox Delete
+    private(set) var deleteInboxMessageCallCount = 0
+    private(set) var lastDeletePushToken: String?
+    private(set) var lastDeleteVisitorId: String?
+    private(set) var lastDeleteMessageId: String?
+    var stubbedDeleteInboxMessageError: Error?
+    /// Invoked while the delete call is "in flight" (after recording args, before returning),
+    /// letting a test interleave an identity change / refresh to exercise stale-response handling.
+    var onDeleteInboxMessage: (@Sendable () async -> Void)?
+
+    func deleteInboxMessage(
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws {
+        deleteInboxMessageCallCount += 1
+        lastDeletePushToken = pushToken
+        lastDeleteVisitorId = visitorId
+        lastDeleteMessageId = messageId
+        if let hook = onDeleteInboxMessage { await hook() }
+        if let error = stubbedDeleteInboxMessageError { throw error }
+    }
 }

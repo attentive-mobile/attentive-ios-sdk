@@ -494,10 +494,13 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0, "Unknown message ID must not hit the network")
     }
 
-    func testDelete_removesMessageFromList() async {
+    // MARK: - Delete
+
+    func testDelete_success_removesLocallyAndCallsApi() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
         ]
+
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
 
@@ -505,6 +508,65 @@ final class InboxManagerTests: XCTestCase {
 
         let messages = await manager.allMessages
         XCTAssertEqual(messages.map(\.id), ["2"])
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+        XCTAssertEqual(apiSpy.lastDeleteMessageId, "1")
+        XCTAssertEqual(apiSpy.lastDeleteVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastDeletePushToken, "fcm:abc")
+    }
+
+    func testDelete_failure_revertsAtOriginalPosition() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [
+                    makeMessage(id: "1"),
+                    makeMessage(id: "2"),
+                    makeMessage(id: "3")
+                ],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("2")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2", "3"], "Failed delete must revert to the original ordering")
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+    }
+
+    func testDelete_identityChangeDuringRequest_dropsRevert() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Identity reset lands while the DELETE is in flight — the revert path must not
+        // resurrect the removed message into the fresh (empty) list.
+        apiSpy.onDeleteInboxMessage = { await manager.resetForIdentityChange() }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.isEmpty, "Revert must be dropped when the generation has moved past this call")
+    }
+
+    func testDelete_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("does-not-exist")
+
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 0, "Unknown message ID must not hit the network")
     }
 
     // MARK: - Identity change

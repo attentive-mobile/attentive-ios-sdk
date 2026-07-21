@@ -394,10 +394,43 @@ actor InboxManager {
         }
     }
 
-    func delete(_ messageID: Message.ID) {
+    /// Deletes a message. Optimistically removes it locally, then issues the server delete.
+    /// On failure the local removal is reverted (message re-inserted at its original index)
+    /// so the UI reflects true state.
+    func delete(_ messageID: Message.ID) async {
+        guard let removedMessage = messagesByID[messageID],
+              let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
+
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox delete: empty visitor ID")
+            return
+        }
+
         messagesByID.removeValue(forKey: messageID)
-        messageOrder.removeAll { $0 == messageID }
+        messageOrder.remove(at: originalIndex)
         send(.loaded(orderedMessagesSnapshot()))
+
+        // Snapshot the messages generation so an identity change or a fresh page refresh landing
+        // during the DELETE causes us to drop the revert path — reviving a message into a list
+        // that has since been reloaded from the server would strand a stale row.
+        let generation = messagesGeneration
+
+        do {
+            try await api.deleteInboxMessage(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageId: messageID
+            )
+        } catch {
+            Loggers.network.error("Failed to delete inbox message: \(error.localizedDescription, privacy: .public)")
+            guard generation == messagesGeneration else { return }
+            guard messagesByID[messageID] == nil else { return }
+            messagesByID[messageID] = removedMessage
+            let insertIndex = min(originalIndex, messageOrder.count)
+            messageOrder.insert(messageID, at: insertIndex)
+            send(.loaded(orderedMessagesSnapshot()))
+        }
     }
 
     /// Reports a message tap. Delegates the read side to `markRead` (server POST + optimistic
