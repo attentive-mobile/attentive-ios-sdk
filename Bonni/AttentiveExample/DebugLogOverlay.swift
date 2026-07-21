@@ -17,11 +17,11 @@ import ATTNSDKFramework
 /// Owned by `SceneDelegate` for the lifetime of the scene; tear down with `uninstall()`.
 final class DebugLogOverlay {
     /// Persisted user preference for whether the overlay chrome (the LOGS button) is
-    /// shown at all. Defaults to visible so QA builds expose the overlay without any
-    /// setup; toggle it from Bonni's Settings screen. Log capture keeps running while
-    /// hidden, so re-showing the overlay still has the full buffer history.
+    /// shown at all. Hidden by default; enable it from Bonni's Settings screen. Log
+    /// capture keeps running while hidden, so showing the overlay later still has the
+    /// full buffer history from launch.
     static var isVisible: Bool {
-        get { UserDefaults.standard.object(forKey: visibilityKey) as? Bool ?? true }
+        get { UserDefaults.standard.bool(forKey: visibilityKey) }
         set {
             UserDefaults.standard.set(newValue, forKey: visibilityKey)
             NotificationCenter.default.post(name: .debugLogOverlayVisibilityChanged, object: nil)
