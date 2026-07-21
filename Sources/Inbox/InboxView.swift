@@ -32,7 +32,7 @@ struct InboxView: View {
                                 // Fires click tracking + local read flip, and broadcasts
                                 // `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL).
                                 // The SDK does not open the URL itself — host apps route it.
-                                viewModel.click(message)
+                                viewModel.click(id: message.id, actionURL: message.actionURL)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {

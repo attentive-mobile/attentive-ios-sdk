@@ -179,8 +179,7 @@ actor InboxManager {
               !pageToken.isEmpty else {
             return
         }
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else { return }
+        guard let identity = requireIdentity(context: "inbox page load") else { return }
 
         setLoadingNextPage(true)
         let generation = messagesGeneration
@@ -243,11 +242,7 @@ actor InboxManager {
     /// Internal worker used by both the init task and the public `refresh()`. Fetches page 1,
     /// resets pagination bookkeeping, and updates state.
     private func performMessagesRefresh() async {
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox messages refresh: empty visitor ID")
-            return
-        }
+        guard let identity = requireIdentity(context: "inbox messages refresh") else { return }
 
         messagesGeneration &+= 1
         let generation = messagesGeneration
@@ -303,13 +298,7 @@ actor InboxManager {
     /// task can call this without deadlocking on itself. `skipNotify == true` when the
     /// caller (e.g. `refresh()`) will emit its own `.loaded` after updating messages.
     private func performUnreadCountFetch(skipNotify: Bool) async {
-        let identity = identityProvider()
-        // Without a visitor ID the server can't scope the request — skip rather than send
-        // an unscoped call that would 4xx and pollute logs.
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox unread count refresh: empty visitor ID")
-            return
-        }
+        guard let identity = requireIdentity(context: "inbox unread count refresh") else { return }
         refreshGeneration &+= 1
         let generation = refreshGeneration
         do {
@@ -338,11 +327,7 @@ actor InboxManager {
     func markRead(_ messageID: Message.ID) async {
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox mark-read: empty visitor ID")
-            return
-        }
+        guard let identity = requireIdentity(context: "inbox mark-read") else { return }
 
         if !previousIsRead {
             messagesByID[messageID]?.isRead = true
@@ -378,11 +363,7 @@ actor InboxManager {
     func markUnread(_ messageID: Message.ID) async {
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox mark-unread: empty visitor ID")
-            return
-        }
+        guard let identity = requireIdentity(context: "inbox mark-unread") else { return }
 
         if previousIsRead {
             messagesByID[messageID]?.isRead = false
@@ -421,34 +402,39 @@ actor InboxManager {
 
     /// Reports a message tap. Delegates the read side to `markRead` (server POST + optimistic
     /// flip + count reconciliation + generation guarding) and separately fires the analytics-only
-    /// click-tracking POST — the two endpoints have independent contracts.
+    /// click-tracking POST — the two endpoints have independent contracts and run concurrently.
     ///
     /// The click POST is fire-and-forget: errors are logged, never surfaced. It is skipped when
     /// the message has no `actionURL` because the server contract requires a non-blank
     /// `action_url` (returns 400 otherwise).
     func markClicked(_ messageID: Message.ID) async {
         guard let message = messagesByID[messageID] else { return }
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox click tracking: empty visitor ID")
-            return
-        }
-
-        // Delegate the read side so the row's dot, the badge count, and the server all agree.
-        await markRead(messageID)
+        guard let identity = requireIdentity(context: "inbox click tracking") else { return }
 
         // Server rejects clicks without an action_url with a 400; skip rather than log a swallowed error.
         let actionURL = message.actionURLString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        // Run mark-read and click POSTs concurrently — they hit different endpoints and neither
+        // reads the other's response. Sequential await would double click-analytics tail latency.
+        async let readTask: Void = markRead(messageID)
+        async let clickTask: Void = performClickPost(
+            identity: identity,
+            messageId: messageID,
+            actionURL: actionURL
+        )
+        _ = await (readTask, clickTask)
+    }
+
+    private func performClickPost(identity: InboxIdentitySnapshot, messageId: Message.ID, actionURL: String) async {
         guard !actionURL.isEmpty else {
             Loggers.network.debug("Skipping inbox click tracking: message has no actionURL")
             return
         }
-
         do {
             try await api.markMessageClicked(
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
-                messageId: messageID,
+                messageId: messageId,
                 actionURL: actionURL
             )
         } catch {
@@ -481,6 +467,18 @@ actor InboxManager {
 // MARK: - Private methods
 
 extension InboxManager {
+    /// Snapshots the current identity and returns it only when scoped requests are viable.
+    /// Every inbox endpoint requires a non-empty `visitor_id`; returning nil (with a scoped log)
+    /// keeps the six inbox network methods aligned on a single guard instead of six near-copies.
+    private func requireIdentity(context: String) -> InboxIdentitySnapshot? {
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping \(context, privacy: .public): empty visitor ID")
+            return nil
+        }
+        return identity
+    }
+
     private func removeContinuation(id: UUID) {
         continuations.removeValue(forKey: id)
     }

@@ -32,77 +32,33 @@ final class InboxViewModelTests: XCTestCase {
 
     // MARK: - Tap broadcasts
 
-    func testClick_withActionURL_broadcastsNotificationWithURLAndId() async {
-        let message = Message(
+    func testClick_withActionURL_broadcastsIdAndURL() async {
+        await assertClickBroadcast(
             id: "msg-1",
-            title: "Title",
-            body: "Body",
-            timestamp: Date(),
-            isRead: false,
-            actionURLString: "myapp://products/sale"
+            actionURL: URL(string: "myapp://products/sale"),
+            expectedURL: URL(string: "myapp://products/sale")
         )
-
-        let received = expectation(description: "notification received")
-        var capturedUserInfo: [AnyHashable: Any]?
-        let observer = NotificationCenter.default.addObserver(
-            forName: .ATTNSDKInboxMessageTapped,
-            object: nil,
-            queue: .main
-        ) { notification in
-            capturedUserInfo = notification.userInfo
-            received.fulfill()
-        }
-        defer { NotificationCenter.default.removeObserver(observer) }
-
-        viewModel.click(message)
-
-        await fulfillment(of: [received], timeout: 1)
-        XCTAssertEqual(capturedUserInfo?["attentiveInboxMessageId"] as? String, "msg-1")
-        XCTAssertEqual(capturedUserInfo?["attentiveInboxActionUrl"] as? URL, URL(string: "myapp://products/sale"))
     }
 
-    func testClick_withoutActionURL_stillBroadcastsWithId_omitsURL() async {
-        let message = Message(
+    func testClick_withNilActionURL_broadcastsIdOnly() async {
+        await assertClickBroadcast(
             id: "msg-2",
-            title: "Title",
-            body: "Body",
-            timestamp: Date(),
-            isRead: false,
-            actionURLString: nil
+            actionURL: nil,
+            expectedURL: nil
         )
-
-        let received = expectation(description: "notification received")
-        var capturedUserInfo: [AnyHashable: Any]?
-        let observer = NotificationCenter.default.addObserver(
-            forName: .ATTNSDKInboxMessageTapped,
-            object: nil,
-            queue: .main
-        ) { notification in
-            capturedUserInfo = notification.userInfo
-            received.fulfill()
-        }
-        defer { NotificationCenter.default.removeObserver(observer) }
-
-        viewModel.click(message)
-
-        await fulfillment(of: [received], timeout: 1)
-        XCTAssertEqual(capturedUserInfo?["attentiveInboxMessageId"] as? String, "msg-2")
-        XCTAssertNil(capturedUserInfo?["attentiveInboxActionUrl"], "actionURL key must be absent when the message has no actionURL")
     }
 
-    func testClick_withMalformedActionURL_omitsURLKey() async {
-        // `Message.actionURL` returns nil for strings that don't parse to a URL; the notification
-        // should not carry a bogus/empty entry.
-        let message = Message(
-            id: "msg-3",
-            title: "Title",
-            body: "Body",
-            timestamp: Date(),
-            isRead: false,
-            actionURLString: ""
-        )
-
-        let received = expectation(description: "notification received")
+    /// Drives `viewModel.click`, waits for the notification, and asserts userInfo shape:
+    /// `attentiveInboxMessageId` is always present; `attentiveInboxActionUrl` is present iff
+    /// `expectedURL` is non-nil.
+    private func assertClickBroadcast(
+        id: Message.ID,
+        actionURL: URL?,
+        expectedURL: URL?,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let received = expectation(description: "notification received for \(id)")
         var capturedUserInfo: [AnyHashable: Any]?
         let observer = NotificationCenter.default.addObserver(
             forName: .ATTNSDKInboxMessageTapped,
@@ -114,10 +70,18 @@ final class InboxViewModelTests: XCTestCase {
         }
         defer { NotificationCenter.default.removeObserver(observer) }
 
-        viewModel.click(message)
+        viewModel.click(id: id, actionURL: actionURL)
 
         await fulfillment(of: [received], timeout: 1)
-        XCTAssertEqual(capturedUserInfo?["attentiveInboxMessageId"] as? String, "msg-3")
-        XCTAssertNil(capturedUserInfo?["attentiveInboxActionUrl"])
+        XCTAssertEqual(capturedUserInfo?["attentiveInboxMessageId"] as? String, id, file: file, line: line)
+        if let expectedURL {
+            XCTAssertEqual(capturedUserInfo?["attentiveInboxActionUrl"] as? URL, expectedURL, file: file, line: line)
+        } else {
+            XCTAssertNil(
+                capturedUserInfo?["attentiveInboxActionUrl"],
+                "actionURL key must be absent when the caller passes nil",
+                file: file, line: line
+            )
+        }
     }
 }
