@@ -53,9 +53,10 @@ actor InboxManager {
     private var isRefreshingFirstPage: Bool = false
 
     /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read /
-    /// mark-unread API responses (see `applyReadStatusResponse`). Reads should go through the
-    /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
-    /// a stale 0.
+    /// mark-unread API responses (see `applyReadStatusResponse`). `delete(_:)` also adjusts it
+    /// locally because the delete endpoint's response omits the count. Reads should go through
+    /// the `unreadCount` accessor, which awaits the init-time refresh so the first read never
+    /// returns a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
@@ -416,6 +417,13 @@ actor InboxManager {
 
         messagesByID.removeValue(forKey: messageID)
         messageOrder.remove(at: originalIndex)
+        // The delete endpoint returns only `{ message_id }` — no authoritative unread count
+        // like mark-read/unread's `UpdateReadStatusResponse`. Decrement locally so the badge
+        // stays honest until the next refresh; revert on failure below.
+        let didDecrementUnreadCount = !removedMessage.isRead && storedUnreadCount > 0
+        if didDecrementUnreadCount {
+            storedUnreadCount -= 1
+        }
         send(.loaded(orderedMessagesSnapshot()))
 
         // Snapshot the *replaced* counter, not `messagesGeneration`, so the revert path drops
@@ -437,6 +445,9 @@ actor InboxManager {
             messagesByID[messageID] = removedMessage
             let insertIndex = min(originalIndex, messageOrder.count)
             messageOrder.insert(messageID, at: insertIndex)
+            if didDecrementUnreadCount {
+                storedUnreadCount += 1
+            }
             send(.loaded(orderedMessagesSnapshot()))
         }
     }
