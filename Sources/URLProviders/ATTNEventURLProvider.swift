@@ -15,17 +15,6 @@ protocol ATTNEventURLProviding {
 }
 
 struct ATTNEventURLProvider: ATTNEventURLProviding {
-    private enum Constants {
-        static var scheme: String { "https" }
-        static var host: String { "events.attentivemobile.com" }
-        static var path: String { "/e" }
-        static var newEventPath: String { "/mobile" }
-
-        static var pushHost: String { "mobile.attentivemobile.com" }
-        static var pushPath: String { "/token" }
-        static var pushPort: Int { 443 }
-    }
-
     func buildUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL? {
         var urlComponents = getUrlComponent()
 
@@ -33,7 +22,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
         queryParams["m"] = userIdentity.buildMetadataJson()
         queryParams["t"] = ATTNEventTypes.userIdentifierCollected
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
@@ -50,7 +39,7 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
             queryParams["pd"] = deeplink
         }
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
@@ -67,43 +56,59 @@ struct ATTNEventURLProvider: ATTNEventURLProviding {
             queryParams["pd"] = deeplink
         }
 
-        urlComponents.queryItems = queryParams.map { .init(name: $0.key, value: $0.value) }
+        Self.setFormEncodedQuery(on: &urlComponents, params: queryParams)
         return urlComponents.url
     }
 
     func buildPushTokenUrl(for userIdentity: ATTNUserIdentity, domain: String) -> URL? {
-        var components = getUrlComponent(
-            host: Constants.pushHost,
-            path: Constants.pushPath,
-            port: Constants.pushPort
-        )
-        return components.url
+        getUrlComponent(
+            host: ATTNSDKConfiguration.Endpoint.Mobile.host,
+            path: ATTNSDKConfiguration.Endpoint.Mobile.pushTokenPath,
+            port: ATTNSDKConfiguration.Endpoint.Mobile.port
+        ).url
     }
 }
 
 extension ATTNEventURLProvider {
     private func getUrlComponent() -> URLComponents {
-        var urlComponent = URLComponents()
-        urlComponent.scheme = Constants.scheme
-        urlComponent.host = Constants.host
-        urlComponent.path = Constants.path
-        return urlComponent
+        getUrlComponent(
+            host: ATTNSDKConfiguration.Endpoint.Events.host,
+            path: ATTNSDKConfiguration.Endpoint.Events.legacyPath,
+            port: nil
+        )
     }
 
     private func getNewEventEndpointUrlComponent() -> URLComponents {
-        var urlComponent = URLComponents()
-        urlComponent.scheme = Constants.scheme
-        urlComponent.host = Constants.host
-        urlComponent.path = Constants.newEventPath
-        return urlComponent
+        getUrlComponent(
+            host: ATTNSDKConfiguration.Endpoint.Events.host,
+            path: ATTNSDKConfiguration.Endpoint.Events.newEventPath,
+            port: nil
+        )
     }
 
     private func getUrlComponent(host: String, path: String, port: Int?) -> URLComponents {
-        var c = URLComponents()
-        c.scheme = Constants.scheme
-        c.host   = host
-        c.path   = path
-        c.port   = port
-        return c
+        var components = URLComponents()
+        components.scheme = ATTNSDKConfiguration.Endpoint.scheme
+        components.host = host
+        components.path = path
+        components.port = port
+        return components
+    }
+
+    private static let formEncodedAllowedCharacters: CharacterSet = {
+        var chars = CharacterSet.urlQueryAllowed
+        chars.remove("+")
+        chars.remove("&")
+        chars.remove("=")
+        return chars
+    }()
+
+    static func setFormEncodedQuery(on components: inout URLComponents, params: [String: String]) {
+        let queryString = params.map { key, value in
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? value
+            return "\(encodedKey)=\(encodedValue)"
+        }.joined(separator: "&")
+        components.percentEncodedQuery = queryString
     }
 }

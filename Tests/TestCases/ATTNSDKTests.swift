@@ -19,7 +19,7 @@ final class ATTNSDKTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
         creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
         apiSpy = ATTNAPISpy(domain: testDomain)
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
@@ -31,7 +31,7 @@ final class ATTNSDKTests: XCTestCase {
         ATTNEventTracker.destroy()
 
         ProcessInfo.restoreOriginalEnvironment()
-        UserDefaults.standard.removeObject(forKey: "attentiveDeviceToken")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
 
         creativeUrlProviderSpy = nil
         sut = nil
@@ -399,6 +399,50 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0, "clearUser should reset all identifiers")
     }
 
+    // MARK: - pushEnabled tests
+
+    func testPushEnabled_defaultsToTrue() {
+        XCTAssertTrue(sut.pushEnabled)
+    }
+
+    func testRegisterDeviceToken_whenPushDisabled_doesNotSendToken() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+
+        XCTAssertFalse(apiSpy.sendPushTokenWasCalled, "registerDeviceToken should be a no-op when pushEnabled is false")
+    }
+
+    func testHandleRegularOpen_whenPushDisabled_doesNotSendAppEvents() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.handleRegularOpen(authorizationStatus: .authorized)
+
+        XCTAssertFalse(apiSpy.sendAppEventsWasCalled, "handleRegularOpen should be a no-op when pushEnabled is false")
+    }
+
+    func testOptIn_whenPushDisabled_sendsImmediatelyWithoutPushToken() {
+        // Non-push clients (pushEnabled = false) will never receive a push token, so
+        // opt-in must fire immediately rather than queueing for one.
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled, "Opt-in should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Non-push opt-in should send with an empty push token")
+    }
+
+    func testOptOut_whenPushDisabled_sendsImmediatelyWithoutPushToken() {
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
+        XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
+    }
+
     // MARK: - updateUser tests
 
     func testUpdateUser_callsUpdateUserExactlyOnce() {
@@ -415,6 +459,140 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOperationContext, "updateUser")
     }
 
+    func testUpdateUser_storesIdentifiersLocally() {
+        let deviceToken = Data([0x01, 0x02, 0x03])
+        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+
+        sut.updateUser(email: "new@example.com", phone: "+15551234567")
+
+        let identifiers = sut.getUserIdentity().identifiers
+        XCTAssertEqual(identifiers[ATTNIdentifierType.email] as? String, "new@example.com",
+                       "updateUser should store email locally on userIdentity")
+        XCTAssertEqual(identifiers[ATTNIdentifierType.phone] as? String, "+15551234567",
+                       "updateUser should store phone locally on userIdentity")
+    }
+
+    // MARK: - sendLegacyEventAsV2 Tests
+
+    func testSendEvent_v2Enabled_purchase_sendNewEvent() {
+        sut.useV2Endpoint = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "9.99"), currency: "USD"))
+        item.quantity = 2
+        let order = ATTNOrder(orderId: "order-1")
+        let event = ATTNPurchaseEvent(items: [item], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.purchase)
+    }
+
+    func testSendEvent_v2Enabled_purchaseMultipleItems_computesCorrectTotal() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        item1.quantity = 2
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
+        item2.quantity = 3
+        let order = ATTNOrder(orderId: "order-2")
+        let event = ATTNPurchaseEvent(items: [item1, item2], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 1)
+        let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
+        XCTAssertEqual(metadata?.orderTotal, "36.5")
+    }
+
+    func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "EUR"))
+        let event = ATTNAddToCartEvent(items: [item1, item2])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 2)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.addToCart)
+    }
+
+    func testSendEvent_v2Enabled_productView_sendsPerItem() {
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.00"), currency: "GBP"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "25.00"), currency: "GBP"))
+        let event = ATTNProductViewEvent(items: [item1, item2])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.sendNewEventCallCount, 2)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.productView)
+    }
+
+    func testSendEvent_v2Enabled_customEvent_sendsWithType() {
+        sut.useV2Endpoint = true
+        let event = ATTNCustomEvent(type: "Signup", properties: ["source": "banner"])!
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled)
+        XCTAssertEqual(apiSpy.lastEventRequest?.eventNameAbbreviation, ATTNEventTypes.customEvent)
+    }
+
+    func testSendEvent_v2Enabled_unsupportedEvent_fallsBackToLegacy() {
+        sut.useV2Endpoint = true
+        let event = ATTNInfoEvent()
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertTrue(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyPurchaseItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let order = ATTNOrder(orderId: "order-empty")
+        let event = ATTNPurchaseEvent(items: [], order: order)
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyAddToCartItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let event = ATTNAddToCartEvent(items: [])
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Enabled_emptyProductViewItems_doesNotSend() {
+        sut.useV2Endpoint = true
+        let event = ATTNProductViewEvent(items: [])
+
+        sut.send(event: event)
+
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+    }
+
+    func testSendEvent_v2Disabled_usesLegacyPath() {
+        sut.useV2Endpoint = false
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let event = ATTNAddToCartEvent(items: [item])
+
+        sut.send(event: event)
+
+        XCTAssertTrue(apiSpy.sendEventWasCalled)
+        XCTAssertFalse(apiSpy.sendNewEventWasCalled)
+    }
+
     private func waitForCondition(_ condition: @escaping () -> Bool, timeout: TimeInterval = 0.25) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -424,4 +602,83 @@ final class ATTNSDKTests: XCTestCase {
         return condition()
     }
 
+    // MARK: - Error Handling Tests
+
+    func testUpdateDomain_invalidDomain_callsCompletionWithError() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error?
+        sut.update(domain: "https://attn.tv/bad-domain", completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNotNil(receivedError)
+        XCTAssertEqual(receivedError as? ATTNError, .invalidDomain)
+    }
+
+    func testUpdateDomain_validDomain_callsCompletionWithNil() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error? = ATTNError.badURL
+        sut.update(domain: "VALID_DOMAIN", completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNil(receivedError)
+    }
+
+    func testUpdateDomain_sameDomain_callsCompletionWithNil() {
+        let exp = expectation(description: "completion called")
+        var receivedError: Error? = ATTNError.badURL
+        sut.update(domain: testDomain, completion: { error in
+            receivedError = error
+            exp.fulfill()
+        })
+
+        wait(for: [exp], timeout: 1.0)
+        XCTAssertNil(receivedError)
+    }
+
+    func testRegisterAppEvents_emptyPushToken_callsCallbackWithMissingPushTokenError() {
+        var receivedError: Error?
+        sut.registerAppEvents(
+            [["ist": "al", "data": [:]]],
+            pushToken: "",
+            subscriptionStatus: "authorized",
+            callback: { _, _, _, error in
+                receivedError = error
+            }
+        )
+
+        XCTAssertNotNil(receivedError)
+        XCTAssertEqual(receivedError as? ATTNSDKError, .missingPushToken)
+    }
+
+    // MARK: Concurrency
+
+    func testConsumeDeepLink_concurrentConsumeAndSet_atMostOneConsumerWinsPerSet() {
+        // The read-and-clear in `consumeDeepLink` must be atomic: of N concurrent consumers
+        // racing one published deep link, exactly one (or zero, if a later set has already
+        // overwritten it) should observe a non-nil URL — never two reading the same URL.
+        let counter = Counter()
+        runConcurrently(iterations: 200, queueLabels: ["set", "consume"]) { [weak self] i, queueIndex in
+            guard let self else { return }
+            if queueIndex == 0 {
+                self.sut.normalizeAndBroadcast("attentive://test/\(i)")
+            } else if self.sut.consumeDeepLink() != nil {
+                counter.increment()
+            }
+        }
+        // Bounded by number of set operations; the precise count depends on timing.
+        XCTAssertLessThanOrEqual(counter.value, 200)
+    }
+}
+
+private final class Counter {
+    private let lock = NSLock()
+    private var _value = 0
+    var value: Int { lock.withLock { _value } }
+    func increment() { lock.withLock { _value += 1 } }
 }

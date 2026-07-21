@@ -31,36 +31,36 @@ class CartTableViewCell: UITableViewCell {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .black
+        label.textColor = .label
         return label
     }()
-    
+
     /// Subtitle label for product type
     private let productTypeLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont.systemFont(ofSize: 14)
-        label.textColor = .gray
+        label.textColor = .secondaryLabel
         label.text = "Daily Moisturizer"
         return label
     }()
-    
+
     /// Price label, aligned bottom-right
     private let productPriceLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .gray
+        label.textColor = .secondaryLabel
         label.textAlignment = .right
         return label
     }()
-    
+
     /// Quantity controls
     private let minusButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("–", for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .lightGray
+        btn.tintColor = .label
+        btn.backgroundColor = .systemGray4
         btn.alpha = 0.5
         btn.layer.cornerRadius = 8
         btn.translatesAutoresizingMaskIntoConstraints = false
@@ -79,8 +79,8 @@ class CartTableViewCell: UITableViewCell {
     private let plusButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("+", for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .lightGray
+        btn.tintColor = .label
+        btn.backgroundColor = .systemGray4
         btn.alpha = 0.5
         btn.layer.cornerRadius = 8
         btn.translatesAutoresizingMaskIntoConstraints = false

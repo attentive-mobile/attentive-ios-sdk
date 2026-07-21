@@ -105,13 +105,6 @@ commands:
               ]
             }
 
-  install-swiftlint:
-    description: "Install SwiftLint (required by Xcode build phase)"
-    steps:
-      - run:
-          name: Install SwiftLint
-          command: command -v swiftlint || brew install swiftlint
-
   setup-fastlane:
     description: "Install Fastlane via Bundler"
     steps:
@@ -152,9 +145,14 @@ jobs:
       - run:
           name: Checkout code
           command: |
-            git -c "http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)" \
+            AUTH_HEADER="http.https://github.com/.extraheader=Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)"
+            git -c "${AUTH_HEADER}" \
               clone --filter=blob:none \
               "https://github.com/attentive-mobile/attentive-ios-sdk.git" .
+            # Explicitly fetch CIRCLE_SHA1 before checkout. It may not be reachable
+            # from the default clone (e.g. PR merge refs, or a force-push that
+            # occurred between the trigger and this clone).
+            git -c "${AUTH_HEADER}" fetch --filter=blob:none origin "${CIRCLE_SHA1}"
             git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
@@ -163,7 +161,7 @@ jobs:
       # Cache Swift Package Manager dependencies
       - restore_cache:
           keys:
-            - v1-spm-{{ checksum "Package.resolved" }}
+            - v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
             - v1-spm-
 
       # Resolve dependencies via Fastlane
@@ -172,7 +170,7 @@ jobs:
           command: bundle exec fastlane setup
 
       - save_cache:
-          key: v1-spm-{{ checksum "Package.resolved" }}
+          key: v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
           paths:
             - ~/.swiftpm
             - ~/Library/Developer/Xcode/DerivedData
@@ -213,7 +211,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -261,7 +258,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -333,7 +329,6 @@ jobs:
       - attach_workspace:
           at: .
 
-      - install-swiftlint
       - setup-fastlane
 
       - run:
@@ -416,6 +411,17 @@ jobs:
           github_app_installation_id: ${GITHUB_APP_INSTALLATION_ID}
 
       - github-cli/setup
+
+      # The workspace was cloned in `checkout-and-setup` with a GitHub App token that
+      # expires in ~1 hour. By the time this job runs the persisted credential is
+      # likely stale, so write a fresh auth header into the local git config before
+      # any git push (e.g. Fastlane's `push_git_tags`).
+      - run:
+          name: Refresh git auth header with fresh GitHub App token
+          command: |
+            git config --local --replace-all \
+              "http.https://github.com/.extraheader" \
+              "Authorization: basic $(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w 0)"
 
       - run:
           name: Create release for SDK via Fastlane
