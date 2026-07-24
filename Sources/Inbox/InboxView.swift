@@ -27,6 +27,7 @@ struct InboxView: View {
                 buildListView {
                     ForEach(messages) { message in
                         InboxMessageRowView(message: message, style: viewModel.style)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 // Fires click tracking + local read flip, and broadcasts
