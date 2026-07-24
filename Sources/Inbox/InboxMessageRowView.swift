@@ -33,14 +33,8 @@ struct InboxMessageRowView: View {
     @ViewBuilder
     private func buildAsyncImageView() -> some View {
         if let imageURL = message.imageURL {
-            let asyncImage = AsyncImage(url: imageURL) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } placeholder: {
-                Image(systemName: "photo")
-                    .aspectRatio(contentMode: .fit)
-            }.clipShape(RoundedRectangle(cornerRadius: 8))
+            let asyncImage = InboxAsyncImageView(url: imageURL)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
             switch message.style {
             case .large: asyncImage.frame(maxWidth: .infinity)
@@ -48,7 +42,7 @@ struct InboxMessageRowView: View {
             }
         }
     }
-    
+
     private func buildTextStackView() -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(message.title)

@@ -15,6 +15,9 @@
 		0A83DEB22F22C309003FD456 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB12F22C2F9003FD456 /* InboxView.swift */; };
 		0A83DEB42F22C48C003FD456 /* InboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A83DEB32F22C488003FD456 /* InboxViewModel.swift */; };
 		0A8BDC8C2F298C5D00138567 /* InboxMessageRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */; };
+		0AC4361B2F9E01AB00563599 /* InboxAnimatedImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC4361A2F9E01AA00563599 /* InboxAnimatedImage.swift */; };
+		0AC4361D2F9E01AD00563599 /* InboxAsyncImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */; };
+		0AC4361F2F9E01AF00563599 /* InboxAnimatedImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */; };
 		0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */; };
 		0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */; };
 		0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */; };
@@ -143,6 +146,9 @@
 		0A83DEB12F22C2F9003FD456 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		0A83DEB32F22C488003FD456 /* InboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViewModel.swift; sourceTree = "<group>"; };
 		0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxMessageRowView.swift; sourceTree = "<group>"; };
+		0AC4361A2F9E01AA00563599 /* InboxAnimatedImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxAnimatedImage.swift; sourceTree = "<group>"; };
+		0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxAsyncImageView.swift; sourceTree = "<group>"; };
+		0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxAnimatedImageTests.swift; sourceTree = "<group>"; };
 		0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Strings.swift"; sourceTree = "<group>"; };
 		0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStyle.swift; sourceTree = "<group>"; };
 		0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSnapshotTestCase.swift; sourceTree = "<group>"; };
@@ -314,6 +320,8 @@
 				0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */,
 				0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */,
 				0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */,
+				0AC4361A2F9E01AA00563599 /* InboxAnimatedImage.swift */,
+				0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */,
 				0A83DEB32F22C488003FD456 /* InboxViewModel.swift */,
 				0A83DEB12F22C2F9003FD456 /* InboxView.swift */,
 				0A83DEAB2F21A1AA003FD456 /* InboxManager.swift */,
@@ -463,6 +471,7 @@
 				0AE00024414A1AAC00563599 /* ATTNInboxDeleteAPITests.swift */,
 				0A413002413A1AAA00563599 /* InboxManagerTests.swift */,
 				0A413006412A1AAA00563599 /* InboxViewModelTests.swift */,
+				0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */,
 				FB90EF0A2C109CB4004DFC4A /* ATTNAPIITTests.swift */,
 				FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */,
 				FB86C03D2C40611A00E35580 /* ATTNAddToCartEventTests.swift */,
@@ -834,6 +843,8 @@
 				FBA9FA112C0A77AB00C65024 /* ATTNCart.swift in Sources */,
 				FBA9FA102C0A77AB00C65024 /* ATTNAddToCartEvent.swift in Sources */,
 				0A8BDC8C2F298C5D00138567 /* InboxMessageRowView.swift in Sources */,
+				0AC4361B2F9E01AB00563599 /* InboxAnimatedImage.swift in Sources */,
+				0AC4361D2F9E01AD00563599 /* InboxAsyncImageView.swift in Sources */,
 				FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */,
 				0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */,
 				FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */,
@@ -886,6 +897,7 @@
 				0AE00023414A1AAC00563599 /* ATTNInboxDeleteAPITests.swift in Sources */,
 				0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */,
 				0A413007412A1AAA00563599 /* InboxViewModelTests.swift in Sources */,
+				0AC4361F2F9E01AF00563599 /* InboxAnimatedImageTests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,
 				FB2983FE2C0F85770039759C /* ATTNCustomEventTests.swift in Sources */,
