@@ -72,6 +72,20 @@ public final class ATTNSDK: NSObject {
     /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
     @objc public var skipFatigueOnCreative: Bool = false
 
+    /// Determines if the SDK opens the deep link from a tapped push notification
+    /// (`attentive_open_action_url`) on the host app's behalf. Default value is true.
+    ///
+    /// Custom-scheme links are handed to `UIApplication`, which routes them back into the host
+    /// app's URL handlers. Http(s) links are opened as universal links only — if no app has
+    /// registered for them they are never sent to the browser; the URL stays available through
+    /// the `ATTNSDKDeepLinkReceived` broadcast and `consumeDeepLink()`.
+    ///
+    /// Set to false if the host app navigates on its own via the `ATTNSDKDeepLinkReceived`
+    /// broadcast or `consumeDeepLink()`, to avoid handling the same URL twice.
+    @objc public var automaticallyOpensPushDeepLinks: Bool = true
+
+    var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
+
     public init(domain: String, mode: ATTNSDKMode) {
         Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public)")
 
@@ -517,15 +531,6 @@ public final class ATTNSDK: NSObject {
         normalizeAndBroadcast(linkString)
     }
 
-    /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
-    /// call this to retrieve (and clear) the pending URL.
-    public func consumeDeepLink() -> URL? {
-        defer { pendingURL = nil }
-        let urlString = pendingURL?.absoluteString ?? ""
-        Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
-        return pendingURL
-    }
-
     // MARK: Marketing Subscriptions
 
     @objc(optInMarketingSubscriptionWithEmail:phone:callback:)
@@ -784,30 +789,6 @@ public final class ATTNSDK: NSObject {
         }
     }
 
-    /// Normalize a raw string into a URL, stash it, and immediately post a notification.
-    private func normalizeAndBroadcast(_ rawString: String) {
-        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
-        var candidateURL: URL?
-
-        if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
-            candidateURL = trimmedURL
-        }
-
-        guard let validURL = candidateURL else {
-            Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed, privacy: .public)' - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            return
-        }
-
-        pendingURL = validURL
-        Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
-        NotificationCenter.default.post(
-            name: .ATTNSDKDeepLinkReceived,
-            object: nil,
-            userInfo: ["attentivePushDeeplinkUrl": validURL]
-        )
-        Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL, privacy: .public)")
-    }
-
     private func setupProvisionalPush() async {
         let center = UNUserNotificationCenter.current()
         do {
@@ -940,6 +921,65 @@ public final class ATTNSDK: NSObject {
                 return escapeJSONArray(nestedArray)
             }
             return value
+        }
+    }
+}
+
+// MARK: Push Deep Link Handling
+extension ATTNSDK {
+    /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
+    /// call this to retrieve (and clear) the pending URL.
+    public func consumeDeepLink() -> URL? {
+        defer { pendingURL = nil }
+        let urlString = pendingURL?.absoluteString ?? ""
+        Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
+        return pendingURL
+    }
+
+    /// Normalize a raw string into a URL, stash it, post a notification, and open it on the
+    /// host app's behalf when `automaticallyOpensPushDeepLinks` is enabled.
+    func normalizeAndBroadcast(_ rawString: String) {
+        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+        var candidateURL: URL?
+
+        if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
+            candidateURL = trimmedURL
+        }
+
+        guard let validURL = candidateURL else {
+            Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed, privacy: .public)' - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            return
+        }
+
+        pendingURL = validURL
+        Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
+        NotificationCenter.default.post(
+            name: .ATTNSDKDeepLinkReceived,
+            object: nil,
+            userInfo: ["attentivePushDeeplinkUrl": validURL]
+        )
+        Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL, privacy: .public)")
+
+        openDeepLink(validURL)
+    }
+
+    /// Opens a push deep link on the host app's behalf so a notification tap navigates without
+    /// any host-side wiring, matching the Android SDK's notification tap behavior.
+    private func openDeepLink(_ url: URL) {
+        guard automaticallyOpensPushDeepLinks else {
+            Loggers.network.debug("Automatic deep link opening is disabled; host app is expected to handle URL: \(url, privacy: .public)")
+            return
+        }
+
+        let isWebLink = ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        // Web links must resolve as universal links into an app; never bounce the user to the browser.
+        let options: [UIApplication.OpenExternalURLOptionsKey: Any] = isWebLink ? [.universalLinksOnly: true] : [:]
+        urlOpener.open(url, options: options) { success in
+            if success {
+                Loggers.network.debug("Opened push deep link URL: \(url, privacy: .public)")
+            } else {
+                Loggers.network.debug("No app claimed push deep link URL: \(url, privacy: .public). Host app can handle it via the ATTNSDKDeepLinkReceived broadcast or consumeDeepLink().")
+            }
         }
     }
 }
