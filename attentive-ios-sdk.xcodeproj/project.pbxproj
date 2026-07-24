@@ -19,6 +19,7 @@
 		0AC4361D2F9E01AD00563599 /* InboxAsyncImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */; };
 		0AC4361F2F9E01AF00563599 /* InboxAnimatedImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */; };
 		0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */; };
+		0A8BDC922F29C00000138567 /* Inbox+Date.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC912F29C00000138567 /* Inbox+Date.swift */; };
 		0A8BDC902F29B8EC00138567 /* InboxStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */; };
 		0AE51BF12F7D8138004CC16E /* ATTNSnapshotTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */; };
 		0AE51BF22F7D8200004CC16E /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 0AE51BF32F7D8200004CC16E /* SnapshotTesting */; };
@@ -59,6 +60,7 @@
 		0A413001413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */; };
 		0A413005412A1AAA00563599 /* ATTNInboxClickAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413004412A1AAA00563599 /* ATTNInboxClickAPITests.swift */; };
 		0A413007412A1AAA00563599 /* InboxViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413006412A1AAA00563599 /* InboxViewModelTests.swift */; };
+		0A8BDC942F29C00000138567 /* InboxDateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8BDC932F29C00000138567 /* InboxDateTests.swift */; };
 		0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A413002413A1AAA00563599 /* InboxManagerTests.swift */; };
 		0AE00021410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */; };
 		0AE0001F411A1AAC00563599 /* ATTNInboxMarkUnreadAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00020411A1AAC00563599 /* ATTNInboxMarkUnreadAPITests.swift */; };
@@ -150,6 +152,7 @@
 		0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxAsyncImageView.swift; sourceTree = "<group>"; };
 		0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxAnimatedImageTests.swift; sourceTree = "<group>"; };
 		0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Strings.swift"; sourceTree = "<group>"; };
+		0A8BDC912F29C00000138567 /* Inbox+Date.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Inbox+Date.swift"; sourceTree = "<group>"; };
 		0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStyle.swift; sourceTree = "<group>"; };
 		0AE51BF02F7D8138004CC16E /* ATTNSnapshotTestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSnapshotTestCase.swift; sourceTree = "<group>"; };
 		58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ATTNSDKFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -204,6 +207,7 @@
 		0A413000413A1AAA00563599 /* ATTNInboxMessagesAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMessagesAPITests.swift; sourceTree = "<group>"; };
 		0A413004412A1AAA00563599 /* ATTNInboxClickAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxClickAPITests.swift; sourceTree = "<group>"; };
 		0A413006412A1AAA00563599 /* InboxViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViewModelTests.swift; sourceTree = "<group>"; };
+		0A8BDC932F29C00000138567 /* InboxDateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxDateTests.swift; sourceTree = "<group>"; };
 		0AE00024414A1AAC00563599 /* ATTNInboxDeleteAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxDeleteAPITests.swift; sourceTree = "<group>"; };
 		0A413002413A1AAA00563599 /* InboxManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxManagerTests.swift; sourceTree = "<group>"; };
 		0AE00022410A1AAC00563599 /* ATTNInboxMarkReadAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNInboxMarkReadAPITests.swift; sourceTree = "<group>"; };
@@ -319,6 +323,7 @@
 				0A411B452F31E13400563599 /* View */,
 				0A8BDC8F2F29B8E900138567 /* InboxStyle.swift */,
 				0A8BDC8D2F29974F00138567 /* Inbox+Strings.swift */,
+				0A8BDC912F29C00000138567 /* Inbox+Date.swift */,
 				0A8BDC8B2F298C4800138567 /* InboxMessageRowView.swift */,
 				0AC4361A2F9E01AA00563599 /* InboxAnimatedImage.swift */,
 				0AC4361C2F9E01AC00563599 /* InboxAsyncImageView.swift */,
@@ -471,6 +476,7 @@
 				0AE00024414A1AAC00563599 /* ATTNInboxDeleteAPITests.swift */,
 				0A413002413A1AAA00563599 /* InboxManagerTests.swift */,
 				0A413006412A1AAA00563599 /* InboxViewModelTests.swift */,
+				0A8BDC932F29C00000138567 /* InboxDateTests.swift */,
 				0AC4361E2F9E01AE00563599 /* InboxAnimatedImageTests.swift */,
 				FB90EF0A2C109CB4004DFC4A /* ATTNAPIITTests.swift */,
 				FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */,
@@ -847,6 +853,7 @@
 				0AC4361D2F9E01AD00563599 /* InboxAsyncImageView.swift in Sources */,
 				FB35C17B2C0E0353009FA048 /* ATTNIdentifierType.swift in Sources */,
 				0A8BDC8E2F29975400138567 /* Inbox+Strings.swift in Sources */,
+				0A8BDC922F29C00000138567 /* Inbox+Date.swift in Sources */,
 				FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */,
 				FBA9FA0A2C0A77AB00C65024 /* ATTNCreativeUrlProvider.swift in Sources */,
 				F9CED4B42DF263E600780536 /* Notification+Extension.swift in Sources */,
@@ -897,6 +904,7 @@
 				0AE00023414A1AAC00563599 /* ATTNInboxDeleteAPITests.swift in Sources */,
 				0A413003413A1AAA00563599 /* InboxManagerTests.swift in Sources */,
 				0A413007412A1AAA00563599 /* InboxViewModelTests.swift in Sources */,
+				0A8BDC942F29C00000138567 /* InboxDateTests.swift in Sources */,
 				0AC4361F2F9E01AF00563599 /* InboxAnimatedImageTests.swift in Sources */,
 				FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */,
 				FB90EF0D2C10A7F7004DFC4A /* NSURLSessionDataTaskMock.swift in Sources */,

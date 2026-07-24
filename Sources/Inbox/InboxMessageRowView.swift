@@ -56,10 +56,9 @@ struct InboxMessageRowView: View {
                 .foregroundColor(style.body.color)
                 .lineLimit(2)
 
-            Text(message.timestamp, style: .relative)
+            Text(message.timestamp.inboxRelativeString())
                 .font(style.timestamp.font)
                 .foregroundColor(style.timestamp.color)
-                .foregroundColor(.gray)
         }
     }
 }
