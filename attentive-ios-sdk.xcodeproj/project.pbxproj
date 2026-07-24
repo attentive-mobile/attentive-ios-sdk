@@ -37,6 +37,7 @@
 		F9CED4B42DF263E600780536 /* Notification+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CED4B32DF263E600780536 /* Notification+Extension.swift */; };
 		F9D1FE2F2DEB68B7005D569F /* ATTNRetryingNetworkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1FE2E2DEB68B7005D569F /* ATTNRetryingNetworkClient.swift */; };
 		FB080C712C1C755A00834BAA /* ATTNAPISpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65536D2C1B7747008DB3B1 /* ATTNAPISpy.swift */; };
+		A1B2C3D42F70A10000000004 /* ATTNURLOpenerSpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F70A10000000003 /* ATTNURLOpenerSpy.swift */; };
 		FB080C722C1C755F00834BAA /* ATTNCreativeUrlProviderSpy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB080C6F2C1C752E00834BAA /* ATTNCreativeUrlProviderSpy.swift */; };
 		FB080C7F2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB080C7E2C1CC9E500834BAA /* ATTNCreativeUrlConfig.swift */; };
 		FB2983E42C0F73990039759C /* ATTNAppInfoMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2983D02C0F73990039759C /* ATTNAppInfoMock.swift */; };
@@ -71,6 +72,7 @@
 		FB35C18B2C0E3F27009FA048 /* ATTNEvent+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C18A2C0E3F27009FA048 /* ATTNEvent+Extension.swift */; };
 		FB35C18D2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C18C2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift */; };
 		FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1902C0E506D009FA048 /* ATTNEventRequestProvider.swift */; };
+		A1B2C3D42F70A10000000002 /* ATTNURLOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F70A10000000001 /* ATTNURLOpening.swift */; };
 		FB35C1932C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1922C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift */; };
 		FB35C1952C0E5292009FA048 /* ATTNAddToCartEvent+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1942C0E5292009FA048 /* ATTNAddToCartEvent+Extension.swift */; };
 		FB35C1972C0E52F3009FA048 /* ATTNProductViewEvent+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB35C1962C0E52F3009FA048 /* ATTNProductViewEvent+Extension.swift */; };
@@ -213,6 +215,7 @@
 		FB35C18A2C0E3F27009FA048 /* ATTNEvent+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNEvent+Extension.swift"; sourceTree = "<group>"; };
 		FB35C18C2C0E3FAA009FA048 /* ATTNUserIdentity+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNUserIdentity+Extension.swift"; sourceTree = "<group>"; };
 		FB35C1902C0E506D009FA048 /* ATTNEventRequestProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventRequestProvider.swift; sourceTree = "<group>"; };
+		A1B2C3D42F70A10000000001 /* ATTNURLOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNURLOpening.swift; sourceTree = "<group>"; };
 		FB35C1922C0E524E009FA048 /* ATTNPurchaseEvent+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNPurchaseEvent+Extension.swift"; sourceTree = "<group>"; };
 		FB35C1942C0E5292009FA048 /* ATTNAddToCartEvent+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNAddToCartEvent+Extension.swift"; sourceTree = "<group>"; };
 		FB35C1962C0E52F3009FA048 /* ATTNProductViewEvent+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNProductViewEvent+Extension.swift"; sourceTree = "<group>"; };
@@ -228,6 +231,7 @@
 		FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKTests.swift; sourceTree = "<group>"; };
 		FB65536B2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPIProtocol.swift; sourceTree = "<group>"; };
 		FB65536D2C1B7747008DB3B1 /* ATTNAPISpy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPISpy.swift; sourceTree = "<group>"; };
+		A1B2C3D42F70A10000000003 /* ATTNURLOpenerSpy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNURLOpenerSpy.swift; sourceTree = "<group>"; };
 		FB84E3022C3F30FF0011936B /* ATTNDeeplinkHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNDeeplinkHandling.swift; sourceTree = "<group>"; };
 		FB86C03D2C40611A00E35580 /* ATTNAddToCartEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAddToCartEventTests.swift; sourceTree = "<group>"; };
 		FB86C03F2C40669400E35580 /* ATTNProductViewEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNProductViewEventTests.swift; sourceTree = "<group>"; };
@@ -487,6 +491,7 @@
 			isa = PBXGroup;
 			children = (
 				FB35C1902C0E506D009FA048 /* ATTNEventRequestProvider.swift */,
+				A1B2C3D42F70A10000000001 /* ATTNURLOpening.swift */,
 			);
 			path = Protocols;
 			sourceTree = "<group>";
@@ -522,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				FB65536D2C1B7747008DB3B1 /* ATTNAPISpy.swift */,
+				A1B2C3D42F70A10000000003 /* ATTNURLOpenerSpy.swift */,
 				FB080C6F2C1C752E00834BAA /* ATTNCreativeUrlProviderSpy.swift */,
 			);
 			path = Spies;
@@ -808,6 +814,7 @@
 				FB35C1872C0E3929009FA048 /* ATTNEventTypes.swift in Sources */,
 				FBA9FA162C0A77AB00C65024 /* ATTNPrice.swift in Sources */,
 				FB35C1912C0E506D009FA048 /* ATTNEventRequestProvider.swift in Sources */,
+				A1B2C3D42F70A10000000002 /* ATTNURLOpening.swift in Sources */,
 				FB35C18B2C0E3F27009FA048 /* ATTNEvent+Extension.swift in Sources */,
 				FB60AF0B2C1211C700C61537 /* ATTNEventURLProvider.swift in Sources */,
 				FBA9FA132C0A77AB00C65024 /* ATTNEvent.swift in Sources */,
@@ -861,6 +868,7 @@
 			files = (
 				FB56D4E12C20925500AF7530 /* ProcessInfo+Extension.swift in Sources */,
 				FB080C712C1C755A00834BAA /* ATTNAPISpy.swift in Sources */,
+				A1B2C3D42F70A10000000004 /* ATTNURLOpenerSpy.swift in Sources */,
 				FB90EF0B2C109CB4004DFC4A /* ATTNAPIITTests.swift in Sources */,
 				FB90EF0F2C10A81E004DFC4A /* NSURLSessionMock.swift in Sources */,
 				FB2983E42C0F73990039759C /* ATTNAppInfoMock.swift in Sources */,

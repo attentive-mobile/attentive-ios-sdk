@@ -344,6 +344,81 @@ final class ATTNSDKTests: XCTestCase {
             XCTAssertEqual(escaped["double"] as? Double, 1.5)
         }
 
+    // MARK: - Push deep link tests
+
+    func testNormalizeAndBroadcast_customSchemeURL_opensURLDirectly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+        XCTAssertNil(urlOpenerSpy.lastOptions[.universalLinksOnly])
+    }
+
+    func testNormalizeAndBroadcast_httpsURL_opensAsUniversalLinkOnly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("https://example.com/product/1")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "https://example.com/product/1")!])
+        XCTAssertEqual(urlOpenerSpy.lastOptions[.universalLinksOnly] as? Bool, true)
+    }
+
+    func testNormalizeAndBroadcast_trimsWhitespaceBeforeOpening() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("  myapp://cart\n")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+    }
+
+    func testNormalizeAndBroadcast_autoOpenDisabled_doesNotOpenButKeepsPendingURL() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = false
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+    }
+
+    func testNormalizeAndBroadcast_invalidURLString_doesNotOpenOrStore() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("not a url")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_postsDeepLinkNotification() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil) { notification in
+            notification.userInfo?["attentivePushDeeplinkUrl"] as? URL == URL(string: "myapp://cart")
+        }
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        wait(for: [notificationExpectation], timeout: 1.0)
+    }
+
+    func testConsumeDeepLink_secondCallReturnsNil() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
     func testOptIn_withoutPushToken_isQueuedAndSentAfterTokenRegistration() {
         sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
 
