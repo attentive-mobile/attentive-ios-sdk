@@ -52,11 +52,14 @@ actor InboxManager {
     /// load returning inside the refresh window resets that flag but must not release this one.
     private var isRefreshingFirstPage: Bool = false
 
-    /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read /
-    /// mark-unread API responses (see `applyReadStatusResponse`). `delete(_:)` also adjusts it
-    /// locally because the delete endpoint's response omits the count. Reads should go through
-    /// the `unreadCount` accessor, which awaits the init-time refresh so the first read never
-    /// returns a stale 0.
+    /// Cached unread count. Fully replaced by the server response from `refreshUnreadCount()` and
+    /// by the mark-read / mark-unread API responses (see `applyReadStatusResponse`).
+    /// `markRead(_:)`, `markUnread(_:)`, and `delete(_:)` also apply optimistic ±1 adjustments
+    /// (with rollback on failure) so the badge tracks the visible dot the instant the user acts.
+    /// Never derived from the loaded message list — the list is paginated, so a client-side count
+    /// would undercount unread messages that live on unfetched pages. Reads should go through the
+    /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
+    /// a stale 0.
     private var storedUnreadCount: Int = 0
 
     private let api: ATTNAPIProtocol
@@ -104,6 +107,13 @@ actor InboxManager {
     /// Test-only accessor for the current state, since we can't read `currentState` directly.
     var currentInboxStateForTesting: InboxState {
         currentState
+    }
+
+    /// Test-only synchronous read of the stored unread count. Distinct from `unreadCount`, which
+    /// awaits the init-time refresh — tests need to sample the count mid-flight from an API-spy
+    /// hook, where awaiting the init task would deadlock.
+    var currentUnreadCountForTesting: Int {
+        storedUnreadCount
     }
 
     private func awaitInitialRefresh() async {
@@ -337,8 +347,17 @@ actor InboxManager {
 
         guard let identity = requireIdentity(context: "inbox mark-read") else { return }
 
+        // Optimistically decrement the badge alongside the row-dot flip so the two agree
+        // between the tap and the PATCH response. The PATCH's `unread_count` is authoritative
+        // and reconciles this locally-adjusted value via `applyReadStatusResponse`; clamping at
+        // 0 keeps a stale-local case from producing a negative badge.
+        var didDecrementUnreadCount = false
         if !previousIsRead {
             messagesByID[messageID]?.isRead = true
+            if storedUnreadCount > 0 {
+                storedUnreadCount -= 1
+                didDecrementUnreadCount = true
+            }
             send(.loaded(orderedMessagesSnapshot()))
         }
 
@@ -361,6 +380,9 @@ actor InboxManager {
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, !previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
+                if didDecrementUnreadCount {
+                    storedUnreadCount += 1
+                }
                 send(.loaded(orderedMessagesSnapshot()))
             }
         }
@@ -373,8 +395,15 @@ actor InboxManager {
 
         guard let identity = requireIdentity(context: "inbox mark-unread") else { return }
 
+        // Optimistically increment the badge alongside the row-dot flip so the two agree
+        // between the swipe and the PATCH response. The PATCH's `unread_count` is authoritative
+        // and reconciles this locally-adjusted value via `applyReadStatusResponse`. The paired
+        // capture mirrors `markRead`'s pattern so the revert path is symmetric.
+        var didIncrementUnreadCount = false
         if previousIsRead {
             messagesByID[messageID]?.isRead = false
+            storedUnreadCount += 1
+            didIncrementUnreadCount = true
             send(.loaded(orderedMessagesSnapshot()))
         }
 
@@ -397,6 +426,9 @@ actor InboxManager {
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
+                if didIncrementUnreadCount {
+                    storedUnreadCount -= 1
+                }
                 send(.loaded(orderedMessagesSnapshot()))
             }
         }
@@ -497,7 +529,10 @@ actor InboxManager {
     /// Clears all cached inbox state (messages, unread count, pagination cursor) and bumps both
     /// generations so any in-flight fetches from the previous identity are discarded when they
     /// return. Called on identity changes (`clearUser`, `updateUser`) so a logged-out account's
-    /// messages and badge are not surfaced to the next user.
+    /// messages and badge are not surfaced to the next user. Fires a background unread-count
+    /// fetch for the new identity so the badge doesn't sit at 0 until the host next opens the
+    /// inbox — messages are not re-fetched because the inbox view controls its own refresh
+    /// lifecycle and would double-POST if we prefetched here.
     func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
@@ -513,6 +548,9 @@ actor InboxManager {
         // in-flight .loading state, which would strand hosts that don't re-present InboxView.
         if case .loaded = currentState {
             send(.loaded([]))
+        }
+        Task { [weak self] in
+            await self?.performUnreadCountFetch(skipNotify: false)
         }
     }
 }

@@ -60,8 +60,15 @@ final class InboxManagerTests: XCTestCase {
 
     /// Wait for the init-time refreshUnreadCount() to settle (or timeout).
     private func waitForUnreadCountFetch(timeout: TimeInterval = 1.0) async {
+        await waitForUnreadCountFetches(count: 1, timeout: timeout)
+    }
+
+    /// Wait until the spy has observed at least `count` unread-count fetches. Used by tests
+    /// that need to observe the re-fetch spawned by `resetForIdentityChange` (or any other
+    /// out-of-band count refresh) before asserting.
+    private func waitForUnreadCountFetches(count: Int, timeout: TimeInterval = 1.0) async {
         let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount == 0 {
+        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount < count {
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
     }
@@ -354,8 +361,16 @@ final class InboxManagerTests: XCTestCase {
         await waitForUnreadCountFetch()
 
         // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
-        // bumping the generation and zeroing the count for the new (logged-out) identity.
-        apiSpy.onMarkMessagesRead = { await manager.resetForIdentityChange() }
+        // bumping the generation and zeroing the count for the new (logged-out) identity. The
+        // hook drains the reset's spawned re-fetch to 0 *before* the PATCH returns, so if the
+        // generation guard were removed, the PATCH's applyReadStatusResponse would clobber 0
+        // back to 99 and fail this assertion — which is exactly the regression coverage we want.
+        apiSpy.onMarkMessagesRead = { [weak self] in
+            guard let self else { return }
+            self.apiSpy.stubbedUnreadCount = 0
+            await manager.resetForIdentityChange()
+            await self.waitForUnreadCountFetches(count: 2)
+        }
 
         await manager.markRead("1")
 
@@ -393,6 +408,111 @@ final class InboxManagerTests: XCTestCase {
         await manager.markRead("does-not-exist")
 
         XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkRead_optimisticallyDecrementsUnreadCountBeforeResponse() async {
+        // Badge (`storedUnreadCount`) and row dot (`isRead`) must stay in sync between the tap
+        // and the PATCH response. Sampling the count while the PATCH is in flight proves the
+        // decrement happens optimistically, not only after the server response lands.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        var inFlightIsRead: Bool?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            guard let manager else { return }
+            inFlightUnread = await manager.currentUnreadCountForTesting
+            inFlightIsRead = await manager.currentInboxStateForTesting.firstMessageIsReadForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightIsRead, true, "row must show as read while PATCH is in flight")
+        XCTAssertEqual(inFlightUnread, 2, "badge must decrement optimistically, not wait for the server response")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2, "server response is authoritative and reconciles the optimistic value")
+    }
+
+    func testMarkRead_failure_revertsUnreadCountAlongsideFlag() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
+        XCTAssertEqual(unread, 3, "Failed mark-read must revert the optimistic badge decrement")
+    }
+
+    func testMarkRead_zeroUnreadCount_doesNotUnderflow() async {
+        // Defensive: if `storedUnreadCount` is already 0 (out-of-sync with the message list, e.g.
+        // an unread message arrived on a later page), tapping it must not push the badge to -1.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightUnread, 0, "Unread count must clamp at 0 during the optimistic flip")
+    }
+
+    func testMarkRead_alreadyRead_leavesUnreadCountUntouched() async {
+        // Second tap on the same row must not double-decrement the badge — only the
+        // false→true transition should adjust the count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 3
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightUnread, 3, "Already-read tap must not adjust the badge optimistically")
     }
 
     // MARK: - Mark Unread
@@ -452,9 +572,15 @@ final class InboxManagerTests: XCTestCase {
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
 
-        // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
-        // bumping the generation and zeroing the count for the new (logged-out) identity.
-        apiSpy.onMarkMessagesUnread = { await manager.resetForIdentityChange() }
+        // Drain the reset's spawned re-fetch inside the hook so it lands *before* the PATCH
+        // response. Without that ordering, the re-fetch would run after the PATCH and mask a
+        // missing generation guard by overwriting 99 back to 0.
+        apiSpy.onMarkMessagesUnread = { [weak self] in
+            guard let self else { return }
+            self.apiSpy.stubbedUnreadCount = 0
+            await manager.resetForIdentityChange()
+            await self.waitForUnreadCountFetches(count: 2)
+        }
 
         await manager.markUnread("1")
 
@@ -492,6 +618,81 @@ final class InboxManagerTests: XCTestCase {
         await manager.markUnread("does-not-exist")
 
         XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkUnread_optimisticallyIncrementsUnreadCountBeforeResponse() async {
+        // Symmetric to markRead: swipe→unread must bump the badge alongside the dot before the
+        // PATCH lands, so the video's swipe-to-unread step doesn't leave the two out of sync.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 3
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        var inFlightIsRead: Bool?
+        apiSpy.onMarkMessagesUnread = { [weak manager] in
+            guard let manager else { return }
+            inFlightUnread = await manager.currentUnreadCountForTesting
+            inFlightIsRead = await manager.currentInboxStateForTesting.firstMessageIsReadForTesting
+        }
+
+        await manager.markUnread("1")
+
+        XCTAssertEqual(inFlightIsRead, false, "row must show as unread while PATCH is in flight")
+        XCTAssertEqual(inFlightUnread, 3, "badge must increment optimistically, not wait for the server response")
+    }
+
+    func testMarkUnread_failure_revertsUnreadCountAlongsideFlag() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertTrue(messages.first?.isRead ?? false, "Failed mark-unread must revert the local flip")
+        XCTAssertEqual(unread, 2, "Failed mark-unread must revert the optimistic badge increment")
+    }
+
+    func testMarkUnread_alreadyUnread_leavesUnreadCountUntouched() async {
+        // Swiping unread on an already-unread row must not double-increment the badge — only
+        // the true→false transition should adjust the count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesUnread = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markUnread("1")
+
+        XCTAssertEqual(inFlightUnread, 2, "Already-unread swipe must not adjust the badge optimistically")
     }
 
     // MARK: - Delete
@@ -668,10 +869,14 @@ final class InboxManagerTests: XCTestCase {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2")
         ]
+        // Stub the initial identity's count to 5, then a fresh 0 for the reset re-fetch —
+        // asserts both the clear-on-reset and the new-identity re-fetch land on 0.
         apiSpy.stubbedUnreadCount = 5
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
 
+        apiSpy.stubbedUnreadCount = 0
         await manager.resetForIdentityChange()
 
         let messages = await manager.allMessages
@@ -680,6 +885,54 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertTrue(messages.isEmpty, "previous user's messages must not survive an identity reset")
         XCTAssertEqual(unread, 0)
         XCTAssertFalse(hasMore, "pagination cursor must be dropped so next user doesn't fetch prev user's next page")
+    }
+
+    func testResetForIdentityChange_triggersUnreadCountRefetchForNewIdentity() async {
+        // Requirement: on identity change the cached count is cleared AND re-fetched, so the new
+        // user's badge doesn't sit at 0 until the host next actively touches the inbox.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        // Stub a distinct value for the post-reset re-fetch so we can prove we read the new one.
+        apiSpy.stubbedUnreadCount = 7
+        await manager.resetForIdentityChange()
+        // The re-fetch is spawned as an unstructured Task; poll until it has completed.
+        await waitForUnreadCountFetches(count: countBefore + 1)
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore + 1, "reset must re-fetch the count for the new identity")
+        XCTAssertEqual(unread, 7, "re-fetched value must land in the cache")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "reset must not re-fetch messages — that stays under the inbox view's control")
+    }
+
+    func testResetForIdentityChange_emptyVisitorIdSkipsRefetch() async {
+        // If the reset lands in a logged-out state (empty visitor id) the re-fetch must skip
+        // the network — every inbox endpoint requires a non-empty visitor_id.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        let visitorId = MutableString(value: "v_test")
+        let provider: InboxIdentityProvider = { [visitorId] in
+            InboxIdentitySnapshot(visitorId: visitorId.value, pushToken: "fcm:abc", email: nil, phone: nil)
+        }
+        let manager = InboxManager(api: apiSpy, identityProvider: provider)
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        visitorId.value = ""
+        await manager.resetForIdentityChange()
+        // Give the spawned task time to run.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "empty visitor id must not trigger a network call")
     }
 
     // MARK: - Pull-to-refresh includes unread count
@@ -896,4 +1149,13 @@ final class InboxManagerTests: XCTestCase {
 private final class MutableString: @unchecked Sendable {
     var value: String
     init(value: String) { self.value = value }
+}
+
+extension InboxState {
+    /// Test-only convenience: peek at the first message's `isRead` from a `.loaded` state,
+    /// used by mid-flight sampling in the mark-read/unread optimistic-badge tests.
+    var firstMessageIsReadForTesting: Bool? {
+        if case .loaded(let messages) = self { return messages.first?.isRead }
+        return nil
+    }
 }
