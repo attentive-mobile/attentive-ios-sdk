@@ -55,9 +55,11 @@ final class ATTNV2EventModelsTests: XCTestCase {
         XCTAssertNil(product.productUrl)
     }
 
-    func testATTNProduct_init_nameNil_succeeds() {
+    func testATTNProduct_init_nameOmitted_defaultsToEmpty() {
         // Hosts that hydrate product data server-side from the catalog only
-        // supply productId, so `name` must be optional.
+        // supply productId. The default empty `name` preserves the non-optional
+        // `String` type (source + ABI compatible) and gets omitted from the
+        // encoded payload so backend catalog hydration takes over.
         let product = ATTNProduct(
             productId: "123",
             price: "59.99",
@@ -65,10 +67,10 @@ final class ATTNV2EventModelsTests: XCTestCase {
         )
 
         XCTAssertEqual(product.productId, "123")
-        XCTAssertNil(product.name)
+        XCTAssertEqual(product.name, "")
     }
 
-    func testATTNProduct_encode_omitsNameWhenNil() throws {
+    func testATTNProduct_encode_omitsNameWhenEmpty() throws {
         let product = ATTNProduct(
             productId: "123",
             price: "59.99",
@@ -79,7 +81,7 @@ final class ATTNV2EventModelsTests: XCTestCase {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
 
         XCTAssertNotNil(json)
-        XCTAssertNil(json?["name"], "name key must be omitted when nil so backend catalog hydration takes over")
+        XCTAssertNil(json?["name"], "name key must be omitted when empty so backend catalog hydration takes over")
     }
 
     func testATTNProduct_encode_includesNameWhenPresent() throws {

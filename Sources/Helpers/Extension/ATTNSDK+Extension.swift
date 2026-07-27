@@ -81,7 +81,7 @@ extension ATTNSDK {
         ATTNProduct(
             productId: item.productId,
             variantId: item.productVariantId,
-            name: item.name,
+            name: item.name ?? "",
             imageUrl: item.productImage,
             categories: item.category.map { [$0] },
             price: item.price.price.stringValue,
