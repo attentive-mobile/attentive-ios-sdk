@@ -670,14 +670,17 @@ extension InboxManager {
         }
     }
 
-    /// Reconcile per-message read status and the authoritative unread count from a
-    /// mark-read/mark-unread response.
+    /// Reconcile per-message read status from a mark-read/mark-unread response. The response's
+    /// `unread_count` is **intentionally ignored** — that field is a hint at best (mobile-api's
+    /// PATCH endpoints have historically returned values that don't match the count endpoint,
+    /// e.g., 0 after a single read that leaves other unread messages). The authoritative value
+    /// comes exclusively from the trailing `/inbox/messages/unread/count` fetch spawned by
+    /// `scheduleUnreadCountReconciliation()`. Only the per-message `isRead` field is applied
+    /// here, since it's a direct echo of what the SDK just requested.
     private func applyReadStatusResponse(_ response: UpdateReadStatusResponse) {
         for status in response.messages {
             messagesByID[status.messageId]?.isRead = status.isRead
         }
-        storedUnreadCount = response.unreadCount
-        unreadCountRevision &+= 1
         send(.loaded(orderedMessagesSnapshot()))
     }
 }

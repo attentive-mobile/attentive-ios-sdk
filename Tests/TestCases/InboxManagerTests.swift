@@ -313,26 +313,32 @@ final class InboxManagerTests: XCTestCase {
 
     // MARK: - Mark Read
 
-    func testMarkRead_success_flipsLocalAndSyncsUnreadCountFromServer() async {
+    func testMarkRead_success_flipsLocalAndSyncsUnreadCountFromCountEndpoint() async {
+        // Post-refactor: the PATCH's `unread_count` field is IGNORED (mobile-api's PATCH
+        // endpoints have historically returned mismatched values). The trailing count-endpoint
+        // fetch is the sole authoritative source; the badge converges to its value.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
         ]
         apiSpy.stubbedUnreadCount = 1
         apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
             messages: [.init(messageId: "1", isRead: true)],
-            unreadCount: 0
+            unreadCount: 99 // deliberately wrong — must be ignored
         )
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
+        apiSpy.stubbedUnreadCount = 0 // server truth for the trailing reconciliation
         await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
 
         let messages = await manager.allMessages
         let unread = await manager.unreadCount
         XCTAssertTrue(messages.first?.isRead ?? false)
-        XCTAssertEqual(unread, 0, "unread_count from response should be authoritative")
+        XCTAssertEqual(unread, 0, "count endpoint value (not PATCH response's unread_count) must be authoritative")
         XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1)
         XCTAssertEqual(apiSpy.lastMarkReadMessageIds, ["1"])
         XCTAssertEqual(apiSpy.lastMarkReadVisitorId, "v_test")
@@ -428,12 +434,13 @@ final class InboxManagerTests: XCTestCase {
         apiSpy.stubbedUnreadCount = 3
         apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
             messages: [.init(messageId: "1", isRead: true)],
-            unreadCount: 2
+            unreadCount: 99 // PATCH's unread_count is ignored — trailing count fetch is truth
         )
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
         var inFlightUnread: Int?
         var inFlightIsRead: Bool?
@@ -443,13 +450,15 @@ final class InboxManagerTests: XCTestCase {
             inFlightIsRead = await manager.currentInboxStateForTesting.firstMessageIsReadForTesting
         }
 
+        apiSpy.stubbedUnreadCount = 2 // trailing reconciliation server truth
         await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
 
         XCTAssertEqual(inFlightIsRead, true, "row must show as read while PATCH is in flight")
         XCTAssertEqual(inFlightUnread, 2, "badge must decrement optimistically, not wait for the server response")
 
         let unread = await manager.unreadCount
-        XCTAssertEqual(unread, 2, "server response is authoritative and reconciles the optimistic value")
+        XCTAssertEqual(unread, 2, "count endpoint value must be the final authoritative badge count")
     }
 
     func testMarkRead_failure_revertsUnreadCountAlongsideFlag() async {
@@ -577,26 +586,31 @@ final class InboxManagerTests: XCTestCase {
 
     // MARK: - Mark Unread
 
-    func testMarkUnread_success_flipsLocalAndSyncsUnreadCountFromServer() async {
+    func testMarkUnread_success_flipsLocalAndSyncsUnreadCountFromCountEndpoint() async {
+        // Post-refactor: PATCH's unread_count is ignored; the trailing count-endpoint fetch is
+        // the sole authoritative source.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
         ]
         apiSpy.stubbedUnreadCount = 0
         apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
             messages: [.init(messageId: "1", isRead: false)],
-            unreadCount: 7
+            unreadCount: 99 // deliberately wrong — must be ignored
         )
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
+        apiSpy.stubbedUnreadCount = 7 // trailing reconciliation server truth
         await manager.markUnread("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
 
         let messages = await manager.allMessages
         let unread = await manager.unreadCount
         XCTAssertFalse(messages.first?.isRead ?? true)
-        XCTAssertEqual(unread, 7, "unread_count from response should be authoritative")
+        XCTAssertEqual(unread, 7, "count endpoint value must be the final authoritative badge count")
         XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 1)
         XCTAssertEqual(apiSpy.lastMarkUnreadMessageIds, ["1"])
         XCTAssertEqual(apiSpy.lastMarkUnreadVisitorId, "v_test")
@@ -651,13 +665,17 @@ final class InboxManagerTests: XCTestCase {
         ]
         apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
             messages: [.init(messageId: "1", isRead: false)],
-            unreadCount: 2
+            unreadCount: 99 // PATCH's unread_count is ignored — trailing count fetch is truth
         )
+        apiSpy.stubbedUnreadCount = 2 // trailing count fetch's server truth
 
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
         await manager.markUnread("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
 
         let unread = await manager.unreadCount
         XCTAssertEqual(unread, 2)
