@@ -225,8 +225,16 @@ final class InboxManagerTests: XCTestCase {
         // Final page reached — this call must no-op, i.e. not emit a new transition.
         await manager.loadNextPage()
 
-        // Give the stream one runloop turn to deliver any pending emissions before we tear down.
-        await Task.yield()
+        // Wait for the expected 3 emissions (initial false + real fetch's true→false) instead of
+        // a single yield — the `defer` inside `loadNextPage` hops back to the actor before the
+        // final `false` reaches the stream, and one yield loses that hop on slower CI runners.
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline, await observed.values.count < 3 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        // Short additional settle so a bug that emits a *fourth* transition (e.g. the no-op call
+        // fanning out) is still observed and fails the assertion below.
+        try? await Task.sleep(nanoseconds: 50_000_000)
         collector.cancel()
 
         let values = await observed.values
