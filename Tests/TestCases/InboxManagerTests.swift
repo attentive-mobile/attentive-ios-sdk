@@ -369,15 +369,18 @@ final class InboxManagerTests: XCTestCase {
         await waitForUnreadCountFetch()
 
         // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
-        // bumping the generation and zeroing the count for the new (logged-out) identity. Reset
-        // is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself), so the
-        // hook doesn't need to wait for a spawned re-fetch — if the generation guard were removed
-        // the PATCH's applyReadStatusResponse would clobber 0 back to 99 and fail the assertion.
+        // bumping the generation and zeroing the count for the new (logged-out) identity. The
+        // stubbed count is set to 0 so the trailing reconciliation fetch also lands 0 — matching
+        // the "logged out" reality. If the generation guard were removed, the PATCH's
+        // applyReadStatusResponse would clobber the reset's 0 with 99 and fail this assertion.
         apiSpy.onMarkMessagesRead = {
+            self.apiSpy.stubbedUnreadCount = 0
             await manager.resetForIdentityChange()
         }
 
         await manager.markRead("1")
+        // Wait for the trailing reconciliation fetch spawned by markRead's `defer` to land.
+        await waitForUnreadCountFetches(count: 2)
 
         let unread = await manager.unreadCount
         XCTAssertEqual(unread, 0, "Stale mark-read response must not overwrite the post-reset unread count")
@@ -473,6 +476,8 @@ final class InboxManagerTests: XCTestCase {
         // succeeds first with an authoritative unread_count response; the failing A must revert
         // the isRead flag but NOT re-increment the count — the peer's server value is truth.
         // Without the count-revision guard, A's rollback would blindly add 1 to B's count.
+        // The trailing count reconciliation (Option A) then confirms the server value; server
+        // truth after both operations: A still unread, B now read → 4 unread total.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(
                 messages: [makeMessage(id: "A", isRead: false), makeMessage(id: "B", isRead: false)],
@@ -480,8 +485,6 @@ final class InboxManagerTests: XCTestCase {
             )
         ]
         apiSpy.stubbedUnreadCount = 5
-        // Peer B's response is authoritative and lands before A fails. Server truth after both:
-        // A still unread, B now read → 4 unread. Rollback of A must preserve that 4, not push to 5.
         apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
             messages: [.init(messageId: "B", isRead: true)],
             unreadCount: 4
@@ -493,18 +496,23 @@ final class InboxManagerTests: XCTestCase {
 
         // On A's PATCH: drive B all the way through (successful, applies count=4), then fail A.
         // This mirrors the ordering when two row taps schedule detached Tasks and B's network
-        // returns first.
+        // returns first. Set stubbedUnreadCount = 4 so the trailing reconciliation fetches
+        // return the correct server truth (only A remains unread after B is marked read).
         let didRunHook = MutableString(value: "no")
         apiSpy.onMarkMessagesRead = {
             guard didRunHook.value == "no" else { return }
             didRunHook.value = "running"
             self.apiSpy.stubbedMarkReadError = nil // let B succeed
+            self.apiSpy.stubbedUnreadCount = 4 // server truth for trailing reconciliation fetches
             await manager.markRead("B")
             self.apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1) // A fails after
         }
         apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
 
         await manager.markRead("A")
+        // Both trailing reconciliations (one per markRead call) must land before assertions.
+        let countFetchesTarget = apiSpy.fetchInboxUnreadCountCallCount + 2
+        await waitForUnreadCountFetches(count: countFetchesTarget - 2 + 2)
 
         let messages = await manager.allMessages
         let unread = await manager.unreadCount
@@ -512,7 +520,7 @@ final class InboxManagerTests: XCTestCase {
         let b = messages.first { $0.id == "B" }
         XCTAssertEqual(a?.isRead, false, "Failed mark-read on A must revert A's isRead flag")
         XCTAssertEqual(b?.isRead, true, "Successful mark-read on B must persist B's flag")
-        XCTAssertEqual(unread, 4, "A's failed rollback must not clobber the authoritative count written by peer B")
+        XCTAssertEqual(unread, 4, "server-authoritative count endpoint value must land as the final state")
     }
 
     func testMarkRead_zeroUnreadCount_doesNotUnderflow() async {
@@ -624,14 +632,14 @@ final class InboxManagerTests: XCTestCase {
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
 
-        // Reset is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself),
-        // so the hook just performs the reset — no re-fetch needs draining. If the generation
-        // guard were removed the PATCH's applyReadStatusResponse would clobber 0 back to 99.
+        // Same setup as the markRead variant — see that test for the ordering rationale.
         apiSpy.onMarkMessagesUnread = {
+            self.apiSpy.stubbedUnreadCount = 0
             await manager.resetForIdentityChange()
         }
 
         await manager.markUnread("1")
+        await waitForUnreadCountFetches(count: 2)
 
         let unread = await manager.unreadCount
         XCTAssertEqual(unread, 0, "Stale mark-unread response must not overwrite the post-reset unread count")
@@ -1053,6 +1061,187 @@ final class InboxManagerTests: XCTestCase {
 
         let hasMore = await manager.hasMore
         XCTAssertTrue(hasMore, "refresh error must not wipe the pagination cursor from the last successful fetch")
+    }
+
+    // MARK: - Post-mutation unread count reconciliation
+    //
+    // The count endpoint (`/inbox/messages/unread/count`) is the source of truth for the badge.
+    // Every markRead / markUnread / delete fires a trailing background count fetch so the badge
+    // converges to server truth regardless of how the host observes state — critical for hosts
+    // whose stream subscription is torn down mid-mutation (e.g., popping the inbox VC right
+    // after a swipe), and defensive against a mobile-api PATCH `unread_count` that lies for any
+    // reason. Tests here verify the trailing fetch fires on success, failure, and
+    // no-op-on-already-matching-state, and that its authoritative value supersedes both the
+    // PATCH response and the optimistic ±1.
+
+    func testMarkRead_success_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        // PATCH claims 99 unread — a wrong/stale value. The trailing count fetch (stubbed to 2
+        // via `stubbedUnreadCount`) must supersede it, proving the count endpoint is truth.
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 99
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        apiSpy.stubbedUnreadCount = 2
+        await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1, "successful mark-read must fire a trailing count fetch")
+        XCTAssertEqual(unread, 2, "trailing count-endpoint value must supersede the PATCH response's unread_count")
+    }
+
+    func testMarkRead_failure_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        // Server truth after the failure is still 3; the trailing fetch lands that value.
+        apiSpy.stubbedUnreadCount = 3
+        await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1, "failed mark-read must still fire a trailing count fetch — defense against a rollback drifting from server truth")
+    }
+
+    func testMarkRead_alreadyRead_stillRefetchesUnreadCountFromCountEndpoint() async {
+        // Second tap on an already-read row must still reconcile the count with the server —
+        // the host may be depending on the trailing fetch to catch up after any interaction.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 3
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1, "mark-read on an already-read row must still fire a trailing count fetch")
+    }
+
+    func testMarkUnread_success_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 99 // wrong/stale — must be superseded by the count endpoint
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        apiSpy.stubbedUnreadCount = 3
+        await manager.markUnread("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1)
+        XCTAssertEqual(unread, 3, "trailing count-endpoint value must supersede the PATCH response's unread_count")
+    }
+
+    func testMarkUnread_failure_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadError = NSError(domain: "test", code: -1)
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        await manager.markUnread("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1, "failed mark-unread must still fire a trailing count fetch")
+    }
+
+    func testDelete_success_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        // Delete's server response has no `unread_count` — the trailing fetch is what actually
+        // lands the authoritative value, even though optimistic decrement got the badge close.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        apiSpy.stubbedUnreadCount = 2
+        await manager.delete("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1)
+        XCTAssertEqual(unread, 2, "trailing count fetch must land after delete's optimistic decrement")
+    }
+
+    func testDelete_failure_alsoRefetchesUnreadCountFromCountEndpoint() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        await manager.delete("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore + 1, "failed delete must still fire a trailing count fetch")
+    }
+
+    func testMarkRead_recoversFromWrongPatchUnreadCount() async {
+        // The Umair-reported symptom: PATCH returns 0 (server lying) → badge disappears until the
+        // host re-navigates. With the trailing fetch, the count endpoint's true value (5) arrives
+        // just after and restores the badge without any host action.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 6
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0 // wrong: server lied
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        // Count endpoint's real answer.
+        apiSpy.stubbedUnreadCount = 5
+        await manager.markRead("1")
+        await waitForUnreadCountFetches(count: countFetchesBefore + 1)
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 5, "count endpoint's authoritative value must overwrite a PATCH response that lied")
     }
 
     // MARK: - Click tracking

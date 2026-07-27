@@ -352,15 +352,18 @@ actor InboxManager {
 
     /// Marks a message read. Optimistically flips the local state, then reconciles from the
     /// server response. On failure the local flip is reverted so the UI reflects true state.
+    /// Always finishes by reconciling the count against the `/unread/count` endpoint so the
+    /// badge converges to server truth regardless of how the host observes state.
     func markRead(_ messageID: Message.ID) async {
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
         guard let identity = requireIdentity(context: "inbox mark-read") else { return }
 
         // Optimistically decrement the badge alongside the row-dot flip so the two agree
-        // between the tap and the PATCH response. The PATCH's `unread_count` is authoritative
-        // and reconciles this locally-adjusted value via `applyReadStatusResponse`; clamping at
-        // 0 keeps a stale-local case from producing a negative badge.
+        // between the tap and the PATCH response. The PATCH's `unread_count` is a hint that
+        // narrows the reconciliation window; the follow-up count-endpoint fetch (spawned in
+        // `defer`) is what actually lands the authoritative value. Clamping at 0 keeps a
+        // stale-local case from producing a negative badge.
         var didDecrementUnreadCount = false
         if !previousIsRead {
             messagesByID[messageID]?.isRead = true
@@ -370,6 +373,15 @@ actor InboxManager {
             }
             send(.loaded(orderedMessagesSnapshot()))
         }
+
+        // Reconcile the count against the authoritative endpoint after every mutation,
+        // success or failure. The PATCH's `unread_count` and the optimistic ±1 can both
+        // drift — from mobile-api DTO quirks, from mid-flight peer mutations, or from a
+        // clamped optimistic path — and the host may not have an observer active when
+        // this method returns (e.g., the user navigates back before the PATCH settles).
+        // A trailing count fetch guarantees the badge converges to server truth without
+        // requiring any host-side "refresh on appear" hook.
+        defer { scheduleUnreadCountReconciliation() }
 
         // Snapshot the refresh generation before the request. If an identity change
         // (`resetForIdentityChange`) or a newer `refreshUnreadCount` lands while the PATCH is in
@@ -390,12 +402,12 @@ actor InboxManager {
             applyReadStatusResponse(response)
         } catch {
             Loggers.network.error("Failed to mark inbox message read: \(error.localizedDescription, privacy: .public)")
-            guard generation == refreshGeneration else { return }
+            // Per-message state (`isRead`) is always reverted — the row must reflect this
+            // message's true state independent of any concurrent count refresh. The count
+            // portion of the revert is guarded separately: skip it if any authoritative count
+            // write (peer PATCH, refresh, identity reset) landed in between.
             if messagesByID[messageID] != nil, !previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
-                // Per-message state (`isRead`) is always reverted — the row must reflect this
-                // message's true state. Count is only reverted if no other authoritative write
-                // landed in between; otherwise the peer already wrote the correct total.
                 if didDecrementUnreadCount, revisionAtStart == unreadCountRevision {
                     storedUnreadCount += 1
                 }
@@ -406,15 +418,16 @@ actor InboxManager {
 
     /// Marks a message unread. Optimistically flips the local state, then reconciles from the
     /// server response. On failure the local flip is reverted so the UI reflects true state.
+    /// Always finishes by reconciling the count against the `/unread/count` endpoint — see
+    /// `markRead` for the rationale.
     func markUnread(_ messageID: Message.ID) async {
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
         guard let identity = requireIdentity(context: "inbox mark-unread") else { return }
 
         // Optimistically increment the badge alongside the row-dot flip so the two agree
-        // between the swipe and the PATCH response. The PATCH's `unread_count` is authoritative
-        // and reconciles this locally-adjusted value via `applyReadStatusResponse`. The paired
-        // capture mirrors `markRead`'s pattern so the revert path is symmetric.
+        // between the swipe and the PATCH response. The paired capture mirrors `markRead`'s
+        // pattern so the revert path is symmetric.
         var didIncrementUnreadCount = false
         if previousIsRead {
             messagesByID[messageID]?.isRead = false
@@ -422,6 +435,9 @@ actor InboxManager {
             didIncrementUnreadCount = true
             send(.loaded(orderedMessagesSnapshot()))
         }
+
+        // Trailing reconciliation — see `markRead` for the rationale.
+        defer { scheduleUnreadCountReconciliation() }
 
         // See `markRead` for why the count-revision snapshot is separate from the refresh
         // generation.
@@ -438,7 +454,7 @@ actor InboxManager {
             applyReadStatusResponse(response)
         } catch {
             Loggers.network.error("Failed to mark inbox message unread: \(error.localizedDescription, privacy: .public)")
-            guard generation == refreshGeneration else { return }
+            // See `markRead` — always revert `isRead`, guard the count revert on the revision.
             if messagesByID[messageID] != nil, previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
                 if didIncrementUnreadCount, revisionAtStart == unreadCountRevision {
@@ -451,7 +467,8 @@ actor InboxManager {
 
     /// Deletes a message. Optimistically removes it locally, then issues the server delete.
     /// On failure the local removal is reverted (message re-inserted at its original index)
-    /// so the UI reflects true state.
+    /// so the UI reflects true state. Always finishes by reconciling the count against the
+    /// `/unread/count` endpoint — see `markRead` for the rationale.
     func delete(_ messageID: Message.ID) async {
         guard let removedMessage = messagesByID[messageID],
               let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
@@ -472,6 +489,9 @@ actor InboxManager {
             storedUnreadCount -= 1
         }
         send(.loaded(orderedMessagesSnapshot()))
+
+        // Trailing reconciliation — see `markRead` for the rationale.
+        defer { scheduleUnreadCountReconciliation() }
 
         // Snapshot the *replaced* counter, not `messagesGeneration`, so the revert path drops
         // only when a successful refresh or identity reset actually replaced the local list —
@@ -496,6 +516,20 @@ actor InboxManager {
                 storedUnreadCount += 1
             }
             send(.loaded(orderedMessagesSnapshot()))
+        }
+    }
+
+    /// Fires a background unread-count fetch so the cached count converges to the
+    /// `/unread/count` endpoint's authoritative value after any local mutation. Called from
+    /// `markRead` / `markUnread` / `delete` regardless of success/failure so the badge is
+    /// correct even when the host observes state through a stream that gets torn down
+    /// before the PATCH settles (e.g., popping the inbox VC mid-swipe) or the mobile-api
+    /// PATCH response's `unread_count` is stale for any reason. Not spawned when the count
+    /// is not currently reachable (empty visitor id) — `performUnreadCountFetch`'s own
+    /// `requireIdentity` guard handles that internally.
+    private func scheduleUnreadCountReconciliation() {
+        Task { [weak self] in
+            await self?.performUnreadCountFetch(skipNotify: false)
         }
     }
 
