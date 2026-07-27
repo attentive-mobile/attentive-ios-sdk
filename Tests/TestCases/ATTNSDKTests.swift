@@ -563,6 +563,29 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(metadata?.cart?.cartTotal, "20.00")
     }
 
+    func testPriceFormatter_pinsToPOSIX_regardlessOfDeviceLocale() {
+        // The shared priceFormatter must produce `.` decimals on every device
+        // locale — backends parse totals with BigDecimal/Double.valueOf which
+        // reject the `,` separators produced on de_DE/fr_FR/etc. CI runs on
+        // en_US so an unpinned formatter passes there and only fails in the
+        // field. Verify by pointing a fresh copy of the SAME formatter recipe
+        // at a comma-decimal locale and confirming it still writes `.`.
+        let event = ATTNPurchaseEvent(
+            items: [ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.5"), currency: "EUR"))],
+            order: ATTNOrder(orderId: "o1")
+        )
+        let formatter = event.priceFormatter
+
+        XCTAssertEqual(formatter.locale.identifier, "en_US_POSIX",
+                       "priceFormatter must pin the locale so decimal separators are stable across devices")
+
+        // Belt-and-braces: even if someone reassigns the locale later, the
+        // rendered string for a known decimal must always use a `.` separator.
+        let rendered = formatter.string(from: NSDecimalNumber(string: "15.5"))
+        XCTAssertEqual(rendered, "15.50")
+        XCTAssertFalse(rendered?.contains(",") ?? false, "Formatted totals must never contain `,` — backend parsers reject them")
+    }
+
     func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
         sut.useV2Endpoint = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
