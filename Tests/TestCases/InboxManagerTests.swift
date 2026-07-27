@@ -977,6 +977,45 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "reset+refresh must not re-fetch messages — that stays under the inbox view's control")
     }
 
+    func testResetForIdentityChange_duringInitFetch_followupRefreshStillPostsForNewIdentity() async {
+        // Regression guard: an identity change that lands *before* the init fetch drains must
+        // not leave `refreshUnreadCount()` coalescing with a stale init task. If reset failed to
+        // drop `initialRefreshTask`, the SDK's post-`/user-update` refresh would await the
+        // discarded init response and skip issuing a POST — the new user's badge would stick at 0.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        // Freeze the init-time count fetch inside its stub so the init task is guaranteed to
+        // still be alive when `resetForIdentityChange` fires below.
+        let initFetchStarted = expectation(description: "init count fetch started")
+        let releaseInitFetch = MutableString(value: "no")
+        apiSpy.onFetchInboxUnreadCount = { [weak apiSpy] in
+            // Only block the very first fetch — the post-reset one must return promptly.
+            guard apiSpy?.fetchInboxUnreadCountCallCount == 1 else { return }
+            initFetchStarted.fulfill()
+            while releaseInitFetch.value == "no" {
+                try? await Task.sleep(nanoseconds: 5_000_000)
+            }
+        }
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        await fulfillment(of: [initFetchStarted], timeout: 1)
+
+        // Reset while the init fetch is still suspended inside the stub. The old-identity
+        // response, when it finally comes back, is dropped by the generation guard.
+        apiSpy.stubbedUnreadCount = 9
+        await manager.resetForIdentityChange()
+
+        // Now unblock the init fetch and issue the post-`/user-update` refresh.
+        releaseInitFetch.value = "yes"
+        await manager.refreshUnreadCount()
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 2, "post-reset refresh must issue its own POST instead of coalescing with the stale init task")
+        XCTAssertEqual(unread, 9, "new identity's server value must land in the cache")
+    }
+
     // MARK: - Pull-to-refresh includes unread count
 
     func testRefresh_alsoRefreshesUnreadCount() async {

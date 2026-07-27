@@ -562,6 +562,12 @@ actor InboxManager {
         hasFetchedFirstPage = false
         setLoadingNextPage(false)
         isRefreshingFirstPage = false
+        // Drop the init-time refresh handle. Without this, a `refreshUnreadCount()` fired from
+        // ATTNSDK's `/user-update` callback would coalesce with an undrained init task, await
+        // its (now-discarded) response, and return without issuing a POST — leaving the new
+        // identity's badge stuck at 0. Post-reset the cached count is already 0, so any
+        // `awaitInitialRefresh()` reader is served correctly by short-circuiting on nil.
+        initialRefreshTask = nil
         // Only re-emit when we were already surfacing a loaded list — never override an
         // in-flight .loading state, which would strand hosts that don't re-present InboxView.
         if case .loaded = currentState {

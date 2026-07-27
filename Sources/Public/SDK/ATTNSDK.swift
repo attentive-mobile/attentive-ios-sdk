@@ -977,9 +977,15 @@ fileprivate extension ATTNSDK {
     /// Called from the `/user-update` callback path after an identity change so the badge picks
     /// up the newly-associated user's server count. Skips materialization so host apps that
     /// never touch the inbox don't pay for a network call on every `clearUser`/`updateUser`.
+    /// Hops to the main queue before reading `_inboxManager` because the URLSession completion
+    /// invokes its callback on a background queue, and `materializedInboxManager()` writes
+    /// `_inboxManager` from the main thread — reading it here without the hop is a TSan/Swift 6
+    /// data race.
     func refreshInboxUnreadCountForNewIdentityIfMaterialized() {
-        guard let manager = _inboxManager else { return }
-        Task { await manager.refreshUnreadCount() }
+        DispatchQueue.main.async { [weak self] in
+            guard let manager = self?._inboxManager else { return }
+            Task { await manager.refreshUnreadCount() }
+        }
     }
 
     /// Publishes the current identity (visitor id, push token, email, phone) into the
