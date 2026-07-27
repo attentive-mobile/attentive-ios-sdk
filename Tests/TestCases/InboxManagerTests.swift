@@ -361,15 +361,12 @@ final class InboxManagerTests: XCTestCase {
         await waitForUnreadCountFetch()
 
         // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
-        // bumping the generation and zeroing the count for the new (logged-out) identity. The
-        // hook drains the reset's spawned re-fetch to 0 *before* the PATCH returns, so if the
-        // generation guard were removed, the PATCH's applyReadStatusResponse would clobber 0
-        // back to 99 and fail this assertion — which is exactly the regression coverage we want.
-        apiSpy.onMarkMessagesRead = { [weak self] in
-            guard let self else { return }
-            self.apiSpy.stubbedUnreadCount = 0
+        // bumping the generation and zeroing the count for the new (logged-out) identity. Reset
+        // is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself), so the
+        // hook doesn't need to wait for a spawned re-fetch — if the generation guard were removed
+        // the PATCH's applyReadStatusResponse would clobber 0 back to 99 and fail the assertion.
+        apiSpy.onMarkMessagesRead = {
             await manager.resetForIdentityChange()
-            await self.waitForUnreadCountFetches(count: 2)
         }
 
         await manager.markRead("1")
@@ -461,6 +458,53 @@ final class InboxManagerTests: XCTestCase {
         let unread = await manager.unreadCount
         XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
         XCTAssertEqual(unread, 3, "Failed mark-read must revert the optimistic badge decrement")
+    }
+
+    func testMarkRead_failure_afterPeerAuthoritativeWrite_doesNotClobberCount() async {
+        // Two mark-read Tasks overlap (as `InboxViewModel.markAsRead` schedules them). Peer B
+        // succeeds first with an authoritative unread_count response; the failing A must revert
+        // the isRead flag but NOT re-increment the count — the peer's server value is truth.
+        // Without the count-revision guard, A's rollback would blindly add 1 to B's count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessage(id: "A", isRead: false), makeMessage(id: "B", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        // Peer B's response is authoritative and lands before A fails. Server truth after both:
+        // A still unread, B now read → 4 unread. Rollback of A must preserve that 4, not push to 5.
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "B", isRead: true)],
+            unreadCount: 4
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // On A's PATCH: drive B all the way through (successful, applies count=4), then fail A.
+        // This mirrors the ordering when two row taps schedule detached Tasks and B's network
+        // returns first.
+        let didRunHook = MutableString(value: "no")
+        apiSpy.onMarkMessagesRead = {
+            guard didRunHook.value == "no" else { return }
+            didRunHook.value = "running"
+            self.apiSpy.stubbedMarkReadError = nil // let B succeed
+            await manager.markRead("B")
+            self.apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1) // A fails after
+        }
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
+        await manager.markRead("A")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        let a = messages.first { $0.id == "A" }
+        let b = messages.first { $0.id == "B" }
+        XCTAssertEqual(a?.isRead, false, "Failed mark-read on A must revert A's isRead flag")
+        XCTAssertEqual(b?.isRead, true, "Successful mark-read on B must persist B's flag")
+        XCTAssertEqual(unread, 4, "A's failed rollback must not clobber the authoritative count written by peer B")
     }
 
     func testMarkRead_zeroUnreadCount_doesNotUnderflow() async {
@@ -572,14 +616,11 @@ final class InboxManagerTests: XCTestCase {
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
 
-        // Drain the reset's spawned re-fetch inside the hook so it lands *before* the PATCH
-        // response. Without that ordering, the re-fetch would run after the PATCH and mask a
-        // missing generation guard by overwriting 99 back to 0.
-        apiSpy.onMarkMessagesUnread = { [weak self] in
-            guard let self else { return }
-            self.apiSpy.stubbedUnreadCount = 0
+        // Reset is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself),
+        // so the hook just performs the reset — no re-fetch needs draining. If the generation
+        // guard were removed the PATCH's applyReadStatusResponse would clobber 0 back to 99.
+        apiSpy.onMarkMessagesUnread = {
             await manager.resetForIdentityChange()
-            await self.waitForUnreadCountFetches(count: 2)
         }
 
         await manager.markUnread("1")
@@ -869,14 +910,11 @@ final class InboxManagerTests: XCTestCase {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2")
         ]
-        // Stub the initial identity's count to 5, then a fresh 0 for the reset re-fetch —
-        // asserts both the clear-on-reset and the new-identity re-fetch land on 0.
         apiSpy.stubbedUnreadCount = 5
         let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
         _ = await waitForLoadedState(manager)
         await waitForUnreadCountFetch()
 
-        apiSpy.stubbedUnreadCount = 0
         await manager.resetForIdentityChange()
 
         let messages = await manager.allMessages
@@ -887,9 +925,10 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertFalse(hasMore, "pagination cursor must be dropped so next user doesn't fetch prev user's next page")
     }
 
-    func testResetForIdentityChange_triggersUnreadCountRefetchForNewIdentity() async {
-        // Requirement: on identity change the cached count is cleared AND re-fetched, so the new
-        // user's badge doesn't sit at 0 until the host next actively touches the inbox.
+    func testResetForIdentityChange_doesNotFetchUnreadCountItself() async {
+        // The re-fetch belongs on the `/user-update` callback path (see `ATTNSDK`), not on the
+        // reset itself: firing here would race the server-side visitor→email/phone association
+        // and cache a count for an unlinked anonymous visitor. Reset stays purely local.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
         ]
@@ -899,40 +938,35 @@ final class InboxManagerTests: XCTestCase {
         await waitForUnreadCountFetch()
         let countBefore = apiSpy.fetchInboxUnreadCountCallCount
 
-        // Stub a distinct value for the post-reset re-fetch so we can prove we read the new one.
-        apiSpy.stubbedUnreadCount = 7
         await manager.resetForIdentityChange()
-        // The re-fetch is spawned as an unstructured Task; poll until it has completed.
-        await waitForUnreadCountFetches(count: countBefore + 1)
+        // Give any accidentally-spawned task time to run.
+        try? await Task.sleep(nanoseconds: 100_000_000)
 
-        let unread = await manager.unreadCount
-        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore + 1, "reset must re-fetch the count for the new identity")
-        XCTAssertEqual(unread, 7, "re-fetched value must land in the cache")
-        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "reset must not re-fetch messages — that stays under the inbox view's control")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "reset must be purely local — the count re-fetch fires from ATTNSDK's /user-update callback")
     }
 
-    func testResetForIdentityChange_emptyVisitorIdSkipsRefetch() async {
-        // If the reset lands in a logged-out state (empty visitor id) the re-fetch must skip
-        // the network — every inbox endpoint requires a non-empty visitor_id.
+    func testResetForIdentityChange_followedByRefreshUnreadCount_populatesNewCount() async {
+        // Simulates ATTNSDK's flow: reset synchronously, then (after /user-update returns) the
+        // SDK invokes refreshUnreadCount() so the new identity's badge lands without waiting for
+        // the host to open the inbox.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
         ]
         apiSpy.stubbedUnreadCount = 3
-        let visitorId = MutableString(value: "v_test")
-        let provider: InboxIdentityProvider = { [visitorId] in
-            InboxIdentitySnapshot(visitorId: visitorId.value, pushToken: "fcm:abc", email: nil, phone: nil)
-        }
-        let manager = InboxManager(api: apiSpy, identityProvider: provider)
-        _ = await waitForLoadedState(manager)
-        await waitForUnreadCountFetch()
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Awaiting unreadCount drains initialRefreshTask so the subsequent refreshUnreadCount()
+        // does real work instead of coalescing with the init fetch.
+        _ = await manager.unreadCount
         let countBefore = apiSpy.fetchInboxUnreadCountCallCount
 
-        visitorId.value = ""
+        apiSpy.stubbedUnreadCount = 7
         await manager.resetForIdentityChange()
-        // Give the spawned task time to run.
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        await manager.refreshUnreadCount()
 
-        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "empty visitor id must not trigger a network call")
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore + 1, "refreshUnreadCount() after reset must issue exactly one new count POST")
+        XCTAssertEqual(unread, 7, "the refreshed value must land in the cache")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "reset+refresh must not re-fetch messages — that stays under the inbox view's control")
     }
 
     // MARK: - Pull-to-refresh includes unread count

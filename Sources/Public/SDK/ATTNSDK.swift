@@ -200,6 +200,9 @@ public final class ATTNSDK: NSObject {
         let pushToken = currentPushToken
         guard !pushToken.isEmpty else {
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+            // No `/user-update` will fire, so kick the inbox count re-fetch now against the
+            // freshly-generated anonymous visitor. Safe: no server-side association is pending.
+            refreshInboxUnreadCountForNewIdentityIfMaterialized()
             return
         }
 
@@ -210,7 +213,11 @@ public final class ATTNSDK: NSObject {
             email: nil,
             phone: nil,
             operationContext: "clearUser",
-            callback: nil
+            callback: { [weak self] _, _, _, _ in
+                // Fire after `/user-update` returns so the server has finished detaching the
+                // token from the previous user before we ask for the new (anon) count.
+                self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+            }
         )
     }
 
@@ -661,7 +668,14 @@ public final class ATTNSDK: NSObject {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: callback
+            callback: { [weak self] data, url, response, error in
+                // Chain the host's callback so we can trigger the inbox count re-fetch AFTER the
+                // server has associated the new visitor with the supplied email/phone. Firing
+                // before `/user-update` completes would cache a count for an unlinked anonymous
+                // visitor and leave the badge stale until the next explicit refresh.
+                callback?(data, url, response, error)
+                self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+            }
         )
     }
 
@@ -957,6 +971,15 @@ fileprivate extension ATTNSDK {
         })
         _inboxManager = manager
         return manager
+    }
+
+    /// Fires a background inbox unread-count refresh only when the manager already exists.
+    /// Called from the `/user-update` callback path after an identity change so the badge picks
+    /// up the newly-associated user's server count. Skips materialization so host apps that
+    /// never touch the inbox don't pay for a network call on every `clearUser`/`updateUser`.
+    func refreshInboxUnreadCountForNewIdentityIfMaterialized() {
+        guard let manager = _inboxManager else { return }
+        Task { await manager.refreshUnreadCount() }
     }
 
     /// Publishes the current identity (visitor id, push token, email, phone) into the
