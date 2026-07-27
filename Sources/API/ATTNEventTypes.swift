@@ -53,10 +53,13 @@ public struct ATTNIdentifiers: Codable {
 }
 
 /// Represents an individual product in an event payload.
+///
+/// `name` is optional so hosts using server-side catalog hydration can send
+/// only `productId` and let the backend enrich the remaining fields.
 public struct ATTNProduct: Codable {
     public let productId: String
     public let variantId: String?
-    public let name: String
+    public let name: String?
     public let variantName: String?
     public let imageUrl: String?
     public let categories: [String]?
@@ -67,7 +70,7 @@ public struct ATTNProduct: Codable {
     public init(
         productId: String,
         variantId: String? = nil,
-        name: String,
+        name: String? = nil,
         variantName: String? = nil,
         imageUrl: String? = nil,
         categories: [String]? = nil,
@@ -90,7 +93,7 @@ public struct ATTNProduct: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(productId, forKey: .productId)
         try container.encode(variantId, forKey: .variantId)
-        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(name, forKey: .name)
         try container.encode(variantName, forKey: .variantName)
         try container.encode(imageUrl, forKey: .imageUrl)
         try container.encode(categories, forKey: .categories)

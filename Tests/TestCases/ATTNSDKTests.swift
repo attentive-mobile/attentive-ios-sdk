@@ -489,6 +489,9 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_purchaseMultipleItems_computesCorrectTotal() {
+        // MSDK-442: v2 auto-convert matches the legacy /e formula
+        // (sum of item prices, quantity-agnostic) so flipping useV2Endpoint
+        // doesn't silently change historical totals.
         sut.useV2Endpoint = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         item1.quantity = 2
@@ -502,7 +505,62 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertTrue(apiSpy.sendNewEventWasCalled)
         XCTAssertEqual(apiSpy.sendNewEventCallCount, 1)
         let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
-        XCTAssertEqual(metadata?.orderTotal, "36.5")
+        XCTAssertEqual(metadata?.orderTotal, "15.50")
+    }
+
+    func testSendEvent_v2Enabled_purchase_populatesCartTotalFromLegacyFormula() {
+        // Regression guard for MSDK-442: v2 auto-convert emits a cartTotal
+        // computed from items so downstream systems don't see it empty.
+        sut.useV2Endpoint = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        item1.quantity = 2
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
+        item2.quantity = 3
+        let order = ATTNOrder(orderId: "order-cart-total")
+        let cart = ATTNCart(cartId: "cart-1")
+        let event = ATTNPurchaseEvent(items: [item1, item2], order: order)
+        event.cart = cart
+
+        sut.send(event: event)
+
+        let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
+        XCTAssertEqual(metadata?.cart?.cartTotal, "15.50")
+        XCTAssertEqual(metadata?.cart?.cartId, "cart-1")
+    }
+
+    func testSendEvent_v2Enabled_purchase_preservesCallerProvidedCartTotal() {
+        // Caller-supplied cartTotal on ATTNCart wins over the SDK-computed
+        // fallback so hosts can pass an authoritative value.
+        sut.useV2Endpoint = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let order = ATTNOrder(orderId: "order-caller-total")
+        let cart = ATTNCart(cartId: "cart-2", cartCoupon: "SAVE10")
+        cart.cartTotal = "123.45"
+        cart.cartDiscount = "5.00"
+        let event = ATTNPurchaseEvent(items: [item], order: order)
+        event.cart = cart
+
+        sut.send(event: event)
+
+        let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
+        XCTAssertEqual(metadata?.cart?.cartTotal, "123.45")
+        XCTAssertEqual(metadata?.cart?.cartDiscount, "5.00")
+        XCTAssertEqual(metadata?.cart?.cartCoupon, "SAVE10")
+    }
+
+    func testSendEvent_v2Enabled_purchase_noCart_stillSendsComputedCartTotal() {
+        // When the host omits the cart entirely, the auto-convert still emits
+        // a cart payload carrying the SDK-computed cartTotal so downstream
+        // pipelines never see it empty.
+        sut.useV2Endpoint = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "USD"))
+        let order = ATTNOrder(orderId: "order-no-cart")
+        let event = ATTNPurchaseEvent(items: [item], order: order)
+
+        sut.send(event: event)
+
+        let metadata = apiSpy.lastEventMetadata as? ATTNPurchaseMetadata
+        XCTAssertEqual(metadata?.cart?.cartTotal, "20.00")
     }
 
     func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
