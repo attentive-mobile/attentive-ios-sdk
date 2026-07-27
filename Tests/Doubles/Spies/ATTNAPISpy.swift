@@ -158,6 +158,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     private(set) var lastInboxVisitorId: String?
     var stubbedUnreadCount: Int = 0
     var stubbedInboxError: Error?
+    /// Fires inside the stub *before* it returns, so tests can drive concurrent state (e.g.
+    /// reset the identity mid-flight) and observe how the manager handles a slow count fetch.
+    var onFetchInboxUnreadCount: (@Sendable () async -> Void)?
 
     func fetchInboxUnreadCount(
         pushToken: String,
@@ -171,6 +174,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastInboxEmail = email
         lastInboxPhone = phone
         lastInboxVisitorId = visitorId
+        if let hook = onFetchInboxUnreadCount { await hook() }
         if let error = stubbedInboxError { throw error }
         return stubbedUnreadCount
     }
