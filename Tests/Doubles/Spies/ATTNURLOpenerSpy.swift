@@ -19,6 +19,11 @@ final class ATTNURLOpenerSpy: ATTNURLOpening {
         openWasCalled = true
         openedURLs.append(url)
         lastOptions = options
-        completionHandler?(openResult)
+        // Match the real opener's timing: `UIApplication.open`'s completion arrives on a later
+        // runloop turn, never synchronously. A synchronous callback here would let tests pass
+        // on ordering assumptions the production path doesn't guarantee.
+        if let completionHandler {
+            DispatchQueue.main.async { completionHandler(self.openResult) }
+        }
     }
 }

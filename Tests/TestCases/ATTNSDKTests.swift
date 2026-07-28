@@ -396,6 +396,30 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertNil(sut.consumeDeepLink())
     }
 
+    func testNormalizeAndBroadcast_emptySchemeURL_doesNotOpenOrStore() {
+        // "://foo" parses via URL(string:) with scheme == "" (not nil) — it must not slip
+        // past validation into UIApplication.open.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("://foo")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_scriptableSchemes_doNotOpenOrStore() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        for blocked in ["javascript:alert(1)", "file:///etc/passwd", "data:text/html,hi", "about:blank", "vbscript:msgbox"] {
+            sut.normalizeAndBroadcast(blocked)
+
+            XCTAssertFalse(urlOpenerSpy.openWasCalled, "\(blocked) must not be opened")
+            XCTAssertNil(sut.consumeDeepLink(), "\(blocked) must not be stored")
+        }
+    }
+
     func testNormalizeAndBroadcast_postsDeepLinkNotification() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy

@@ -97,11 +97,14 @@ class InboxViewModel: ObservableObject {
         }
     }
 
-    /// Called from `InboxView` when the user taps a row. In order: fires the click-tracking
-    /// POST + read flip, broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the
-    /// actionURL), then routes the tap — to the host's `onMessageTap` handler when one was
-    /// provided, otherwise by opening `actionURL` via `UIApplication`. Unclaimed http(s) links
-    /// fall back to the browser; a custom scheme no app claims is logged and dropped.
+    /// Called from `InboxView` when the user taps a row. Dispatches the click-tracking POST +
+    /// read flip to the manager (async — navigation must not wait on the network, matching the
+    /// Android SDK), broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL),
+    /// then routes the tap — to the host's `onMessageTap` handler when one was provided,
+    /// otherwise by opening `actionURL` via `UIApplication`. Unclaimed http(s) links fall back
+    /// to the browser; a custom scheme no app claims is logged and dropped. Note the tracking
+    /// runs concurrently with routing: an `onMessageTap` handler that reads inbox state
+    /// synchronously may still observe the message as unread.
     func click(_ message: Message) {
         Task {
             await inboxManager.markClicked(message.id)
@@ -124,6 +127,12 @@ class InboxViewModel: ObservableObject {
         }
 
         guard let actionURL = message.actionURL else { return }
+        // Server-supplied string: refuse empty-scheme and scriptable (javascript:/file:/data:)
+        // URLs. The broadcast above still carries the raw URL — hosts decide for themselves.
+        guard actionURL.attnIsOpenableDeepLink else {
+            Loggers.network.error("Refusing to open inbox action URL with unsupported scheme: \(actionURL, privacy: .public)")
+            return
+        }
         urlOpener.open(actionURL, options: [:]) { success in
             if !success {
                 Loggers.network.error("No app claimed inbox action URL: \(actionURL, privacy: .public)")
