@@ -509,8 +509,11 @@ extension ATTNAPI {
             // Convert JSON to string for logging
             let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
 
-            // URL-encode the JSON and wrap it in form data with key 'd'
-            guard let encodedJson = jsonString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            // Percent-encode the JSON for an `application/x-www-form-urlencoded` body.
+            // `.urlQueryAllowed` leaves sub-delims (`&`, `=`, `+`, `#`) unescaped, which
+            // truncates the `d` value at the first such character in the JSON (e.g. a
+            // product name like "Grab & Go" splits the body and drops the event).
+            guard let encodedJson = jsonString.addingPercentEncoding(withAllowedCharacters: .attnFormEncodedAllowed) else {
                 Loggers.network.error("Failed to URL-encode JSON payload")
                 callback?(nil, url, nil, ATTNError.badURL)
                 return
@@ -545,4 +548,15 @@ extension ATTNAPI {
         }
     }
 
+}
+
+private extension CharacterSet {
+    /// Percent-encoding allow-set for values inside an `application/x-www-form-urlencoded`
+    /// body: `.urlQueryAllowed` minus the sub-delims that separate form fields (`&`, `=`)
+    /// or have special decode semantics in a form body (`+`, `#`).
+    static let attnFormEncodedAllowed: CharacterSet = {
+        var set = CharacterSet.urlQueryAllowed
+        set.remove(charactersIn: "&=+#")
+        return set
+    }()
 }
