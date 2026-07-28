@@ -12,6 +12,14 @@ public final class ATTNCart: NSObject {
     @objc public var cartId: String?
     @objc public var cartCoupon: String?
 
+    /// Authoritative cart total when the host wants to override the SDK-computed
+    /// value. When nil on a Purchase event, the SDK falls back to summing item
+    /// prices (matching the legacy `/e` path).
+    @objc public var cartTotal: String?
+
+    /// Discount applied to the cart. Passed through unchanged on the v2 payload.
+    @objc public var cartDiscount: String?
+
     @objc
     override public init() { }
 

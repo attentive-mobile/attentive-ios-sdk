@@ -23,16 +23,23 @@ extension ATTNSDK {
                 return
             }
             let products = purchase.items.map { product(from: $0) }
-            let cart = ATTNCartPayload(from: purchase.cart)
             let currency = purchase.items[0].price.currency
-            let orderTotal = purchase.items.reduce(NSDecimalNumber.zero) { total, item in
-                let quantity = NSDecimalNumber(value: item.quantity)
-                return total.adding(item.price.price.multiplying(by: quantity))
+            // Match the legacy /e computation exactly (sum of item prices,
+            // quantity-agnostic, formatted with 2 fraction digits) so flipping
+            // useV2Endpoint doesn't silently change historical totals.
+            let computedTotalNumber = purchase.items.reduce(NSDecimalNumber.zero) { total, item in
+                total.adding(item.price.price)
             }
+            let computedTotal = purchase.priceFormatter.string(from: computedTotalNumber) ?? computedTotalNumber.stringValue
+            let cart = ATTNCartPayload(
+                from: purchase.cart,
+                total: purchase.cart?.cartTotal ?? computedTotal,
+                discount: purchase.cart?.cartDiscount
+            )
             sendPurchaseEvent(
                 orderId: purchase.order.orderId,
                 currency: currency,
-                orderTotal: orderTotal.stringValue,
+                orderTotal: computedTotal,
                 cart: cart,
                 products: products
             )
