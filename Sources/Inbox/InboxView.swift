@@ -30,10 +30,10 @@ struct InboxView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                // Fires click tracking + local read flip, and broadcasts
-                                // `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL).
-                                // The SDK does not open the URL itself — host apps route it.
-                                viewModel.click(id: message.id, actionURL: message.actionURL)
+                                // The VM owns tap routing: click tracking + read flip, the
+                                // `ATTNSDKInboxMessageTapped` broadcast, then the host's
+                                // `onMessageTap` handler or the default `actionURL` open.
+                                viewModel.click(message)
                             }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
