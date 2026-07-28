@@ -309,14 +309,20 @@ public final class ATTNSDK: NSObject {
         await materializedInboxManager().refreshUnreadCount()
     }
 
+    /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking, broadcasts
+    /// `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` — universal links
+    /// resolve into their app, other http(s) links fall back to the browser. Pass
+    /// `onMessageTap` to replace that default URL routing with your own navigation; click
+    /// tracking still fires first.
     @MainActor
-    public func inboxView(style: InboxStyle = InboxStyle()) -> some View {
-        InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style))
+    public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
+        InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style, onTap: onMessageTap))
     }
 
+    /// UIKit wrapper for `inboxView(style:onMessageTap:)` — see that method for tap semantics.
     @MainActor
-    public func inboxViewController(style: InboxStyle = InboxStyle()) -> UIViewController {
-        UIHostingController(rootView: inboxView(style: style))
+    public func inboxViewController(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> UIViewController {
+        UIHostingController(rootView: inboxView(style: style, onMessageTap: onMessageTap))
     }
 
     public func markRead(for messageID: Message.ID) async {

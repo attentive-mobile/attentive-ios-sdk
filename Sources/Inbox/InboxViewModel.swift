@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @MainActor
 class InboxViewModel: ObservableObject {
@@ -28,12 +29,21 @@ class InboxViewModel: ObservableObject {
     let style: InboxStyle
 
     private let inboxManager: InboxManager
+    private let onTap: ((Message) -> Void)?
+    private let urlOpener: ATTNURLOpening
     private var stateStreamTask: Task<Void, Never>?
     private var loadingMoreStreamTask: Task<Void, Never>?
 
-    init(inboxManager: InboxManager, style: InboxStyle) {
+    init(
+        inboxManager: InboxManager,
+        style: InboxStyle,
+        onTap: ((Message) -> Void)? = nil,
+        urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
+    ) {
         self.inboxManager = inboxManager
         self.style = style
+        self.onTap = onTap
+        self.urlOpener = urlOpener
         state = .loading
         stateStreamTask = Task { [weak self] in
             guard let stream = await self?.inboxManager.stateStream else { return }
@@ -87,15 +97,17 @@ class InboxViewModel: ObservableObject {
         }
     }
 
-    /// Called from `InboxView` when the user taps a row. Fires the click-tracking POST + flips
-    /// the row's read state, and broadcasts `ATTNSDKInboxMessageTapped` so host apps can route
-    /// to `actionURL`. The SDK intentionally does not open the URL itself.
-    func click(id: Message.ID, actionURL: URL?) {
+    /// Called from `InboxView` when the user taps a row. In order: fires the click-tracking
+    /// POST + read flip, broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the
+    /// actionURL), then routes the tap — to the host's `onMessageTap` handler when one was
+    /// provided, otherwise by opening `actionURL` via `UIApplication`. Unclaimed http(s) links
+    /// fall back to the browser; a custom scheme no app claims is logged and dropped.
+    func click(_ message: Message) {
         Task {
-            await inboxManager.markClicked(id)
+            await inboxManager.markClicked(message.id)
         }
-        var userInfo: [AnyHashable: Any] = ["attentiveInboxMessageId": id]
-        if let actionURL {
+        var userInfo: [AnyHashable: Any] = ["attentiveInboxMessageId": message.id]
+        if let actionURL = message.actionURL {
             userInfo["attentiveInboxActionUrl"] = actionURL
         }
         NotificationCenter.default.post(
@@ -103,6 +115,20 @@ class InboxViewModel: ObservableObject {
             object: nil,
             userInfo: userInfo
         )
+
+        // Host-provided handler replaces the SDK's routing entirely (matches the Android
+        // SDK's onMessageClick override) — it hears every tap, even URL-less ones.
+        if let onTap {
+            onTap(message)
+            return
+        }
+
+        guard let actionURL = message.actionURL else { return }
+        urlOpener.open(actionURL, options: [:]) { success in
+            if !success {
+                Loggers.network.error("No app claimed inbox action URL: \(actionURL, privacy: .public)")
+            }
+        }
     }
 }
 
