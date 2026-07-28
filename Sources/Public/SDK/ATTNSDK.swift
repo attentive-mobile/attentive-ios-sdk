@@ -80,8 +80,14 @@ public final class ATTNSDK: NSObject {
     /// registered for them they are never sent to the browser; the URL stays available through
     /// the `ATTNSDKDeepLinkReceived` broadcast and `consumeDeepLink()`.
     ///
+    /// This applies to foreground taps too: when a push banner arrives while the app is active
+    /// and the user taps it, the SDK navigates immediately — previously it only broadcast the
+    /// URL. Hosts that treat in-app banner taps as log-only should opt out.
+    ///
     /// Set to false if the host app navigates on its own via the `ATTNSDKDeepLinkReceived`
-    /// broadcast or `consumeDeepLink()`, to avoid handling the same URL twice.
+    /// broadcast or `consumeDeepLink()`, to avoid handling the same URL twice. Set it once
+    /// during SDK setup on the main thread — it is read on the main thread when a tap is
+    /// handled, and mutation from other threads is not synchronized.
     @objc public var automaticallyOpensPushDeepLinks: Bool = true
 
     var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
@@ -320,7 +326,8 @@ public final class ATTNSDK: NSObject {
     /// `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` — universal links
     /// resolve into their app, other http(s) links fall back to the browser. Pass
     /// `onMessageTap` to replace that default URL routing with your own navigation; click
-    /// tracking still fires first.
+    /// tracking still fires first. To keep tracking and the broadcast but suppress all
+    /// SDK-initiated navigation, pass an empty closure: `onMessageTap: { _ in }`.
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
         InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style, onTap: onMessageTap))
@@ -948,7 +955,10 @@ extension ATTNSDK {
         let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         var candidateURL: URL?
 
-        if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
+        // `attnIsOpenableDeepLink` rejects empty-scheme ("://foo") and scriptable
+        // (javascript:/file:/data:) URLs — this string is server-supplied campaign data, so it
+        // must be validated before it is stored, broadcast, or handed to UIApplication.
+        if let trimmedURL = URL(string: trimmed), trimmedURL.attnIsOpenableDeepLink {
             candidateURL = trimmedURL
         }
 

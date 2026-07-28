@@ -74,6 +74,18 @@ final class InboxViewModelTests: XCTestCase {
         await waitUntil("click tracking POST fires") { self.apiSpy.markMessageClickedWasCalled }
     }
 
+    func testClick_unsafeActionURLScheme_doesNotOpenButStillTracks() async {
+        // Server-supplied action_url with a scriptable scheme must never reach
+        // UIApplication.open; the broadcast + click tracking still run so hosts can decide.
+        let message = makeMessage(actionURLString: "javascript:alert(1)")
+        await makeSUT(seeding: message)
+
+        viewModel.click(message)
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        await waitUntil("click tracking POST fires") { self.apiSpy.markMessageClickedWasCalled }
+    }
+
     func testClick_withNilActionURL_doesNotOpenButStillTracks() async {
         let message = makeMessage()
         await makeSUT(seeding: message)
