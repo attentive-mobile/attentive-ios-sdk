@@ -360,10 +360,10 @@ actor InboxManager {
         guard let identity = requireIdentity(context: "inbox mark-read") else { return }
 
         // Optimistically decrement the badge alongside the row-dot flip so the two agree
-        // between the tap and the PATCH response. The PATCH's `unread_count` is a hint that
-        // narrows the reconciliation window; the follow-up count-endpoint fetch (spawned in
-        // `defer`) is what actually lands the authoritative value. Clamping at 0 keeps a
-        // stale-local case from producing a negative badge.
+        // between the tap and the trailing count fetch. The PATCH's `unread_count` response
+        // field is ignored (see `applyReadStatusResponse` and CI-566); the follow-up count-
+        // endpoint fetch (spawned in `defer`) is what actually lands the authoritative value.
+        // Clamping at 0 keeps a stale-local case from producing a negative badge.
         var didDecrementUnreadCount = false
         if !previousIsRead {
             messagesByID[messageID]?.isRead = true
@@ -374,13 +374,9 @@ actor InboxManager {
             send(.loaded(orderedMessagesSnapshot()))
         }
 
-        // Reconcile the count against the authoritative endpoint after every mutation,
-        // success or failure. The PATCH's `unread_count` and the optimistic ±1 can both
-        // drift — from mobile-api DTO quirks, from mid-flight peer mutations, or from a
-        // clamped optimistic path — and the host may not have an observer active when
-        // this method returns (e.g., the user navigates back before the PATCH settles).
-        // A trailing count fetch guarantees the badge converges to server truth without
-        // requiring any host-side "refresh on appear" hook.
+        // Reconcile against the count endpoint after every mutation. See
+        // `scheduleUnreadCountReconciliation` for the full rationale (backend gap CI-566 + host
+        // lifecycle robustness).
         defer { scheduleUnreadCountReconciliation() }
 
         // Snapshot the refresh generation before the request. If an identity change
@@ -520,13 +516,22 @@ actor InboxManager {
     }
 
     /// Fires a background unread-count fetch so the cached count converges to the
-    /// `/unread/count` endpoint's authoritative value after any local mutation. Called from
-    /// `markRead` / `markUnread` / `delete` regardless of success/failure so the badge is
-    /// correct even when the host observes state through a stream that gets torn down
-    /// before the PATCH settles (e.g., popping the inbox VC mid-swipe) or the mobile-api
-    /// PATCH response's `unread_count` is stale for any reason. Not spawned when the count
-    /// is not currently reachable (empty visitor id) — `performUnreadCountFetch`'s own
-    /// `requireIdentity` guard handles that internally.
+    /// `/inbox/messages/unread/count` endpoint's authoritative value after any local mutation.
+    /// Called from `markRead` / `markUnread` / `delete` regardless of success/failure. Two
+    /// reasons this is mandatory rather than opportunistic:
+    ///
+    /// 1. **Backend truth (CI-566):** the mark-read / mark-unread endpoints do not populate
+    ///    `unread_count` in their response, so we cannot rely on the PATCH round-trip alone to
+    ///    reconcile the badge. Trailing fetch against the count endpoint is the only way to
+    ///    land the correct value from the server.
+    /// 2. **Host observation robustness:** the badge is often rendered by a host observer that
+    ///    subscribes to `inboxStateStream` on `viewWillAppear` and cancels on `viewWillDisappear`.
+    ///    If the host pops back to the inbox parent view before the PATCH settles, they miss
+    ///    the state emission. The trailing fetch re-emits after the count lands, so the newly-
+    ///    resubscribed observer picks up the correct value.
+    ///
+    /// Not spawned when the count endpoint is not currently reachable (empty visitor id) —
+    /// `performUnreadCountFetch`'s own `requireIdentity` guard handles that internally.
     private func scheduleUnreadCountReconciliation() {
         Task { [weak self] in
             await self?.performUnreadCountFetch(skipNotify: false)
@@ -671,12 +676,17 @@ extension InboxManager {
     }
 
     /// Reconcile per-message read status from a mark-read/mark-unread response. The response's
-    /// `unread_count` is **intentionally ignored** — that field is a hint at best (mobile-api's
-    /// PATCH endpoints have historically returned values that don't match the count endpoint,
-    /// e.g., 0 after a single read that leaves other unread messages). The authoritative value
-    /// comes exclusively from the trailing `/inbox/messages/unread/count` fetch spawned by
-    /// `scheduleUnreadCountReconciliation()`. Only the per-message `isRead` field is applied
-    /// here, since it's a direct echo of what the SDK just requested.
+    /// `unread_count` is **intentionally ignored**: the backend implementation for these
+    /// endpoints does not populate that field with the true post-mutation count (tracked in
+    /// CI-566), so trusting it would corrupt the badge on every mark-read/mark-unread. The
+    /// authoritative value comes exclusively from the trailing `/inbox/messages/unread/count`
+    /// fetch spawned by `scheduleUnreadCountReconciliation()`. Only the per-message `isRead`
+    /// field is applied here, since it's a direct echo of what the SDK just requested.
+    ///
+    /// Once CI-566 ships and the fixed backend has fully rolled out, this method could go back
+    /// to trusting `response.unreadCount` and the trailing reconciliation could be dropped —
+    /// but the defensive behavior is cheap (~1 extra POST per mutation) and self-healing under
+    /// any future backend regression, so keeping it in place is the safer default.
     private func applyReadStatusResponse(_ response: UpdateReadStatusResponse) {
         for status in response.messages {
             messagesByID[status.messageId]?.isRead = status.isRead
