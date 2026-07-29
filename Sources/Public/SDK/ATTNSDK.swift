@@ -939,16 +939,12 @@ extension ATTNSDK {
     /// host app's behalf when `automaticallyOpensPushDeepLinks` is enabled.
     func normalizeAndBroadcast(_ rawString: String) {
         let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
-        var candidateURL: URL?
 
-        // `attnIsOpenableDeepLink` rejects empty-scheme ("://foo") and scriptable
-        // (javascript:/file:/data:) URLs — this string is server-supplied campaign data, so it
-        // must be validated before it is stored, broadcast, or handed to UIApplication.
-        if let trimmedURL = URL(string: trimmed), trimmedURL.attnIsOpenableDeepLink {
-            candidateURL = trimmedURL
-        }
-
-        guard let validURL = candidateURL else {
+        // Any URL that parses with a non-empty scheme is stored and broadcast so hosts
+        // observing ATTNSDKDeepLinkReceived (or polling consumeDeepLink()) keep visibility
+        // into every campaign URL, matching the inbox path. Only the SDK-initiated open
+        // below is gated on the scheme safety check.
+        guard let validURL = URL(string: trimmed), validURL.scheme?.isEmpty == false else {
             Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed, privacy: .public)' - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
         }
@@ -961,6 +957,14 @@ extension ATTNSDK {
             userInfo: ["attentivePushDeeplinkUrl": validURL]
         )
         Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL, privacy: .public)")
+
+        // Server-supplied string: refuse to hand scriptable (javascript:/file:/data:) and
+        // privileged system-action (tel:/sms:/itms-*) schemes to UIApplication. The broadcast
+        // above still carries the raw URL — hosts decide for themselves.
+        guard validURL.attnIsOpenableDeepLink else {
+            Loggers.network.error("Refusing to open push deep link with unsupported scheme: \(validURL, privacy: .public)")
+            return
+        }
 
         openDeepLink(validURL)
     }
