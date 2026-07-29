@@ -1,3 +1,21 @@
+## [2.0.16](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.15...2.0.16) (2026-07-29)
+* MSDK-441: fix v2 event body encoding and restore pd deeplink (#286)
+* MSDK-442: relax v2 event API for catalog-hydration clients (#283)
+* update project file
+* MSDK-312: bump clearUser concurrency test timeout to 15s
+* MSDK-312: stub UserDefaults in concurrent clearUser test
+* Document write-pr skill in CLAUDE.md
+* MSDK-417: document pushEnabled opt-out in README (#269)
+* MSDK-312: bump concurrency test timeouts for CI headroom
+* MSDK-390: address dry-run review feedback
+* MSDK-390: address Codex review feedback
+* MSDK-390: Add AGENTS.md for AI agent SDK integration
+* Force Bonni status bar to dark content
+* Make Bonni example app dark-mode-aware
+* Version bump 2.0.15
+* Binary Package.swift for 2.0.15
+* Version bump 2.0.15
+
 ## [2.0.15](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.14...2.0.15) (2026-06-03)
 Add pushEnabled init option to ATTNSDK (default true) — set to false when another provider owns push to disable SDK push handling and send marketing subscriptions without a token.
 
