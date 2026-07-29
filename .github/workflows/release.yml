@@ -16,7 +16,7 @@ on:
         description: "Deploy Bonni build to TestFlight after the release"
         required: false
         type: boolean
-        default: true
+        default: false
       release_notes:
         description: "Release notes (optional — single line only, use gh CLI for multiline. Auto-generated from commits if blank)"
         required: false
