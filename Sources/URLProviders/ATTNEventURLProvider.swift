@@ -95,18 +95,10 @@ extension ATTNEventURLProvider {
         return components
     }
 
-    private static let formEncodedAllowedCharacters: CharacterSet = {
-        var chars = CharacterSet.urlQueryAllowed
-        chars.remove("+")
-        chars.remove("&")
-        chars.remove("=")
-        return chars
-    }()
-
     static func setFormEncodedQuery(on components: inout URLComponents, params: [String: String]) {
         let queryString = params.map { key, value in
-            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? key
-            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: formEncodedAllowedCharacters) ?? value
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .attnFormEncodedAllowed) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .attnFormEncodedAllowed) ?? value
             return "\(encodedKey)=\(encodedValue)"
         }.joined(separator: "&")
         components.percentEncodedQuery = queryString
