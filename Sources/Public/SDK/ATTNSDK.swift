@@ -90,6 +90,19 @@ public final class ATTNSDK: NSObject {
     /// handled, and mutation from other threads is not synchronized.
     @objc public var automaticallyOpensPushDeepLinks: Bool = true
 
+    /// Determines if the built-in inbox UI opens a message's `actionURL` when the user taps a
+    /// row. Default value is true. Mirrors `automaticallyOpensPushDeepLinks` for the inbox
+    /// surface, with one difference: unclaimed http(s) links fall back to the browser.
+    ///
+    /// When disabled, a tap still fires click tracking and the `ATTNSDKInboxMessageTapped`
+    /// broadcast (userInfo carries the actionURL) — only the SDK-initiated open is suppressed.
+    /// Set to false if the host app navigates on its own via that broadcast, to avoid handling
+    /// the same URL twice. Ignored when an `onMessageTap` handler is passed to `inboxView()` /
+    /// `inboxViewController()`, which replaces the SDK's routing entirely. Set it once during
+    /// SDK setup on the main thread — it is read on the main thread when a tap is handled, and
+    /// mutation from other threads is not synchronized.
+    @objc public var automaticallyOpensInboxDeepLinks: Bool = true
+
     var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
 
     public init(domain: String, mode: ATTNSDKMode) {
@@ -320,10 +333,15 @@ public final class ATTNSDK: NSObject {
     /// resolve into their app, other http(s) links fall back to the browser. Pass
     /// `onMessageTap` to replace that default URL routing with your own navigation; click
     /// tracking still fires first. To keep tracking and the broadcast but suppress all
-    /// SDK-initiated navigation, pass an empty closure: `onMessageTap: { _ in }`.
+    /// SDK-initiated navigation, set `automaticallyOpensInboxDeepLinks = false`.
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
-        InboxView(viewModel: InboxViewModel(inboxManager: materializedInboxManager(), style: style, onTap: onMessageTap))
+        InboxView(viewModel: InboxViewModel(
+            inboxManager: materializedInboxManager(),
+            style: style,
+            onTap: onMessageTap,
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? true }
+        ))
     }
 
     /// UIKit wrapper for `inboxView(style:onMessageTap:)` — see that method for tap semantics.

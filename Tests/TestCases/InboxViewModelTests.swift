@@ -74,6 +74,36 @@ final class InboxViewModelTests: XCTestCase {
         await waitUntil("click tracking POST fires") { self.apiSpy.markMessageClickedWasCalled }
     }
 
+    func testClick_autoOpenDisabled_doesNotOpenButStillTracksAndBroadcasts() async {
+        // `automaticallyOpensInboxDeepLinks = false` suppresses only the SDK-initiated open;
+        // click tracking and the ATTNSDKInboxMessageTapped broadcast still fire.
+        let message = makeMessage(actionURLString: "https://example.com/sale")
+        await makeSUT(seeding: message, shouldOpenDeepLink: { false })
+
+        let notificationExpectation = expectation(forNotification: .ATTNSDKInboxMessageTapped, object: nil)
+
+        viewModel.click(message)
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        await fulfillment(of: [notificationExpectation], timeout: 1.0)
+        await waitUntil("click tracking POST fires") { self.apiSpy.markMessageClickedWasCalled }
+    }
+
+    func testClick_autoOpenDisabled_readAtTapTimeNotInitTime() async {
+        // The flag must be consulted when the tap happens, so hosts can toggle
+        // automaticallyOpensInboxDeepLinks after the inbox view is created.
+        let message = makeMessage(actionURLString: "https://example.com/sale")
+        var autoOpen = false
+        await makeSUT(seeding: message, shouldOpenDeepLink: { autoOpen })
+
+        viewModel.click(message)
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+
+        autoOpen = true
+        viewModel.click(message)
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "https://example.com/sale")])
+    }
+
     func testClick_unsafeActionURLScheme_doesNotOpenButStillTracks() async {
         // Server-supplied action_url with a scriptable scheme must never reach
         // UIApplication.open; the broadcast + click tracking still run so hosts can decide.
@@ -138,7 +168,11 @@ final class InboxViewModelTests: XCTestCase {
     /// Builds the manager + view model. `seeding` must be stubbed into the API spy *before*
     /// the manager exists: `InboxManager.init` fires its first-page fetch immediately, and
     /// `refresh()` coalesces with that init-time task, so a stub set afterwards is never read.
-    private func makeSUT(seeding message: Message? = nil, onTap: ((Message) -> Void)? = nil) async {
+    private func makeSUT(
+        seeding message: Message? = nil,
+        onTap: ((Message) -> Void)? = nil,
+        shouldOpenDeepLink: @escaping () -> Bool = { true }
+    ) async {
         if let message {
             apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [message], nextPageToken: nil)]
         }
@@ -151,7 +185,8 @@ final class InboxViewModelTests: XCTestCase {
             inboxManager: manager,
             style: InboxStyle(),
             onTap: onTap,
-            urlOpener: urlOpenerSpy
+            urlOpener: urlOpenerSpy,
+            shouldOpenDeepLink: shouldOpenDeepLink
         )
     }
 
