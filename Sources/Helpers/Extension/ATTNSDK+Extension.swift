@@ -52,7 +52,7 @@ extension ATTNSDK {
                 return
             }
             for item in addToCart.items {
-                sendAddToCartEvent(product: product(from: item), currency: item.price.currency)
+                sendAddToCartEvent(product: product(from: item), currency: item.price.currency, deeplink: addToCart.deeplink)
             }
             return
         }
@@ -63,7 +63,7 @@ extension ATTNSDK {
                 return
             }
             for item in productView.items {
-                sendProductViewEvent(product: product(from: item), currency: item.price.currency)
+                sendProductViewEvent(product: product(from: item), currency: item.price.currency, deeplink: productView.deeplink)
             }
             return
         }
@@ -100,14 +100,14 @@ extension ATTNSDK {
 
     // MARK: - New Event API (v2 endpoint)
 
-    func sendAddToCartEvent(product: ATTNProduct, currency: String) {
+    func sendAddToCartEvent(product: ATTNProduct, currency: String, deeplink: String? = nil) {
         let metadata = ATTNAddToCartMetadata(product: product, currency: currency)
-        sendNewEventInternal(eventType: .addToCart, metadata: metadata)
+        sendNewEventInternal(eventType: .addToCart, metadata: metadata, deeplink: deeplink)
     }
 
-    func sendProductViewEvent(product: ATTNProduct, currency: String) {
+    func sendProductViewEvent(product: ATTNProduct, currency: String, deeplink: String? = nil) {
         let metadata = ATTNProductViewMetadata(product: product, currency: currency)
-        sendNewEventInternal(eventType: .productView, metadata: metadata)
+        sendNewEventInternal(eventType: .productView, metadata: metadata, deeplink: deeplink)
     }
 
     func sendPurchaseEvent(
@@ -132,7 +132,7 @@ extension ATTNSDK {
         sendNewEventInternal(eventType: .mobileCustomEvent, metadata: metadata)
     }
 
-    private func sendNewEventInternal<M: Codable>(eventType: ATTNEventType, metadata: M) {
+    private func sendNewEventInternal<M: Codable>(eventType: ATTNEventType, metadata: M, deeplink: String? = nil) {
         // Get current timestamp in ISO8601 format
         let timestamp = ISO8601DateFormatter().string(from: Date())
 
@@ -176,6 +176,7 @@ extension ATTNSDK {
             metadata: [:],
             eventNameAbbreviation: eventNameAbbreviation
         )
+        eventRequest.deeplink = deeplink
         Loggers.event.debug("Sending v2 \(eventType.rawValue, privacy: .public) event: \(eventRequest, privacy: .public)")
 
         // Send via API
