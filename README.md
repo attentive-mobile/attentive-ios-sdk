@@ -523,6 +523,8 @@ When a notification is tapped, the SDK extracts the deep-link URL (`attentive_op
 
 This means that if your app already handles its URL schemes or universal links, push deep links work with no additional wiring — matching the behavior of our Android SDK.
 
+> **⚠️ Upgrading from an earlier version?** Previous SDK versions never opened the URL — they only broadcast it. If your app already navigates in response to the `ATTNSDKDeepLinkReceived` notification or `consumeDeepLink()`, set `automaticallyOpensPushDeepLinks = false` when you upgrade, or the same URL will be handled twice (once by your code, once by the SDK).
+
 If you prefer to handle navigation yourself (e.g. navigate later, or wait until the user is logged in), disable automatic opening and use one of the options below. The SDK always broadcasts and stores the URL regardless of this setting.
 
 ```

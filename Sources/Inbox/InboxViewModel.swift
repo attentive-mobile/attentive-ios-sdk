@@ -31,6 +31,10 @@ class InboxViewModel: ObservableObject {
     private let inboxManager: InboxManager
     private let onTap: ((Message) -> Void)?
     private let urlOpener: ATTNURLOpening
+    /// Read at tap time (not captured at init) so hosts can toggle
+    /// `ATTNSDK.automaticallyOpensInboxDeepLinks` after the inbox view is created,
+    /// matching the push flag's read-on-tap semantics.
+    private let shouldOpenDeepLink: () -> Bool
     private var stateStreamTask: Task<Void, Never>?
     private var loadingMoreStreamTask: Task<Void, Never>?
 
@@ -38,12 +42,14 @@ class InboxViewModel: ObservableObject {
         inboxManager: InboxManager,
         style: InboxStyle,
         onTap: ((Message) -> Void)? = nil,
-        urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
+        urlOpener: ATTNURLOpening = ATTNApplicationURLOpener(),
+        shouldOpenDeepLink: @escaping () -> Bool = { true }
     ) {
         self.inboxManager = inboxManager
         self.style = style
         self.onTap = onTap
         self.urlOpener = urlOpener
+        self.shouldOpenDeepLink = shouldOpenDeepLink
         state = .loading
         stateStreamTask = Task { [weak self] in
             guard let stream = await self?.inboxManager.stateStream else { return }
@@ -101,7 +107,8 @@ class InboxViewModel: ObservableObject {
     /// read flip to the manager (async — navigation must not wait on the network, matching the
     /// Android SDK), broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL),
     /// then routes the tap — to the host's `onMessageTap` handler when one was provided,
-    /// otherwise by opening `actionURL` via `UIApplication`. Unclaimed http(s) links fall back
+    /// otherwise by opening `actionURL` via `UIApplication` (unless the host disabled
+    /// `automaticallyOpensInboxDeepLinks`). Unclaimed http(s) links fall back
     /// to the browser; a custom scheme no app claims is logged and dropped. Note the tracking
     /// runs concurrently with routing: an `onMessageTap` handler that reads inbox state
     /// synchronously may still observe the message as unread.
@@ -123,6 +130,13 @@ class InboxViewModel: ObservableObject {
         // SDK's onMessageClick override) — it hears every tap, even URL-less ones.
         if let onTap {
             onTap(message)
+            return
+        }
+
+        // Host opted out of SDK-initiated navigation (`automaticallyOpensInboxDeepLinks`) —
+        // click tracking and the broadcast above still ran; routing is the host's job.
+        guard shouldOpenDeepLink() else {
+            Loggers.network.debug("Automatic inbox deep link opening is disabled; host app is expected to handle the tap via the ATTNSDKInboxMessageTapped broadcast.")
             return
         }
 
