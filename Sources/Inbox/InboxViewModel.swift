@@ -127,8 +127,9 @@ class InboxViewModel: ObservableObject {
         }
 
         guard let actionURL = message.actionURL else { return }
-        // Server-supplied string: refuse empty-scheme and scriptable (javascript:/file:/data:)
-        // URLs. The broadcast above still carries the raw URL — hosts decide for themselves.
+        // Server-supplied string: refuse empty-scheme, scriptable (javascript:/file:/data:),
+        // and privileged system-action (tel:/sms:/itms-*) URLs. The broadcast above still
+        // carries the raw URL — hosts decide for themselves.
         guard actionURL.attnIsOpenableDeepLink else {
             Loggers.network.error("Refusing to open inbox action URL with unsupported scheme: \(actionURL, privacy: .public)")
             return
