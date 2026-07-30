@@ -896,6 +896,21 @@ extension ATTNSDK {
             Task { await manager.refreshUnreadCount() }
         }
     }
+
+    /// Publishes the current identity (visitor id, push token, email, phone) into the
+    /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
+    /// Call after any mutation of `userIdentity` or `currentPushToken`.
+    /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
+    /// re-publishes after merging the new identifiers.
+    func publishIdentitySnapshot() {
+        let identifiers = userIdentity.identifiers
+        identityStore.update(InboxIdentitySnapshot(
+            visitorId: userIdentity.visitorId,
+            pushToken: currentPushToken,
+            email: identifiers[ATTNIdentifierType.email] as? String,
+            phone: identifiers[ATTNIdentifierType.phone] as? String
+        ))
+    }
 }
 
 fileprivate extension ATTNSDK {
@@ -910,19 +925,6 @@ fileprivate extension ATTNSDK {
         })
         _inboxManager = manager
         return manager
-    }
-
-    /// Publishes the current identity (visitor id, push token, email, phone) into the
-    /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
-    /// Call after any mutation of `userIdentity` or `currentPushToken`.
-    func publishIdentitySnapshot() {
-        let identifiers = userIdentity.identifiers
-        identityStore.update(InboxIdentitySnapshot(
-            visitorId: userIdentity.visitorId,
-            pushToken: currentPushToken,
-            email: identifiers[ATTNIdentifierType.email] as? String,
-            phone: identifiers[ATTNIdentifierType.phone] as? String
-        ))
     }
 
     func sendInfoEvent() {

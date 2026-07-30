@@ -42,10 +42,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             userIdentity: userIdentity,
@@ -101,10 +105,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptOutMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             userIdentity: userIdentity,
@@ -160,6 +168,9 @@ extension ATTNSDK {
         if let email = email { newIdentifiers[ATTNIdentifierType.email] = email }
         if let phone = phone { newIdentifiers[ATTNIdentifierType.phone] = phone }
         userIdentity.mergeIdentifiers(newIdentifiers)
+        // clearUserIdentifiers() above published a cleared snapshot; re-publish so the
+        // identity store (read by InboxManager) sees the new email/phone, not the cleared state.
+        publishIdentitySnapshot()
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,

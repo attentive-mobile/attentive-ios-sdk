@@ -581,6 +581,28 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
     }
 
+    func testOptIn_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        // A previous push-enabled install may have persisted a token; a push-disabled
+        // instance must not attach it to marketing requests.
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled, "Opt-in should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
+    }
+
+    func testOptOut_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
+    }
+
     // MARK: - updateUser tests
 
     func testUpdateUser_callsUpdateUserExactlyOnce() {
