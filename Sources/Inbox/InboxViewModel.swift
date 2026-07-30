@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @MainActor
 class InboxViewModel: ObservableObject {
@@ -28,12 +29,27 @@ class InboxViewModel: ObservableObject {
     let style: InboxStyle
 
     private let inboxManager: InboxManager
+    private let onTap: ((Message) -> Void)?
+    private let urlOpener: ATTNURLOpening
+    /// Read at tap time (not captured at init) so hosts can toggle
+    /// `ATTNSDK.automaticallyOpensInboxDeepLinks` after the inbox view is created,
+    /// matching the push flag's read-on-tap semantics.
+    private let shouldOpenDeepLink: () -> Bool
     private var stateStreamTask: Task<Void, Never>?
     private var loadingMoreStreamTask: Task<Void, Never>?
 
-    init(inboxManager: InboxManager, style: InboxStyle) {
+    init(
+        inboxManager: InboxManager,
+        style: InboxStyle,
+        onTap: ((Message) -> Void)? = nil,
+        urlOpener: ATTNURLOpening = ATTNApplicationURLOpener(),
+        shouldOpenDeepLink: @escaping () -> Bool = { true }
+    ) {
         self.inboxManager = inboxManager
         self.style = style
+        self.onTap = onTap
+        self.urlOpener = urlOpener
+        self.shouldOpenDeepLink = shouldOpenDeepLink
         state = .loading
         stateStreamTask = Task { [weak self] in
             guard let stream = await self?.inboxManager.stateStream else { return }
@@ -87,15 +103,21 @@ class InboxViewModel: ObservableObject {
         }
     }
 
-    /// Called from `InboxView` when the user taps a row. Fires the click-tracking POST + flips
-    /// the row's read state, and broadcasts `ATTNSDKInboxMessageTapped` so host apps can route
-    /// to `actionURL`. The SDK intentionally does not open the URL itself.
-    func click(id: Message.ID, actionURL: URL?) {
+    /// Called from `InboxView` when the user taps a row. Dispatches the click-tracking POST +
+    /// read flip to the manager (async — navigation must not wait on the network, matching the
+    /// Android SDK), broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL),
+    /// then routes the tap — to the host's `onMessageTap` handler when one was provided,
+    /// otherwise by opening `actionURL` via `UIApplication` (unless the host disabled
+    /// `automaticallyOpensInboxDeepLinks`). Unclaimed http(s) links fall back
+    /// to the browser; a custom scheme no app claims is logged and dropped. Note the tracking
+    /// runs concurrently with routing: an `onMessageTap` handler that reads inbox state
+    /// synchronously may still observe the message as unread.
+    func click(_ message: Message) {
         Task {
-            await inboxManager.markClicked(id)
+            await inboxManager.markClicked(message.id)
         }
-        var userInfo: [AnyHashable: Any] = ["attentiveInboxMessageId": id]
-        if let actionURL {
+        var userInfo: [AnyHashable: Any] = ["attentiveInboxMessageId": message.id]
+        if let actionURL = message.actionURL {
             userInfo["attentiveInboxActionUrl"] = actionURL
         }
         NotificationCenter.default.post(
@@ -103,6 +125,34 @@ class InboxViewModel: ObservableObject {
             object: nil,
             userInfo: userInfo
         )
+
+        // Host-provided handler replaces the SDK's routing entirely (matches the Android
+        // SDK's onMessageClick override) — it hears every tap, even URL-less ones.
+        if let onTap {
+            onTap(message)
+            return
+        }
+
+        // Host opted out of SDK-initiated navigation (`automaticallyOpensInboxDeepLinks`) —
+        // click tracking and the broadcast above still ran; routing is the host's job.
+        guard shouldOpenDeepLink() else {
+            Loggers.network.debug("Automatic inbox deep link opening is disabled; host app is expected to handle the tap via the ATTNSDKInboxMessageTapped broadcast.")
+            return
+        }
+
+        guard let actionURL = message.actionURL else { return }
+        // Server-supplied string: refuse empty-scheme, scriptable (javascript:/file:/data:),
+        // and privileged system-action (tel:/sms:/itms-*) URLs. The broadcast above still
+        // carries the raw URL — hosts decide for themselves.
+        guard actionURL.attnIsOpenableDeepLink else {
+            Loggers.network.error("Refusing to open inbox action URL with unsupported scheme: \(actionURL, privacy: .public)")
+            return
+        }
+        urlOpener.open(actionURL, options: [:]) { success in
+            if !success {
+                Loggers.network.error("No app claimed inbox action URL: \(actionURL, privacy: .public)")
+            }
+        }
     }
 }
 

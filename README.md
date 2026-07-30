@@ -574,7 +574,20 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 ### Deep Link Support
 
-Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
+When a notification is tapped, the SDK extracts the deep-link URL (`attentive_open_action_url`) and opens it on your app's behalf:
+
+- **Custom-scheme URLs** (e.g. `myapp://cart`) are handed to the system, which routes them into your app's existing URL handlers (`application(_:open:options:)` / `scene(_:openURLContexts:)`).
+- **Http(s) URLs** are opened as [universal links](https://developer.apple.com/documentation/xcode/allowing-apps-and-websites-to-link-to-your-content) only. If your app has registered for the link's domain, it is delivered through your app's `NSUserActivity` handlers; the user is never sent to the browser.
+
+This means that if your app already handles its URL schemes or universal links, push deep links work with no additional wiring — matching the behavior of our Android SDK.
+
+> **⚠️ Upgrading from an earlier version?** Previous SDK versions never opened the URL — they only broadcast it. If your app already navigates in response to the `ATTNSDKDeepLinkReceived` notification or `consumeDeepLink()`, set `automaticallyOpensPushDeepLinks = false` when you upgrade, or the same URL will be handled twice (once by your code, once by the SDK).
+
+If you prefer to handle navigation yourself (e.g. navigate later, or wait until the user is logged in), disable automatic opening and use one of the options below. The SDK always broadcasts and stores the URL regardless of this setting.
+
+```
+attentiveSdk.automaticallyOpensPushDeepLinks = false
+```
 
 #### Option 1: Observe the ATTNSDKDeepLinkReceived notification
 ```

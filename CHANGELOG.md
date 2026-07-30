@@ -1,3 +1,9 @@
+## Unreleased
+### Features
+- **The SDK now opens push deep links on the host app's behalf** (MSDK-213), matching the Android SDK: custom-scheme URLs route into your app's URL handlers, http(s) URLs open as universal links only (never the browser). **⚠️ Behavior change if you upgrade:** if your app already navigates in response to the `ATTNSDKDeepLinkReceived` broadcast or `consumeDeepLink()`, set `automaticallyOpensPushDeepLinks = false` to avoid handling the same URL twice. This applies to foreground banner taps too. The URL is always broadcast and stored regardless of the setting.
+- The built-in inbox UI now opens a tapped message's `actionURL` (unclaimed http(s) links fall back to the browser). Opt out with `automaticallyOpensInboxDeepLinks = false`, or pass `onMessageTap` to `inboxView()` / `inboxViewController()` to replace the routing entirely; click tracking and the `ATTNSDKInboxMessageTapped` broadcast fire either way.
+- Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
+
 ## [2.0.16](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.15...2.0.16) (2026-07-29)
 * MSDK-441: fix v2 event body encoding and restore pd deeplink (#286)
 * MSDK-442: relax v2 event API for catalog-hydration clients (#283)

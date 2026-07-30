@@ -15,6 +15,7 @@ class NSURLSessionMock: URLSession {
     var didCallInboxMarkReadApi = false
     var didCallInboxMarkUnreadApi = false
     var didCallInboxClickedApi = false
+    var didCallInboxDeleteApi = false
     var urlCalls: [URL] = []
     var requests: [URLRequest] = []
 
@@ -47,6 +48,13 @@ class NSURLSessionMock: URLSession {
     var inboxClickedStatusCode: Int = 204
     var inboxClickedResponseBody: Data = Data()
     var inboxClickedError: Error?
+
+    /// Override the response returned for the inbox delete endpoint.
+    /// Default: 200 with an empty body (server contract returns `{ "message_id": "..." }`,
+    /// but the SDK does not decode the response).
+    var inboxDeleteStatusCode: Int = 200
+    var inboxDeleteResponseBody: Data = Data()
+    var inboxDeleteError: Error?
 
     override init() {
         super.init()
@@ -103,6 +111,19 @@ class NSURLSessionMock: URLSession {
                 let body = inboxClickedResponseBody
                 let status = inboxClickedStatusCode
                 let error = inboxClickedError
+                return NSURLSessionDataTaskMock { _, _, _ in
+                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                }
+            }
+
+            // DELETE targets `/inbox/messages/{id}`. Check the verb so the id-in-path suffix
+            // doesn't accidentally shadow the POST list endpoint at `/inbox/messages`.
+            if request.httpMethod == "DELETE",
+               url.absoluteString.contains("/inbox/messages/") {
+                didCallInboxDeleteApi = true
+                let body = inboxDeleteResponseBody
+                let status = inboxDeleteStatusCode
+                let error = inboxDeleteError
                 return NSURLSessionDataTaskMock { _, _, _ in
                     completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
                 }

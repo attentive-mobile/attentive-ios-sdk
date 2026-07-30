@@ -52,8 +52,12 @@ actor InboxManager {
     /// load returning inside the refresh window resets that flag but must not release this one.
     private var isRefreshingFirstPage: Bool = false
 
-    /// Server-authoritative unread count. Written by `refreshUnreadCount()` and by the mark-read /
-    /// mark-unread API responses (see `applyReadStatusResponse`). Reads should go through the
+    /// Cached unread count. Fully replaced by the server response from `refreshUnreadCount()` and
+    /// by the mark-read / mark-unread API responses (see `applyReadStatusResponse`).
+    /// `markRead(_:)`, `markUnread(_:)`, and `delete(_:)` also apply optimistic ±1 adjustments
+    /// (with rollback on failure) so the badge tracks the visible dot the instant the user acts.
+    /// Never derived from the loaded message list — the list is paginated, so a client-side count
+    /// would undercount unread messages that live on unfetched pages. Reads should go through the
     /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
     /// a stale 0.
     private var storedUnreadCount: Int = 0
@@ -69,9 +73,25 @@ actor InboxManager {
     /// superseded by a newer in-flight call or an identity reset.
     private var refreshGeneration: UInt = 0
 
+    /// Monotonic counter bumped every time `storedUnreadCount` is written from an authoritative
+    /// source (server count fetch, mark-read/unread PATCH response, or identity reset). Snapshot
+    /// at the start of a mark-read/unread and re-checked on its rollback path so an overlapping
+    /// mutation's authoritative count is not clobbered by a stale ±1 revert. Distinct from
+    /// `refreshGeneration`, which only advances on count fetches and identity resets — a peer
+    /// mark-read/unread response reconciles the count without bumping that generation and would
+    /// otherwise slip past the existing guard.
+    private var unreadCountRevision: UInt = 0
+
     /// Monotonic counter used to discard responses from message refresh/pagination calls that
     /// have been superseded by a newer identity or a newer top-level `refresh()`.
     private var messagesGeneration: UInt = 0
+
+    /// Monotonic counter bumped every time the messages list is wholesale replaced from an
+    /// authoritative source (successful refresh or identity reset). Distinct from
+    /// `messagesGeneration`, which bumps at the *start* of a refresh — so a refresh that fails
+    /// mid-DELETE would bump `messagesGeneration` but not `messagesReplacedCount`, and the
+    /// delete's revert path should still apply. Read only by `delete(_:)` for that reason.
+    private var messagesReplacedCount: UInt = 0
 
     var allMessages: [Message] {
         get async {
@@ -96,6 +116,13 @@ actor InboxManager {
     /// Test-only accessor for the current state, since we can't read `currentState` directly.
     var currentInboxStateForTesting: InboxState {
         currentState
+    }
+
+    /// Test-only synchronous read of the stored unread count. Distinct from `unreadCount`, which
+    /// awaits the init-time refresh — tests need to sample the count mid-flight from an API-spy
+    /// hook, where awaiting the init task would deadlock.
+    var currentUnreadCountForTesting: Int {
+        storedUnreadCount
     }
 
     private func awaitInitialRefresh() async {
@@ -312,6 +339,7 @@ actor InboxManager {
             guard generation == refreshGeneration else { return }
             let previous = storedUnreadCount
             storedUnreadCount = count
+            unreadCountRevision &+= 1
             // Re-emit only when the value actually changed and we're in a loaded state — avoids
             // waking subscribers with an identical payload on every no-op refresh.
             if !skipNotify, count != previous, case .loaded = currentState {
@@ -329,16 +357,28 @@ actor InboxManager {
 
         guard let identity = requireIdentity(context: "inbox mark-read") else { return }
 
+        // Optimistically decrement the badge alongside the row-dot flip so the two agree
+        // between the tap and the PATCH response. The PATCH's `unread_count` is authoritative
+        // and reconciles this locally-adjusted value via `applyReadStatusResponse`; clamping at
+        // 0 keeps a stale-local case from producing a negative badge.
+        var didDecrementUnreadCount = false
         if !previousIsRead {
             messagesByID[messageID]?.isRead = true
+            if storedUnreadCount > 0 {
+                storedUnreadCount -= 1
+                didDecrementUnreadCount = true
+            }
             send(.loaded(orderedMessagesSnapshot()))
         }
 
         // Snapshot the refresh generation before the request. If an identity change
         // (`resetForIdentityChange`) or a newer `refreshUnreadCount` lands while the PATCH is in
         // flight, the generation advances and we drop this now-stale response instead of
-        // restoring an old unread count.
+        // restoring an old unread count. `unreadCountRevision` also catches a peer mark-read/
+        // unread whose response reconciled the count without bumping `refreshGeneration` — the
+        // count is now authoritative on that peer's return and this rollback must not clobber it.
         let generation = refreshGeneration
+        let revisionAtStart = unreadCountRevision
 
         do {
             let response = try await api.markMessagesRead(
@@ -353,6 +393,12 @@ actor InboxManager {
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, !previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
+                // Per-message state (`isRead`) is always reverted — the row must reflect this
+                // message's true state. Count is only reverted if no other authoritative write
+                // landed in between; otherwise the peer already wrote the correct total.
+                if didDecrementUnreadCount, revisionAtStart == unreadCountRevision {
+                    storedUnreadCount += 1
+                }
                 send(.loaded(orderedMessagesSnapshot()))
             }
         }
@@ -365,16 +411,22 @@ actor InboxManager {
 
         guard let identity = requireIdentity(context: "inbox mark-unread") else { return }
 
+        // Optimistically increment the badge alongside the row-dot flip so the two agree
+        // between the swipe and the PATCH response. The PATCH's `unread_count` is authoritative
+        // and reconciles this locally-adjusted value via `applyReadStatusResponse`. The paired
+        // capture mirrors `markRead`'s pattern so the revert path is symmetric.
+        var didIncrementUnreadCount = false
         if previousIsRead {
             messagesByID[messageID]?.isRead = false
+            storedUnreadCount += 1
+            didIncrementUnreadCount = true
             send(.loaded(orderedMessagesSnapshot()))
         }
 
-        // Snapshot the refresh generation before the request. If an identity change
-        // (`resetForIdentityChange`) or a newer `refreshUnreadCount` lands while the PATCH is in
-        // flight, the generation advances and we drop this now-stale response instead of
-        // restoring an old unread count.
+        // See `markRead` for why the count-revision snapshot is separate from the refresh
+        // generation.
         let generation = refreshGeneration
+        let revisionAtStart = unreadCountRevision
 
         do {
             let response = try await api.markMessagesUnread(
@@ -389,15 +441,62 @@ actor InboxManager {
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
+                if didIncrementUnreadCount, revisionAtStart == unreadCountRevision {
+                    storedUnreadCount -= 1
+                }
                 send(.loaded(orderedMessagesSnapshot()))
             }
         }
     }
 
-    func delete(_ messageID: Message.ID) {
+    /// Deletes a message. Optimistically removes it locally, then issues the server delete.
+    /// On failure the local removal is reverted (message re-inserted at its original index)
+    /// so the UI reflects true state.
+    func delete(_ messageID: Message.ID) async {
+        guard let removedMessage = messagesByID[messageID],
+              let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
+
+        let identity = identityProvider()
+        guard !identity.visitorId.isEmpty else {
+            Loggers.network.debug("Skipping inbox delete: empty visitor ID")
+            return
+        }
+
         messagesByID.removeValue(forKey: messageID)
-        messageOrder.removeAll { $0 == messageID }
+        messageOrder.remove(at: originalIndex)
+        // The delete endpoint returns only `{ message_id }` — no authoritative unread count
+        // like mark-read/unread's `UpdateReadStatusResponse`. Decrement locally so the badge
+        // stays honest until the next refresh; revert on failure below.
+        let didDecrementUnreadCount = !removedMessage.isRead && storedUnreadCount > 0
+        if didDecrementUnreadCount {
+            storedUnreadCount -= 1
+        }
         send(.loaded(orderedMessagesSnapshot()))
+
+        // Snapshot the *replaced* counter, not `messagesGeneration`, so the revert path drops
+        // only when a successful refresh or identity reset actually replaced the local list —
+        // a refresh that starts and fails during the DELETE preserves the current (already-
+        // optimistically-removed) state, and we still need to revert.
+        let replacedCountAtStart = messagesReplacedCount
+
+        do {
+            try await api.deleteInboxMessage(
+                pushToken: identity.pushToken,
+                visitorId: identity.visitorId,
+                messageId: messageID
+            )
+        } catch {
+            Loggers.network.error("Failed to delete inbox message: \(error.localizedDescription, privacy: .public)")
+            guard replacedCountAtStart == messagesReplacedCount else { return }
+            guard messagesByID[messageID] == nil else { return }
+            messagesByID[messageID] = removedMessage
+            let insertIndex = min(originalIndex, messageOrder.count)
+            messageOrder.insert(messageID, at: insertIndex)
+            if didDecrementUnreadCount {
+                storedUnreadCount += 1
+            }
+            send(.loaded(orderedMessagesSnapshot()))
+        }
     }
 
     /// Reports a message tap. Delegates the read side to `markRead` (server POST + optimistic
@@ -445,17 +544,30 @@ actor InboxManager {
     /// Clears all cached inbox state (messages, unread count, pagination cursor) and bumps both
     /// generations so any in-flight fetches from the previous identity are discarded when they
     /// return. Called on identity changes (`clearUser`, `updateUser`) so a logged-out account's
-    /// messages and badge are not surfaced to the next user.
+    /// messages and badge are not surfaced to the next user. The unread-count re-fetch for the
+    /// new identity is intentionally NOT spawned here: `updateUser` starts the server-side
+    /// visitor→email/phone association *after* this reset, so a fetch fired now would run
+    /// against an unlinked anonymous visitor and cache the wrong count. Callers (see
+    /// `ATTNSDK.clearUserIdentifiers`) should invoke `refreshUnreadCount()` from the
+    /// `/user-update` callback instead — that guarantees the fetch sees the new identity.
     func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
+        messagesReplacedCount &+= 1
         storedUnreadCount = 0
+        unreadCountRevision &+= 1
         messagesByID = [:]
         messageOrder = []
         nextPageToken = nil
         hasFetchedFirstPage = false
         setLoadingNextPage(false)
         isRefreshingFirstPage = false
+        // Drop the init-time refresh handle. Without this, a `refreshUnreadCount()` fired from
+        // ATTNSDK's `/user-update` callback would coalesce with an undrained init task, await
+        // its (now-discarded) response, and return without issuing a POST — leaving the new
+        // identity's badge stuck at 0. Post-reset the cached count is already 0, so any
+        // `awaitInitialRefresh()` reader is served correctly by short-circuiting on nil.
+        initialRefreshTask = nil
         // Only re-emit when we were already surfacing a loaded list — never override an
         // in-flight .loading state, which would strand hosts that don't re-present InboxView.
         if case .loaded = currentState {
@@ -511,6 +623,7 @@ extension InboxManager {
     private func replaceMessages(with messages: [Message]) {
         messagesByID = [:]
         messageOrder = []
+        messagesReplacedCount &+= 1
         appendMessages(messages)
     }
 
@@ -530,6 +643,7 @@ extension InboxManager {
             messagesByID[status.messageId]?.isRead = status.isRead
         }
         storedUnreadCount = response.unreadCount
+        unreadCountRevision &+= 1
         send(.loaded(orderedMessagesSnapshot()))
     }
 }

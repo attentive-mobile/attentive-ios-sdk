@@ -166,7 +166,14 @@ extension ATTNSDK {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: callback
+            callback: { [weak self] data, url, response, error in
+                // Chain the host's callback so we can trigger the inbox count re-fetch AFTER the
+                // server has associated the new visitor with the supplied email/phone. Firing
+                // before `/user-update` completes would cache a count for an unlinked anonymous
+                // visitor and leave the badge stale until the next explicit refresh.
+                callback?(data, url, response, error)
+                self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+            }
         )
     }
 
