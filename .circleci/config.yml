@@ -25,6 +25,11 @@ parameters:
   is_prerelease:
     type: string
     default: "false"
+  # Controls whether the deploy-testflight job runs in the release-sdk workflow.
+  # Defaults to "true" so the standalone deploy-testflight workflow is unaffected.
+  deploy_to_testflight:
+    type: string
+    default: "true"
 
 # ========================
 # Executors
@@ -290,11 +295,11 @@ jobs:
     executor: macos-xcode
     steps:
       - run:
-          name: Check prerelease
-          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
-      - unless:
+          name: Check TestFlight deploy flag
+          command: echo "deploy_to_testflight=<< pipeline.parameters.deploy_to_testflight >>"
+      - when:
           condition:
-            equal: ["true", << pipeline.parameters.is_prerelease >>]
+            equal: ["true", << pipeline.parameters.deploy_to_testflight >>]
           steps:
             - attach_workspace:
                 at: .
@@ -439,11 +444,11 @@ jobs:
     executor: macos-xcode
     steps:
       - run:
-          name: Check prerelease
-          command: echo "is_prerelease=<< pipeline.parameters.is_prerelease >>"
-      - unless:
+          name: Check TestFlight deploy flag
+          command: echo "deploy_to_testflight=<< pipeline.parameters.deploy_to_testflight >>"
+      - when:
           condition:
-            equal: ["true", << pipeline.parameters.is_prerelease >>]
+            equal: ["true", << pipeline.parameters.deploy_to_testflight >>]
           steps:
             - attach_workspace:
                 at: .
