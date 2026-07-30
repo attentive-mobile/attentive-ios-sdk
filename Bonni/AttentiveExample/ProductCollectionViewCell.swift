@@ -58,7 +58,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     private let productNameLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        label.textColor = .black
+        label.textColor = .label
         label.textAlignment = .left
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -68,7 +68,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
     private let productPriceLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 14)
-        label.textColor = .gray
+        label.textColor = .secondaryLabel
         label.textAlignment = .left
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -80,8 +80,8 @@ class ProductCollectionViewCell: UICollectionViewCell {
         let cartImage = UIImage(named: "Shopping cart")?
             .withRenderingMode(.alwaysTemplate)
         button.setImage(cartImage, for: .normal)
-        button.tintColor = .black
-        button.backgroundColor = .white
+        button.tintColor = .label
+        button.backgroundColor = .systemBackground
         button.layer.cornerRadius = 15  // half of 30 to stay perfectly round
         button.layer.masksToBounds = true
         button.translatesAutoresizingMaskIntoConstraints = false
@@ -145,6 +145,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
         }()
 
         productImageView.image = UIImage(named: product.name ?? "Protective Superscreen")
+        productImageView.contentMode = .scaleAspectFill
 
         addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
     }

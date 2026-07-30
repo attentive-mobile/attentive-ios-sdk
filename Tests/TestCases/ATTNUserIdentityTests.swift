@@ -84,4 +84,49 @@ final class ATTNUserIdentityTests: XCTestCase {
         XCTAssertEqual(1, identity.identifiers.count)
         XCTAssertEqual("someValue", identity.identifiers[ATTNIdentifierType.clientUserId] as! String)
     }
+
+    // MARK: Concurrency
+
+    func testMergeIdentifiers_concurrentMerges_preservesAllKeys() {
+        let identity = ATTNUserIdentity()
+        // Each iteration writes a *different* top-level key. With non-atomic merge the
+        // read-modify-write would drop keys under contention; with proper locking every
+        // merge composes, so all 200 keys must survive.
+        DispatchQueue.concurrentPerform(iterations: 200) { i in
+            identity.mergeIdentifiers(["dynamic_key_\(i)": "value\(i)"])
+        }
+        XCTAssertEqual(identity.identifiers.count, 200)
+    }
+
+    func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
+        let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "seed@test.com"])
+        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["writer", "reader"]) { i, queueIndex in
+            if queueIndex == 0 {
+                identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
+            } else {
+                _ = identity.identifiers
+                _ = identity.visitorId
+            }
+        }
+    }
+
+    func testClearUser_concurrentClearAndMerge_doesNotCrash() {
+        // Inject in-memory storage so clearUser()'s UserDefaults write path is
+        // a no-op. Iteration count is kept low (50×2) because clearUser() emits
+        // an os_log line per call, and CircleCI's log-capture serializes os_log
+        // dramatically (~75ms/call there vs. free locally). 50 racing pairs is
+        // plenty to surface a missing-lock crash; the invariant is safety, not
+        // throughput.
+        let identity = ATTNUserIdentity(
+            identifiers: [:],
+            visitorService: ATTNVisitorService(persistentStorage: ATTNPersistentStorageMock())
+        )
+        runConcurrently(iterations: 50, timeout: 15, queueLabels: ["merge", "clear"]) { i, queueIndex in
+            if queueIndex == 0 {
+                identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
+            } else {
+                identity.clearUser()
+            }
+        }
+    }
 }

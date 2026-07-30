@@ -146,8 +146,20 @@ platform :ios do
                        next result if result && result != 0
                        # A longer prerelease has higher precedence if all prior ids match
                        next 1 if c.nil?
-                       both_numeric = n.match?(/^\d+$/) && c.match?(/^\d+$/)
-                       both_numeric ? n.to_i <=> c.to_i : n <=> c
+                       # SemVer §11.4: numeric identifiers always have lower precedence
+                       # than alphanumeric identifiers; compare numerics as integers and
+                       # alphanumerics lexically.
+                       n_numeric = n.match?(/^\d+$/)
+                       c_numeric = c.match?(/^\d+$/)
+                       if n_numeric && c_numeric
+                         n.to_i <=> c.to_i
+                       elsif n_numeric
+                         -1
+                       elsif c_numeric
+                         1
+                       else
+                         n <=> c
+                       end
                      end
                      # If all compared ids are equal, longer prerelease wins (e.g., beta.1.1 > beta.1)
                      cmp = new_ids.length <=> current_ids.length if cmp.nil? || cmp == 0
@@ -611,11 +623,12 @@ platform :ios do
       notes: release_notes
     )
 
-    # 5. Create version-bump branch and commit version bump
+    # 5. Create version-bump branch (stable only) and commit version bump.
+    #    Prereleases tag the current HEAD directly — no branch or PR to main.
     version_bump = "version-bump-#{new_version}"
     sh("git config user.name 'CI Bot'")
     sh("git config user.email 'ci@attentivemobile.com'")
-    sh("git checkout -b #{version_bump}")
+    sh("git checkout -b #{version_bump}") unless is_prerelease
 
     files = [
         ".version",
@@ -650,10 +663,14 @@ platform :ios do
 
       sh("git reset --hard HEAD~1")
 
-      push_to_git_remote(
-        local_branch: version_bump,
-        tags: false
-      )
+      if is_prerelease
+        UI.important("Prerelease: skipping version-bump branch push")
+      else
+        push_to_git_remote(
+          local_branch: version_bump,
+          tags: false
+        )
+      end
 
       set_github_release(
         repository_name: repository_name,
@@ -668,7 +685,7 @@ platform :ios do
       UI.error("Release failed during publish. Rolling back remote state...")
       sh("git push --delete origin #{new_version}") rescue nil
       sh("gh release delete #{new_version} -y") rescue nil
-      sh("git push --delete origin #{version_bump}") rescue nil
+      sh("git push --delete origin #{version_bump}") rescue nil unless is_prerelease
       UI.user_error!("Release failed and rolled back: #{e.message}")
     end
 

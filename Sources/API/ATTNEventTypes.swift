@@ -53,6 +53,12 @@ public struct ATTNIdentifiers: Codable {
 }
 
 /// Represents an individual product in an event payload.
+///
+/// `name` has a default of `""` so hosts using server-side catalog hydration
+/// can omit it and let the backend enrich the field from the product catalog.
+/// The property type stays `String` (non-optional) to preserve source and ABI
+/// compatibility with hosts that read `product.name` as a non-optional value;
+/// an empty string is omitted from the wire payload.
 public struct ATTNProduct: Codable {
     public let productId: String
     public let variantId: String?
@@ -67,7 +73,7 @@ public struct ATTNProduct: Codable {
     public init(
         productId: String,
         variantId: String? = nil,
-        name: String,
+        name: String = "",
         variantName: String? = nil,
         imageUrl: String? = nil,
         categories: [String]? = nil,
@@ -90,7 +96,12 @@ public struct ATTNProduct: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(productId, forKey: .productId)
         try container.encode(variantId, forKey: .variantId)
-        try container.encode(name, forKey: .name)
+        // Omit the key entirely when the host didn't supply a name so the
+        // backend product-catalog hydration takes over. An empty string on the
+        // wire would suppress hydration and leave downstream systems with "".
+        if !name.isEmpty {
+            try container.encode(name, forKey: .name)
+        }
         try container.encode(variantName, forKey: .variantName)
         try container.encode(imageUrl, forKey: .imageUrl)
         try container.encode(categories, forKey: .categories)
@@ -178,9 +189,11 @@ public struct ATTNPurchaseMetadata: Codable {
 /// Metadata for "MobileCustomEvent" events.
 public struct ATTNMobileCustomEventMetadata: Codable {
     public let eventType: String = "MobileCustomEvent"
+    public let type: String?
     public let customProperties: [String: String]?
 
-    public init(customProperties: [String: String]? = nil) {
+    public init(type: String? = nil, customProperties: [String: String]? = nil) {
+        self.type = type
         self.customProperties = customProperties
     }
 }

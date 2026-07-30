@@ -18,7 +18,7 @@ class TextfieldTableViewCell: UITableViewCell {
         textfield.placeholder = ""
         // Match “Apply Coupon” styling
         textfield.font = UIFont(name: "DegularDisplay-Regular", size: 16)
-        textfield.layer.borderColor = UIColor.black.cgColor
+        textfield.layer.borderColor = UIColor.label.cgColor
         textfield.layer.borderWidth = 1
         textfield.layer.cornerRadius = 8
         // fixed height

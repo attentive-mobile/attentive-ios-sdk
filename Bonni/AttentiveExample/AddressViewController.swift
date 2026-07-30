@@ -15,7 +15,7 @@ class AddressViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Shipping & Billing"
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         setupTableView()
 
         countryPicker.dataSource = self

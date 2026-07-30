@@ -21,6 +21,10 @@ extension ATTNEvent {
     var priceFormatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 2
+        // Pin to POSIX so decimals always serialize with `.` regardless of the
+        // device locale. Backends parse totals with `BigDecimal`/`Double.valueOf`
+        // which don't accept the `,` separators produced on de_DE, fr_FR, etc.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }
 }

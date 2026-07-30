@@ -273,4 +273,59 @@ final class ATTNEventURLProviderV2Tests: XCTestCase {
         XCTAssertNotNil(metadata?["email"])
         XCTAssertNotNil(metadata?["phone"])
     }
+
+    // MARK: - Plus sign encoding tests
+
+    func testBuildUrl_emailWithPlusSign_encodedAsPct2B() {
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.email: "user+tag@example.com"
+        ])
+        let eventRequest = ATTNEventRequest(metadata: [:], eventNameAbbreviation: "p")
+
+        let url = urlProvider.buildUrl(
+            for: eventRequest,
+            userIdentity: identity,
+            domain: "test"
+        )
+
+        XCTAssertNotNil(url)
+        let urlString = url!.absoluteString
+        XCTAssertTrue(urlString.contains("%2B"), "Plus sign in email must be percent-encoded as %2B")
+        XCTAssertFalse(urlString.contains("user+tag"), "Raw + must not appear in URL query string")
+    }
+
+    func testBuildUrl_emailWithPlusSign_decodesCorrectlyAsFormUrlencoded() {
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.email: "nikhil.kumar+attentivetest1@onequince.com"
+        ])
+        let eventRequest = ATTNEventRequest(metadata: [:], eventNameAbbreviation: "p")
+
+        let url = urlProvider.buildUrl(
+            for: eventRequest,
+            userIdentity: identity,
+            domain: "quince"
+        )
+
+        XCTAssertNotNil(url)
+        let metadata = ATTNTestEventUtils.getMetadataFromUrl(url: url!)
+        XCTAssertEqual(metadata?["email"] as? String, "nikhil.kumar+attentivetest1@onequince.com")
+    }
+
+    func testBuildUrl_phoneWithPlusSign_encodedAsPct2B() {
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.phone: "+14155551234"
+        ])
+        let eventRequest = ATTNEventRequest(metadata: [:], eventNameAbbreviation: "p")
+
+        let url = urlProvider.buildUrl(
+            for: eventRequest,
+            userIdentity: identity,
+            domain: "test"
+        )
+
+        XCTAssertNotNil(url)
+        let urlString = url!.absoluteString
+        XCTAssertFalse(urlString.contains("+1415"), "Raw + in phone must not appear in URL query string")
+        XCTAssertTrue(urlString.contains("%2B1415"), "Plus sign in phone must be percent-encoded as %2B")
+    }
 }

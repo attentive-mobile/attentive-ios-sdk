@@ -32,7 +32,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     
     private lazy var allProductsLabel: UILabel = {
         let label = UILabel()
-        label.textColor = UIColor(red: 0.102, green: 0.118, blue: 0.133, alpha: 1)
+        label.textColor = .label
         label.font = UIFont(name: "Degular-Medium", size: kLabelFontSize)
         let attributedText = NSMutableAttributedString(string: "All Products", attributes: [
             .kern: kLabelKerning
@@ -81,7 +81,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
 
         // Store the viewModel in AppDelegate for deep link access
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
@@ -125,13 +125,13 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
             navigationController?.navigationBar.barTintColor = kNavColor
         }
         navigationController?.navigationBar.isTranslucent = false
-        
+
         // Left bar button: settings using "profile" image.
         let settingsImage = UIImage(named: "profile")
         let settingsButtonItem = UIBarButtonItem(image: settingsImage, style: .plain, target: self, action: #selector(settingsButtonTapped))
         settingsButtonItem.tintColor = .black
         navigationItem.leftBarButtonItem = settingsButtonItem
-        
+
         // Right bar buttons: inbox and cart
         let cartImage = UIImage(named: "Shopping cart")
         let cartButtonItem = UIBarButtonItem(image: cartImage, style: .plain, target: self, action: #selector(cartButtonTapped))
@@ -139,7 +139,7 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
 
         let inboxButtonItem = createInboxBarButtonItem()
         navigationItem.rightBarButtonItems = [cartButtonItem, inboxButtonItem]
-        
+
         // Center the logo in the navigation bar.
         let logoImageView = UIImageView(image: UIImage(named: "Union.svg"))
         logoImageView.contentMode = .scaleAspectFit
@@ -289,9 +289,19 @@ class ProductViewController: UIViewController, UICollectionViewDataSource, UICol
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         return 10
     }
-    
+
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
         return 10
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let product = viewModel.products[indexPath.item]
+        let productViewEvent = ATTNProductViewEvent(items: [product])
+        ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+
+        let detailVC = ProductDetailViewController(product: product)
+        detailVC.delegate = self
+        navigationController?.pushViewController(detailVC, animated: true)
     }
 }
 
@@ -306,6 +316,9 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
     }
     
     func didTapProductImage(product: ATTNItem) {
+        let productViewEvent = ATTNProductViewEvent(items: [product])
+        ATTNEventTracker.sharedInstance()?.record(event: productViewEvent)
+
         let detailVC = ProductDetailViewController(product: product)
         detailVC.delegate = self
         navigationController?.pushViewController(detailVC, animated: true)
@@ -315,8 +328,5 @@ extension ProductViewController: ProductCollectionViewCellDelegate {
 extension ProductViewController: ProductDetailViewControllerDelegate {
     func productDetailViewController(_ controller: ProductDetailViewController, didAddToCart product: ATTNItem) {
         viewModel.addProductToCart(product)
-        let addToCartEvent = ATTNAddToCartEvent(items: [product])
-        ATTNEventTracker.sharedInstance()?.record(event: addToCartEvent)
-        showToast(with: "Add To Cart event sent")
     }
 }

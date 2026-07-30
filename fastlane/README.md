@@ -45,7 +45,7 @@ Get current version from .version file
 [bundle exec] fastlane ios bump_version
 ```
 
-Bump version. Usage: fastlane bump_version version:2.1.0
+Bump version. Usage: fastlane bump_version version:2.1.0 (or version:2.1.0-beta.1)
 
 ### ios sync_ios_target
 
@@ -141,7 +141,7 @@ Validate Swift Package Manager
 [bundle exec] fastlane ios create_release
 ```
 
-Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0
+Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPods, and open PR to main. Usage: fastlane create_release version:2.1.0 (or version:2.1.0-beta.1 is_prerelease:true)
 
 ### ios deploy_testflight
 

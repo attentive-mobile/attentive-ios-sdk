@@ -4,6 +4,30 @@
 - The built-in inbox UI now opens a tapped message's `actionURL` (unclaimed http(s) links fall back to the browser). Opt out with `automaticallyOpensInboxDeepLinks = false`, or pass `onMessageTap` to `inboxView()` / `inboxViewController()` to replace the routing entirely; click tracking and the `ATTNSDKInboxMessageTapped` broadcast fire either way.
 - Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
 
+## [2.0.16](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.15...2.0.16) (2026-07-29)
+* MSDK-441: fix v2 event body encoding and restore pd deeplink (#286)
+* MSDK-442: relax v2 event API for catalog-hydration clients (#283)
+* update project file
+* MSDK-312: bump clearUser concurrency test timeout to 15s
+* MSDK-312: stub UserDefaults in concurrent clearUser test
+* Document write-pr skill in CLAUDE.md
+* MSDK-417: document pushEnabled opt-out in README (#269)
+* MSDK-312: bump concurrency test timeouts for CI headroom
+* MSDK-390: address dry-run review feedback
+* MSDK-390: address Codex review feedback
+* MSDK-390: Add AGENTS.md for AI agent SDK integration
+* Force Bonni status bar to dark content
+* Make Bonni example app dark-mode-aware
+* Version bump 2.0.15
+* Binary Package.swift for 2.0.15
+* Version bump 2.0.15
+
+## [2.0.15](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.14...2.0.15) (2026-06-03)
+Add pushEnabled init option to ATTNSDK (default true) — set to false when another provider owns push to disable SDK push handling and send marketing subscriptions without a token.
+
+## [2.0.14](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.13...2.0.14) (2026-05-01)
+Detach push token from the user on clearUser() and skip geo-domain adjustment for the mobile SDK
+
 ## [2.0.13](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.12...2.0.13) (2026-02-27)
 Bug Fixes & Improvements
 - Push token events are now sent on every app foreground, ensuring more reliable push notification delivery (#197)

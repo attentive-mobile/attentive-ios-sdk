@@ -8,7 +8,12 @@ on:
         required: true
         type: string
       is_prerelease:
-        description: "Mark as prerelease (beta). Skips PR to main and TestFlight deploy."
+        description: "Mark as prerelease (beta). Skips PR to main."
+        required: false
+        type: boolean
+        default: false
+      deploy_to_testflight:
+        description: "Deploy Bonni build to TestFlight after the release"
         required: false
         type: boolean
         default: false
@@ -37,13 +42,15 @@ jobs:
             --arg version "${{ inputs.version }}" \
             --arg notes "$RELEASE_NOTES" \
             --arg is_prerelease "${{ inputs.is_prerelease }}" \
+            --arg deploy_to_testflight "${{ inputs.deploy_to_testflight }}" \
             '{
               branch: "${{ github.ref_name }}",
               parameters: {
                 run_release: true,
                 release_version: $version,
                 release_notes: $notes,
-                is_prerelease: $is_prerelease
+                is_prerelease: $is_prerelease,
+                deploy_to_testflight: $deploy_to_testflight
               }
             }')
 
