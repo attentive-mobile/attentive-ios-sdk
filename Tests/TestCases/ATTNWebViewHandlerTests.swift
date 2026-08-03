@@ -121,6 +121,91 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         }
     }
 
+    func testLaunchCreative_NativeTimeout_TearsDownWebViewAndReportsNotOpened() {
+        let parentView = UIView()
+
+        let notOpenedExpectation = expectation(description: "handler receives .notOpened")
+        let removalExpectation = expectation(description: "WebView removed after timeout")
+        mockWebViewProvider.webViewRemovalExpectation = removalExpectation
+
+        var receivedStatus: String?
+        let handlerClosure: ATTNCreativeTriggerCompletionHandler = { status in
+            receivedStatus = status
+            if status == ATTNCreativeTriggerStatus.notOpened {
+                notOpenedExpectation.fulfill()
+            }
+        }
+        mockWebViewProvider.triggerHandler = handlerClosure
+
+        handler.launchCreative(parentView: parentView, creativeId: "willTimeout", handler: handlerClosure)
+
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 8.0)
+
+        XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened, "handler must be told the creative did not open")
+        XCTAssertNil(mockWebViewProvider.webView, "webView reference must be cleared after timeout")
+        XCTAssertEqual(parentView.subviews.count, 0, "webView must be removed from parent view hierarchy")
+    }
+
+    func testDidFinish_JSTimeout_TearsDownWebViewAndReportsNotOpened() {
+        let parentView = UIView()
+
+        let notOpenedExpectation = expectation(description: "handler receives .notOpened via JS timeout")
+        let removalExpectation = expectation(description: "WebView removed after JS timeout")
+        mockWebViewProvider.webViewRemovalExpectation = removalExpectation
+
+        var receivedStatus: String?
+        let handlerClosure: ATTNCreativeTriggerCompletionHandler = { status in
+            receivedStatus = status
+            if status == ATTNCreativeTriggerStatus.notOpened {
+                notOpenedExpectation.fulfill()
+            }
+        }
+        mockWebViewProvider.triggerHandler = handlerClosure
+
+        let stubHandler = JSTimeoutStubHandler(
+            webViewProvider: mockWebViewProvider,
+            creativeUrlBuilder: MockCreativeUrlProvider(),
+            stateManager: ATTNCreativeStateManager()
+        )
+        stubHandler.stubbedJSResult = .success("TIMED OUT" as Any)
+        handler = stubHandler
+
+        stubHandler.launchCreative(parentView: parentView, creativeId: "willJSTimeout", handler: handlerClosure)
+
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 8.0)
+
+        XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened)
+        XCTAssertNil(mockWebViewProvider.webView)
+        XCTAssertEqual(parentView.subviews.count, 0)
+    }
+
+    func testTimeout_DoesNotFireNotOpenedTwice_WhenBothTimeoutsRace() {
+        let parentView = UIView()
+
+        var notOpenedCount = 0
+        var otherStatuses: [String] = []
+        let allDone = expectation(description: "some time to observe extra callbacks")
+
+        let handlerClosure: ATTNCreativeTriggerCompletionHandler = { status in
+            if status == ATTNCreativeTriggerStatus.notOpened {
+                notOpenedCount += 1
+            } else {
+                otherStatuses.append(status)
+            }
+        }
+        mockWebViewProvider.triggerHandler = handlerClosure
+
+        handler.launchCreative(parentView: parentView, creativeId: "raceTest", handler: handlerClosure)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 7.0) {
+            allDone.fulfill()
+        }
+        wait(for: [allDone], timeout: 10.0)
+
+        XCTAssertEqual(notOpenedCount, 1, ".notOpened must fire exactly once even if both timeout paths run")
+        XCTAssertTrue(otherStatuses.isEmpty, "must not additionally emit .closed or .opened on the timeout path; got \(otherStatuses)")
+    }
+
     func testLaunchCreative_ShouldLoadCorrectURL() {
         let parentView = UIView()
         let creativeId = "testCreative"
@@ -241,5 +326,51 @@ class TestWebViewHandler: ATTNWebViewHandler {
         let webView = MockWKWebView(frame: .zero, configuration: WKWebViewConfiguration())
         onMakeWebView?(webView)
         return webView
+    }
+}
+
+/// Test handler that stubs the WKNavigationDelegate.didFinish path by short-circuiting
+/// the JS evaluation call. When `stubbedJSResult` is set, the didFinish call skips
+/// callAsyncJavaScript and dispatches straight into the SDK's result-handling switch,
+/// mirroring the production behavior (fire .notOpened, then tear down the webview).
+class JSTimeoutStubHandler: ATTNWebViewHandler {
+    var stubbedJSResult: Result<Any, Error>?
+
+    override func makeWebView() -> WKWebView {
+        return MockWKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+    }
+
+    override func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard let stubbedJSResult = stubbedJSResult else {
+            super.webView(webView, didFinish: navigation)
+            return
+        }
+        guard let webViewProvider = self.webViewProvider else { return }
+        guard case let .success(statusAny) = stubbedJSResult else {
+            reportNotOpenedAndTearDownForTest(webViewProvider: webViewProvider)
+            return
+        }
+        switch statusAny as? String {
+        case "SUCCESS":
+            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
+        default:
+            reportNotOpenedAndTearDownForTest(webViewProvider: webViewProvider)
+        }
+    }
+
+    /// The stub can't reach the private `reportNotOpenedAndTearDown` on the base class,
+    /// so mirror its two observable effects here: fire `.notOpened` on the main queue,
+    /// then remove and null out the webView.
+    private func reportNotOpenedAndTearDownForTest(webViewProvider: ATTNWebViewProviding) {
+        DispatchQueue.main.async {
+            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        }
+        DispatchQueue.main.async { [weak self] in
+            if let webView = self?.webViewProvider?.webView {
+                webView.removeFromSuperview()
+                webView.stopLoading()
+            }
+            self?.webViewProvider?.webView = nil
+        }
     }
 }

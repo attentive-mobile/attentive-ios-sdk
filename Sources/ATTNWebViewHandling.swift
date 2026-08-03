@@ -37,7 +37,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         }
     }
 
-    private weak var webViewProvider: ATTNWebViewProviding?
+    // Internal (rather than private) so tests can drive alternate paths via subclasses.
+    weak var webViewProvider: ATTNWebViewProviding?
     private var urlBuilder: ATTNCreativeUrlProviding
     // a serial dispatch queue to synchronize access to webview to prevent race condition
     private let creativeQueue = DispatchQueue(label: "com.attentive.creativeQueue")
@@ -47,6 +48,10 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     func updateMinimizedFrame(_ frame: CGRect) {
         minimizedFrame = frame
     }
+
+    // Guards the two timeout paths (native launching timeout and JS iframe-detection timeout)
+    // so they don't both fire .notOpened or both attempt teardown when they race.
+    private var didTimeOut: Bool = false
 
     init(webViewProvider: ATTNWebViewProviding,
              creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider(),
@@ -86,6 +91,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             return
         }
 
+        didTimeOut = false
+
         creativeQueue.async { [weak self] in
             guard let self = self else { return }
             guard let webViewProvider = self.webViewProvider else {
@@ -102,13 +109,13 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             let timeoutInterval: TimeInterval = 5.0
             creativeQueue.asyncAfter(deadline: .now() + timeoutInterval) { [weak self] in
                 guard let self = self, let webViewProvider = self.webViewProvider else { return }
-                if self.stateManager.getState() == .launching {
-                    Loggers.creative.error("Creative launch timed out.")
-                    self.stateManager.updateState(.closed)
-                    DispatchQueue.main.async {
-                        webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-                    }
+                guard self.stateManager.getState() == .launching, !self.didTimeOut else { return }
+                self.didTimeOut = true
+                Loggers.creative.error("Creative launch timed out.")
+                DispatchQueue.main.async {
+                    webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
                 }
+                self.tearDownWebView()
             }
 
             Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
@@ -209,6 +216,40 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
         }
     }
+
+    /// Fires `.notOpened` once (guarded by `didTimeOut` so a racing native timeout
+    /// doesn't double-fire) and then tears down the WebView.
+    private func reportNotOpenedAndTearDown(webViewProvider: ATTNWebViewProviding) {
+        guard !didTimeOut else { return }
+        didTimeOut = true
+        DispatchQueue.main.async {
+            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+        }
+        tearDownWebView()
+    }
+
+    /// Tears down the WebView without firing the trigger handler. Called by timeout paths
+    /// that have already reported `.notOpened` to the handler; we must not additionally
+    /// emit `.closed`, which `closeCreative()` would do.
+    private func tearDownWebView() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let webView = self.webViewProvider?.webView {
+                webView.navigationDelegate = nil
+                webView.removeFromSuperview()
+                webView.stopLoading()
+                webView.configuration.userContentController.removeAllUserScripts()
+                webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
+            }
+            self.webViewProvider?.webView = nil
+        }
+
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.stateManager.updateState(.closed)
+            Loggers.creative.debug("Tore down WebView after timeout - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        }
+    }
 }
 
 extension ATTNWebViewHandler: WKNavigationDelegate {
@@ -244,7 +285,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
             guard let self = self, let webViewProvider = self.webViewProvider else { return }
             guard case let .success(statusAny) = result else {
                 Loggers.creative.debug("No status returned from JS. Not showing WebView.")
-                webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider)
                 return
             }
 
@@ -254,10 +295,10 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
             case .timeout:
                 Loggers.creative.error("Creative timed out. Not showing WebView.")
-                webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider)
             case .unknown(let statusString):
                 Loggers.creative.error("Received unknown status: \(statusString, privacy: .public). Not showing WebView")
-                webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
+                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider)
             default: break
             }
         }
