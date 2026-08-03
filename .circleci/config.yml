@@ -96,7 +96,7 @@ commands:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "✅ TestFlight Build Deployed",
+                    "text": "✅ iOS Bonni TestFlight Build Deployed",
                     "emoji": true
                   }
                 },
