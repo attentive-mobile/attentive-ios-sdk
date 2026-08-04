@@ -51,11 +51,16 @@ public final class ATTNUserIdentity: NSObject {
         // order matches the in-memory swap order. If two threads race here and
         // we generate outside the lock, the last write to disk could disagree
         // with the last value of `_visitorId`, leaving the next app launch with
-        // a stale visitor id.
-        lock.withLock {
+        // a stale visitor id. Logging stays outside: os_log latency is
+        // unbounded, and holding the lock across it stalls every other
+        // identity call on other threads.
+        let newVisitorId: String = lock.withLock {
             _identifiers = [:]
-            _visitorId = visitorService.createNewVisitorId()
+            let newVisitorId = visitorService.createNewVisitorId()
+            _visitorId = newVisitorId
+            return newVisitorId
         }
+        Loggers.event.info("Generated new visitor id: \(newVisitorId, privacy: .public)")
     }
 
     @objc
