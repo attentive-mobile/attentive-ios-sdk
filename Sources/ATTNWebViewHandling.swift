@@ -65,7 +65,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         self.stateManager = stateManager
     }
 
-    func makeWebView() -> WKWebView {
+    func makeWebView(launchEpoch: UInt64 = 0) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
@@ -73,8 +73,8 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         configuration.userContentController.addUserScript(userScript)
         let webView = CustomWebView(frame: .zero, configuration: configuration)
-        let epoch = currentLaunchEpoch
-        webView.onRemovedFromWindow = { [weak self] in
+        webView.launchEpoch = launchEpoch
+        webView.onRemovedFromWindow = { [weak self, weak webView] in
             guard let self = self else { return }
             switch self.stateManager.getState() {
             case .closed:
@@ -83,6 +83,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 // Host detached the parent view mid-launch. Report .notOpened and
                 // clean up rather than emitting .closed for a creative that never
                 // opened.
+                let epoch = webView?.launchEpoch ?? launchEpoch
                 self.reportNotOpenedAndTearDown(epoch: epoch, reason: "parent view removed from window during launch")
             case .open:
                 self.closeCreative()
@@ -174,7 +175,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                     }
                     webViewProvider.webView = nil
                 }
-                webViewProvider.webView = self.makeWebView()
+                webViewProvider.webView = self.makeWebView(launchEpoch: epoch)
 
                 guard let webView = webViewProvider.webView as? CustomWebView else { return }
 
@@ -230,6 +231,25 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         }
     }
 
+    /// JS reported the creative iframe is present. Gate the `.launching → .open`
+    /// transition on the epoch check so a stale JS-success from an old webview
+    /// can't flip a new launch's state and disable its native timeout guard.
+    private func handleJSSuccess(epoch: UInt64) {
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard epoch == self.currentLaunchEpoch else { return }
+            // Transition out of .launching so the native 5s timeout can't tear
+            // down a successfully-rendered creative in the window between
+            // .opened firing and IMPRESSION arriving.
+            guard self.stateManager.compareAndSet(from: .launching, to: .open) else { return }
+            Loggers.creative.debug("Found creative iframe, showing WebView.")
+            let handler = self.webViewProvider?.triggerHandler
+            DispatchQueue.main.async {
+                handler?(ATTNCreativeTriggerStatus.opened)
+            }
+        }
+    }
+
     /// Shared cleanup primitive for both `closeCreative` (successful dismissal) and
     /// `reportNotOpenedAndTearDown` (failed launch). Detaches the delegate, removes
     /// the view from its parent, stops the load, clears scripts, and nils the
@@ -246,8 +266,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 webView.stopLoading()
                 webView.configuration.userContentController.removeAllUserScripts()
                 webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
-                self.webViewProvider?.webView = nil
             }
+            // Always clear the provider's reference — even if no webView was
+            // present (the launch's setup main-hop hadn't yet run). This makes
+            // teardown observable to hosts that key off `provider.webView == nil`.
+            self.webViewProvider?.webView = nil
             // Verify the detach actually happened. If this ever logs FAIL, the
             // WebView is leaking somewhere and we have a bug.
             let providerCleared = (self.webViewProvider?.webView == nil)
@@ -283,13 +306,16 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 var status = await p;
                 return status;
                 """
-        let epoch = currentLaunchEpoch
+        // Read the epoch off THIS webView (stamped in makeWebView), not off self —
+        // otherwise a late JS completion from an old webview would carry the newest
+        // handler-level epoch and tear down the current launch.
+        let epoch = (webView as? CustomWebView)?.launchEpoch ?? 0
         webView.callAsyncJavaScript(
             asyncJs,
             in: nil,
             in: .defaultClient
         ) { [weak self] result in
-            guard let self = self, let webViewProvider = self.webViewProvider else { return }
+            guard let self = self else { return }
             guard case let .success(statusAny) = result else {
                 self.reportNotOpenedAndTearDown(epoch: epoch, reason: "no status returned from JS")
                 return
@@ -297,12 +323,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
             switch ScriptStatus.getRawValue(from: statusAny) {
             case .success:
-                Loggers.creative.debug("Found creative iframe, showing WebView.")
-                // Transition out of .launching so the native 5s timeout can't tear
-                // down a successfully-rendered creative in the window between
-                // .opened firing and IMPRESSION arriving.
-                self.stateManager.compareAndSet(from: .launching, to: .open)
-                webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
+                self.handleJSSuccess(epoch: epoch)
             case .timeout:
                 self.reportNotOpenedAndTearDown(epoch: epoch, reason: "JS iframe-detection timed out")
             case .unknown(let statusString):
@@ -313,15 +334,34 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "navigation failed: \(error.localizedDescription)")
+        let epoch = (webView as? CustomWebView)?.launchEpoch ?? 0
+        reportNotOpenedAndTearDown(epoch: epoch, reason: "navigation failed: \(error.localizedDescription)")
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "provisional navigation failed: \(error.localizedDescription)")
+        let epoch = (webView as? CustomWebView)?.launchEpoch ?? 0
+        reportNotOpenedAndTearDown(epoch: epoch, reason: "provisional navigation failed: \(error.localizedDescription)")
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "WebContent process terminated (likely OOM/jetsam)")
+        let epoch = (webView as? CustomWebView)?.launchEpoch ?? 0
+        // If the process dies AFTER the creative reached .open, reportNotOpenedAndTearDown's
+        // .launching CAS would fail and leave a blank webview attached. Route the .open case
+        // through closeCreative instead so hosts see the correct trigger status (.closed for
+        // a previously-open creative that died; .notOpened for one that never rendered).
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard epoch == self.currentLaunchEpoch else { return }
+            switch self.stateManager.getState() {
+            case .open:
+                Loggers.creative.error("WebContent process terminated after creative opened; tearing down.")
+                DispatchQueue.main.async { self.closeCreative() }
+            case .launching:
+                self.reportNotOpenedAndTearDown(epoch: epoch, reason: "WebContent process terminated (likely OOM/jetsam)")
+            case .closed:
+                return
+            }
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -449,6 +489,12 @@ fileprivate extension ATTNWebViewHandler {
 }
 /// Web view with custom hit area where only touches inside the interactive area are handled. This allows users to interact with rest of the app when creative is minimized to a bubble; also calls a closure when it is removed from its window to detect when it's no longer on screen.
 class CustomWebView: WKWebView {
+
+    /// Set by `ATTNWebViewHandler.makeWebView` to bind this webview to the
+    /// specific launch that created it. Delegate callbacks pass this epoch back
+    /// to `reportNotOpenedAndTearDown` so a stale callback from an old webview
+    /// can't tear down a newer launch's webview.
+    var launchEpoch: UInt64 = 0
 
     var interactiveHitArea: CGRect = .zero {
         didSet {
