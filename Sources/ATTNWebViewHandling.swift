@@ -49,9 +49,13 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         minimizedFrame = frame
     }
 
-    // Guards the two timeout paths (native launching timeout and JS iframe-detection timeout)
-    // so they don't both fire .notOpened or both attempt teardown when they race.
-    private var didTimeOut: Bool = false
+    // Monotonic id incremented on every launchCreative call. Every async callback
+    // captures the epoch under which it was scheduled and no-ops if a newer launch
+    // has since started — this prevents a stale timer / JS completion / navigation
+    // failure from a previous launch tearing down the current one's WebView.
+    // Reads/writes are confined to creativeQueue (the same serial queue used for
+    // launch orchestration and the native timeout).
+    private var currentLaunchEpoch: UInt64 = 0
 
     init(webViewProvider: ATTNWebViewProviding,
              creativeUrlBuilder: ATTNCreativeUrlProviding = ATTNCreativeUrlProvider(),
@@ -69,6 +73,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         configuration.userContentController.addUserScript(userScript)
         let webView = CustomWebView(frame: .zero, configuration: configuration)
+        let epoch = currentLaunchEpoch
         webView.onRemovedFromWindow = { [weak self] in
             guard let self = self else { return }
             switch self.stateManager.getState() {
@@ -78,8 +83,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 // Host detached the parent view mid-launch. Report .notOpened and
                 // clean up rather than emitting .closed for a creative that never
                 // opened.
-                guard let webViewProvider = self.webViewProvider else { return }
-                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "parent view removed from window during launch")
+                self.reportNotOpenedAndTearDown(epoch: epoch, reason: "parent view removed from window during launch")
             case .open:
                 self.closeCreative()
             }
@@ -100,10 +104,10 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             return
         }
 
-        didTimeOut = false
-
         creativeQueue.async { [weak self] in
             guard let self = self else { return }
+            self.currentLaunchEpoch &+= 1
+            let epoch = self.currentLaunchEpoch
             guard let webViewProvider = self.webViewProvider else {
                 Loggers.creative.error("Cannot show creative: webViewProvider is nil - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
                 return
@@ -117,14 +121,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
             // Time out logic in case creative doesn't launch
             let timeoutInterval: TimeInterval = 5.0
             creativeQueue.asyncAfter(deadline: .now() + timeoutInterval) { [weak self] in
-                guard let self = self, let webViewProvider = self.webViewProvider else { return }
-                guard self.stateManager.getState() == .launching, !self.didTimeOut else { return }
-                self.didTimeOut = true
-                Loggers.creative.error("Creative launch timed out.")
-                DispatchQueue.main.async {
-                    webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-                }
-                self.tearDownWebView()
+                self?.reportNotOpenedAndTearDown(epoch: epoch, reason: "creative launch timed out")
             }
 
             Loggers.creative.debug("The iOS version is new enough, continuing to show the Attentive creative.")
@@ -206,6 +203,41 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     }
 
     func closeCreative() {
+        detachAndNullWebView(logContext: "Successfully closed creative")
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.stateManager.updateState(.closed)
+            self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
+        }
+    }
+
+    /// Reports `.notOpened` and tears down the WebView, but only if `epoch` matches
+    /// the current launch. A stale callback from a previous launch (e.g. a not-yet-
+    /// fired 5s asyncAfter, a late JS completion after stopLoading, a
+    /// didFailProvisionalNavigation racing a new launch) is silently dropped so it
+    /// can't tear down a healthy WebView belonging to a subsequent launch.
+    private func reportNotOpenedAndTearDown(epoch: UInt64, reason: String) {
+        creativeQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard epoch == self.currentLaunchEpoch else { return }
+            guard self.stateManager.compareAndSet(from: .launching, to: .closed) else { return }
+            Loggers.creative.error("Creative not opened: \(reason, privacy: .public)")
+            let handler = self.webViewProvider?.triggerHandler
+            DispatchQueue.main.async {
+                handler?(ATTNCreativeTriggerStatus.notOpened)
+            }
+            self.detachAndNullWebView(logContext: "Teardown after \(reason)")
+        }
+    }
+
+    /// Shared cleanup primitive for both `closeCreative` (successful dismissal) and
+    /// `reportNotOpenedAndTearDown` (failed launch). Detaches the delegate, removes
+    /// the view from its parent, stops the load, clears scripts, and nils the
+    /// provider's reference. Idempotent — safe to call when there's no webView.
+    private func detachAndNullWebView(logContext: String) {
+        weak var tornDownWebView = webViewProvider?.webView
+        weak var tornDownParent = webViewProvider?.parentView
+
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if let webView = self.webViewProvider?.webView {
@@ -214,79 +246,14 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 webView.stopLoading()
                 webView.configuration.userContentController.removeAllUserScripts()
                 webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
-            }
-            self.webViewProvider?.webView = nil
-        }
-
-        creativeQueue.async { [weak self] in
-            guard let self = self else { return }
-            stateManager.updateState(.closed)
-            self.webViewProvider?.triggerHandler?(ATTNCreativeTriggerStatus.closed)
-            Loggers.creative.debug("Successfully closed creative - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        }
-    }
-
-    /// Fires `.notOpened` once (guarded by `didTimeOut` so a racing native timeout
-    /// doesn't double-fire) and then tears down the WebView. `reason` is only logged
-    /// when this call wins the race — losers stay silent to avoid misleading "second
-    /// timeout" log lines after teardown has already started.
-    private func reportNotOpenedAndTearDown(webViewProvider: ATTNWebViewProviding, reason: String) {
-        guard !didTimeOut else { return }
-        didTimeOut = true
-        Loggers.creative.error("Creative not opened: \(reason, privacy: .public)")
-        DispatchQueue.main.async {
-            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-        }
-        tearDownWebView()
-    }
-
-    /// Tears down the WebView without firing the trigger handler. Called by timeout paths
-    /// that have already reported `.notOpened` to the handler; we must not additionally
-    /// emit `.closed`, which `closeCreative()` would do.
-    private func tearDownWebView() {
-        // Weak-capture the target webview + its parent so the post-teardown log can
-        // check whether the view is really detached from the hierarchy Target's app
-        // sees, not just nil'd on the provider.
-        weak var tornDownWebView: WKWebView? = webViewProvider?.webView
-        weak var tornDownParent: UIView? = webViewProvider?.parentView
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            guard let webView = self.webViewProvider?.webView else {
                 self.webViewProvider?.webView = nil
-                return
             }
-            Loggers.creative.debug("Timeout teardown starting — attached=\(webView.superview != nil ? "YES" : "NO", privacy: .public), isLoading=\(webView.isLoading ? "YES" : "NO", privacy: .public)")
-            webView.navigationDelegate = nil
-            webView.removeFromSuperview()
-            webView.stopLoading()
-            webView.configuration.userContentController.removeAllUserScripts()
-            webView.configuration.userContentController.removeScriptMessageHandler(forName: Constants.scriptMessageHandlerName)
-            self.webViewProvider?.webView = nil
-        }
-
-        creativeQueue.async { [weak self] in
-            self?.stateManager.updateState(.closed)
-        }
-
-        // Post-teardown verification: runs after the main-queue teardown block above.
-        // If this ever logs FAIL, the WebView is leaking somewhere and we have a bug.
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            // Verify the detach actually happened. If this ever logs FAIL, the
+            // WebView is leaking somewhere and we have a bug.
             let providerCleared = (self.webViewProvider?.webView == nil)
-            let stillAttached: Bool = {
-                guard let target = tornDownWebView, let parent = tornDownParent else { return false }
-                return parent.subviews.contains(target)
-            }()
-            let stateName: String = {
-                switch self.stateManager.getState() {
-                case .closed: return "closed"
-                case .launching: return "launching"
-                case .open: return "open"
-                }
-            }()
+            let stillAttached = tornDownWebView.map { tornDownParent?.subviews.contains($0) ?? false } ?? false
             let passed = providerCleared && !stillAttached
-            Loggers.creative.debug("Timeout teardown \(passed ? "PASS" : "FAIL", privacy: .public) — providerCleared=\(providerCleared ? "YES" : "NO", privacy: .public), stillAttachedToParent=\(stillAttached ? "YES" : "NO", privacy: .public), state=\(stateName, privacy: .public)")
+            Loggers.creative.debug("\(logContext, privacy: .public) — \(passed ? "PASS" : "FAIL", privacy: .public) (providerCleared=\(providerCleared ? "YES" : "NO", privacy: .public), stillAttachedToParent=\(stillAttached ? "YES" : "NO", privacy: .public))")
         }
     }
 }
@@ -316,6 +283,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 var status = await p;
                 return status;
                 """
+        let epoch = currentLaunchEpoch
         webView.callAsyncJavaScript(
             asyncJs,
             in: nil,
@@ -323,7 +291,7 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
         ) { [weak self] result in
             guard let self = self, let webViewProvider = self.webViewProvider else { return }
             guard case let .success(statusAny) = result else {
-                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "no status returned from JS")
+                self.reportNotOpenedAndTearDown(epoch: epoch, reason: "no status returned from JS")
                 return
             }
 
@@ -336,27 +304,24 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
                 self.stateManager.compareAndSet(from: .launching, to: .open)
                 webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
             case .timeout:
-                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "JS iframe-detection timed out")
+                self.reportNotOpenedAndTearDown(epoch: epoch, reason: "JS iframe-detection timed out")
             case .unknown(let statusString):
-                self.reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "unknown JS status: \(statusString)")
+                self.reportNotOpenedAndTearDown(epoch: epoch, reason: "unknown JS status: \(statusString)")
             default: break
             }
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        guard let webViewProvider = self.webViewProvider else { return }
-        reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "navigation failed: \(error.localizedDescription)")
+        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "navigation failed: \(error.localizedDescription)")
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        guard let webViewProvider = self.webViewProvider else { return }
-        reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "provisional navigation failed: \(error.localizedDescription)")
+        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "provisional navigation failed: \(error.localizedDescription)")
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        guard let webViewProvider = self.webViewProvider else { return }
-        reportNotOpenedAndTearDown(webViewProvider: webViewProvider, reason: "WebContent process terminated (likely OOM/jetsam)")
+        reportNotOpenedAndTearDown(epoch: currentLaunchEpoch, reason: "WebContent process terminated (likely OOM/jetsam)")
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
