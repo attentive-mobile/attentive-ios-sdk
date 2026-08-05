@@ -29,7 +29,8 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         handler = ATTNWebViewHandler(
             webViewProvider: mockWebViewProvider,
             creativeUrlBuilder: mockUrlProvider,
-            stateManager: ATTNCreativeStateManager()
+            stateManager: ATTNCreativeStateManager(),
+            launchTimeoutInterval: 0.2
         )
     }
 
@@ -139,7 +140,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.launchCreative(parentView: parentView, creativeId: "willTimeout", handler: handlerClosure)
 
-        wait(for: [notOpenedExpectation, removalExpectation], timeout: 8.0)
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 2.0)
 
         XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened, "handler must be told the creative did not open")
         XCTAssertNil(mockWebViewProvider.webView, "webView reference must be cleared after timeout")
@@ -165,14 +166,26 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         let stubHandler = JSTimeoutStubHandler(
             webViewProvider: mockWebViewProvider,
             creativeUrlBuilder: MockCreativeUrlProvider(),
-            stateManager: ATTNCreativeStateManager()
+            stateManager: ATTNCreativeStateManager(),
+            launchTimeoutInterval: 5.0  // don't let native timer fire during this test
         )
         stubHandler.stubbedJSResult = .success("TIMED OUT" as Any)
         handler = stubHandler
 
+        let setupExpectation = expectation(description: "webView setup")
+        mockWebViewProvider.webViewSetupExpectation = setupExpectation
         stubHandler.launchCreative(parentView: parentView, creativeId: "willJSTimeout", handler: handlerClosure)
+        wait(for: [setupExpectation], timeout: 2.0)
 
-        wait(for: [notOpenedExpectation, removalExpectation], timeout: 8.0)
+        // MockWKWebView.load() doesn't trigger a real WKNavigation, so didFinish
+        // won't fire on its own. Simulate WebKit invoking it — which then dispatches
+        // to the stubbed JS result → real reportNotOpenedAndTearDown path.
+        guard let webView = mockWebViewProvider.webView else {
+            return XCTFail("expected webView after setup")
+        }
+        stubHandler.webView(webView, didFinish: nil)
+
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 3.0)
 
         XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened)
         XCTAssertNil(mockWebViewProvider.webView)
@@ -197,86 +210,60 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.launchCreative(parentView: parentView, creativeId: "raceTest", handler: handlerClosure)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 7.0) {
+        // Wait past the injected 0.2s timeout plus a margin for any late callbacks.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             allDone.fulfill()
         }
-        wait(for: [allDone], timeout: 10.0)
+        wait(for: [allDone], timeout: 3.0)
 
         XCTAssertEqual(notOpenedCount, 1, ".notOpened must fire exactly once even if both timeout paths run")
         XCTAssertTrue(otherStatuses.isEmpty, "must not additionally emit .closed or .opened on the timeout path; got \(otherStatuses)")
     }
 
-    func testMultiLaunch_StaleDelegateCallback_DoesNotTearDownNewLaunch() {
-        // Regression test for the epoch guard. Launch #1's webview outlives a
-        // subsequent launch #2 on the SAME handler; a late delegate callback
-        // (didFailProvisionalNavigation) fired against launch #1's webview must
-        // NOT tear down launch #2's webview — its epoch is stale.
+    func testMultiLaunch_StaleTimeoutCallback_DoesNotTearDownNewLaunch() {
+        // Regression test for the epoch guard: a stale native-timeout callback
+        // scheduled by launch #1 must NOT tear down launch #2's webview even though
+        // launch #2 is currently in `.launching`. The epoch mechanism is what makes
+        // that safe when the same handler is reused for multiple launches.
         let parentView = UIView()
 
-        // Launch #1 → captures epoch 1 on its webview.
+        // Launch #1 → epoch 1.
         let firstSetup = expectation(description: "webView1 setup")
         mockWebViewProvider.webViewSetupExpectation = firstSetup
         handler.launchCreative(parentView: parentView, creativeId: "first")
-        wait(for: [firstSetup], timeout: 5.0)
-        guard let webView1 = mockWebViewProvider.webView as? CustomWebView else {
-            return XCTFail("expected CustomWebView after launch #1")
-        }
-        let epoch1 = webView1.launchEpoch
+        wait(for: [firstSetup], timeout: 2.0)
 
-        // Close launch #1 on the same handler so state → .closed and the next launch is allowed.
+        // Close launch #1 so state → .closed and the next launch is allowed.
         let closeExpectation = expectation(description: "webView1 removed")
         mockWebViewProvider.webViewRemovalExpectation = closeExpectation
         handler.closeCreative()
-        wait(for: [closeExpectation], timeout: 5.0)
+        wait(for: [closeExpectation], timeout: 2.0)
 
-        // Reset expectation fulfillment tracking so launch #2's setup/removal can fire.
-        let freshProvider = MockWebViewProvider()
-        mockWebViewProvider = freshProvider
-        // Keep the SAME handler — that's the point; its epoch counter must have advanced.
-        // Reinject the fresh provider by rebuilding the handler with the same state manager
-        // is NOT possible here (currentLaunchEpoch is per-instance). Instead we thread the
-        // fresh provider via a spy: build a new handler that shares the previous state
-        // manager so state carries over, but starts its own epoch — then verify that
-        // a callback carrying an epoch that doesn't match the handler's current epoch
-        // is dropped. Below we simulate that directly by asserting on webView1's epoch.
+        // Reset the fulfillment tracking so launch #2's setup expectation can fire.
+        mockWebViewProvider.resetExpectations()
 
-        // Launch #2 on the same handler.
+        // Launch #2 on the SAME handler → epoch 2. This uses the injected fast
+        // timeout, but we assert on state BEFORE that timeout fires.
         let secondSetup = expectation(description: "webView2 setup")
-        freshProvider.webViewSetupExpectation = secondSetup
-        // Swap the provider inside the existing handler by re-launching against it —
-        // ATTNWebViewHandler holds `webViewProvider` weakly and picks the provider off
-        // its captured init reference, so we need a small workaround: use a fresh
-        // handler that shares the stateManager. See below.
-        handler = ATTNWebViewHandler(
-            webViewProvider: freshProvider,
-            creativeUrlBuilder: mockUrlProvider,
-            stateManager: ATTNCreativeStateManager()
-        )
+        mockWebViewProvider.webViewSetupExpectation = secondSetup
         handler.launchCreative(parentView: parentView, creativeId: "second")
-        wait(for: [secondSetup], timeout: 5.0)
-        guard let webView2 = freshProvider.webView as? CustomWebView else {
+        wait(for: [secondSetup], timeout: 2.0)
+        guard let webView2 = mockWebViewProvider.webView as? CustomWebView else {
             return XCTFail("expected CustomWebView after launch #2")
         }
-        // webView1 carries epoch 1. handler#2's currentLaunchEpoch is also 1 (fresh
-        // instance). To simulate the real bug, force webView1's stamped epoch to a
-        // value the new handler will NOT match — 0, which the new handler's counter
-        // has already passed.
-        webView1.launchEpoch = 0
-        _ = epoch1 // silence unused warning
+        XCTAssertGreaterThanOrEqual(webView2.launchEpoch, 2, "launch #2 must have an epoch strictly greater than launch #1's")
 
-        // Simulate launch #1's webview firing a late delegate callback into handler#2.
-        // Because webView1 carries epoch 0 (stale), the epoch guard drops the callback
-        // and launch #2's webview stays intact.
-        let error = NSError(domain: "test", code: -1003, userInfo: [NSLocalizedDescriptionKey: "stale"])
-        handler.webView(webView1, didFailProvisionalNavigation: nil, withError: error)
+        // Simulate launch #1's stale native-timeout firing while launch #2 is still
+        // in `.launching`. It should be silently dropped by the epoch guard.
+        handler.reportNotOpenedAndTearDown(epoch: 1, reason: "STALE native timeout from launch #1")
 
-        // Give the creativeQueue + main hop a chance to run.
-        let settled = expectation(description: "async queues settled")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { settled.fulfill() }
+        // Give creativeQueue a chance to run the guarded call.
+        let settled = expectation(description: "creativeQueue drained")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { settled.fulfill() }
         wait(for: [settled], timeout: 1.0)
 
-        XCTAssertNotNil(freshProvider.webView, "stale-epoch callback must not tear down launch #2's webview")
-        XCTAssertGreaterThan(webView2.launchEpoch, 0, "launch #2's webview must have a real (non-stale) epoch")
+        XCTAssertNotNil(mockWebViewProvider.webView, "stale-epoch callback must NOT tear down launch #2's webview")
+        XCTAssertFalse(parentView.subviews.isEmpty, "stale-epoch callback must NOT detach launch #2's webview from its parent")
     }
 
     func testLaunchCreative_ShouldLoadCorrectURL() {
@@ -369,6 +356,15 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
         }
     }
 
+    /// Reset the fulfillment tracking so the same mock can be reused across a
+    /// second launch/close cycle in a single test.
+    func resetExpectations() {
+        didFulfillSetup = false
+        didFulfillRemoval = false
+        webViewSetupExpectation = nil
+        webViewRemovalExpectation = nil
+    }
+
     func getDomain() -> String {
         getDomainCallCount += 1
         return mockDomain
@@ -407,6 +403,10 @@ class TestWebViewHandler: ATTNWebViewHandler {
 /// the JS evaluation call. When `stubbedJSResult` is set, the didFinish call skips
 /// callAsyncJavaScript and dispatches straight into the SDK's result-handling switch,
 /// mirroring the production behavior (fire .notOpened, then tear down the webview).
+/// Test handler that stubs the WKNavigationDelegate.didFinish path by short-circuiting
+/// the JS evaluation call. When `stubbedJSResult` is set, we hand the stubbed status
+/// off to the REAL production teardown path (`reportNotOpenedAndTearDown`), so the
+/// JS-timeout test exercises the same code that runs in production.
 class JSTimeoutStubHandler: ATTNWebViewHandler {
     var stubbedJSResult: Result<Any, Error>?
 
@@ -421,32 +421,17 @@ class JSTimeoutStubHandler: ATTNWebViewHandler {
             super.webView(webView, didFinish: navigation)
             return
         }
+        let epoch = (webView as? CustomWebView)?.launchEpoch ?? 0
         guard let webViewProvider = self.webViewProvider else { return }
         guard case let .success(statusAny) = stubbedJSResult else {
-            reportNotOpenedAndTearDownForTest(webViewProvider: webViewProvider)
+            reportNotOpenedAndTearDown(epoch: epoch, reason: "test: no status returned from JS")
             return
         }
         switch statusAny as? String {
         case "SUCCESS":
             webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.opened)
         default:
-            reportNotOpenedAndTearDownForTest(webViewProvider: webViewProvider)
-        }
-    }
-
-    /// The stub can't reach the private `reportNotOpenedAndTearDown` on the base class,
-    /// so mirror its two observable effects here: fire `.notOpened` on the main queue,
-    /// then remove and null out the webView.
-    private func reportNotOpenedAndTearDownForTest(webViewProvider: ATTNWebViewProviding) {
-        DispatchQueue.main.async {
-            webViewProvider.triggerHandler?(ATTNCreativeTriggerStatus.notOpened)
-        }
-        DispatchQueue.main.async { [weak self] in
-            if let webView = self?.webViewProvider?.webView {
-                webView.removeFromSuperview()
-                webView.stopLoading()
-            }
-            self?.webViewProvider?.webView = nil
+            reportNotOpenedAndTearDown(epoch: epoch, reason: "test: JS iframe-detection timed out")
         }
     }
 }
