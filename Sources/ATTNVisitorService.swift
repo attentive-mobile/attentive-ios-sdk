@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 struct ATTNVisitorService {
     private enum Constants {
@@ -13,30 +14,42 @@ struct ATTNVisitorService {
     }
 
     private let persistentStorage: ATTNPersistentStorageProtocol
+    private let logger: Logger
 
-    init(persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage()) {
+    init(
+        persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage(),
+        logger: Logger = Loggers.event
+    ) {
         self.persistentStorage = persistentStorage
+        self.logger = logger
     }
 
     func getVisitorId() -> String {
         guard let existingVisitorId = persistentStorage.readString(forKey: Constants.visitorIdKey) else {
             let newVisitorId = createNewVisitorId()
-            Loggers.event.info("Generated new visitor id: \(newVisitorId, privacy: .public)")
+            logNewVisitorId(newVisitorId)
             return newVisitorId
         }
 
-        Loggers.event.info("Obtained existing visitor id: \(existingVisitorId, privacy: .public)")
+        logger.info("Obtained existing visitor id: \(existingVisitorId, privacy: .public)")
 
         return existingVisitorId
     }
 
     /// Deliberately does not log: callers may hold a lock while calling this
     /// (see `ATTNUserIdentity.clearUser()`), and os_log latency is unbounded.
-    /// Log the returned id at the call site, outside any critical section.
+    /// Call `logNewVisitorId(_:)` with the returned id outside any critical
+    /// section.
     func createNewVisitorId() -> String {
         let newVisitorId = generateVisitorId()
         persistentStorage.save(newVisitorId as NSObject, forKey: Constants.visitorIdKey)
         return newVisitorId
+    }
+
+    /// The logging counterpart to `createNewVisitorId()`, kept separate so the
+    /// create step can run inside a lock while the log happens outside it.
+    func logNewVisitorId(_ visitorId: String) {
+        logger.info("Generated new visitor id: \(visitorId, privacy: .public)")
     }
 
 }

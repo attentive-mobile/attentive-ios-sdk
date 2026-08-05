@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import os
 @testable import ATTNSDKFramework
 
 final class ATTNUserIdentityTests: XCTestCase {
@@ -111,14 +112,18 @@ final class ATTNUserIdentityTests: XCTestCase {
     }
 
     func testClearUser_concurrentClearAndMerge_doesNotCrash() {
-        // Inject in-memory storage so clearUser()'s per-call UserDefaults write
-        // doesn't dominate wall clock — the test asserts the lock, not disk I/O.
-        // clearUser() logs outside its critical section, so iterations can be
-        // high enough to exercise real contention without CI log-capture
-        // latency serializing the whole test.
+        // Inject in-memory storage and a disabled logger: the test asserts the
+        // lock, not disk or log I/O. The disabled logger matters on CI — even
+        // with clearUser() logging outside its critical section, each os_log
+        // call is still on the timed path (the dispatch block doesn't finish
+        // until the log returns), and CircleCI's log capture serializes os_log
+        // at ~75ms/call, which at 200 iterations would blow the timeout.
         let identity = ATTNUserIdentity(
             identifiers: [:],
-            visitorService: ATTNVisitorService(persistentStorage: ATTNPersistentStorageMock())
+            visitorService: ATTNVisitorService(
+                persistentStorage: ATTNPersistentStorageMock(),
+                logger: Logger(OSLog.disabled)
+            )
         )
         runConcurrently(iterations: 200, timeout: 15, queueLabels: ["merge", "clear"]) { i, queueIndex in
             if queueIndex == 0 {

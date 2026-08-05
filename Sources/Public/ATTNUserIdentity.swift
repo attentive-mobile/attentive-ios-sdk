@@ -54,13 +54,13 @@ public final class ATTNUserIdentity: NSObject {
         // a stale visitor id. Logging stays outside: os_log latency is
         // unbounded, and holding the lock across it stalls every other
         // identity call on other threads.
-        let newVisitorId: String = lock.withLock {
+        let newVisitorId = lock.withLock { () -> String in
             _identifiers = [:]
-            let newVisitorId = visitorService.createNewVisitorId()
-            _visitorId = newVisitorId
-            return newVisitorId
+            let id = visitorService.createNewVisitorId()
+            _visitorId = id
+            return id
         }
-        Loggers.event.info("Generated new visitor id: \(newVisitorId, privacy: .public)")
+        visitorService.logNewVisitorId(newVisitorId)
     }
 
     @objc
