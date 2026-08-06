@@ -101,7 +101,7 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     func testMergeAndRead_concurrentReadersAndWriters_doesNotCrash() {
         let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "seed@test.com"])
-        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["writer", "reader"]) { i, queueIndex in
+        runConcurrently(iterations: 200, queueLabels: ["writer", "reader"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
@@ -117,7 +117,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // with clearUser() logging outside its critical section, each os_log
         // call is still on the timed path (the dispatch block doesn't finish
         // until the log returns), and CircleCI's log capture serializes os_log
-        // at ~75ms/call, which at 200 iterations would blow the timeout.
+        // at ~75ms/call, which at 200 iterations adds ~15s of pure log latency.
         let identity = ATTNUserIdentity(
             identifiers: [:],
             visitorService: ATTNVisitorService(
@@ -125,7 +125,7 @@ final class ATTNUserIdentityTests: XCTestCase {
                 logger: Logger(OSLog.disabled)
             )
         )
-        runConcurrently(iterations: 200, timeout: 15, queueLabels: ["merge", "clear"]) { i, queueIndex in
+        runConcurrently(iterations: 200, queueLabels: ["merge", "clear"]) { i, queueIndex in
             if queueIndex == 0 {
                 identity.mergeIdentifiers([ATTNIdentifierType.email: "user\(i)@test.com"])
             } else {
