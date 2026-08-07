@@ -25,7 +25,7 @@ extension Notification.Name {
         ///
         /// - `object`: the `ATTNSDK` instance that owns the count. Filter by this when running
         ///   multiple SDK instances; pass `nil` to observe all instances.
-        /// - `userInfo["unreadCount"]`: `Int` — the new server-authoritative count.
+        /// - `userInfo["attentiveInboxUnreadCount"]`: `Int` — the new server-authoritative count.
         ///
         /// The notification is dispatched from whichever thread wrote the count. Observers that
         /// touch UIKit should register with `queue: .main` or hop to main before reading.

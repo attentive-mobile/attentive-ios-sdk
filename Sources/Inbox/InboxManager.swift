@@ -666,6 +666,12 @@ extension InboxManager {
 /// or a NotificationCenter-driven badge — powers `ATTNSDK.inboxUnreadCount` and the
 /// `ATTNSDKInboxUnreadCountChanged` fanout. Same-value writes are deduped. `onChange` runs after
 /// the lock is released so a re-entrant read from inside the callback does not deadlock.
+///
+/// **Ordering invariant:** `onChange` callbacks are only guaranteed to arrive in write-order when
+/// there is a single serialized writer. In this SDK that writer is the `InboxManager` actor's
+/// `didSet` on `storedUnreadCount` (see the property observer above), which is safe because
+/// actor isolation serializes all writes. A second concurrent writer would race post-unlock and
+/// could deliver stale counts out of order — do not introduce one without gating the callback.
 final class UnreadCountBox: @unchecked Sendable {
     private let lock = NSLock()
     private var storedCount: Int = 0

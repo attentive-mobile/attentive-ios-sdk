@@ -666,7 +666,7 @@ override func viewDidLoad() {
         object: sdk,        // filter to this SDK instance; pass nil to observe all
         queue: .main
     ) { [weak self] note in
-        let count = note.userInfo?["unreadCount"] as? Int ?? 0
+        let count = note.userInfo?["attentiveInboxUnreadCount"] as? Int ?? 0
         self?.updateBadge(count)
     }
 

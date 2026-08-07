@@ -151,7 +151,7 @@ public final class ATTNSDK: NSObject {
             NotificationCenter.default.post(
                 name: .ATTNSDKInboxUnreadCountChanged,
                 object: self,
-                userInfo: ["unreadCount": newCount]
+                userInfo: ["attentiveInboxUnreadCount": newCount]
             )
         }
 
