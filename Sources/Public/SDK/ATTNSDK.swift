@@ -59,6 +59,18 @@ public final class ATTNSDK: NSObject {
     // See `materializedInboxManager()` for the construction path.
     private var _inboxManager: InboxManager?
 
+    /// Nonisolated mirror of the inbox unread count, readable from any thread. Eagerly assigned
+    /// in `init` — `lazy var`'s initializer is not synchronized, so two concurrent first-reads of
+    /// `inboxUnreadCount` could construct two boxes and later reads (or the manager's stored
+    /// reference) would see the wrong one. `private var` (not `let`) because Swift disallows
+    /// referencing `self` from a stored-property initializer, and the `[weak self]` capture in
+    /// `onChange` needs it — so the value is set once, after `super.init()`, and never rewritten.
+    /// The weak capture prevents a retain cycle (SDK → box → onChange → SDK).
+    private var unreadCountBox: UnreadCountBox!
+
+    /// `@objc` synchronous mirror of `unreadCount`; see `.ATTNSDKInboxUnreadCountChanged`.
+    @objc public var inboxUnreadCount: Int { unreadCountBox.count }
+
     // MARK: Instance Properties
     var parentView: UIView?
     var triggerHandler: ATTNCreativeTriggerCompletionHandler?
@@ -133,6 +145,15 @@ public final class ATTNSDK: NSObject {
         self.api = ATTNAPI(domain: domain)
 
         super.init()
+
+        self.unreadCountBox = UnreadCountBox { [weak self] newCount in
+            guard let self = self else { return }
+            NotificationCenter.default.post(
+                name: .ATTNSDKInboxUnreadCountChanged,
+                object: self,
+                userInfo: ["unreadCount": newCount]
+            )
+        }
 
         if ATTNAPI.isInvalidDomain(domain) {
             let message = ATTNError.invalidDomain.localizedDescription
@@ -920,9 +941,16 @@ fileprivate extension ATTNSDK {
     /// interact with the inbox surface never trigger the manager's network activity.
     func materializedInboxManager() -> InboxManager {
         if let existing = _inboxManager { return existing }
-        let manager = InboxManager(api: api, identityProvider: { [weak self] in
-            self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
-        })
+        // Passing `unreadCountBox` here (rather than letting the manager build its own default)
+        // is what routes every write to `storedUnreadCount` back to `inboxUnreadCount` and the
+        // `.ATTNSDKInboxUnreadCountChanged` notification.
+        let manager = InboxManager(
+            api: api,
+            identityProvider: { [weak self] in
+                self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+            },
+            unreadCountBox: unreadCountBox
+        )
         _inboxManager = manager
         return manager
     }

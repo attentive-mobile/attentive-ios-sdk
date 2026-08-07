@@ -1222,6 +1222,149 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertTrue(messages.first?.isRead ?? false, "mark-read flip must survive a click POST failure")
         XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1, "click POST is attempted (actionURL non-empty)")
     }
+
+    // MARK: - UnreadCountBox mirror (UIKit / Objective-C friendly)
+
+    /// Collects every `onChange` callback fired by the box. Callbacks arrive from whichever
+    /// thread wrote the count (typically the actor's executor), so writes are lock-guarded.
+    private final class BoxObserver: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storedValues: [Int] = []
+
+        var values: [Int] { lock.withLock { storedValues } }
+
+        func append(_ value: Int) { lock.withLock { storedValues.append(value) } }
+    }
+
+    func testUnreadCountBox_initialFetchPublishesCountToObserver() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 7
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        XCTAssertEqual(box.count, 7, "synchronous read must reflect the server-authoritative count")
+        XCTAssertEqual(observer.values, [7], "onChange fires exactly once for the initial 0 → 7 transition")
+    }
+
+    func testUnreadCountBox_dedupsSameValueWrites() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 4
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // Server returns the same 4 again; box must not fan out a second notification.
+        await manager.refreshUnreadCount()
+        await waitForUnreadCountFetches(count: 2)
+
+        XCTAssertEqual(observer.values, [4], "same-value re-fetch must not re-fire onChange")
+        XCTAssertEqual(box.count, 4)
+    }
+
+    func testUnreadCountBox_markReadDecrementsSynchronousMirror() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 2
+        )
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(box.count, 2, "authoritative count from mark-read response reaches the mirror")
+        // 0 → 3 (init) → 2 (optimistic decrement) → 2 (server reconcile, deduped)
+        XCTAssertEqual(observer.values, [3, 2], "server reconcile to same value as optimistic must dedup")
+    }
+
+    func testUnreadCountBox_resetForIdentityChangeZeroesMirror() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.resetForIdentityChange()
+
+        XCTAssertEqual(box.count, 0, "identity reset must return the mirror to 0")
+        XCTAssertEqual(observer.values, [5, 0], "reset fires a distinct 5 → 0 transition")
+    }
+
+    func testUnreadCountBox_reentrantReadInsideCallbackDoesNotDeadlock() async {
+        // Realistic UIKit pattern: a NotificationCenter observer synchronously reads
+        // `sdk.inboxUnreadCount` from inside the same callback. That must NOT deadlock — the
+        // box's internal lock must be released before `onChange` runs. A regression would hang
+        // this test at the 1s `waitForUnreadCountFetch` and fail the deadline.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 9
+
+        let seen = BoxObserver()
+        // Capture the box weakly and read `count` synchronously from inside the callback so the
+        // re-entrant lock acquire is actually exercised (not the closure argument).
+        weak var weakBox: UnreadCountBox?
+        let box = UnreadCountBox(onChange: { _ in
+            if let reentrantCount = weakBox?.count {
+                seen.append(reentrantCount)
+            }
+        })
+        weakBox = box
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        XCTAssertEqual(box.count, 9)
+        XCTAssertEqual(seen.values, [9], "re-entrant `count` read from inside onChange must return the just-written value without deadlocking")
+    }
 }
 
 /// Mutable reference container used by tests that need to flip an identity field between

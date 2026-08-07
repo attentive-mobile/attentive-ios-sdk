@@ -60,7 +60,14 @@ actor InboxManager {
     /// would undercount unread messages that live on unfetched pages. Reads should go through the
     /// `unreadCount` accessor, which awaits the init-time refresh so the first read never returns
     /// a stale 0.
-    private var storedUnreadCount: Int = 0
+    ///
+    /// `didSet` mirrors every write into `unreadCountBox`; see `UnreadCountBox` for semantics.
+    private var storedUnreadCount: Int = 0 {
+        didSet { unreadCountBox.update(to: storedUnreadCount) }
+    }
+
+    /// Nonisolated mirror of `storedUnreadCount`; see `UnreadCountBox` below.
+    private let unreadCountBox: UnreadCountBox
 
     private let api: ATTNAPIProtocol
     private let identityProvider: InboxIdentityProvider
@@ -166,9 +173,14 @@ actor InboxManager {
         }
     }
 
-    init(api: ATTNAPIProtocol, identityProvider: @escaping InboxIdentityProvider) {
+    init(
+        api: ATTNAPIProtocol,
+        identityProvider: @escaping InboxIdentityProvider,
+        unreadCountBox: UnreadCountBox = UnreadCountBox()
+    ) {
         self.api = api
         self.identityProvider = identityProvider
+        self.unreadCountBox = unreadCountBox
         // Fetch the first page of messages and the unread count on construction so passive-badge
         // hosts (`sdk.unreadCount`) and stream/`allMessages` consumers both resolve without
         // needing to present `inboxView()`. Non-inbox hosts never construct the manager — see
@@ -645,5 +657,36 @@ extension InboxManager {
         storedUnreadCount = response.unreadCount
         unreadCountRevision &+= 1
         send(.loaded(orderedMessagesSnapshot()))
+    }
+}
+
+// MARK: - Unread count box
+
+/// Nonisolated mirror of `InboxManager.storedUnreadCount` for hosts that need a synchronous read
+/// or a NotificationCenter-driven badge — powers `ATTNSDK.inboxUnreadCount` and the
+/// `ATTNSDKInboxUnreadCountChanged` fanout. Same-value writes are deduped. `onChange` runs after
+/// the lock is released so a re-entrant read from inside the callback does not deadlock.
+final class UnreadCountBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedCount: Int = 0
+    private let onChange: (Int) -> Void
+
+    var count: Int { lock.withLock { storedCount } }
+
+    init(onChange: @escaping (Int) -> Void = { _ in }) {
+        self.onChange = onChange
+    }
+
+    /// Sets the current count. No-ops (and returns without invoking `onChange`) when the incoming
+    /// value equals the stored one.
+    func update(to newValue: Int) {
+        lock.lock()
+        guard storedCount != newValue else {
+            lock.unlock()
+            return
+        }
+        storedCount = newValue
+        lock.unlock()
+        onChange(newValue)
     }
 }
