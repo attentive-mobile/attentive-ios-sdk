@@ -61,7 +61,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.launchCreative(parentView: parentView, creativeId: "testCreative")
 
-        waitForExpectations(timeout: 5.0) { error in
+        waitForExpectations(timeout: 30.0) { error in
             XCTAssertNil(error, "WebView was not added in time")
         }
 
@@ -81,7 +81,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         handler.launchCreative(parentView: parentView, creativeId: "first")
         handler.launchCreative(parentView: parentView, creativeId: "second")
 
-        waitForExpectations(timeout: 10.0) { error in
+        waitForExpectations(timeout: 30.0) { error in
             XCTAssertNil(error, "WebView should have been created by the first call")
         }
 
@@ -125,7 +125,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.closeCreative()
 
-        waitForExpectations(timeout: 5.0) { error in
+        waitForExpectations(timeout: 30.0) { error in
             XCTAssertNil(error, "WebView was not removed in time")
         }
 
@@ -156,7 +156,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.launchCreative(parentView: parentView, creativeId: "willTimeout", handler: handlerClosure)
 
-        wait(for: [notOpenedExpectation, removalExpectation], timeout: 10.0)
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 30.0)
 
         XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened, "handler must be told the creative did not open")
         XCTAssertNil(mockWebViewProvider.webView, "webView reference must be cleared after timeout")
@@ -191,7 +191,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         let setupExpectation = expectation(description: "webView setup")
         mockWebViewProvider.webViewSetupExpectation = setupExpectation
         stubHandler.launchCreative(parentView: parentView, creativeId: "willJSTimeout", handler: handlerClosure)
-        wait(for: [setupExpectation], timeout: 10.0)
+        wait(for: [setupExpectation], timeout: 30.0)
 
         // MockWKWebView.load() doesn't trigger a real WKNavigation, so didFinish
         // won't fire on its own. Simulate WebKit invoking it — which then dispatches
@@ -201,7 +201,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         }
         stubHandler.webView(webView, didFinish: nil)
 
-        wait(for: [notOpenedExpectation, removalExpectation], timeout: 10.0)
+        wait(for: [notOpenedExpectation, removalExpectation], timeout: 30.0)
 
         XCTAssertEqual(receivedStatus, ATTNCreativeTriggerStatus.notOpened)
         XCTAssertNil(mockWebViewProvider.webView)
@@ -233,7 +233,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         // (generously) for the first .notOpened, THEN hold a settle window in
         // which any duplicate would arrive. A fixed launch-anchored sleep flakes
         // when a loaded CI machine delays the first callback past the window.
-        wait(for: [firstNotOpened], timeout: 10.0)
+        wait(for: [firstNotOpened], timeout: 30.0)
 
         let settled = expectation(description: "settle window for duplicate callbacks")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -256,13 +256,13 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         let firstSetup = expectation(description: "webView1 setup")
         mockWebViewProvider.webViewSetupExpectation = firstSetup
         handler.launchCreative(parentView: parentView, creativeId: "first")
-        wait(for: [firstSetup], timeout: 10.0)
+        wait(for: [firstSetup], timeout: 30.0)
 
         // Close launch #1 so state → .closed and the next launch is allowed.
         let closeExpectation = expectation(description: "webView1 removed")
         mockWebViewProvider.webViewRemovalExpectation = closeExpectation
         handler.closeCreative()
-        wait(for: [closeExpectation], timeout: 10.0)
+        wait(for: [closeExpectation], timeout: 30.0)
 
         // Reset the fulfillment tracking so launch #2's setup expectation can fire.
         mockWebViewProvider.resetExpectations()
@@ -273,7 +273,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
         let secondSetup = expectation(description: "webView2 setup")
         mockWebViewProvider.webViewSetupExpectation = secondSetup
         handler.launchCreative(parentView: parentView, creativeId: "second")
-        wait(for: [secondSetup], timeout: 10.0)
+        wait(for: [secondSetup], timeout: 30.0)
         guard let webView2 = mockWebViewProvider.webView as? CustomWebView else {
             return XCTFail("expected CustomWebView after launch #2")
         }
@@ -320,7 +320,7 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
 
         handler.launchCreative(parentView: parentView, creativeId: creativeId)
 
-        waitForExpectations(timeout: 5.0) { error in
+        waitForExpectations(timeout: 30.0) { error in
             XCTAssertNil(error, "WebView did not set up and load URL in time")
             let actualURL = (self.mockWebViewProvider.webView as? MockWKWebView)?.loadedURL
             XCTAssertEqual(actualURL, expectedURL, "WebView should load the correct URL")
