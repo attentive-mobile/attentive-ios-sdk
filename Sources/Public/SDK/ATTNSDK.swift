@@ -68,8 +68,8 @@ public final class ATTNSDK: NSObject {
     /// The weak capture prevents a retain cycle (SDK → box → onChange → SDK).
     private var unreadCountBox: UnreadCountBox!
 
-    /// `@objc` synchronous mirror of `unreadCount`; see `.ATTNSDKInboxUnreadCountChanged`.
-    @objc public var inboxUnreadCount: Int { unreadCountBox.count }
+    /// Synchronous mirror of `unreadCount`; see `.ATTNSDKInboxUnreadCountChanged`.
+    public var inboxUnreadCount: Int { unreadCountBox.count }
 
     // MARK: Instance Properties
     var parentView: UIView?

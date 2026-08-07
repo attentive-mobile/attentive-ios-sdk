@@ -653,9 +653,9 @@ Unread rows get a bold title and a leading blue dot; read rows don't. Tapping a 
 
 ### Show an unread badge
 
-The SDK exposes the server-authoritative unread count two ways so you can pick whichever fits your codebase:
+The SDK exposes the server-authoritative unread count two ways so you can pick whichever fits your codebase. All inbox APIs are Swift-only.
 
-**UIKit / Objective-C (no async/await):** `sdk.inboxUnreadCount` is a plain synchronous property, and `.ATTNSDKInboxUnreadCountChanged` fires on every change. Same-value writes are deduped, so a re-fetch that returns the same count doesn't churn your badge.
+**UIKit (no async/await):** `sdk.inboxUnreadCount` is a plain synchronous property, and `.ATTNSDKInboxUnreadCountChanged` fires on every change. Same-value writes are deduped, so a re-fetch that returns the same count doesn't churn your badge.
 
 ```swift
 override func viewDidLoad() {
@@ -672,6 +672,11 @@ override func viewDidLoad() {
 
     // Paint the initial state — no await, no Task
     updateBadge(sdk.inboxUnreadCount)
+
+    // Kick off a fetch so the observer has something to deliver. Reading `inboxUnreadCount`
+    // is passive — it doesn't itself trigger a network call. The README recommends calling
+    // this on app launch and after a push open regardless.
+    Task { await sdk.refreshInboxUnreadCount() }
 }
 
 private func updateBadge(_ count: Int) {
@@ -679,8 +684,6 @@ private func updateBadge(_ count: Int) {
     badgeLabel.text = "\(count)"
 }
 ```
-
-`sdk.inboxUnreadCount` is `@objc`, so Objective-C hosts can read it directly and register a `NotificationCenter` observer against `NSNotification.Name.ATTNSDKInboxUnreadCountChanged` the same way.
 
 **SwiftUI / async-first codebases:** subscribe to `inboxStateStream` and read `unreadCount` when you want the freshest value. Every fetch, mutation, and refresh flows through the stream.
 
@@ -751,7 +754,7 @@ await sdk.markClicked(for: message.id)
 | `inboxStateStream: AsyncStream<InboxState>` | Reactive state: `.loading` / `.loaded([Message])` / `.error` |
 | `allMessages: [Message]` | Snapshot accessor (async) |
 | `unreadCount: Int` | Server-authoritative unread count (async) |
-| `inboxUnreadCount: Int` (`@objc`) | Synchronous mirror of `unreadCount` for UIKit / Objective-C |
+| `inboxUnreadCount: Int` | Synchronous mirror of `unreadCount` (Swift, UIKit-friendly) |
 | `.ATTNSDKInboxUnreadCountChanged` | Notification posted when the unread count changes |
 | `refreshInboxUnreadCount()` | Refresh the count from the server |
 | `markRead(for:)` / `markUnread(for:)` / `delete(messageID:)` | Mutations (optimistic) |

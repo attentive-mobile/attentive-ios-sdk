@@ -19,9 +19,9 @@ extension Notification.Name {
         ///   - `"attentiveInboxActionUrl"`: `URL` — present only when the message has a valid `actionURL`
         public static let ATTNSDKInboxMessageTapped = Notification.Name("ATTNSDKInboxMessageTapped")
 
-        /// Posted whenever the inbox unread count changes. Provides a UIKit / Objective-C-friendly
-        /// alternative to `ATTNSDK.inboxStateStream` for hosts driving an unread badge without
-        /// adopting Swift Concurrency.
+        /// Posted whenever the inbox unread count changes. Provides a UIKit-friendly alternative
+        /// to `ATTNSDK.inboxStateStream` for Swift hosts driving an unread badge without adopting
+        /// Swift Concurrency.
         ///
         /// - `object`: the `ATTNSDK` instance that owns the count. Filter by this when running
         ///   multiple SDK instances; pass `nil` to observe all instances.
