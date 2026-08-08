@@ -614,6 +614,157 @@ if let url = attentiveSdk.consumeDeepLink() {
 }
 ```
 
+## Inbox
+
+An in-app message center that renders messages Attentive delivers to a user. Each message has a title, body, timestamp, read/unread state, and optionally an image and a deep-link URL. The SDK provides both a **drop-in UI** and a **reactive state stream** so you can build your own.
+
+> New installs automatically see messages targeted at the general audience — nothing needs to be wired up server-side for a user to have inbox content.
+
+**Requirements**
+- iOS 15+
+- SDK initialized (see [Step 1](#step-1---sdk-initialization)). Inbox fetches are a no-op until a `visitorId` is available.
+
+### Option A — Drop-in UI
+
+The fastest integration: one call renders the list, empty/loading states, swipe-to-delete, swipe-to-toggle-read, pull-to-refresh, and infinite scroll.
+
+**UIKit**
+```swift
+@objc private func inboxButtonTapped() {
+    guard let inboxVC = sdk.inboxViewController() else { return }
+    navigationController?.pushViewController(inboxVC, animated: true)
+}
+```
+
+**SwiftUI**
+```swift
+import SwiftUI
+import ATTNSDKFramework
+
+struct InboxScreen: View {
+    let sdk: ATTNSDK
+    var body: some View {
+        sdk.inboxView()
+    }
+}
+```
+
+Unread rows get a bold title and a leading blue dot; read rows don't. Tapping a row fires click tracking, broadcasts `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
+
+### Show an unread badge
+
+The SDK exposes the server-authoritative unread count two ways so you can pick whichever fits your codebase. All inbox APIs are Swift-only.
+
+**UIKit (no async/await):** `sdk.inboxUnreadCount` is a plain synchronous property, and `.ATTNSDKInboxUnreadCountChanged` fires on every change. Same-value writes are deduped, so a re-fetch that returns the same count doesn't churn your badge.
+
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+
+    NotificationCenter.default.addObserver(
+        forName: .ATTNSDKInboxUnreadCountChanged,
+        object: sdk,        // filter to this SDK instance; pass nil to observe all
+        queue: .main
+    ) { [weak self] note in
+        let count = note.userInfo?["attentiveInboxUnreadCount"] as? Int ?? 0
+        self?.updateBadge(count)
+    }
+
+    // Paint the initial state — no await, no Task
+    updateBadge(sdk.inboxUnreadCount)
+
+    // Kick off a fetch so the observer has something to deliver. Reading `inboxUnreadCount`
+    // is passive — it doesn't itself trigger a network call. The README recommends calling
+    // this on app launch and after a push open regardless.
+    Task { await sdk.refreshInboxUnreadCount() }
+}
+
+private func updateBadge(_ count: Int) {
+    badgeView.isHidden = count == 0
+    badgeLabel.text = "\(count)"
+}
+```
+
+**SwiftUI / async-first codebases:** subscribe to `inboxStateStream` and read `unreadCount` when you want the freshest value. Every fetch, mutation, and refresh flows through the stream.
+
+```swift
+Task { [weak self] in
+    guard let sdk = self?.sdk else { return }
+    for await _ in await sdk.inboxStateStream {
+        let count = await sdk.unreadCount
+        await MainActor.run { self?.updateBadge(count) }
+    }
+}
+```
+
+Call `await sdk.refreshInboxUnreadCount()` on app launch and after a push open to force-refresh from the server.
+
+### Customization
+
+**Fonts and colors** — pass an `InboxStyle`:
+```swift
+let style = InboxStyle(
+    titleFont: .system(size: 16, weight: .semibold),
+    bodyFont: .system(size: 14),
+    timestampFont: .caption,
+    textColor: .primary
+)
+sdk.inboxView(style: style)
+```
+
+**Custom tap handling** — takes over navigation entirely; click tracking still fires:
+```swift
+sdk.inboxView { message in
+    // route however you want
+    router.open(message.actionURL)
+}
+```
+
+**Suppress SDK-driven navigation** (keep tracking + broadcast, but don't open the URL):
+```swift
+sdk.automaticallyOpensInboxDeepLinks = false
+```
+
+### Option B — Build your own UI
+
+Subscribe to `inboxStateStream` — the single source of truth — and call the mutation APIs to change state:
+
+```swift
+for await state in await sdk.inboxStateStream {
+    switch state {
+    case .loading:                       // initial fetch in flight
+    case .loaded(let messages):          // render; empty list is .loaded([])
+    case .error:                         // first fetch failed; retry
+    }
+}
+
+// Mutations (all optimistic; revert on failure)
+await sdk.markRead(for: message.id)
+await sdk.markUnread(for: message.id)
+await sdk.delete(messageID: message.id)
+
+// Call this on tap when using your own UI (built-in UI already does)
+await sdk.markClicked(for: message.id)
+```
+
+### Public API cheat sheet
+
+| API | Purpose |
+|---|---|
+| `inboxStateStream: AsyncStream<InboxState>` | Reactive state: `.loading` / `.loaded([Message])` / `.error` |
+| `allMessages: [Message]` | Snapshot accessor (async) |
+| `unreadCount: Int` | Server-authoritative unread count (async) |
+| `inboxUnreadCount: Int` | Synchronous mirror of `unreadCount` (Swift, UIKit-friendly) |
+| `.ATTNSDKInboxUnreadCountChanged` | Notification posted when the unread count changes |
+| `refreshInboxUnreadCount()` | Refresh the count from the server |
+| `markRead(for:)` / `markUnread(for:)` / `delete(messageID:)` | Mutations (optimistic) |
+| `markClicked(for:)` | Click tracking — required for custom UI, automatic for `inboxView()` |
+| `inboxView(style:onMessageTap:)` | SwiftUI drop-in |
+| `inboxViewController(style:onMessageTap:)` | UIKit drop-in |
+| `automaticallyOpensInboxDeepLinks: Bool` | Toggle SDK-driven URL opening (default `true`) |
+
+For a working example, see `Bonni/AttentiveExample/ProductViewController.swift` (badge + push-to-open).
+
 ## Step 5 - Email & SMS Subscription Support
 
 ### Manage subscriptions for email and phone numbers

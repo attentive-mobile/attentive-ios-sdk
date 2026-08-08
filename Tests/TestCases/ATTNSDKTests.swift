@@ -915,6 +915,59 @@ final class ATTNSDKTests: XCTestCase {
         // Bounded by number of set operations; the precise count depends on timing.
         XCTAssertLessThanOrEqual(counter.value, 200)
     }
+
+    // MARK: - Inbox unread count sync mirror
+
+    /// End-to-end coverage for the SDK-level glue that connects `InboxManager` writes to
+    /// `ATTNSDK.inboxUnreadCount` and `.ATTNSDKInboxUnreadCountChanged`. The manager-level tests
+    /// exercise `UnreadCountBox` in isolation; this pins the wiring — the box being passed into
+    /// `materializedInboxManager()`, the notification firing with the SDK as `object`, and
+    /// `userInfo["attentiveInboxUnreadCount"]` carrying the new value.
+    func testInboxUnreadCount_notificationFiresWithSDKObjectAndPayload() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [], nextPageToken: nil)
+        ]
+
+        // Filter on the SDK instance so a stray notification from another test can't satisfy the
+        // expectation. `handler` returns true to fulfill the expectation.
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 4
+        }
+
+        // Materialize the manager and drive the fetch. This is the same path a UIKit host would
+        // take on app launch per the README.
+        await sut.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notified], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "synchronous mirror must reflect the post-fetch count")
+    }
+
+    func testInboxUnreadCount_objectFilterIsolatesSDKInstances() async {
+        apiSpy.stubbedUnreadCount = 7
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // A second SDK on its own API spy so the notifications are independent.
+        let otherApiSpy = ATTNAPISpy(domain: "OTHER")
+        otherApiSpy.stubbedUnreadCount = 99
+        otherApiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+        let otherSdk = ATTNSDK(api: otherApiSpy, urlBuilder: ATTNCreativeUrlProviderSpy())
+
+        // Only `sut`'s fetch should satisfy this — expectation is filtered by object.
+        let notifiedForSut = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 7
+        }
+        let notifiedForOther = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: otherSdk) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 99
+        }
+
+        await sut.refreshInboxUnreadCount()
+        await otherSdk.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notifiedForSut, notifiedForOther], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 7)
+        XCTAssertEqual(otherSdk.inboxUnreadCount, 99)
+    }
 }
 
 private final class Counter {
