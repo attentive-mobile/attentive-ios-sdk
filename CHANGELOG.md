@@ -1,3 +1,106 @@
+## [2.0.18-beta.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.16...2.0.18-beta.1) (2026-08-08)
+* MSDK-464: expose inbox unread count synchronously for UIKit; Added Inbox Readme (#294)
+* Merge pull request #278 from attentive-mobile/umair/main-to-develop
+* Address review feedback: identity snapshot and stale push token
+* Merge develop into umair/main-to-develop, resolving conflicts
+* Merge main into develop
+* default TestFlight deploy toggle to off
+* separate TestFlight deploy toggle from prerelease flag in release-sdk workflow
+* does not create or push version bump branch when its a beta
+* Version bump 2.0.16
+* MSDK-213: add automaticallyOpensInboxDeepLinks flag and upgrade docs
+* MSDK-213: broadcast all parseable push deeplinks, block privileged schemes
+* MSDK-213: address PR feedback on deeplink validation and docs
+* MSDK-213: open inbox message deeplinks on tap
+* MSDK-213: open push notification deeplinks on tap
+* MSDK-312: shrink clearUser concurrency test to 50 iterations
+* Binary Package.swift for 2.0.16
+* Version bump 2.0.16
+* MSDK-439: keep inbox unread badge in sync via optimistic updates (#282)
+* MSDK-434: replace live incrementing inbox timestamp with static rounded relative time
+* MSDK-436: support animated GIFs in inbox message images
+* MSDK-437: make full inbox cell width tappable
+* MSDK-414: wire real endpoint for inbox message delete (#277)
+* Merge main into develop
+* hide the log overlay by default
+* add settings toggle to show or hide the log overlay
+* move debug log capture api into an ATTNSDK extension
+* keep overlay window non-key and clamp drags on screen
+* defer log interpolation when buffer capture is off
+* add ATTNLogBuffer tests for eviction and subscriber lifecycle
+* address pr feedback on debug log overlay
+* remove DebugLogOverlay singleton in favor of scene-owned instance
+* MSDK-329 adds in-app debug log overlay
+* MSDK-412: wire real endpoint for inbox click tracking (#276)
+* MSDK-411: wire real endpoint for mark message unread
+* MSDK-410: address PR feedback on mark-read
+* MSDK-410: wire real endpoint for mark message read
+* MSDK-413: wire real endpoint for inbox message list (#275)
+* MSDK-377: wire real endpoint for inbox unread count (#266)
+* addresses PR feedback on Inbox model and view model
+* reorganizes file structure
+* renames inbox to inbox manager and adds inbox decodable
+* Merge branch 'main' into develop
+* Exclude fastlane/build from SwiftLint to fix CI
+* removes trailing comma
+* clean up post rebase
+* Address PR review feedback for snapshot testing infrastructure
+* Adds base infrastructure for snapshot testing
+* Merge pull request #234 from attentive-mobile/umair/main-to-develop
+* Merge develop into main-to-develop, resolve import conflict
+* Merge pull request #229 from attentive-mobile/umair/main-to-develop
+* bump deployment target
+* adds develop as bonni release filter
+* Merge branch 'main' into umair/develop-test
+* fixes style warning
+* updates package version
+* add xcframework build
+* update package
+* version number update (#172)
+* added readme update for logging (#171)
+* MSDK-121 part 2: Made logs easily searchable in Console.app (#169)
+* Feature/msdk 121 improve logging (#166)
+* adds task storage and cancellation
+* adds main actor
+* fixes typo
+* updates style and mocks
+* adds inbox style
+* reverts alignment guide
+* removes unused imports and cancellable
+* adds strings
+* makes List reusable
+* moves style enum
+* passing params in consumer
+* cleans up circle
+* updates properties
+* adds style
+* updates timestamp formatter
+* updates to use async stream
+* more clean up
+* adds combine
+* wip adds ui
+* updates inbox view view model
+* adds view model, view and public methods
+* adds default renderer placeholders
+* removes unneeded loading send as it cancels the task
+* cleans up
+* converted to AsyncStream from Combine
+* adds actionURL
+* updates property names
+* cleans up
+* remove nonisolated property
+* updates with cached sorted messages
+* clean up
+* updates inbox to be actor and use combine
+* makes Inbox an observable object
+* makes models explicitly sendable
+* adds imageURLstring
+* cleans up whitespace
+* adds models to target
+* creates public inbox with mocks
+* bumps package value to iOS 15
+* bumps version and updates readme
+
 ## Unreleased
 ### Features
 - **The SDK now opens push deep links on the host app's behalf** (MSDK-213), matching the Android SDK: custom-scheme URLs route into your app's URL handlers, http(s) URLs open as universal links only (never the browser). **⚠️ Behavior change if you upgrade:** if your app already navigates in response to the `ATTNSDKDeepLinkReceived` broadcast or `consumeDeepLink()`, set `automaticallyOpensPushDeepLinks = false` to avoid handling the same URL twice. This applies to foreground banner taps too. The URL is always broadcast and stored regardless of the setting.
