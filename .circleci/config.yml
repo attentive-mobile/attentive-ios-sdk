@@ -37,13 +37,29 @@ parameters:
 executors:
   macos-xcode:
     macos:
-      xcode: "26.1.1"
+      xcode: "26.6"
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       FASTLANE_SKIP_UPDATE_CHECK: "YES"
       LC_ALL: "en_US.UTF-8"
       LANG: "en_US.UTF-8"
+      # Segments the SPM/DerivedData cache so stable and beta toolchains never share it
+      XCODE_CACHE_KEY: "26.6"
+
+  # Floating Xcode beta image (CircleCI overwrites the tag on each new beta release).
+  # Used only by the nightly-xcode-beta workflow — never by PR/release workflows.
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  macos-xcode-beta:
+    macos:
+      xcode: "27.0"
+    resource_class: m4pro.medium
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      FASTLANE_SKIP_UPDATE_CHECK: "YES"
+      LC_ALL: "en_US.UTF-8"
+      LANG: "en_US.UTF-8"
+      XCODE_CACHE_KEY: "27.0-beta"
 
 # ========================
 # Orbs
@@ -137,7 +153,11 @@ jobs:
   # Checkout and Setup
   # -----------------------
   checkout-and-setup:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+    executor: << parameters.xcode-executor >>
     steps:
       # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
       # so that we have the correct permissions to both read and write to the repo via the configured
@@ -163,11 +183,12 @@ jobs:
       # Setup Fastlane
       - setup-fastlane
 
-      # Cache Swift Package Manager dependencies
+      # Cache Swift Package Manager dependencies (keyed by Xcode version so
+      # stable and beta toolchains never share DerivedData)
       - restore_cache:
           keys:
-            - v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
-            - v1-spm-
+            - v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+            - v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-
 
       # Resolve dependencies via Fastlane
       - run:
@@ -175,7 +196,7 @@ jobs:
           command: bundle exec fastlane setup
 
       - save_cache:
-          key: v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+          key: v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
           paths:
             - ~/.swiftpm
             - ~/Library/Developer/Xcode/DerivedData
@@ -211,7 +232,11 @@ jobs:
   # Build Framework
   # -----------------------
   build-framework:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+    executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
@@ -329,7 +354,11 @@ jobs:
   # Unit Tests with Code Coverage
   # -----------------------
   unit-tests:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+    executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
@@ -638,3 +667,35 @@ workflows:
           filters:
             branches:
               only: main
+
+  # Nightly validation against the Xcode beta toolchain (currently Xcode 27 beta,
+  # which ships the iOS 27 SDK). Runs on a schedule only — never on push — so a
+  # broken beta can't block PRs or releases. Failures alert via the existing
+  # Slack notification in each job.
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  nightly-xcode-beta:
+    triggers:
+      - schedule:
+          cron: "0 6 * * 1-5"
+          filters:
+            branches:
+              only: main
+    jobs:
+      - checkout-and-setup:
+          name: checkout-and-setup-xcode-beta
+          xcode-executor: macos-xcode-beta
+          context: *default_context
+
+      - build-framework:
+          name: build-framework-xcode-beta
+          xcode-executor: macos-xcode-beta
+          context: *default_context
+          requires:
+            - checkout-and-setup-xcode-beta
+
+      - unit-tests:
+          name: unit-tests-xcode-beta
+          xcode-executor: macos-xcode-beta
+          context: *default_context
+          requires:
+            - checkout-and-setup-xcode-beta

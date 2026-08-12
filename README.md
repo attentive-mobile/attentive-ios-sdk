@@ -29,7 +29,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 
 ### XCFramework (Manual Integration)
 
-Universal `XCFramework` is supported for consumers on Xcode 26.1.1+.
+Universal `XCFramework` is supported for consumers on Xcode 26.6+.
 
 A pre-built `ATTNSDKFramework.xcframework` is attached to each [GitHub release](https://github.com/attentive-mobile/attentive-ios-sdk/releases). If you cannot use SPM or CocoaPods, you can integrate it manually:
 
