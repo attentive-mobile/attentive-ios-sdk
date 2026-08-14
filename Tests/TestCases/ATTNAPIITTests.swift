@@ -11,7 +11,11 @@ import XCTest
 final class ATTNAPIITTests: XCTestCase {
 
     private let testDomain = "mobileapps"
-    private let eventSendTimeoutSec = 6
+    // Event-anchored wait: returns the moment the expectation fulfills, so the
+    // wide cap costs nothing on a healthy run. First live request to the events
+    // endpoint (connection + TLS setup) routinely takes ~7s on a cold CI VM,
+    // which made the previous 6s cap flaky. Matches MSDK-312's 30s convention.
+    private let eventSendTimeoutSec = 30
 
     var api: ATTNAPI!
     var userIdentity: ATTNUserIdentity!
