@@ -63,6 +63,62 @@ public final class ATTNUserIdentity: NSObject {
         visitorService.logNewVisitorId(newVisitorId)
     }
 
+    /// Atomic "clear only if there is something to clear." Returns `true` when the identifier
+    /// store was non-empty and has now been reset (a new visitor id is rotated in), `false`
+    /// when the store was already empty and no mutation happened.
+    ///
+    /// Callers use the return value to decide whether to fire `/user-update`. Deciding and
+    /// mutating under one lock acquisition means two threads racing on the same "clear an
+    /// already-anonymous device" call collapse to one server hit instead of two. See MSDK-469.
+    @objc
+    public func clearUserIfNeeded() -> Bool {
+        let newVisitorId: String? = lock.withLock { () -> String? in
+            guard !_identifiers.isEmpty else { return nil }
+            _identifiers = [:]
+            let id = visitorService.createNewVisitorId()
+            _visitorId = id
+            return id
+        }
+        guard let id = newVisitorId else { return false }
+        visitorService.logNewVisitorId(id)
+        return true
+    }
+
+    /// Atomic "switch identity only if it differs from the stored one." Returns `true` when
+    /// the identifier store was replaced with `[email, phone]` (nils dropped) and a new
+    /// visitor id was rotated in, `false` when the store already held exactly that set and
+    /// nothing happened.
+    ///
+    /// Comparison is exact — no case folding, no phone normalization. Any stored identifier
+    /// beyond `email`/`phone` (e.g. `clientUserId`, `customIdentifiers`) makes the two sets
+    /// unequal, so the switch runs and those extra identifiers are dropped — matching the
+    /// pre-MSDK-469 behavior of `clearUser` + `mergeIdentifiers`. See MSDK-469.
+    @objc
+    public func switchIdentity(email: String?, phone: String?) -> Bool {
+        let newVisitorId: String? = lock.withLock { () -> String? in
+            let matchesEmail = email == nil
+                ? _identifiers[ATTNIdentifierType.email] == nil
+                : (_identifiers[ATTNIdentifierType.email] as? String) == email
+            let matchesPhone = phone == nil
+                ? _identifiers[ATTNIdentifierType.phone] == nil
+                : (_identifiers[ATTNIdentifierType.phone] as? String) == phone
+            let expectedCount = (email != nil ? 1 : 0) + (phone != nil ? 1 : 0)
+            if matchesEmail && matchesPhone && _identifiers.count == expectedCount {
+                return nil
+            }
+            var replacement: [String: Any] = [:]
+            if let email = email { replacement[ATTNIdentifierType.email] = email }
+            if let phone = phone { replacement[ATTNIdentifierType.phone] = phone }
+            _identifiers = replacement
+            let id = visitorService.createNewVisitorId()
+            _visitorId = id
+            return id
+        }
+        guard let id = newVisitorId else { return false }
+        visitorService.logNewVisitorId(id)
+        return true
+    }
+
     @objc
     public func mergeIdentifiers(_ newIdentifiers: [String: Any]) {
         validate(identifiers: newIdentifiers)

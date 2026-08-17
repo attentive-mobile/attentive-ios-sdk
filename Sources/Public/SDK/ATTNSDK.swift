@@ -214,6 +214,8 @@ public final class ATTNSDK: NSObject {
     ///
     /// - Note: If no push token has been registered (via `registerDeviceToken`), the server-side
     ///   detach is skipped — identifiers are still cleared locally.
+    /// - Note: If the device is already anonymous (no email/phone/custom identifiers stored), the
+    ///   call is a no-op: no visitor ID rotation and no `/user-update`. See MSDK-469.
     ///
     /// Internal implementation detail (for maintainers / AI assistants):
     /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
@@ -222,7 +224,14 @@ public final class ATTNSDK: NSObject {
     /// they only called `clearUser()`.
     @objc(clearUser)
     public func clearUser() {
-        clearUserIdentifiers()
+        // The MSDK-469 no-op guard lives inside userIdentity.clearUserIfNeeded(): decide-and-
+        // mutate under one lock acquisition so concurrent same-state calls collapse to one
+        // server hit. Push-token presence is intentionally NOT part of that check — with no
+        // user identifiers, the token has nothing to detach from.
+        guard userIdentity.clearUserIfNeeded() else {
+            Loggers.event.debug("clearUser: skipping — no user-scoped identifiers to clear - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            return
+        }
 
         let pushToken = currentPushToken
         guard !pushToken.isEmpty else {
@@ -239,17 +248,6 @@ public final class ATTNSDK: NSObject {
             operationContext: "clearUser",
             callback: nil
         )
-    }
-
-    /// Clears user identifiers and generates a new visitor ID. **Local only — no network call.**
-    ///
-    /// Both `clearUser()` and `updateUser(email:phone:callback:)` call this as their first step.
-    /// The new visitor ID is used in any subsequent API call so the server treats the device as
-    /// a fresh anonymous user.
-    func clearUserIdentifiers() {
-        let oldVisitorId = userIdentity.visitorId
-        userIdentity.clearUser()
-        Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
     @objc(updateDomain:)

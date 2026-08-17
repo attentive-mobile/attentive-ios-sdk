@@ -371,8 +371,11 @@ final class ATTNSDKTests: XCTestCase {
     // MARK: - clearUser tests
 
     func testClearUser_withPushToken_callsUpdateUserWithNilEmailAndPhone() {
-        let deviceToken = Data([0x01, 0x02, 0x03])
-        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+        // A user-scoped identifier must be present for clearUser to fire /user-update — the
+        // MSDK-469 no-op guard skips clearUser when the identifier store is empty. Setting an
+        // email here is the "user is logged in and calls logout" case this test is asserting.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
 
         XCTAssertFalse(apiSpy.updateUserWasCalled)
 
@@ -470,6 +473,102 @@ final class ATTNSDKTests: XCTestCase {
                        "updateUser should store email locally on userIdentity")
         XCTAssertEqual(identifiers[ATTNIdentifierType.phone] as? String, "+15551234567",
                        "updateUser should store phone locally on userIdentity")
+    }
+
+    // MARK: - MSDK-469 no-op guard tests
+
+    func testUpdateUser_whenIdentifiersUnchanged_isNoOp() {
+        // Callers that fire updateUser "just to be safe" every app launch should not each mint
+        // a new visitor_id and POST /user-update. The second identical call must short-circuit.
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Second updateUser with identical identifiers should not fire api.updateUser")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstCall,
+                       "Second updateUser with identical identifiers should not rotate visitorId")
+    }
+
+    func testUpdateUser_whenEmailChanged_stillFires() {
+        registerTestPushToken()
+
+        sut.updateUser(email: "first@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+
+        sut.updateUser(email: "second@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser with a different email should still fire api.updateUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdAfterFirstCall,
+                          "updateUser with a different email should rotate visitorId")
+        XCTAssertEqual(apiSpy.lastUpdateUserEmail, "second@example.com")
+    }
+
+    func testUpdateUser_whenPhoneChanged_stillFires() {
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+
+        sut.updateUser(email: "user@example.com", phone: "+15559999999")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser with a different phone should still fire api.updateUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdAfterFirstCall,
+                          "updateUser with a different phone should rotate visitorId")
+        XCTAssertEqual(apiSpy.lastUpdateUserPhone, "+15559999999")
+    }
+
+    func testUpdateUser_whenSameEmailPhoneButExtraIdentifierPresent_stillFires() {
+        // A clientUserId stored via identify(_:) would otherwise be silently dropped by
+        // updateUser's identity-replacement step. The guard must not fire when any identifier
+        // beyond the incoming email/phone is on record — switchIdentity's count mismatch
+        // ensures the switch runs and the extra identifier is cleared.
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        sut.identify([ATTNIdentifierType.clientUserId: "customer-123"])
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must still fire when the stored set contains identifiers beyond email/phone")
+    }
+
+    func testClearUser_whenNoIdentifiers_isNoOp() {
+        // Fresh SDK — only a visitorId is on record. clearUser should not rotate it and should
+        // not POST /user-update, even when a push token is present.
+        registerTestPushToken()
+        let visitorIdBefore = sut.visitorId
+
+        sut.clearUser()
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled,
+                       "clearUser from a visitorId-only state should not fire api.updateUser")
+        XCTAssertEqual(sut.visitorId, visitorIdBefore,
+                       "clearUser from a visitorId-only state should not rotate visitorId")
+    }
+
+    func testClearUser_whenIdentifiersPresent_stillFires() {
+        // Any user-scoped identifier — email in this case — means there is state to clear
+        // locally AND detach server-side; existing clearUser behavior must run unchanged.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        let visitorIdBefore = sut.visitorId
+
+        sut.clearUser()
+
+        XCTAssertTrue(apiSpy.updateUserWasCalled,
+                      "clearUser must still fire api.updateUser when user-scoped identifiers were present")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore,
+                          "clearUser must still rotate visitorId when user-scoped identifiers were present")
     }
 
     // MARK: - sendLegacyEventAsV2 Tests
@@ -681,6 +780,12 @@ final class ATTNSDKTests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.005))
         }
         return condition()
+    }
+
+    /// Registers the fixed 3-byte device token used across identity + push tests, so each test
+    /// stops repeating the `Data([0x01, 0x02, 0x03])` + `.authorized` boilerplate.
+    private func registerTestPushToken() {
+        sut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
     }
 
     // MARK: - Error Handling Tests

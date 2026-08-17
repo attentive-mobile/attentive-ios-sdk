@@ -86,6 +86,83 @@ final class ATTNUserIdentityTests: XCTestCase {
         XCTAssertEqual("someValue", identity.identifiers[ATTNIdentifierType.clientUserId] as! String)
     }
 
+    // MARK: MSDK-469 primitives — clearUserIfNeeded, switchIdentity
+
+    func testClearUserIfNeeded_emptyStore_returnsFalseAndDoesNotRotate() {
+        let identity = ATTNUserIdentity()
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertFalse(identity.clearUserIfNeeded(),
+                       "clearUserIfNeeded should return false when there is nothing to clear")
+        XCTAssertEqual(identity.visitorId, visitorIdBefore,
+                       "clearUserIfNeeded must not rotate visitorId on the empty path")
+    }
+
+    func testClearUserIfNeeded_nonEmptyStore_returnsTrueClearsAndRotates() {
+        let identity = ATTNUserIdentity(identifiers: [ATTNIdentifierType.email: "user@example.com"])
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertTrue(identity.clearUserIfNeeded(),
+                      "clearUserIfNeeded should return true when identifiers were present")
+        XCTAssertEqual(identity.identifiers.count, 0)
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore,
+                          "clearUserIfNeeded must rotate visitorId when it clears")
+    }
+
+    func testSwitchIdentity_matchesStored_returnsFalseAndDoesNotRotate() {
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.email: "user@example.com",
+            ATTNIdentifierType.phone: "+15551234567"
+        ])
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertFalse(identity.switchIdentity(email: "user@example.com", phone: "+15551234567"),
+                       "switchIdentity should return false when the incoming set exactly matches stored")
+        XCTAssertEqual(identity.visitorId, visitorIdBefore,
+                       "switchIdentity must not rotate visitorId on the match path")
+        XCTAssertEqual(identity.identifiers.count, 2)
+    }
+
+    func testSwitchIdentity_differentEmail_returnsTrueReplacesAndRotates() {
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.email: "first@example.com",
+            ATTNIdentifierType.phone: "+15551234567"
+        ])
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertTrue(identity.switchIdentity(email: "second@example.com", phone: "+15551234567"))
+        XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, "second@example.com")
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
+    }
+
+    func testSwitchIdentity_extraIdentifierPresent_dropsItAndRotates() {
+        // clientUserId is not in the incoming {email, phone} set, so the count mismatch forces
+        // the switch to run and the extra identifier gets replaced away — matching the
+        // pre-MSDK-469 clearUserIdentifiers() + mergeIdentifiers() behavior.
+        let identity = ATTNUserIdentity(identifiers: [
+            ATTNIdentifierType.email: "user@example.com",
+            ATTNIdentifierType.phone: "+15551234567",
+            ATTNIdentifierType.clientUserId: "customer-123"
+        ])
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertTrue(identity.switchIdentity(email: "user@example.com", phone: "+15551234567"),
+                      "switchIdentity must run when the stored set has any extra identifier")
+        XCTAssertNil(identity.identifiers[ATTNIdentifierType.clientUserId],
+                     "switchIdentity should drop identifiers absent from the incoming set")
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
+    }
+
+    func testSwitchIdentity_nilEmailAndPhoneOnEmptyStore_returnsFalse() {
+        // Not a realistic public call (updateUser rejects the all-nil case upstream), but
+        // pinning the primitive's contract: nil-nil against an empty store is a match.
+        let identity = ATTNUserIdentity()
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertFalse(identity.switchIdentity(email: nil, phone: nil))
+        XCTAssertEqual(identity.visitorId, visitorIdBefore)
+    }
+
     // MARK: Concurrency
 
     func testMergeIdentifiers_concurrentMerges_preservesAllKeys() {

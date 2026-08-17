@@ -136,6 +136,10 @@ extension ATTNSDK {
     ///
     /// At least one of `email` or `phone` must be provided.
     ///
+    /// If `email` and `phone` already match the stored identifiers exactly (and nothing else is
+    /// on record), the call is a no-op: no visitor ID rotation, no `/user-update`, and the
+    /// callback fires synchronously with `nil`. See MSDK-469.
+    ///
     /// - Parameters:
     ///   - email: The new user's email address (optional if phone is provided).
     ///   - phone: The new user's phone number in E.164 format (optional if email is provided).
@@ -145,6 +149,7 @@ extension ATTNSDK {
                                                  phone: String? = nil,
                                                  callback: ATTNAPICallback? = nil) {
         Loggers.event.debug("updateUser: switching user identity - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
@@ -155,11 +160,16 @@ extension ATTNSDK {
             return
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
-        clearUserIdentifiers()
-        var newIdentifiers: [String: Any] = [:]
-        if let email = email { newIdentifiers[ATTNIdentifierType.email] = email }
-        if let phone = phone { newIdentifiers[ATTNIdentifierType.phone] = phone }
-        userIdentity.mergeIdentifiers(newIdentifiers)
+
+        // The MSDK-469 no-op guard lives inside userIdentity.switchIdentity(...): decide-and-
+        // mutate under one lock acquisition so concurrent same-identity calls collapse to one
+        // server hit instead of one per caller.
+        guard userIdentity.switchIdentity(email: email, phone: phone) else {
+            Loggers.event.debug("updateUser: skipping — identifiers unchanged - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            callback?(nil, nil, nil, nil)
+            return
+        }
+
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,
