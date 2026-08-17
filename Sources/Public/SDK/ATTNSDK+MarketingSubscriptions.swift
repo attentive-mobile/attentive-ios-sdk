@@ -136,9 +136,12 @@ extension ATTNSDK {
     ///
     /// At least one of `email` or `phone` must be provided.
     ///
-    /// If `email` and `phone` already match the stored identifiers exactly (and nothing else is
-    /// on record), the call is a no-op: no visitor ID rotation, no `/user-update`, and the
-    /// callback fires synchronously with `nil`. See MSDK-469.
+    /// If `email` and `phone` already match the stored identifiers exactly AND the server
+    /// has already confirmed the same pair for the current push token, the call is a no-op:
+    /// no visitor ID rotation, no `/user-update`, and the callback fires synchronously with
+    /// `nil`. When either the server has not yet confirmed OR the push token has changed
+    /// since the last confirmation, the request fires (or retries) even if local state
+    /// already matches. See MSDK-469.
     ///
     /// - Parameters:
     ///   - email: The new user's email address (optional if phone is provided).
@@ -161,13 +164,21 @@ extension ATTNSDK {
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
 
-        // The MSDK-469 no-op guard lives inside userIdentity.switchIdentity(...): decide-and-
-        // mutate under one lock acquisition so concurrent same-identity calls collapse to one
-        // server hit instead of one per caller.
-        guard userIdentity.switchIdentity(email: email, phone: phone) else {
-            Loggers.event.debug("updateUser: skipping — identifiers unchanged - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        // planUpdateUser owns three questions atomically under the identity lock: does local
+        // already match the incoming pair, did the server confirm the same pair for THIS
+        // push token, and (when local differs) mutate + rotate visitor id. Guarding on
+        // server-confirmed sync (not just local equality) means a failed /user-update
+        // retries on the next call — see MSDK-469 and Codex P1 #2.
+        let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken)
+        switch decision {
+        case .skip:
+            Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             callback?(nil, nil, nil, nil)
             return
+        case .retryWithoutRotation:
+            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        case .rotatedAndReplaced:
+            break
         }
 
         api.updateUser(
@@ -176,7 +187,7 @@ extension ATTNSDK {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: callback
+            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, forward: callback)
         )
     }
 

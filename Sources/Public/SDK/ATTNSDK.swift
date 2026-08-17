@@ -214,8 +214,11 @@ public final class ATTNSDK: NSObject {
     ///
     /// - Note: If no push token has been registered (via `registerDeviceToken`), the server-side
     ///   detach is skipped — identifiers are still cleared locally.
-    /// - Note: If the device is already anonymous (no email/phone/custom identifiers stored), the
-    ///   call is a no-op: no visitor ID rotation and no `/user-update`. See MSDK-469.
+    /// - Note: If the device is already anonymous locally AND the server has already confirmed
+    ///   the detach for the current push token, the call is a no-op: no visitor ID rotation
+    ///   and no `/user-update`. When either the server hasn't yet confirmed detachment or the
+    ///   push token has changed since the last confirmation, the detach fires (or retries).
+    ///   See MSDK-469.
     ///
     /// Internal implementation detail (for maintainers / AI assistants):
     /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
@@ -224,30 +227,65 @@ public final class ATTNSDK: NSObject {
     /// they only called `clearUser()`.
     @objc(clearUser)
     public func clearUser() {
-        // The MSDK-469 no-op guard lives inside userIdentity.clearUserIfNeeded(): decide-and-
-        // mutate under one lock acquisition so concurrent same-state calls collapse to one
-        // server hit. Push-token presence is intentionally NOT part of that check — with no
-        // user identifiers, the token has nothing to detach from.
-        guard userIdentity.clearUserIfNeeded() else {
-            Loggers.event.debug("clearUser: skipping — no user-scoped identifiers to clear - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            return
-        }
-
         let pushToken = currentPushToken
-        guard !pushToken.isEmpty else {
-            Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+        // planClearUser owns three questions atomically under the identity lock: does local
+        // have anything to clear, does the server already know we're detached for THIS push
+        // token, and (when local was non-empty) mutate + rotate visitor id. Guarding on
+        // server-confirmed sync (not just local emptiness) means a relaunch after a failed
+        // /user-update still fires the detach next call, and a token rotation invalidates
+        // any prior confirmation — see MSDK-469 and Codex P1 #1.
+        let decision = userIdentity.planClearUser(pushToken: pushToken)
+        switch decision {
+        case .skip:
+            Loggers.event.debug("clearUser: skipping — already detached on server for current push token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
+        case .retryWithoutRotation, .rotatedAndReplaced:
+            guard !pushToken.isEmpty else {
+                // No push token means there is nothing to detach server-side. If we got here
+                // via .rotatedAndReplaced, local was already cleared atomically; if via
+                // .retryWithoutRotation, local was already empty. Either way, done.
+                Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+                return
+            }
+            Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            api.updateUser(
+                pushToken: pushToken,
+                userIdentity: userIdentity,
+                email: nil,
+                phone: nil,
+                operationContext: "clearUser",
+                callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, forward: nil)
+            )
         }
+    }
 
-        Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        api.updateUser(
-            pushToken: pushToken,
-            userIdentity: userIdentity,
-            email: nil,
-            phone: nil,
-            operationContext: "clearUser",
-            callback: nil
-        )
+    /// Wraps a `/user-update` callback so a successful server response records the confirmed
+    /// (email, phone, pushToken) tuple back into `ATTNUserIdentity`. This is what makes the
+    /// MSDK-469 guards distinguish "already synced" from "needs retry" on the next call.
+    ///
+    /// Success is defined as `error == nil && HTTPURLResponse.isSuccessful` — a transport
+    /// error, a non-2xx status, or a nil response all leave the sync record unchanged so the
+    /// next call retries. `[weak self]` keeps this from extending the SDK's lifetime, but
+    /// even if `self` deallocates before the network completes, `userIdentity` is a
+    /// reference-typed property whose lifetime is tied to `self` — losing the recording is
+    /// safe (retry on next launch).
+    // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
+    // `private` only extends to same-file extensions. `internal` (the default) keeps it out
+    // of the public API while letting the extension call it.
+    func syncRecordingCallback(
+        email: String?,
+        phone: String?,
+        pushToken: String,
+        forward: ATTNAPICallback?
+    ) -> ATTNAPICallback {
+        return { [weak self] data, url, response, error in
+            let http = response as? HTTPURLResponse
+            let succeeded = (error == nil) && (http?.isSuccessful == true)
+            if succeeded {
+                self?.userIdentity.recordSuccessfulSync(email: email, phone: phone, pushToken: pushToken)
+            }
+            forward?(data, url, response, error)
+        }
     }
 
     @objc(updateDomain:)

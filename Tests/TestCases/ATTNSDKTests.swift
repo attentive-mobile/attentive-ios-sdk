@@ -20,6 +20,10 @@ final class ATTNSDKTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        // MSDK-469: the sync-state record persists across launches via ATTNPersistentStorage,
+        // so tests must scrub the persisted keys or one test's success recording bleeds into
+        // the next test's setUp and skews the guard decision (skip vs retry vs rotate).
+        Self.clearPersistedSyncState()
         creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
         apiSpy = ATTNAPISpy(domain: testDomain)
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
@@ -32,12 +36,23 @@ final class ATTNSDKTests: XCTestCase {
 
         ProcessInfo.restoreOriginalEnvironment()
         UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        Self.clearPersistedSyncState()
 
         creativeUrlProviderSpy = nil
         sut = nil
         apiSpy = nil
 
         super.tearDown()
+    }
+
+    /// Prefix + key must match `ATTNPersistentStorage` and `ATTNUserIdentity.Constants`.
+    /// Kept as an explicit string here rather than reaching into internal types, so a
+    /// rename over there will fail these tests loudly instead of silently leaking state.
+    private static func clearPersistedSyncState() {
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
+        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone"] {
+            UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
+        }
     }
 
     func testUpdateDomain_newDomain_willUpdateAPIDomainProperty() {
@@ -477,9 +492,11 @@ final class ATTNSDKTests: XCTestCase {
 
     // MARK: - MSDK-469 no-op guard tests
 
-    func testUpdateUser_whenIdentifiersUnchanged_isNoOp() {
-        // Callers that fire updateUser "just to be safe" every app launch should not each mint
-        // a new visitor_id and POST /user-update. The second identical call must short-circuit.
+    func testUpdateUser_whenIdentifiersUnchangedAndServerConfirmed_isNoOp() {
+        // Callers that fire updateUser "just to be safe" every app launch must not each mint
+        // a new visitor_id and POST /user-update. The spy's default 200 response records the
+        // sync from the first call, so the second identical call short-circuits on the
+        // (local match + sync match) branch.
         registerTestPushToken()
 
         sut.updateUser(email: "user@example.com", phone: "+15551234567")
@@ -492,6 +509,80 @@ final class ATTNSDKTests: XCTestCase {
                        "Second updateUser with identical identifiers should not fire api.updateUser")
         XCTAssertEqual(sut.visitorId, visitorIdAfterFirstCall,
                        "Second updateUser with identical identifiers should not rotate visitorId")
+    }
+
+    func testUpdateUser_whenFirstAttemptFailed_retryStillFires() {
+        // Codex P1 #2: local identifiers match after the first attempt mutates them, but the
+        // /user-update request itself failed, so the server never recorded the switch. The
+        // retry MUST fire again to reach the server; it must NOT rotate visitor_id (same
+        // identity, no reason to churn the identity graph on retry).
+        registerTestPushToken()
+        apiSpy.stubbedError = NSError(domain: "test.network", code: -1009, userInfo: nil)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstAttempt = sut.visitorId
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser retry must fire /user-update again when the first attempt failed")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstAttempt,
+                       "updateUser retry must reuse the same visitor id — rotating on retry drives the fanout the guard is trying to prevent")
+    }
+
+    func testUpdateUser_whenFirstAttemptReturned5xx_retryStillFires() {
+        // A non-2xx response from the server (with error == nil) also fails to sync. The
+        // guard must treat "HTTP 500 with nil error" the same as "transport error" — both
+        // leave the sync record unchanged and let the retry through.
+        registerTestPushToken()
+        apiSpy.stubbedResponse = HTTPURLResponse(
+            url: URL(string: "https://cdn.attn.tv/user-update")!,
+            statusCode: 500,
+            httpVersion: nil,
+            headerFields: nil
+        )
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser retry must fire when the first attempt returned a non-2xx status")
+    }
+
+    func testUpdateUser_whenPushTokenRotates_firesEvenWithSameIdentity() {
+        // APNs can rotate the device's push token independently of anything the SDK does.
+        // Server-side attachment is keyed per token, so a token change invalidates any prior
+        // /user-update confirmation and the SDK must resend to attach the new token.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        // Simulate APNs rotating the token: register a different device token.
+        sut.registerDeviceToken(Data([0xAA, 0xBB, 0xCC]), authorizationStatus: .authorized)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire again after push token rotation, even when email/phone are unchanged")
+        XCTAssertEqual(apiSpy.lastUpdateUserPushToken, "aabbcc",
+                       "The retry must carry the new push token")
+    }
+
+    func testUpdateUser_normalizesWhitespaceBeforeCompare() {
+        // The api layer strips whitespace before sending; the guard must do the same so
+        // `"a@b.com"` and `" a@b.com "` (server sees the same thing) collapse to a no-op
+        // on the second call instead of a spurious retry.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "  user@example.com  ", phone: "\t+15551234567\n")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Whitespace-only differences must not defeat the no-op guard")
     }
 
     func testUpdateUser_whenEmailChanged_stillFires() {
@@ -541,18 +632,55 @@ final class ATTNSDKTests: XCTestCase {
                        "updateUser must still fire when the stored set contains identifiers beyond email/phone")
     }
 
-    func testClearUser_whenNoIdentifiers_isNoOp() {
-        // Fresh SDK — only a visitorId is on record. clearUser should not rotate it and should
-        // not POST /user-update, even when a push token is present.
+    func testClearUser_whenAlreadyDetachedAndServerConfirmed_isNoOp() {
+        // The guard skips only when local is empty AND the server confirmed detach for THIS
+        // push token. This is the "second clearUser in a row" happy path: the first call
+        // fired /user-update, the spy's default 200 response recorded the sync, and the
+        // second call sees a matching sync record.
         registerTestPushToken()
-        let visitorIdBefore = sut.visitorId
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        sut.clearUser()  // first call fires; spy's 200 records lastSynced = (nil, nil, token)
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        let visitorIdAfterFirstDetach = sut.visitorId
+
+        sut.clearUser()  // second call sees local empty AND sync confirmed → skip
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Second clearUser must skip when server already confirmed detach")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstDetach,
+                       "Second clearUser must not rotate visitorId when server already confirmed")
+    }
+
+    func testClearUser_whenLocalEmptyButServerNotConfirmed_firesDetach() {
+        // Codex P1 #1: after a relaunch (or a prior clearUser whose /user-update failed),
+        // local identifiers are empty but the push token in UserDefaults is still attached
+        // to the previous user on the server. The guard MUST let the detach through — local
+        // emptiness alone doesn't prove server-side detachment.
+        registerTestPushToken()
+        // No prior successful /user-update recorded — the persisted keys were cleared in
+        // setUp, so `lastSyncedPushToken` is nil. This mimics a fresh-launch SDK on a
+        // device whose push token survived from a prior process where clearUser did NOT
+        // successfully complete.
+        XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0)
+
+        sut.clearUser()
+
+        XCTAssertTrue(apiSpy.updateUserWasCalled,
+                      "clearUser must fire detach when the server has not confirmed detach for the current push token")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertNil(apiSpy.lastUpdateUserEmail)
+        XCTAssertNil(apiSpy.lastUpdateUserPhone)
+    }
+
+    func testClearUser_whenLocalEmptyButNoPushToken_isSilentNoOp() {
+        // With no push token, there is nothing to detach server-side and nothing to clear
+        // locally. Neither path fires the network call.
+        XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0)
 
         sut.clearUser()
 
         XCTAssertFalse(apiSpy.updateUserWasCalled,
-                       "clearUser from a visitorId-only state should not fire api.updateUser")
-        XCTAssertEqual(sut.visitorId, visitorIdBefore,
-                       "clearUser from a visitorId-only state should not rotate visitorId")
+                       "clearUser without a push token cannot fire detach and must not call api.updateUser")
     }
 
     func testClearUser_whenIdentifiersPresent_stillFires() {
