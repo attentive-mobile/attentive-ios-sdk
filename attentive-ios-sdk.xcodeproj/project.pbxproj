@@ -24,6 +24,7 @@
 		F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */; };
 		A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */; };
 		A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */; };
+		A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */; };
 		F952B5B42EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */; };
 		F952B5B52EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */; };
 		F952B5B62EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */; };
@@ -154,6 +155,7 @@
 		F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKExtensionV2Tests.swift; sourceTree = "<group>"; };
 		A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPINewEventEncodingTests.swift; sourceTree = "<group>"; };
 		A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNv2DeeplinkTests.swift; sourceTree = "<group>"; };
+		A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNV1V2PayloadParityTests.swift; sourceTree = "<group>"; };
 		F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTrackerV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventURLProviderV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityExtensionTests.swift; sourceTree = "<group>"; };
@@ -386,6 +388,7 @@
 				F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */,
 				A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */,
 				A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */,
+				A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */,
 				DCF28F9F2D692A6A00A7164F /* ATTNWebViewHandlerUITests.swift */,
 				FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */,
 				F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */,
@@ -795,6 +798,7 @@
 				F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */,
 				A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */,
 				A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */,
+				A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */,
 				FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */,
 				FB86C0402C40669400E35580 /* ATTNProductViewEventTests.swift in Sources */,
 				FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */,
