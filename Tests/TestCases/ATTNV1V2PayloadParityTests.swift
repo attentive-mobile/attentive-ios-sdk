@@ -181,6 +181,34 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         assertByteEqual(v1.queryItems["pd"], v2.queryItems["pd"], "pd across paths")
     }
 
+    // MARK: - Identity
+
+    /// Locks identity parity beyond the visitor ID: when the host has identified
+    /// email/phone, v1 carries them in the merged `m` metadata while v2 carries
+    /// base64-encoded values in the body's `identifiers` — decoded, they must be
+    /// byte-identical across paths.
+    func testIdentity_emailPhoneAndVisitorId_matchAcrossPaths() {
+        sdk.identify([
+            ATTNIdentifierType.email: "parity@example.com",
+            ATTNIdentifierType.phone: "+15551234567"
+        ])
+        guard let (v1, v2) = captureSingleParity({ ATTNTestEventUtils.buildProductView() }) else { return }
+
+        assertByteEqual(v1.metadata["email"] as? String, "parity@example.com", "v1 email")
+        assertByteEqual(v1.metadata["phone"] as? String, "+15551234567", "v1 phone")
+
+        func decodeBase64(_ value: Any?) -> String? {
+            guard let string = value as? String, let data = Data(base64Encoded: string) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }
+        let identifiers = v2.payload["identifiers"] as? [String: Any]
+        assertByteEqual(decodeBase64(identifiers?["encryptedEmail"]), v1.metadata["email"] as? String, "email across paths")
+        assertByteEqual(decodeBase64(identifiers?["encryptedPhone"]), v1.metadata["phone"] as? String, "phone across paths")
+
+        assertByteEqual(v1.queryItems["u"], v2.queryItems["u"], "visitor ID `u` across paths")
+        assertByteEqual(v2.payload["visitorId"] as? String, v1.queryItems["u"], "v2 body visitorId vs v1 `u`")
+    }
+
     // MARK: - AddToCart
 
     func testAddToCart_productFields_matchAcrossPaths() {
@@ -346,6 +374,20 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
             assertByteEqual(v1.metadata["name"] as? String, name, "v1 name round-trip for '\(name)'")
             assertByteEqual(product?["name"] as? String, name, "v2 name round-trip for '\(name)'")
             // ...and therefore match each other.
+            assertByteEqual(v1.metadata["name"] as? String, product?["name"] as? String, "name across paths for '\(name)'")
+        }
+    }
+
+    func testAddToCart_specialCharacterNames_roundTripIdenticallyOnBothPaths() {
+        for name in specialCharacterSamples {
+            guard let (v1, v2) = captureSingleParity({
+                let item = ATTNTestEventUtils.buildItem()
+                item.name = name
+                return ATTNAddToCartEvent(items: [item])
+            }) else { continue }
+            let product = v2.eventMetadata?["product"] as? [String: Any]
+            assertByteEqual(v1.metadata["name"] as? String, name, "v1 name round-trip for '\(name)'")
+            assertByteEqual(product?["name"] as? String, name, "v2 name round-trip for '\(name)'")
             assertByteEqual(v1.metadata["name"] as? String, product?["name"] as? String, "name across paths for '\(name)'")
         }
     }
