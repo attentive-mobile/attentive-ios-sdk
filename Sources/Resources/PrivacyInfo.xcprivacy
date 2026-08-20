@@ -18,6 +18,7 @@
             <key>NSPrivacyCollectedDataTypePurposes</key>
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeDeveloperAdvertising</string>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
             </array>
         </dict>
@@ -31,6 +32,7 @@
             <key>NSPrivacyCollectedDataTypePurposes</key>
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeDeveloperAdvertising</string>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
             </array>
         </dict>
