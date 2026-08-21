@@ -26,7 +26,7 @@ struct ATTNTestEventUtils {
     static func verifyProductFromItem(item: ATTNItem, product: [String: Any]) {
         XCTAssertEqual(item.productId, product["productId"] as? String)
         XCTAssertEqual(item.productVariantId, product["subProductId"] as? String)
-        XCTAssertEqual(item.price.price, NSDecimalNumber(string: product["price"] as? String))
+        XCTAssertEqual(item.price.amount, NSDecimalNumber(string: product["price"] as? String))
         XCTAssertEqual(item.price.currency, product["currency"] as? String)
         XCTAssertEqual(item.category, product["category"] as? String)
         XCTAssertEqual(item.productImage, product["image"] as? String)
@@ -73,7 +73,7 @@ struct ATTNTestEventUtils {
     }
 
     static func buildItem() -> ATTNItem {
-        let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
+        let price = ATTNPrice(amount: NSDecimalNumber(string: "15.99"), currency: "USD")
         let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
         item.category = "someCategory"
         item.productImage = "someImage"
@@ -83,7 +83,7 @@ struct ATTNTestEventUtils {
 
     static func buildPurchaseWithTwoItems() -> ATTNPurchaseEvent {
         let item1 = buildItem()
-        let item2 = ATTNItem(productId: "2222", productVariantId: "555552", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "USD"))
+        let item2 = ATTNItem(productId: "2222", productVariantId: "555552", price: ATTNPrice(amount: NSDecimalNumber(string: "20.00"), currency: "USD"))
         item2.category = "someCategory2"
         item2.productImage = "someImage2"
         item2.name = "someName2"

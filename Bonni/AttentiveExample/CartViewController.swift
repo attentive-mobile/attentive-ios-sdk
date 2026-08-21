@@ -91,7 +91,7 @@ class CartViewController: UIViewController {
     private func setupSummaryView() {
         // calculate
         let subtotal = viewModel.cartItems
-                .reduce(NSDecimalNumber.zero) { $0.adding($1.product.price.price) }
+                .reduce(NSDecimalNumber.zero) { $0.adding($1.product.price.amount) }
         let tax = subtotal.multiplying(by: .init(value: 0.05))
         let total = subtotal.adding(tax)
 
