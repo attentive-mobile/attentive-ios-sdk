@@ -44,8 +44,6 @@ executors:
       FASTLANE_SKIP_UPDATE_CHECK: "YES"
       LC_ALL: "en_US.UTF-8"
       LANG: "en_US.UTF-8"
-      # Segments the SPM/DerivedData cache so stable and beta toolchains never share it
-      XCODE_CACHE_KEY: "26.6"
 
   # Floating Xcode beta image (CircleCI overwrites the tag on each new beta release).
   # Used only by the nightly-xcode-beta workflow — never by PR/release workflows.
@@ -59,7 +57,6 @@ executors:
       FASTLANE_SKIP_UPDATE_CHECK: "YES"
       LC_ALL: "en_US.UTF-8"
       LANG: "en_US.UTF-8"
-      XCODE_CACHE_KEY: "27.0-beta"
 
 # ========================
 # Orbs
@@ -157,6 +154,12 @@ jobs:
       xcode-executor:
         type: executor
         default: macos-xcode
+      # Segments the SPM/DerivedData cache so stable and beta toolchains never
+      # share it. A job parameter (compile-time interpolation) because cache-key
+      # {{ .Environment.* }} templates cannot read executor environment blocks.
+      xcode-cache-key:
+        type: string
+        default: "26.6"
     executor: << parameters.xcode-executor >>
     steps:
       # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
@@ -187,8 +190,8 @@ jobs:
       # stable and beta toolchains never share DerivedData)
       - restore_cache:
           keys:
-            - v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
-            - v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-
+            - v2-spm-<< parameters.xcode-cache-key >>-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+            - v2-spm-<< parameters.xcode-cache-key >>-
 
       # Resolve dependencies via Fastlane
       - run:
@@ -196,7 +199,7 @@ jobs:
           command: bundle exec fastlane setup
 
       - save_cache:
-          key: v2-spm-{{ .Environment.XCODE_CACHE_KEY }}-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+          key: v2-spm-<< parameters.xcode-cache-key >>-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
           paths:
             - ~/.swiftpm
             - ~/Library/Developer/Xcode/DerivedData
@@ -684,6 +687,7 @@ workflows:
       - checkout-and-setup:
           name: checkout-and-setup-xcode-beta
           xcode-executor: macos-xcode-beta
+          xcode-cache-key: "27.0-beta"
           context: *default_context
 
       - build-framework:
