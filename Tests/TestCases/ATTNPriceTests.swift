@@ -40,10 +40,13 @@ final class ATTNPriceTests: XCTestCase {
 
     func testObjcBridge_DeprecatedInitViaSelector_ProducesSameAmount() throws {
         // Simulates an ObjC consumer still calling [[ATTNPrice alloc] initWithPrice:currency:].
+        // Ownership: `alloc` returns +1, which `init...` consumes and returns as its own +1;
+        // that single ownership is claimed exactly once, by takeRetainedValue() on the init
+        // result. The alloc result stays Unmanaged so ARC never double-claims it.
         let allocated = try XCTUnwrap(
-            (ATTNPrice.self as AnyObject).perform(NSSelectorFromString("alloc"))?.takeUnretainedValue()
+            (ATTNPrice.self as AnyObject).perform(NSSelectorFromString("alloc"))
         )
-        let initialized = allocated.perform(
+        let initialized = allocated.takeUnretainedValue().perform(
             NSSelectorFromString("initWithPrice:currency:"),
             with: NSDecimalNumber(string: "9.99"),
             with: "USD"
