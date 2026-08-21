@@ -494,7 +494,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_purchase_sendNewEvent() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "9.99"), currency: "USD"))
         item.quantity = 2
         let order = ATTNOrder(orderId: "order-1")
@@ -511,7 +511,7 @@ final class ATTNSDKTests: XCTestCase {
         // MSDK-442: v2 auto-convert matches the legacy /e formula
         // (sum of item prices, quantity-agnostic) so flipping useV2Endpoint
         // doesn't silently change historical totals.
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         item1.quantity = 2
         let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
@@ -530,7 +530,7 @@ final class ATTNSDKTests: XCTestCase {
     func testSendEvent_v2Enabled_purchase_populatesCartTotalFromLegacyFormula() {
         // Regression guard for MSDK-442: v2 auto-convert emits a cartTotal
         // computed from items so downstream systems don't see it empty.
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         item1.quantity = 2
         let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
@@ -550,7 +550,7 @@ final class ATTNSDKTests: XCTestCase {
     func testSendEvent_v2Enabled_purchase_preservesCallerProvidedCartTotal() {
         // Caller-supplied cartTotal on ATTNCart wins over the SDK-computed
         // fallback so hosts can pass an authoritative value.
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         let order = ATTNOrder(orderId: "order-caller-total")
         let cart = ATTNCart(cartId: "cart-2", cartCoupon: "SAVE10")
@@ -571,7 +571,7 @@ final class ATTNSDKTests: XCTestCase {
         // When the host omits the cart entirely, the auto-convert still emits
         // a cart payload carrying the SDK-computed cartTotal so downstream
         // pipelines never see it empty.
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "USD"))
         let order = ATTNOrder(orderId: "order-no-cart")
         let event = ATTNPurchaseEvent(items: [item], order: order)
@@ -606,7 +606,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "EUR"))
         let event = ATTNAddToCartEvent(items: [item1, item2])
@@ -619,7 +619,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_productView_sendsPerItem() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.00"), currency: "GBP"))
         let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "25.00"), currency: "GBP"))
         let event = ATTNProductViewEvent(items: [item1, item2])
@@ -632,7 +632,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_customEvent_sendsWithType() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNCustomEvent(type: "Signup", properties: ["source": "banner"])!
 
         sut.send(event: event)
@@ -642,7 +642,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_unsupportedEvent_fallsBackToLegacy() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNInfoEvent()
 
         sut.send(event: event)
@@ -652,7 +652,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyPurchaseItems_doesNotSend() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let order = ATTNOrder(orderId: "order-empty")
         let event = ATTNPurchaseEvent(items: [], order: order)
 
@@ -663,7 +663,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyAddToCartItems_doesNotSend() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNAddToCartEvent(items: [])
 
         sut.send(event: event)
@@ -673,7 +673,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyProductViewItems_doesNotSend() {
-        sut._useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNProductViewEvent(items: [])
 
         sut.send(event: event)
@@ -683,7 +683,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Disabled_usesLegacyPath() {
-        sut._useV2Endpoint = false
+        sut.isV2EndpointEnabled = false
         let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
         let event = ATTNAddToCartEvent(items: [item])
 
