@@ -171,13 +171,13 @@ class PlaceOrderViewController: UIViewController {
             variantName: nil,
             imageUrl: item.productImage,
             categories: item.category != nil ? [item.category!] : nil,
-            price: item.price.price.stringValue,
+            price: item.price.amount.stringValue,
             quantity: item.quantity,
             productUrl: nil
         )
 
         // Call recordPurchase with V2 format
-        tracker.recordEvent(.purchase(orderId: "789789", currency: item.price.currency, orderTotal: item.price.price.stringValue, cart: nil, products: [productV2]))
+        tracker.recordEvent(.purchase(orderId: "789789", currency: item.price.currency, orderTotal: item.price.amount.stringValue, cart: nil, products: [productV2]))
 
         let orderConfirmationVC = OrderConfirmationViewController()
         navigationController?.pushViewController(orderConfirmationVC, animated: true)
@@ -199,7 +199,7 @@ class PlaceOrderViewController: UIViewController {
 
     func buildItem() -> ATTNItem {
         // Build Item with required fields
-        let item : ATTNItem = ATTNItem(productId: "222", productVariantId: "55555", price: ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD"))
+        let item : ATTNItem = ATTNItem(productId: "222", productVariantId: "55555", price: ATTNPrice(amount: NSDecimalNumber(string: "15.99"), currency: "USD"))
 
         // Add some optional fields
         item.name = "T-Shirt"

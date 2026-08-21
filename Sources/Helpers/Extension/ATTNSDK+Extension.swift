@@ -28,7 +28,7 @@ extension ATTNSDK {
             // quantity-agnostic, formatted with 2 fraction digits) so flipping
             // useV2Endpoint doesn't silently change historical totals.
             let computedTotalNumber = purchase.items.reduce(NSDecimalNumber.zero) { total, item in
-                total.adding(item.price.price)
+                total.adding(item.price.amount)
             }
             let computedTotal = purchase.priceFormatter.string(from: computedTotalNumber) ?? computedTotalNumber.stringValue
             let cart = ATTNCartPayload(
@@ -91,7 +91,7 @@ extension ATTNSDK {
             // fails on non-finite values, which a host CAN produce (an invalid
             // price string yields NSDecimalNumber.notANumber), and the SDK must
             // never force-unwrap on host input. Don't widen this pattern.
-            price: priceFormatter.string(from: item.price.price) ?? item.price.price.stringValue,
+            price: priceFormatter.string(from: item.price.amount) ?? item.price.amount.stringValue,
             quantity: item.quantity
         )
     }

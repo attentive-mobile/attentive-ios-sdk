@@ -325,7 +325,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
     /// flip `useV2Endpoint`.
     func testPurchase_integralPrice_priceStringsMatchAcrossPaths() {
         let makeEvent: () -> ATTNPurchaseEvent = {
-            let price = ATTNPrice(price: NSDecimalNumber(string: "10"), currency: "USD")
+            let price = ATTNPrice(amount: NSDecimalNumber(string: "10"), currency: "USD")
             let item = ATTNItem(productId: "1", productVariantId: "1-v", price: price)
             item.name = "Ten Dollar Item"
             return ATTNPurchaseEvent(items: [item], order: ATTNOrder(orderId: "o-10"))

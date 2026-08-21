@@ -316,8 +316,10 @@ The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProdu
 
 | Field      | Type               | Required | Description                                  |
 | ---------- | ------------------ | -------- | -------------------------------------------- |
-| `price`    | `NSDecimalNumber`  | Yes      | The price value                              |
+| `amount`   | `NSDecimalNumber`  | Yes      | The price value                              |
 | `currency` | `String`           | Yes      | The currency code (e.g. `"USD"`)             |
+
+> **Note:** `ATTNPrice.price` and `init(price:currency:)` are deprecated in favor of `amount` and `init(amount:currency:)`. See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
 
 #### ATTNOrder
 
@@ -363,7 +365,7 @@ The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProdu
 
 #### Swift
 ```swift
-let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
+let price = ATTNPrice(amount: NSDecimalNumber(string: "15.99"), currency: "USD")
 
 // Create the Item(s) that was/were purchased
 let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
@@ -380,7 +382,7 @@ ATTNEventTracker.sharedInstance().record(event: purchase)
 
 #### Objective-C
 ```objective-c
-ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithAmount:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
 
 ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
 
