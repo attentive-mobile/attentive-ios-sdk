@@ -87,6 +87,10 @@ extension ATTNSDK {
             // Format with the legacy /e formatter (POSIX, min 2 fraction digits)
             // so the wire value is byte-identical on both endpoints —
             // `stringValue` drops trailing zeros ("10.00" → "10").
+            // The `??` is a crash guard, not a formatting path: the formatter only
+            // fails on non-finite values, which a host CAN produce (an invalid
+            // price string yields NSDecimalNumber.notANumber), and the SDK must
+            // never force-unwrap on host input. Don't widen this pattern.
             price: priceFormatter.string(from: item.price.price) ?? item.price.price.stringValue,
             quantity: item.quantity
         )

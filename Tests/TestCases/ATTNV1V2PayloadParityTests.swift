@@ -129,6 +129,13 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
     /// Base query params both endpoints share must be identical — this also
     /// locks visitor-ID (`u`) and external-vendor-ID (`evs`) parity across paths.
     private func assertBaseQueryParity(_ v1: [String: String], _ v2: [String: String], file: StaticString = #filePath, line: UInt = #line) {
+        // Presence first: `assertByteEqual(nil, nil)` passes, so a key dropped
+        // from BOTH endpoints would otherwise slip through. These params must
+        // exist on every event request; `evs`/`pd` are context-dependent.
+        for key in ["tag", "v", "c", "lt", "u", "t"] {
+            XCTAssertNotNil(v1[key], "v1 request is missing required query param `\(key)`", file: file, line: line)
+            XCTAssertNotNil(v2[key], "v2 request is missing required query param `\(key)`", file: file, line: line)
+        }
         for key in ["tag", "v", "c", "lt", "u", "evs", "t", "pd"] {
             assertByteEqual(v1[key], v2[key], "query param `\(key)`", file: file, line: line)
         }
@@ -137,6 +144,12 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
 
     /// Compares a v1 item-metadata dictionary against a v2 product dictionary.
     private func assertProductParity(v1 metadata: [String: Any], v2 product: [String: Any], file: StaticString = #filePath, line: UInt = #line) {
+        // Same nil == nil guard as assertBaseQueryParity: these fields are
+        // required on every product, so absence on both sides must fail.
+        for key in ["productId", "price"] {
+            XCTAssertNotNil(metadata[key], "v1 product metadata is missing required field `\(key)`", file: file, line: line)
+            XCTAssertNotNil(product[key], "v2 product payload is missing required field `\(key)`", file: file, line: line)
+        }
         assertByteEqual(metadata["productId"] as? String, product["productId"] as? String, "productId", file: file, line: line)
         assertByteEqual(metadata["subProductId"] as? String, product["variantId"] as? String, "variantId/subProductId", file: file, line: line)
         assertByteEqual(metadata["name"] as? String, product["name"] as? String, "product name", file: file, line: line)
