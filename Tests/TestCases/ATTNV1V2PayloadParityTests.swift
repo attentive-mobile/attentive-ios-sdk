@@ -46,7 +46,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
     private func capture(_ event: ATTNEvent, v2: Bool) -> [URLRequest] {
         sessionMock.requests.removeAll()
         sessionMock.urlCalls.removeAll()
-        sdk._useV2Endpoint = v2
+        sdk.isV2EndpointEnabled = v2
         sdk.send(event: event)
         return sessionMock.requests
     }

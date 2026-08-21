@@ -9,7 +9,7 @@ import Foundation
 
 extension ATTNSDK {
     func send(event: ATTNEvent) {
-        if _useV2Endpoint {
+        if isV2EndpointEnabled {
             sendLegacyEventAsV2(event)
             return
         }
