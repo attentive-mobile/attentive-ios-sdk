@@ -142,6 +142,18 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         XCTAssertEqual(v1["u"], sdk.userIdentity.visitorId, "v1 `u` must be the SDK visitor ID", file: file, line: line)
     }
 
+    /// Backend services (`PurchaseProcessor.shouldIgnorePurchaseEvent`,
+    /// `DeviceSpecificCartLinkService.isMobileAppEvent`) exact-match the literal
+    /// "mobile-app" to classify traffic as mobile-app, so both wire formats must
+    /// carry exactly that string — `v` in the query on both paths, and `version`
+    /// in the v2 `/mobile` JSON body (MSDK-487). Intentionally a literal, not
+    /// `ATTNConstants.tagVersionMobileApp`: this locks the wire value itself.
+    private func assertTagVersionIsMobileAppLiteral(_ v1: V1Request, _ v2: V2Request, file: StaticString = #filePath, line: UInt = #line) {
+        assertByteEqual(v1.queryItems["v"], "mobile-app", "v1 query param `v`", file: file, line: line)
+        assertByteEqual(v2.queryItems["v"], "mobile-app", "v2 query param `v`", file: file, line: line)
+        assertByteEqual(v2.payload["version"] as? String, "mobile-app", "v2 body `version`", file: file, line: line)
+    }
+
     /// Compares a v1 item-metadata dictionary against a v2 product dictionary.
     private func assertProductParity(v1 metadata: [String: Any], v2 product: [String: Any], file: StaticString = #filePath, line: UInt = #line) {
         // Same nil == nil guard as assertBaseQueryParity: these fields are
@@ -171,6 +183,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         guard let (v1, v2) = captureSingleParity({ ATTNTestEventUtils.buildProductView() }) else { return }
         XCTAssertEqual(v1.queryItems["t"], "d")
         assertBaseQueryParity(v1.queryItems, v2.queryItems)
+        assertTagVersionIsMobileAppLiteral(v1, v2)
         assertByteEqual(v2.payload["visitorId"] as? String, sdk.userIdentity.visitorId, "v2 body visitorId")
     }
 
@@ -228,6 +241,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         guard let (v1, v2) = captureSingleParity({ ATTNTestEventUtils.buildAddToCart() }) else { return }
         XCTAssertEqual(v1.queryItems["t"], "c")
         assertBaseQueryParity(v1.queryItems, v2.queryItems)
+        assertTagVersionIsMobileAppLiteral(v1, v2)
         guard let product = v2.eventMetadata?["product"] as? [String: Any] else {
             XCTFail("v2 AddToCart payload has no eventMetadata.product")
             return
@@ -275,6 +289,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         guard let v1 = v1Purchases.first, let metadata = v2.eventMetadata else { return }
 
         assertBaseQueryParity(v1.queryItems, v2.queryItems)
+        assertTagVersionIsMobileAppLiteral(v1, v2)
 
         assertByteEqual(v1.metadata["orderId"] as? String, metadata["orderId"] as? String, "orderId")
         assertByteEqual(v1.metadata["currency"] as? String, metadata["currency"] as? String, "currency")
@@ -345,6 +360,7 @@ final class ATTNV1V2PayloadParityTests: XCTestCase {
         guard let (v1, v2) = captureSingleParity({ ATTNTestEventUtils.buildCustomEvent() }) else { return }
         XCTAssertEqual(v1.queryItems["t"], "ce")
         assertBaseQueryParity(v1.queryItems, v2.queryItems)
+        assertTagVersionIsMobileAppLiteral(v1, v2)
 
         guard let metadata = v2.eventMetadata else {
             XCTFail("v2 custom event payload has no eventMetadata")
