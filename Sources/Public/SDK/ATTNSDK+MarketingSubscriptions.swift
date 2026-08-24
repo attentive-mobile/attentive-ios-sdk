@@ -164,15 +164,20 @@ extension ATTNSDK {
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
 
-        // planUpdateUser owns three questions atomically under the identity lock: does local
+        // planUpdateUser owns four questions atomically under the identity lock: does local
         // already match the incoming pair, did the server confirm the same pair for THIS
-        // push token, and (when local differs) mutate + rotate visitor id. Guarding on
+        // push token AND domain, is this a cold-launch adoption (local empty, sync record
+        // matches), and (when local differs) mutate + rotate visitor id. Guarding on
         // server-confirmed sync (not just local equality) means a failed /user-update
-        // retries on the next call — see MSDK-469 and Codex P1 #2.
-        let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken)
+        // retries on the next call, and the cold-launch adoption branch stops a launch-time
+        // updateUser call from rotating the visitor id every process restart — see
+        // MSDK-469, Codex P1 #2, and the Android counterpart MSDK-470 for the adoption
+        // branch precedent.
+        let currentDomain = self.domain
+        let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken, domain: currentDomain)
         switch decision {
         case .skip:
-            Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             callback?(nil, nil, nil, nil)
             return
         case .retryWithoutRotation:
@@ -187,7 +192,7 @@ extension ATTNSDK {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, forward: callback)
+            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, domain: currentDomain, forward: callback)
         )
     }
 

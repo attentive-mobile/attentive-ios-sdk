@@ -50,7 +50,7 @@ final class ATTNSDKTests: XCTestCase {
     /// rename over there will fail these tests loudly instead of silently leaking state.
     private static func clearPersistedSyncState() {
         let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone"] {
+        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain"] {
             UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
         }
     }
@@ -569,6 +569,80 @@ final class ATTNSDKTests: XCTestCase {
                        "updateUser must fire again after push token rotation, even when email/phone are unchanged")
         XCTAssertEqual(apiSpy.lastUpdateUserPushToken, "aabbcc",
                        "The retry must carry the new push token")
+    }
+
+    func testUpdateUser_coldLaunchWithMatchingSyncRecord_isNoOp() {
+        // The Aero-style regression the whole branch is chasing. Simulates a fresh process
+        // where a prior launch already confirmed the same (email, phone, pushToken, domain)
+        // on the server. `_identifiers` is empty (email/phone are in-memory only, so they
+        // don't survive a process restart), so without the cold-launch adoption branch the
+        // call would rotate the visitor id and POST /user-update on every launch. With the
+        // adoption branch, planUpdateUser sees local empty + sync matches and returns .skip.
+        //
+        // Seed the persisted sync record BEFORE constructing the cold-launch sut — its
+        // ATTNUserIdentity.init reads the record synchronously during construction.
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
+        UserDefaults.standard.set("010203", forKey: "\(prefix):lastSyncedPushToken")
+        UserDefaults.standard.set("user@example.com", forKey: "\(prefix):lastSyncedEmail")
+        UserDefaults.standard.set("+15551234567", forKey: "\(prefix):lastSyncedPhone")
+        UserDefaults.standard.set(testDomain, forKey: "\(prefix):lastSyncedDomain")
+
+        // Fresh sut — models a cold launch reading the persisted sync record.
+        let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
+        let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+        coldLaunchSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+        // registerDeviceToken triggers a sendPushToken call on the spy — reset the guard
+        // baseline to updateUser only, since that's what this test is actually measuring.
+        XCTAssertEqual(coldLaunchSpy.updateUserCallCount, 0,
+                       "precondition: no /user-update has fired yet on the cold-launch sut")
+        let visitorIdAtColdLaunch = coldLaunchSut.visitorId
+        XCTAssertTrue(coldLaunchSut.getUserIdentity().identifiers.isEmpty,
+                      "precondition: identifiers must start empty — email/phone are not persisted")
+
+        coldLaunchSut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(coldLaunchSpy.updateUserCallCount, 0,
+                       "Cold-launch updateUser with matching persisted sync record must NOT fire /user-update")
+        XCTAssertEqual(coldLaunchSut.visitorId, visitorIdAtColdLaunch,
+                       "Cold-launch adoption must not rotate the visitor id")
+        XCTAssertEqual(coldLaunchSut.getUserIdentity().identifiers[ATTNIdentifierType.email] as? String,
+                       "user@example.com",
+                       "Adoption must populate _identifiers so subsequent in-process calls match locally")
+    }
+
+    func testUpdateUser_whenDomainChanges_firesEvenWithSameIdentity() {
+        // ATTNSDK.updateDomain(...) can retarget the SDK at a different Attentive company at
+        // runtime. A sync record confirmed against the old company must not silence an
+        // identity call the new company has never seen — otherwise switching domains leaves
+        // the new company with no /user-update for this device until the identifiers change.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.update(domain: newDomain)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire again after updateDomain, even when email/phone are unchanged")
+    }
+
+    func testClearUser_whenDomainChanges_firesEvenAfterPriorDetach() {
+        // Same shape as the updateUser domain-change guard: a detach confirmed on old-domain
+        // does not detach the token from the same push token as seen by new-domain. Clearing
+        // after a domain switch must re-send the /user-update.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        sut.clearUser()
+        let updateUserCallsAfterFirstClear = apiSpy.updateUserCallCount
+        XCTAssertGreaterThan(updateUserCallsAfterFirstClear, 0,
+                             "precondition: first clearUser fires and records the sync for old-domain")
+
+        sut.update(domain: newDomain)
+        sut.clearUser()
+
+        XCTAssertGreaterThan(apiSpy.updateUserCallCount, updateUserCallsAfterFirstClear,
+                             "clearUser must fire again after updateDomain — the new company has not confirmed the detach")
     }
 
     func testUpdateUser_normalizesWhitespaceBeforeCompare() {

@@ -234,10 +234,11 @@ public final class ATTNSDK: NSObject {
         // server-confirmed sync (not just local emptiness) means a relaunch after a failed
         // /user-update still fires the detach next call, and a token rotation invalidates
         // any prior confirmation — see MSDK-469 and Codex P1 #1.
-        let decision = userIdentity.planClearUser(pushToken: pushToken)
+        let currentDomain = self.domain
+        let decision = userIdentity.planClearUser(pushToken: pushToken, domain: currentDomain)
         switch decision {
         case .skip:
-            Loggers.event.debug("clearUser: skipping — already detached on server for current push token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            Loggers.event.debug("clearUser: skipping — already detached on server for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
         case .retryWithoutRotation, .rotatedAndReplaced:
             guard !pushToken.isEmpty else {
@@ -254,7 +255,7 @@ public final class ATTNSDK: NSObject {
                 email: nil,
                 phone: nil,
                 operationContext: "clearUser",
-                callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, forward: nil)
+                callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, domain: currentDomain, forward: nil)
             )
         }
     }
@@ -276,13 +277,17 @@ public final class ATTNSDK: NSObject {
         email: String?,
         phone: String?,
         pushToken: String,
+        domain: String,
         forward: ATTNAPICallback?
     ) -> ATTNAPICallback {
         return { [weak self] data, url, response, error in
             let http = response as? HTTPURLResponse
             let succeeded = (error == nil) && (http?.isSuccessful == true)
             if succeeded {
-                self?.userIdentity.recordSuccessfulSync(email: email, phone: phone, pushToken: pushToken)
+                // Domain captured at request time — not read from `self` here — because
+                // `ATTNSDK.updateDomain(...)` can fire mid-flight. The sync record must
+                // reflect the domain the server actually saw for this request.
+                self?.userIdentity.recordSuccessfulSync(email: email, phone: phone, pushToken: pushToken, domain: domain)
             }
             forward?(data, url, response, error)
         }
