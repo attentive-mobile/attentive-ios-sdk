@@ -574,20 +574,22 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 ### Deep Link Support
 
-When a notification is tapped, the SDK extracts the deep-link URL (`attentive_open_action_url`) and opens it on your app's behalf:
+When a notification is tapped, the SDK extracts the deep-link URL (`attentive_open_action_url`), broadcasts it via `ATTNSDKDeepLinkReceived`, and stores it for `consumeDeepLink()`. Optionally, the SDK can also open the URL on your app's behalf — opt in with:
+
+```
+attentiveSdk.automaticallyOpensPushDeepLinks = true
+```
+
+When opted in:
 
 - **Custom-scheme URLs** (e.g. `myapp://cart`) are handed to the system, which routes them into your app's existing URL handlers (`application(_:open:options:)` / `scene(_:openURLContexts:)`).
 - **Http(s) URLs** are opened as [universal links](https://developer.apple.com/documentation/xcode/allowing-apps-and-websites-to-link-to-your-content) only. If your app has registered for the link's domain, it is delivered through your app's `NSUserActivity` handlers; the user is never sent to the browser.
 
 This means that if your app already handles its URL schemes or universal links, push deep links work with no additional wiring — matching the behavior of our Android SDK.
 
-> **⚠️ Upgrading from an earlier version?** Previous SDK versions never opened the URL — they only broadcast it. If your app already navigates in response to the `ATTNSDKDeepLinkReceived` notification or `consumeDeepLink()`, set `automaticallyOpensPushDeepLinks = false` when you upgrade, or the same URL will be handled twice (once by your code, once by the SDK).
+> **⚠️ Only opt in if your app does not already navigate itself.** If your app navigates in response to the `ATTNSDKDeepLinkReceived` notification or `consumeDeepLink()`, leave `automaticallyOpensPushDeepLinks` at its default (`false`), or the same URL will be handled twice (once by your code, once by the SDK).
 
-If you prefer to handle navigation yourself (e.g. navigate later, or wait until the user is logged in), disable automatic opening and use one of the options below. The SDK always broadcasts and stores the URL regardless of this setting.
-
-```
-attentiveSdk.automaticallyOpensPushDeepLinks = false
-```
+If you handle navigation yourself (the default — e.g. navigate later, or wait until the user is logged in), use one of the options below. The SDK always broadcasts and stores the URL regardless of this setting.
 
 #### Option 1: Observe the ATTNSDKDeepLinkReceived notification
 ```
@@ -649,7 +651,7 @@ struct InboxScreen: View {
 }
 ```
 
-Unread rows get a bold title and a leading blue dot; read rows don't. Tapping a row fires click tracking, broadcasts `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
+Unread rows get a bold title and a leading blue dot; read rows don't. Tapping a row fires click tracking and broadcasts `ATTNSDKInboxMessageTapped`. Set `sdk.automaticallyOpensInboxDeepLinks = true` to also have the SDK open the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
 
 ### Show an unread badge
 
@@ -720,9 +722,9 @@ sdk.inboxView { message in
 }
 ```
 
-**Suppress SDK-driven navigation** (keep tracking + broadcast, but don't open the URL):
+**SDK-driven navigation** (opt-in; tracking + broadcast fire either way):
 ```swift
-sdk.automaticallyOpensInboxDeepLinks = false
+sdk.automaticallyOpensInboxDeepLinks = true
 ```
 
 ### Option B — Build your own UI
@@ -761,7 +763,7 @@ await sdk.markClicked(for: message.id)
 | `markClicked(for:)` | Click tracking — required for custom UI, automatic for `inboxView()` |
 | `inboxView(style:onMessageTap:)` | SwiftUI drop-in |
 | `inboxViewController(style:onMessageTap:)` | UIKit drop-in |
-| `automaticallyOpensInboxDeepLinks: Bool` | Toggle SDK-driven URL opening (default `true`) |
+| `automaticallyOpensInboxDeepLinks: Bool` | Opt in to SDK-driven URL opening (default `false`) |
 
 For a working example, see `Bonni/AttentiveExample/ProductViewController.swift` (badge + push-to-open).
 
