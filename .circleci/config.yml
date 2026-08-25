@@ -32,12 +32,21 @@ parameters:
     default: "true"
 
 # ========================
+# Xcode Versions
+# ========================
+# Single source of truth per toolchain: each anchor drives both the executor
+# image tag and the SPM/DerivedData cache-key value, so a toolchain bump
+# always invalidates the cache.
+stable_xcode_version: &stable_xcode_version "26.6"
+beta_xcode_version: &beta_xcode_version "27.0"
+
+# ========================
 # Executors
 # ========================
 executors:
   macos-xcode:
     macos:
-      xcode: "26.6"
+      xcode: *stable_xcode_version
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -50,7 +59,7 @@ executors:
   # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
   macos-xcode-beta:
     macos:
-      xcode: "27.0"
+      xcode: *beta_xcode_version
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -159,7 +168,7 @@ jobs:
       # {{ .Environment.* }} templates cannot read executor environment blocks.
       xcode-cache-key:
         type: string
-        default: "26.6"
+        default: *stable_xcode_version
     executor: << parameters.xcode-executor >>
     steps:
       # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
@@ -687,7 +696,7 @@ workflows:
       - checkout-and-setup:
           name: checkout-and-setup-xcode-beta
           xcode-executor: macos-xcode-beta
-          xcode-cache-key: "27.0-beta"
+          xcode-cache-key: *beta_xcode_version
           context: *default_context
 
       - build-framework:
