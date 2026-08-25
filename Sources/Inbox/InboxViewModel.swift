@@ -43,7 +43,7 @@ class InboxViewModel: ObservableObject {
         style: InboxStyle,
         onTap: ((Message) -> Void)? = nil,
         urlOpener: ATTNURLOpening = ATTNApplicationURLOpener(),
-        shouldOpenDeepLink: @escaping () -> Bool = { true }
+        shouldOpenDeepLink: @escaping () -> Bool = { false }
     ) {
         self.inboxManager = inboxManager
         self.style = style
@@ -107,7 +107,7 @@ class InboxViewModel: ObservableObject {
     /// read flip to the manager (async — navigation must not wait on the network, matching the
     /// Android SDK), broadcasts `ATTNSDKInboxMessageTapped` (userInfo carries the actionURL),
     /// then routes the tap — to the host's `onMessageTap` handler when one was provided,
-    /// otherwise by opening `actionURL` via `UIApplication` (unless the host disabled
+    /// otherwise by opening `actionURL` via `UIApplication` (only when the host opted in via
     /// `automaticallyOpensInboxDeepLinks`). Unclaimed http(s) links fall back
     /// to the browser; a custom scheme no app claims is logged and dropped. Note the tracking
     /// runs concurrently with routing: an `onMessageTap` handler that reads inbox state
@@ -133,8 +133,8 @@ class InboxViewModel: ObservableObject {
             return
         }
 
-        // Host opted out of SDK-initiated navigation (`automaticallyOpensInboxDeepLinks`) —
-        // click tracking and the broadcast above still ran; routing is the host's job.
+        // Host has not opted in to SDK-initiated navigation (`automaticallyOpensInboxDeepLinks`,
+        // default off) — click tracking and the broadcast above still ran; routing is the host's job.
         guard shouldOpenDeepLink() else {
             Loggers.network.debug("Automatic inbox deep link opening is disabled; host app is expected to handle the tap via the ATTNSDKInboxMessageTapped broadcast.")
             return

@@ -102,35 +102,37 @@ public final class ATTNSDK: NSObject {
     @objc public var useV2Endpoint: Bool = false
 
     /// Determines if the SDK opens the deep link from a tapped push notification
-    /// (`attentive_open_action_url`) on the host app's behalf. Default value is true.
+    /// (`attentive_open_action_url`) on the host app's behalf. Default value is false —
+    /// hosts that navigate on their own via the `ATTNSDKDeepLinkReceived` broadcast or
+    /// `consumeDeepLink()` keep working unchanged on upgrade; set to true to opt in to
+    /// SDK-driven navigation and avoid handling the same URL twice.
     ///
-    /// Custom-scheme links are handed to `UIApplication`, which routes them back into the host
-    /// app's URL handlers. Http(s) links are opened as universal links only — if no app has
-    /// registered for them they are never sent to the browser; the URL stays available through
-    /// the `ATTNSDKDeepLinkReceived` broadcast and `consumeDeepLink()`.
+    /// When enabled, custom-scheme links are handed to `UIApplication`, which routes them back
+    /// into the host app's URL handlers. Http(s) links are opened as universal links only — if
+    /// no app has registered for them they are never sent to the browser; the URL stays
+    /// available through the `ATTNSDKDeepLinkReceived` broadcast and `consumeDeepLink()`.
     ///
     /// This applies to foreground taps too: when a push banner arrives while the app is active
-    /// and the user taps it, the SDK navigates immediately — previously it only broadcast the
-    /// URL. Hosts that treat in-app banner taps as log-only should opt out.
+    /// and the user taps it, the SDK navigates immediately — with the flag off it only
+    /// broadcasts the URL. Hosts that treat in-app banner taps as log-only should leave it off.
     ///
-    /// Set to false if the host app navigates on its own via the `ATTNSDKDeepLinkReceived`
-    /// broadcast or `consumeDeepLink()`, to avoid handling the same URL twice. Set it once
-    /// during SDK setup on the main thread — it is read on the main thread when a tap is
-    /// handled, and mutation from other threads is not synchronized.
-    @objc public var automaticallyOpensPushDeepLinks: Bool = true
+    /// Set it once during SDK setup on the main thread — it is read on the main thread when a
+    /// tap is handled, and mutation from other threads is not synchronized.
+    @objc public var automaticallyOpensPushDeepLinks: Bool = false
 
     /// Determines if the built-in inbox UI opens a message's `actionURL` when the user taps a
-    /// row. Default value is true. Mirrors `automaticallyOpensPushDeepLinks` for the inbox
-    /// surface, with one difference: unclaimed http(s) links fall back to the browser.
+    /// row. Default value is false — set to true to opt in. Mirrors
+    /// `automaticallyOpensPushDeepLinks` for the inbox surface, with one difference: unclaimed
+    /// http(s) links fall back to the browser.
     ///
-    /// When disabled, a tap still fires click tracking and the `ATTNSDKInboxMessageTapped`
-    /// broadcast (userInfo carries the actionURL) — only the SDK-initiated open is suppressed.
-    /// Set to false if the host app navigates on its own via that broadcast, to avoid handling
-    /// the same URL twice. Ignored when an `onMessageTap` handler is passed to `inboxView()` /
-    /// `inboxViewController()`, which replaces the SDK's routing entirely. Set it once during
-    /// SDK setup on the main thread — it is read on the main thread when a tap is handled, and
-    /// mutation from other threads is not synchronized.
-    @objc public var automaticallyOpensInboxDeepLinks: Bool = true
+    /// When disabled (the default), a tap still fires click tracking and the
+    /// `ATTNSDKInboxMessageTapped` broadcast (userInfo carries the actionURL) — only the
+    /// SDK-initiated open is suppressed, so hosts that navigate on their own via that broadcast
+    /// never handle the same URL twice. Ignored when an `onMessageTap` handler is passed to
+    /// `inboxView()` / `inboxViewController()`, which replaces the SDK's routing entirely. Set
+    /// it once during SDK setup on the main thread — it is read on the main thread when a tap
+    /// is handled, and mutation from other threads is not synchronized.
+    @objc public var automaticallyOpensInboxDeepLinks: Bool = false
 
     var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
 
@@ -405,19 +407,18 @@ public final class ATTNSDK: NSObject {
         await materializedInboxManager().refreshUnreadCount()
     }
 
-    /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking, broadcasts
-    /// `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` — universal links
-    /// resolve into their app, other http(s) links fall back to the browser. Pass
-    /// `onMessageTap` to replace that default URL routing with your own navigation; click
-    /// tracking still fires first. To keep tracking and the broadcast but suppress all
-    /// SDK-initiated navigation, set `automaticallyOpensInboxDeepLinks = false`.
+    /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking and
+    /// broadcasts `ATTNSDKInboxMessageTapped`. Set `automaticallyOpensInboxDeepLinks = true`
+    /// to also have the SDK open the message's `actionURL` — universal links resolve into
+    /// their app, other http(s) links fall back to the browser. Pass `onMessageTap` to replace
+    /// that URL routing with your own navigation; click tracking still fires first.
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
         InboxView(viewModel: InboxViewModel(
             inboxManager: materializedInboxManager(),
             style: style,
             onTap: onMessageTap,
-            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? true }
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? false }
         ))
     }
 

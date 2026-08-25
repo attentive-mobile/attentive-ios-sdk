@@ -346,9 +346,17 @@ final class ATTNSDKTests: XCTestCase {
 
     // MARK: - Push deep link tests
 
+    func testAutomaticallyOpensDeepLinksFlags_defaultToFalse() {
+        // MSDK-491: hosts that already navigate on the broadcasts must not double-navigate
+        // on SDK upgrade — SDK-driven opening is opt-in.
+        XCTAssertFalse(sut.automaticallyOpensPushDeepLinks)
+        XCTAssertFalse(sut.automaticallyOpensInboxDeepLinks)
+    }
+
     func testNormalizeAndBroadcast_customSchemeURL_opensURLDirectly() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
 
         sut.normalizeAndBroadcast("myapp://cart")
 
@@ -359,6 +367,7 @@ final class ATTNSDKTests: XCTestCase {
     func testNormalizeAndBroadcast_httpsURL_opensAsUniversalLinkOnly() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
 
         sut.normalizeAndBroadcast("https://example.com/product/1")
 
@@ -369,16 +378,16 @@ final class ATTNSDKTests: XCTestCase {
     func testNormalizeAndBroadcast_trimsWhitespaceBeforeOpening() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
 
         sut.normalizeAndBroadcast("  myapp://cart\n")
 
         XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
     }
 
-    func testNormalizeAndBroadcast_autoOpenDisabled_doesNotOpenButKeepsPendingURL() {
+    func testNormalizeAndBroadcast_autoOpenNotOptedIn_doesNotOpenButKeepsPendingURL() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
-        sut.automaticallyOpensPushDeepLinks = false
 
         sut.normalizeAndBroadcast("myapp://cart")
 
@@ -409,10 +418,12 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testNormalizeAndBroadcast_scriptableSchemes_doNotOpenButAreStillBroadcast() {
-        // Blocked schemes must never reach UIApplication.open, but hosts observing the
-        // broadcast (or polling consumeDeepLink()) keep visibility for logging/audit.
+        // Blocked schemes must never reach UIApplication.open — even with auto-open opted
+        // in — but hosts observing the broadcast (or polling consumeDeepLink()) keep
+        // visibility for logging/audit.
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
 
         for blocked in ["javascript:alert(1)", "file:///etc/passwd", "data:text/html,hi", "about:blank", "vbscript:msgbox"] {
             let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil)
@@ -427,9 +438,11 @@ final class ATTNSDKTests: XCTestCase {
 
     func testNormalizeAndBroadcast_privilegedSystemSchemes_doNotOpenButAreStillBroadcast() {
         // tel:/sms:/itms-* trigger system prompts (dialer, composer, App Store) — an
-        // escalation a push tap must never cause. Broadcast still fires for host visibility.
+        // escalation a push tap must never cause, even with auto-open opted in. Broadcast
+        // still fires for host visibility.
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
 
         for blocked in [
             "tel:+15551234", "telprompt:+15551234", "sms:+15551234", "mailto:a@b.com",
