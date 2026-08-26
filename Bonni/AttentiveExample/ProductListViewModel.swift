@@ -32,12 +32,12 @@ class ProductListViewModel {
 
     private func setupProducts() {
         products = [
-            ATTNItem(productId: "1", productVariantId: "1A", price: ATTNPrice(price: NSDecimalNumber(string: "19.99"), currency: "USD")),
-            ATTNItem(productId: "2", productVariantId: "2A", price: ATTNPrice(price: NSDecimalNumber(string: "24.99"), currency: "USD")),
-            ATTNItem(productId: "3", productVariantId: "3A", price: ATTNPrice(price: NSDecimalNumber(string: "14.99"), currency: "USD")),
-            ATTNItem(productId: "4", productVariantId: "4A", price: ATTNPrice(price: NSDecimalNumber(string: "29.99"), currency: "USD")),
-            ATTNItem(productId: "5", productVariantId: "5A", price: ATTNPrice(price: NSDecimalNumber(string: "9.99"), currency: "USD")),
-            ATTNItem(productId: "6", productVariantId: "6A", price: ATTNPrice(price: NSDecimalNumber(string: "39.99"), currency: "USD"))
+            ATTNItem(productId: "1", productVariantId: "1A", price: ATTNPrice(amount: NSDecimalNumber(string: "19.99"), currency: "USD")),
+            ATTNItem(productId: "2", productVariantId: "2A", price: ATTNPrice(amount: NSDecimalNumber(string: "24.99"), currency: "USD")),
+            ATTNItem(productId: "3", productVariantId: "3A", price: ATTNPrice(amount: NSDecimalNumber(string: "14.99"), currency: "USD")),
+            ATTNItem(productId: "4", productVariantId: "4A", price: ATTNPrice(amount: NSDecimalNumber(string: "29.99"), currency: "USD")),
+            ATTNItem(productId: "5", productVariantId: "5A", price: ATTNPrice(amount: NSDecimalNumber(string: "9.99"), currency: "USD")),
+            ATTNItem(productId: "6", productVariantId: "6A", price: ATTNPrice(amount: NSDecimalNumber(string: "39.99"), currency: "USD"))
         ]
         assignMockDataToProducts()
     }

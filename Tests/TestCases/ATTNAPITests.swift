@@ -75,7 +75,7 @@ final class ATTNAPITests: XCTestCase {
 
         XCTAssertEqual(purchase.items[0].productId, metadata["productId"] as? String)
         XCTAssertEqual(purchase.items[0].productVariantId, metadata["subProductId"] as? String)
-        XCTAssertEqual(purchase.items[0].price.price, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
+        XCTAssertEqual(purchase.items[0].price.amount, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
         XCTAssertEqual(purchase.items[0].price.currency, metadata["currency"] as? String)
         XCTAssertEqual(purchase.items[0].category, metadata["category"] as? String)
         XCTAssertEqual(purchase.items[0].productImage, metadata["image"] as? String)
@@ -179,7 +179,7 @@ final class ATTNAPITests: XCTestCase {
 
         XCTAssertEqual(addToCart.items[0].productId, metadata["productId"] as? String)
         XCTAssertEqual(addToCart.items[0].productVariantId, metadata["subProductId"] as? String)
-        XCTAssertEqual(addToCart.items[0].price.price, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
+        XCTAssertEqual(addToCart.items[0].price.amount, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
         XCTAssertEqual(addToCart.items[0].price.currency, metadata["currency"] as? String)
         XCTAssertEqual(addToCart.items[0].category, metadata["category"] as? String)
         XCTAssertEqual(addToCart.items[0].productImage, metadata["image"] as? String)
@@ -210,7 +210,7 @@ final class ATTNAPITests: XCTestCase {
 
         XCTAssertEqual(productView.items[0].productId, metadata["productId"] as? String)
         XCTAssertEqual(productView.items[0].productVariantId, metadata["subProductId"] as? String)
-        XCTAssertEqual(productView.items[0].price.price, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
+        XCTAssertEqual(productView.items[0].price.amount, NSDecimalNumber(string: metadata["price"] as? String ?? ""))
         XCTAssertEqual(productView.items[0].price.currency, metadata["currency"] as? String)
         XCTAssertEqual(productView.items[0].category, metadata["category"] as? String)
         XCTAssertEqual(productView.items[0].productImage, metadata["image"] as? String)

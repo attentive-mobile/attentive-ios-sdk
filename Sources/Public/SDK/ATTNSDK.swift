@@ -79,8 +79,22 @@ public final class ATTNSDK: NSObject {
     /// all push registration, token storage, and push-event handling.
     @objc public let pushEnabled: Bool
 
+    /// Whether `record(event:)` should route through the v2 `/mobile` endpoint.
+    /// Internal SDK code reads this directly; external callers use the deprecated
+    /// `useV2Endpoint` wrapper below.
+    var isV2EndpointEnabled: Bool = false
+
     /// Routes legacy `record(event:)` calls through the v2 `/mobile` endpoint instead of `/e`.
-    @objc public var useV2Endpoint: Bool = false
+    ///
+    /// Deprecated ahead of the v2 rollout (MSDK-471/MSDK-472): once the SDK
+    /// defaults to the v2 `/mobile` endpoint this toggle becomes a no-op knob,
+    /// but it stays public and functional for one major version so existing
+    /// integrations keep compiling and behaving identically.
+    @available(*, deprecated, message: "The v2 /mobile endpoint will become the SDK default; this toggle will be removed in the next major version.")
+    @objc public var useV2Endpoint: Bool {
+        get { isV2EndpointEnabled }
+        set { isV2EndpointEnabled = newValue }
+    }
 
     public init(domain: String, mode: ATTNSDKMode, pushEnabled: Bool = true) {
         Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public), PushEnabled: \(pushEnabled, privacy: .public)")

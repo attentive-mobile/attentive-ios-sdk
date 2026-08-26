@@ -9,7 +9,7 @@ import Foundation
 
 extension ATTNSDK {
     func send(event: ATTNEvent) {
-        if useV2Endpoint {
+        if isV2EndpointEnabled {
             sendLegacyEventAsV2(event)
             return
         }
@@ -22,13 +22,13 @@ extension ATTNSDK {
                 Loggers.event.debug("No items found in the purchase event, skipping v2 send.")
                 return
             }
-            let products = purchase.items.map { product(from: $0) }
+            let products = purchase.items.map { product(from: $0, priceFormatter: purchase.priceFormatter) }
             let currency = purchase.items[0].price.currency
             // Match the legacy /e computation exactly (sum of item prices,
             // quantity-agnostic, formatted with 2 fraction digits) so flipping
             // useV2Endpoint doesn't silently change historical totals.
             let computedTotalNumber = purchase.items.reduce(NSDecimalNumber.zero) { total, item in
-                total.adding(item.price.price)
+                total.adding(item.price.amount)
             }
             let computedTotal = purchase.priceFormatter.string(from: computedTotalNumber) ?? computedTotalNumber.stringValue
             let cart = ATTNCartPayload(
@@ -52,7 +52,7 @@ extension ATTNSDK {
                 return
             }
             for item in addToCart.items {
-                sendAddToCartEvent(product: product(from: item), currency: item.price.currency, deeplink: addToCart.deeplink)
+                sendAddToCartEvent(product: product(from: item, priceFormatter: addToCart.priceFormatter), currency: item.price.currency, deeplink: addToCart.deeplink)
             }
             return
         }
@@ -63,7 +63,7 @@ extension ATTNSDK {
                 return
             }
             for item in productView.items {
-                sendProductViewEvent(product: product(from: item), currency: item.price.currency, deeplink: productView.deeplink)
+                sendProductViewEvent(product: product(from: item, priceFormatter: productView.priceFormatter), currency: item.price.currency, deeplink: productView.deeplink)
             }
             return
         }
@@ -77,14 +77,21 @@ extension ATTNSDK {
         api.send(event: event, userIdentity: userIdentity)
     }
 
-    private func product(from item: ATTNItem) -> ATTNProduct {
+    private func product(from item: ATTNItem, priceFormatter: NumberFormatter) -> ATTNProduct {
         ATTNProduct(
             productId: item.productId,
             variantId: item.productVariantId,
             name: item.name ?? "",
             imageUrl: item.productImage,
             categories: item.category.map { [$0] },
-            price: item.price.price.stringValue,
+            // Format with the legacy /e formatter (POSIX, min 2 fraction digits)
+            // so the wire value is byte-identical on both endpoints —
+            // `stringValue` drops trailing zeros ("10.00" → "10").
+            // The `??` is a crash guard, not a formatting path: the formatter only
+            // fails on non-finite values, which a host CAN produce (an invalid
+            // price string yields NSDecimalNumber.notANumber), and the SDK must
+            // never force-unwrap on host input. Don't widen this pattern.
+            price: priceFormatter.string(from: item.price.amount) ?? item.price.amount.stringValue,
             quantity: item.quantity
         )
     }
