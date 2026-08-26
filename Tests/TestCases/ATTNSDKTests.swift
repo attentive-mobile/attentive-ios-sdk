@@ -725,17 +725,22 @@ final class ATTNSDKTests: XCTestCase {
                        "Second clearUser must not rotate visitorId when server already confirmed")
     }
 
-    func testClearUser_whenLocalEmptyButServerNotConfirmed_firesDetach() {
+    func testClearUser_whenLocalEmptyButServerNotConfirmed_firesDetachAndRotates() {
         // Codex P1 #1: after a relaunch (or a prior clearUser whose /user-update failed),
         // local identifiers are empty but the push token in UserDefaults is still attached
         // to the previous user on the server. The guard MUST let the detach through — local
         // emptiness alone doesn't prove server-side detachment.
+        //
+        // MSDK-469 review Comment 3: this path must also rotate the visitor id. Pre-fix it
+        // fired the detach without rotating, so the persisted visitor id kept flowing under
+        // the prior user for every subsequent event.
         registerTestPushToken()
         // No prior successful /user-update recorded — the persisted keys were cleared in
         // setUp, so `lastSyncedPushToken` is nil. This mimics a fresh-launch SDK on a
         // device whose push token survived from a prior process where clearUser did NOT
         // successfully complete.
         XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0)
+        let visitorIdBefore = sut.visitorId
 
         sut.clearUser()
 
@@ -744,6 +749,8 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
         XCTAssertNil(apiSpy.lastUpdateUserEmail)
         XCTAssertNil(apiSpy.lastUpdateUserPhone)
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore,
+                          "clearUser must rotate visitor id whenever a detach fires — otherwise persisted V1 keeps attributing subsequent events to the previous user")
     }
 
     func testClearUser_whenLocalEmptyButNoPushToken_isSilentNoOp() {
@@ -755,6 +762,29 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertFalse(apiSpy.updateUserWasCalled,
                        "clearUser without a push token cannot fire detach and must not call api.updateUser")
+    }
+
+    func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {
+        // MSDK-469 review Comment 2: identify() bypasses the sync protocol, so it can
+        // leave local identifiers matching an incoming `updateUser(B)` without ever
+        // planning that identity through planUpdateUser. Pre-fix, planUpdateUser saw
+        // local {email:B} matching incoming (B), sync record (A) mismatching → returned
+        // .retryWithoutRotation and POSTed B under visitor V1, glueing B to A's visitor id
+        // on the server. Post-fix, the sync record's identity (A) != incoming (B) forces
+        // rotation before the POST.
+        registerTestPushToken()
+        sut.updateUser(email: "a@example.com", phone: nil)
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        let visitorIdUnderA = sut.visitorId
+
+        sut.identify([ATTNIdentifierType.email: "b@example.com"])
+        sut.updateUser(email: "b@example.com", phone: nil)
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire; the second call is a new identity, not a retry")
+        XCTAssertEqual(apiSpy.lastUpdateUserEmail, "b@example.com")
+        XCTAssertNotEqual(sut.visitorId, visitorIdUnderA,
+                          "identify() pre-seeding a different email must not let the retry branch attach B to A's visitor id")
     }
 
     func testClearUser_whenIdentifiersPresent_stillFires() {

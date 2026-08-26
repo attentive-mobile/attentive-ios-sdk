@@ -186,13 +186,19 @@ extension ATTNSDK {
             break
         }
 
+        // Capture visitor id AFTER planUpdateUser so `.rotatedAndReplaced` is reflected.
+        // Between here and the network response, any other rotation path (a concurrent
+        // clearUser, an ATTNUserIdentity.clearUser() call from another caller) can still
+        // fire — the record must pin to the id the server actually saw, not to whatever
+        // `_visitorId` is by the time the callback runs.
+        let visitorIdAtRequest = userIdentity.visitorId
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, domain: currentDomain, forward: callback)
+            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: callback)
         )
     }
 

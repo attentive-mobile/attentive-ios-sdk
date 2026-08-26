@@ -109,46 +109,56 @@ final class ATTNUserIdentityTests: XCTestCase {
 
     // -- planClearUser ---------------------------------------------------------------
 
-    func testPlanClearUser_emptyLocalAndNoSyncRecord_returnsRetry() {
+    func testPlanClearUser_emptyLocalAndNoSyncRecord_rotates() {
         // Fresh device with a push token but no confirmed sync yet: the server MIGHT have
         // the token attached to a previous user from before the SDK was upgraded, or from a
-        // prior process where /user-update never completed. Return retry so caller detaches.
+        // prior process where /user-update never completed. Rotate visitor id + fire detach
+        // — the persisted visitor id from that prior process may still be linked to the
+        // previous user server-side (MSDK-469 Comment 3).
         let (identity, _) = makeIsolatedIdentity()
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .retryWithoutRotation)
-        XCTAssertEqual(identity.visitorId, visitorIdBefore,
-                       "retry path must not rotate visitorId — retries reuse the same identity")
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore,
+                          "clearUser must rotate whenever a detach fires; skipping rotation leaves the persisted visitor id linked to the previous user")
     }
 
     func testPlanClearUser_emptyLocalAndMatchingSyncRecord_returnsSkip() {
         // After a successful clearUser, planClearUser sees local empty and sync = empty for
         // the same push token. This is the "true no-op" case the Aero fanout depends on.
         let (identity, _) = makeIsolatedIdentity()
-        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain)
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .skip)
         XCTAssertEqual(identity.visitorId, visitorIdBefore)
     }
 
-    func testPlanClearUser_emptyLocalButSyncRecordForDifferentToken_returnsRetry() {
+    func testPlanClearUser_emptyLocalButSyncRecordForDifferentToken_rotates() {
         // APNs rotated the device token. The prior sync applies to a different token; the
-        // new one has not been detached server-side yet. Must retry.
+        // new one has not been detached server-side yet. Rotate + detach — the persisted
+        // visitor id is still linked to the previous user on the server for the OLD token.
         let (identity, _) = makeIsolatedIdentity()
-        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: "old-token", domain: testDomain)
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: "old-token", domain: testDomain, visitorId: identity.visitorId)
+        let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: "new-token", domain: testDomain), .retryWithoutRotation)
+        XCTAssertEqual(identity.planClearUser(pushToken: "new-token", domain: testDomain), .rotatedAndReplaced)
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
     }
 
-    func testPlanClearUser_emptyLocalButSyncRecordNonEmpty_returnsRetry() {
-        // Server last confirmed the token attached to email X. Local was cleared (fresh
-        // process init, or identify() was never called this launch), but the server still
-        // thinks the user is attached. Must detach.
+    func testPlanClearUser_emptyLocalButSyncRecordNonEmpty_rotates() {
+        // MSDK-469 Comment 3: server last confirmed the token attached to email X. Local
+        // is empty (fresh process init after a prior updateUser under this visitor id),
+        // but the server still thinks the visitor id is attached to X. Must rotate the
+        // visitor id — otherwise every subsequent event flows under an id the server
+        // still associates with X, defeating logout.
         let (identity, _) = makeIsolatedIdentity()
-        identity.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain)
+        identity.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+        let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .retryWithoutRotation)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore,
+                          "logout after relaunch (empty local + sync record shows attached) must rotate — otherwise persisted visitor id keeps flowing to the prior user")
     }
 
     func testPlanClearUser_nonEmptyLocal_returnsRotatedAndReplaced() {
@@ -180,7 +190,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             ATTNIdentifierType.email: "user@example.com",
             ATTNIdentifierType.phone: "+15551234567"
         ])
-        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain)
+        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
@@ -214,7 +224,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             ATTNIdentifierType.email: "user@example.com",
             ATTNIdentifierType.phone: "+15551234567"
         ])
-        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: "old-token", domain: testDomain)
+        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: "old-token", domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
             identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: "new-token", domain: testDomain),
@@ -243,7 +253,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // what gets stored, so subsequent same-value calls hit .skip.
         let (identity, _) = makeIsolatedIdentity()
         _ = identity.planUpdateUser(email: "  user@example.com  ", phone: " +15551234567 ", pushToken: testToken, domain: testDomain)
-        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain)
+        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, "user@example.com",
                        "planUpdateUser must store the normalized value, not the raw whitespaced input")
@@ -272,7 +282,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             visitorService: visitorService,
             persistentStorage: sharedStorage
         )
-        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain)
+        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
 
         // Rebuild — mimics fresh process init reading from the same storage.
         let secondLaunch = ATTNUserIdentity(
@@ -304,7 +314,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             visitorService: visitorService,
             persistentStorage: sharedStorage
         )
-        firstLaunch.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain)
+        firstLaunch.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
 
         let secondLaunch = ATTNUserIdentity(
             identifiers: [:],
@@ -322,8 +332,8 @@ final class ATTNUserIdentityTests: XCTestCase {
         // updateUser(email=A) succeeds, then clearUser() succeeds. The sync record must now
         // reflect the empty state — not still hold email=A.
         let (identity, _) = makeIsolatedIdentity()
-        identity.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain)
-        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain)
+        identity.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
             identity.planClearUser(pushToken: testToken, domain: testDomain),
@@ -356,7 +366,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             visitorService: visitorService,
             persistentStorage: sharedStorage
         )
-        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain)
+        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
 
         // Second launch: identifiers dict starts empty (in-memory only, so the process
         // restart drops them). Sync record survives on disk.
@@ -405,7 +415,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             logger: Logger(OSLog.disabled)
         )
         let firstLaunch = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: sharedStorage)
-        firstLaunch.recordSuccessfulSync(email: "old@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain)
+        firstLaunch.recordSuccessfulSync(email: "old@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
 
         let secondLaunch = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: sharedStorage)
         let visitorIdBefore = secondLaunch.visitorId
@@ -428,7 +438,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             ATTNIdentifierType.email: "user@example.com",
             ATTNIdentifierType.phone: "+15551234567"
         ])
-        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "old-domain")
+        identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "old-domain", visitorId: identity.visitorId)
 
         XCTAssertEqual(
             identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "new-domain"),
@@ -437,17 +447,20 @@ final class ATTNUserIdentityTests: XCTestCase {
         )
     }
 
-    func testPlanClearUser_domainChanged_returnsRetry() {
+    func testPlanClearUser_domainChanged_rotates() {
         // Same shape as the updateUser variant. A detach confirmed against old-domain must
-        // not silence a subsequent clearUser after a domain switch: the new company still
-        // has the push token attached (or, more precisely, has never been told to detach).
+        // not silence a subsequent clearUser after a domain switch: the new company has
+        // never been told to detach, and (per Comment 3) rotating is the safe default
+        // whenever we fire a detach against a fresh company/token.
         let (identity, _) = makeIsolatedIdentity()
-        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: "old-domain")
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: "old-domain", visitorId: identity.visitorId)
+        let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
             identity.planClearUser(pushToken: testToken, domain: "new-domain"),
-            .retryWithoutRotation
+            .rotatedAndReplaced
         )
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
     }
 
     func testRecordSuccessfulSync_persistsDomainAcrossNewIdentityInstance() {
@@ -464,7 +477,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             visitorService: visitorService,
             persistentStorage: sharedStorage
         )
-        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain)
+        firstLaunch.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
 
         let secondLaunch = ATTNUserIdentity(
             identifiers: [ATTNIdentifierType.email: "user@example.com"],
@@ -524,5 +537,125 @@ final class ATTNUserIdentityTests: XCTestCase {
                 identity.clearUser()
             }
         }
+    }
+
+    // MARK: MSDK-469 review — three P1s from usharif-attentive (2026-08-25)
+
+    /// Comment 1: sync record stuck after an offline rotation invalidates the visitor id.
+    /// Repro: updateUser(A) syncs under V1 → record=(A, token, domain, V1). clearUser()
+    /// rotates locally to V2 but the detach POST fails so the record still says V1.
+    /// Re-login as A on a fresh process: local is empty + record's identifiers match A →
+    /// pre-fix adoption returned `.skip` and never sent V2 to the server. After including
+    /// the visitor id in the sync record, V2 != V1 so adoption declines and the flow
+    /// rotates + fires the /user-update.
+    func testPlanUpdateUser_syncRecordFromRotatedVisitorId_doesNotAdopt() {
+        let sharedStorage = ATTNPersistentStorageMock()
+        let visitorService = ATTNVisitorService(
+            persistentStorage: sharedStorage,
+            logger: Logger(OSLog.disabled)
+        )
+        // Simulate the prior process: sync (A, token, domain, V1), then a local rotation
+        // (clearUser) that never got its detach confirmed — record still pins V1.
+        let firstProcess = ATTNUserIdentity(
+            identifiers: [ATTNIdentifierType.email: "user@example.com"],
+            visitorService: visitorService,
+            persistentStorage: sharedStorage
+        )
+        firstProcess.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: firstProcess.visitorId)
+        firstProcess.clearUser() // rotates in-memory + on disk (visitorService persists), sync record unchanged
+
+        // Second process: fresh identity, reads new visitor id (V2) from storage. Sync
+        // record still says V1. Cold-launch adoption must NOT fire.
+        let secondProcess = ATTNUserIdentity(
+            identifiers: [:],
+            visitorService: visitorService,
+            persistentStorage: sharedStorage
+        )
+        let v2 = secondProcess.visitorId
+        XCTAssertEqual(
+            secondProcess.planUpdateUser(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced,
+            "Sync record confirmed under a rotated-away visitor id must not silence updateUser — otherwise V2 is never sent to the server"
+        )
+        XCTAssertNotEqual(secondProcess.visitorId, v2, "planUpdateUser must rotate when adoption declines")
+    }
+
+    /// Comment 2: identify() can pre-seed local state that fools the retry decision.
+    /// Repro: updateUser(A) syncs under V1 → record=(A, token, domain, V1), local={email:A}.
+    /// identify([email: B]) merges without rotating and without touching the record →
+    /// local={email:B}. updateUser(B) then sees local matches incoming (B), sync doesn't
+    /// match. Pre-fix returned `.retryWithoutRotation` and fired POST(B) under V1,
+    /// attaching B's email to A's visitor id server-side. After the fix, the sync record's
+    /// identity (A) differs from the incoming identity (B), so the plan rotates + replaces.
+    func testPlanUpdateUser_identifyPreseedsDifferentIdentity_rotates() {
+        let (identity, _) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: "a@example.com"])
+        identity.recordSuccessfulSync(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+        let visitorIdUnderA = identity.visitorId
+        // identify() bypasses the sync protocol: mutates local, no rotation, no record update.
+        identity.mergeIdentifiers([ATTNIdentifierType.email: "b@example.com"])
+
+        XCTAssertEqual(
+            identity.planUpdateUser(email: "b@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced,
+            "identify() pre-seeding a DIFFERENT identity must not let the retry-without-rotation branch attach B to A's visitor id"
+        )
+        XCTAssertNotEqual(identity.visitorId, visitorIdUnderA)
+        XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, "b@example.com")
+    }
+
+    /// Comment 2 counter-check: identify() writing a SUPERSET (added clientUserId, same
+    /// email/phone) must still allow retry-without-rotation for the sync-record identity.
+    /// This pins that the fix keys off email/phone equality, not "any local write since sync."
+    func testPlanUpdateUser_identifyAddsCustomKeyOnly_retryStillRotates() {
+        // With an extra clientUserId in local, identifiersMatchLocked's count check
+        // already forces rotation. This is the pre-existing "extra identifier stored"
+        // path — reasserting so the Comment 2 fix doesn't accidentally weaken it.
+        let (identity, _) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: "a@example.com"])
+        identity.recordSuccessfulSync(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+        identity.mergeIdentifiers([ATTNIdentifierType.clientUserId: "cid-1"])
+        let visitorIdBefore = identity.visitorId
+
+        XCTAssertEqual(
+            identity.planUpdateUser(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced
+        )
+        XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
+    }
+
+    /// Comment 3: logout after relaunch — cold launch adopts nothing (no matching sync
+    /// tuple) yet local is empty. Pre-fix returned `.retryWithoutRotation` and fired
+    /// detach without rotation, so the persisted visitor id kept flowing under A on
+    /// every subsequent event. Now every non-skip planClearUser rotates.
+    func testPlanClearUser_coldLaunchAfterSyncedUpdate_rotatesOnLogout() {
+        let sharedStorage = ATTNPersistentStorageMock()
+        let visitorService = ATTNVisitorService(
+            persistentStorage: sharedStorage,
+            logger: Logger(OSLog.disabled)
+        )
+        // First launch: updateUser(A) confirmed.
+        let firstLaunch = ATTNUserIdentity(
+            identifiers: [ATTNIdentifierType.email: "a@example.com"],
+            visitorService: visitorService,
+            persistentStorage: sharedStorage
+        )
+        firstLaunch.recordSuccessfulSync(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
+        let visitorIdUnderA = firstLaunch.visitorId
+
+        // Second launch: local is empty (in-memory only), visitor id persisted so it
+        // still equals V1. clearUser() must rotate — the server still associates V1↔A.
+        let secondLaunch = ATTNUserIdentity(
+            identifiers: [:],
+            visitorService: visitorService,
+            persistentStorage: sharedStorage
+        )
+        XCTAssertEqual(secondLaunch.visitorId, visitorIdUnderA,
+                       "precondition: visitor id survives relaunch")
+
+        XCTAssertEqual(
+            secondLaunch.planClearUser(pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced
+        )
+        XCTAssertNotEqual(secondLaunch.visitorId, visitorIdUnderA,
+                          "cold-launch logout must rotate; otherwise every subsequent event still uses V1, which the server associates with A")
     }
 }
