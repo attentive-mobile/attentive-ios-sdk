@@ -29,6 +29,16 @@ final class ATTNAPISpy: ATTNAPIProtocol {
 
     // MARK: - Stubbing
     var stubbedError: Error?
+    /// When non-nil, all callback invocations use this response. When nil (default), a
+    /// synthetic 200 response is used so that ATTNSDK's `syncRecordingCallback` — which
+    /// gates success on `HTTPURLResponse.isSuccessful` — treats the call as a real success.
+    /// Set to a non-200 HTTPURLResponse to simulate a failed /user-update.
+    var stubbedResponse: HTTPURLResponse? = HTTPURLResponse(
+        url: URL(string: "https://cdn.attn.tv/user-update")!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: nil
+    )
 
     // MARK: - Last-params (optional, handy for assertions)
     private(set) var lastPushToken: String?
@@ -159,6 +169,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
         lastOperationContext = operationContext
-        callback?(nil, nil, nil, stubbedError)
+        // Pass `stubbedResponse` so ATTNSDK.syncRecordingCallback can distinguish a real
+        // 200 from a 5xx. Tests that need to simulate a failed /user-update set
+        // `stubbedResponse` to a non-2xx or `stubbedError` to a non-nil error.
+        callback?(nil, nil, stubbedResponse, stubbedError)
     }
 }
