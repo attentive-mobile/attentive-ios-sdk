@@ -153,7 +153,10 @@ extension ATTNSDK {
         // Create the base event
         let event = ATTNBaseEvent(
             visitorId: userIdentity.visitorId,
-            version: ATTNConstants.sdkVersion,
+            // Backend feature gating (purchase-blocking exemption, app-specific
+            // cart links) exact-matches "mobile-app" — the semver would silently
+            // reclassify these events as web-tag traffic (MSDK-487).
+            version: ATTNConstants.tagVersionMobileApp,
             attentiveDomain: domain,
             locationHref: nil,
             referrer: "",
