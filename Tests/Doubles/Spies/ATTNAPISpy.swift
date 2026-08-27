@@ -10,6 +10,10 @@ import UserNotifications
 final class ATTNAPISpy: ATTNAPIProtocol {
 
     // MARK: - Call tracking
+    // Tests poll `*WasCalled` flags (and call counts) from the main thread while the SDK
+    // invokes the spy from background queues. Every method must therefore record its
+    // arguments FIRST and set the flag LAST, so a test that observes the flag as true can
+    // safely read the captured arguments. Never write the flag before the arguments.
     private(set) var sendUserIdentityWasCalled = false
     private(set) var sendUserIdentityCallbackWasCalled = false
     private(set) var sendEventWasCalled = false
@@ -87,10 +91,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         userIdentity: ATTNUserIdentity,
         callback: ATTNAPICallback?
     ) {
-        sendNewEventWasCalled = true
-        sendNewEventCallCount += 1
         lastEventRequest = eventRequest
         lastEventMetadata = event.eventMetadata
+        sendNewEventCallCount += 1
+        sendNewEventWasCalled = true
         callback?(nil, nil, nil, stubbedError)
     }
 
@@ -104,9 +108,9 @@ final class ATTNAPISpy: ATTNAPIProtocol {
                                          userIdentity: ATTNUserIdentity,
                                          authorizationStatus: UNAuthorizationStatus,
                                          callback: ATTNAPICallback?) {
-        sendPushTokenWasCalled = true
         lastPushToken = pushToken
         lastAuthorizationStatus = authorizationStatus
+        sendPushTokenWasCalled = true
         callback?(nil, nil, nil, stubbedError)
     }
 
@@ -130,10 +134,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         userIdentity: ATTNUserIdentity,
         callback: ATTNAPICallback?
     ) {
-        sendOptInWasCalled = true
         lastOptInEmail = email
         lastOptInPhone = phone
         lastOptInPushToken = pushToken
+        sendOptInWasCalled = true
         callback?(nil, nil, nil, stubbedError)
     }
 
@@ -144,10 +148,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         userIdentity: ATTNUserIdentity,
         callback: ATTNAPICallback?
     ) {
-        sendOptOutWasCalled = true
         lastOptOutEmail = email
         lastOptOutPhone = phone
         lastOptOutPushToken = pushToken
+        sendOptOutWasCalled = true
         callback?(nil, nil, nil, stubbedError)
     }
 
@@ -163,12 +167,12 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         operationContext: String,
         callback: ATTNAPICallback?
     ) {
-        updateUserWasCalled = true
-        updateUserCallCount += 1
         lastUpdateUserPushToken = pushToken
         lastUpdateUserEmail = email
         lastUpdateUserPhone = phone
         lastOperationContext = operationContext
+        updateUserCallCount += 1
+        updateUserWasCalled = true
         // Pass `stubbedResponse` so ATTNSDK.syncRecordingCallback can distinguish a real
         // 200 from a 5xx. Tests that need to simulate a failed /user-update set
         // `stubbedResponse` to a non-2xx or `stubbedError` to a non-nil error.

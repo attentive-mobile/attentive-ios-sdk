@@ -17,9 +17,11 @@ final class ATTNCreativeUrlProviderSpy: ATTNCreativeUrlProviding {
     var buildCompanyCreativeUrlExpectation: XCTestExpectation?
 
     func buildCompanyCreativeUrl(configuration: ATTNSDKFramework.ATTNCreativeUrlConfig) -> String {
-        buildCompanyCreativeUrlWasCalled = true
+        // Record arguments before the flag/expectation so a test that observes the call
+        // (from another thread) never reads stale argument values.
         usedDomain = configuration.domain
         usedCreativeId = configuration.creativeId
+        buildCompanyCreativeUrlWasCalled = true
         buildCompanyCreativeUrlExpectation?.fulfill()
         return "https://example.com/creative"
     }
