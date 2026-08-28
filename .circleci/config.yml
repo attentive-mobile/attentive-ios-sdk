@@ -134,11 +134,18 @@ commands:
 
   setup-fastlane:
     description: "Install Fastlane via Bundler"
+    parameters:
+      # Segments the gems cache by toolchain, same as the SPM/DerivedData cache:
+      # native-extension gems in vendor/bundle are built against the image's Ruby
+      # patch release, which can differ between the stable and beta macOS images.
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
     steps:
       - restore_cache:
           keys:
-            - v1-gems-{{ checksum "Gemfile.lock" }}
-            - v1-gems-
+            - v2-gems-<< parameters.xcode-cache-key >>-{{ checksum "Gemfile.lock" }}
+            - v2-gems-<< parameters.xcode-cache-key >>-
       - macos/switch-ruby:
           version: "3.3"
       - run:
@@ -147,7 +154,7 @@ commands:
             bundle config set --local path 'vendor/bundle'
             bundle install
       - save_cache:
-          key: v1-gems-{{ checksum "Gemfile.lock" }}
+          key: v2-gems-<< parameters.xcode-cache-key >>-{{ checksum "Gemfile.lock" }}
           paths:
             - vendor/bundle
 
@@ -193,7 +200,8 @@ jobs:
             git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
       # Cache Swift Package Manager dependencies (keyed by Xcode version so
       # stable and beta toolchains never share DerivedData)
@@ -248,12 +256,16 @@ jobs:
       xcode-executor:
         type: executor
         default: macos-xcode
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
     executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
 
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
       - run:
           name: Build Framework via Fastlane
@@ -370,12 +382,16 @@ jobs:
       xcode-executor:
         type: executor
         default: macos-xcode
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
     executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
 
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
       - run:
           name: Run Unit Tests with Coverage via Fastlane
@@ -702,6 +718,7 @@ workflows:
       - build-framework:
           name: build-framework-xcode-beta
           xcode-executor: macos-xcode-beta
+          xcode-cache-key: *beta_xcode_version
           context: *default_context
           requires:
             - checkout-and-setup-xcode-beta
@@ -709,6 +726,7 @@ workflows:
       - unit-tests:
           name: unit-tests-xcode-beta
           xcode-executor: macos-xcode-beta
+          xcode-cache-key: *beta_xcode_version
           context: *default_context
           requires:
             - checkout-and-setup-xcode-beta
