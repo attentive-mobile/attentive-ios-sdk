@@ -30,6 +30,14 @@ parameters:
   deploy_to_testflight:
     type: string
     default: "true"
+  # Set to true only by the CircleCI Scheduled Pipeline that drives the
+  # nightly-xcode-beta workflow. In-config cron triggers are not evaluated on
+  # GitHub App–integrated projects, so the schedule lives in CircleCI project
+  # settings (UI/API), mirroring run_release / run_testflight_deploy.
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  run_nightly_xcode_beta:
+    type: boolean
+    default: false
 
 # ========================
 # Xcode Versions
@@ -639,6 +647,7 @@ workflows:
       or:
         - << pipeline.parameters.run_release >>
         - << pipeline.parameters.run_testflight_deploy >>
+        - << pipeline.parameters.run_nightly_xcode_beta >>
     jobs:
       - checkout-and-setup:
           context: *default_context
@@ -697,17 +706,13 @@ workflows:
               only: main
 
   # Nightly validation against the Xcode beta toolchain (currently Xcode 27 beta,
-  # which ships the iOS 27 SDK). Runs on a schedule only — never on push — so a
-  # broken beta can't block PRs or releases. Failures alert via the existing
-  # Slack notification in each job.
+  # which ships the iOS 27 SDK). Driven by a CircleCI Scheduled Pipeline (project
+  # settings, weekdays 06:00 UTC on main) that sets run_nightly_xcode_beta=true —
+  # never by push — so a broken beta can't block PRs or releases. Failures alert
+  # via the existing Slack notification in each job.
   # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
   nightly-xcode-beta:
-    triggers:
-      - schedule:
-          cron: "0 6 * * 1-5"
-          filters:
-            branches:
-              only: main
+    when: << pipeline.parameters.run_nightly_xcode_beta >>
     jobs:
       - checkout-and-setup:
           name: checkout-and-setup-xcode-beta
