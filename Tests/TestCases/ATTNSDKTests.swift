@@ -112,10 +112,18 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(sdk?.getDomain(), newDomain)
     }
 
-    func testSkipFatigue_whenTrue_willUpdateUrl() {
-        let creativeId = "123456"
-        sut.skipFatigueOnCreative = true
+    /// MSDK-500: `skipFatigueOnCreative` is deprecated but the setter/getter must still
+    /// round-trip so existing integrations that read back the value keep compiling and
+    /// behaving identically. The value has no downstream effect on creative URL building.
+    @available(*, deprecated, message: "Intentionally exercises the deprecated skipFatigueOnCreative property")
+    func testSkipFatigueOnCreative_isStillSettableAndReadable_MSDK500() {
+        XCTAssertFalse(sut.skipFatigueOnCreative, "must default to false")
 
+        sut.skipFatigueOnCreative = true
+        XCTAssertTrue(sut.skipFatigueOnCreative, "setter must persist the value for read-back compatibility")
+
+        // Triggering with the flag set must still succeed — the property is inert but harmless.
+        let creativeId = "123456"
         let urlBuiltExpectation = expectation(description: "Creative URL should be built")
         creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
 
@@ -126,19 +134,15 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
     }
 
-    func testSkipFatigue_whenEnvValueIsPassed_ShouldBeTrue() {
+    /// MSDK-500: The `SKIP_FATIGUE_ON_CREATIVE` env-var read was removed. Regression guard
+    /// that a fresh SDK init no longer picks up the env var and flips the property.
+    @available(*, deprecated, message: "Intentionally exercises the deprecated skipFatigueOnCreative property")
+    func testSkipFatigueOnCreative_envVarIsIgnoredAtInit_MSDK500() {
         ProcessInfo.swizzleEnvironment()
-        let creativeId = "123456"
+
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
 
-        let urlBuiltExpectation = expectation(description: "Creative URL should be built")
-        creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
-
-        sut.trigger(UIView(), creativeId: creativeId)
-        wait(for: [urlBuiltExpectation], timeout: 5.0)
-
-        XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
-        XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
+        XCTAssertFalse(sut.skipFatigueOnCreative, "env var must no longer flip the property at init")
     }
 
     func testIsCreativeOpen_whenThereAreTwoSDKInstancesAndBothTriggersCreative_ShouldNotLaunchASecondCreative() {

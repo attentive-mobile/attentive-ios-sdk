@@ -30,7 +30,6 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: nil,
-            skipFatigue: false,
             mode: "production",
             userIdentity: userIdentity
         )
@@ -47,7 +46,6 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: nil,
-            skipFatigue: false,
             mode: "debug",
             userIdentity: userIdentity
         )
@@ -64,7 +62,6 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: nil,
-            skipFatigue: false,
             mode: "production",
             userIdentity: userIdentity
         )
@@ -82,7 +79,6 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: nil,
-            skipFatigue: false,
             mode: "production",
             userIdentity: userIdentity
         )
@@ -94,22 +90,20 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         XCTAssertEqual(expectedUrl, url)
     }
 
-    func testBuildCompanyCreativeUrlForDomain_withSkipFatigue_buildsUrlWithSkipFatigue() {
+    /// MSDK-500: `skipFatigue` was removed from the creative URL because the backend
+    /// no longer honors it. Regression guard so it doesn't slip back in.
+    func testBuildCompanyCreativeUrlForDomain_neverAppendsSkipFatigueQueryParam_MSDK500() {
         let userIdentity = ATTNUserIdentity(identifiers: [:])
-
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: nil,
-            skipFatigue: true,
             mode: "production",
             userIdentity: userIdentity
         )
 
         let url = sut.buildCompanyCreativeUrl(configuration: config)
 
-        let expectedUrl = "https://creatives.attn.tv/mobile-apps/index.html?domain=testDomain&vid=\(userIdentity.visitorId)&sdkVersion=\(ATTNConstants.sdkVersion)&sdkName=attentive-ios-sdk&skipFatigue=true"
-
-        XCTAssertEqual(expectedUrl, url)
+        XCTAssertFalse(url.contains("skipFatigue"), "skipFatigue must not appear in the creative URL")
     }
 
     func testBuildCompanyCreativeUrlForDomain_withCreativeId_buildsUrlWithCreativeId() {
@@ -118,7 +112,6 @@ final class ATTNCreativeUrlFormatterTests: XCTestCase {
         let config = ATTNCreativeUrlConfig(
             domain: testDomain,
             creativeId: "1234567",
-            skipFatigue: false,
             mode: "production",
             userIdentity: userIdentity
         )

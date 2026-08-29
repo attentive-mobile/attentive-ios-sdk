@@ -77,6 +77,18 @@ extension ATTNSDK {
         api.send(event: event, userIdentity: userIdentity)
     }
 
+    /// MSDK-500: transitional signal for devs who still set `SKIP_FATIGUE_ON_CREATIVE=true`
+    /// in an Xcode scheme or CI to force-show creatives — the env-var reader is gone, so
+    /// without this log the break is completely silent. The compile-time `@available`
+    /// warning on `skipFatigueOnCreative` doesn't reach env-var callers. Delete this
+    /// helper and its call site in `ATTNSDK.init` when the deprecated property is removed
+    /// in the next major.
+    func warnIfDeprecatedSkipFatigueEnvVarIsSet() {
+        if ProcessInfo.processInfo.environment["SKIP_FATIGUE_ON_CREATIVE"] != nil {
+            Loggers.creative.warning("SKIP_FATIGUE_ON_CREATIVE env var is set but no longer has any effect — fatigue is always evaluated on the backend. To force a creative for debugging, trigger it by creative ID instead.")
+        }
+    }
+
     private func product(from item: ATTNItem, priceFormatter: NumberFormatter) -> ATTNProduct {
         ATTNProduct(
             productId: item.productId,
@@ -94,15 +106,6 @@ extension ATTNSDK {
             price: priceFormatter.string(from: item.price.amount) ?? item.price.amount.stringValue,
             quantity: item.quantity
         )
-    }
-
-    func initializeSkipFatigueOnCreatives() {
-        if let skipFatigueValue = ProcessInfo.processInfo.environment[ATTNConstants.skipFatigueEnvKey] {
-            self.skipFatigueOnCreative = skipFatigueValue.booleanValue
-            Loggers.creative.info("SKIP_FATIGUE_ON_CREATIVE: \(skipFatigueValue, privacy: .public)")
-        } else {
-            self.skipFatigueOnCreative = false
-        }
     }
 
     // MARK: - New Event API (v2 endpoint)

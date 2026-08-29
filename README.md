@@ -773,27 +773,18 @@ sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
 }];
 ```
 
-### Skip Fatigue on Creative
+### Fatigue rules
 
-For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
+Fatigue rules are evaluated by the Attentive backend. The `ATTNSDK.skipFatigueOnCreative`
+property (and the `SKIP_FATIGUE_ON_CREATIVE` environment variable) are deprecated, have no
+effect, and will be removed in a future major version.
 
-#### Swift
+To force a specific creative to display while debugging, trigger it by creative ID. This
+bypasses all fatigue rules evaluated by the backend:
 
 ```swift
-let sdk = ATTNSDK(domain: "domain")
-sdk.skipFatigueOnCreative = true
+sdk.trigger(view, creativeId: "your-creative-id", handler: nil)
 ```
-
-#### Objective-C
-
-```objective-c
-ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
-sdk.skipFatigueOnCreative = YES;
-```
-
-Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
-
-Environment value can be a string with value `"true"` or `"false"`.
 
 ## Other functionalities
 
