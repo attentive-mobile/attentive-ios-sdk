@@ -560,7 +560,6 @@ if let url = attentiveSdk?.consumeDeepLink() {
    - [Deep link support](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/README.md#deep-link-support) — observing `.ATTNSDKDeepLinkReceived` vs. `consumeDeepLink()`.
    - [Marketing subscriptions](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/README.md#manage-subscriptions-for-email-and-phone-numbers) — email / SMS opt-in and opt-out helpers.
    - [Switching domain at runtime](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/README.md#switch-to-another-domain) — for apps that switch Attentive accounts.
-   - [Skip fatigue on creatives](https://github.com/attentive-mobile/attentive-ios-sdk/blob/main/README.md#skip-fatigue-on-creative) — debug helper to bypass creative fatigue rules.
    ```
 
 4. Re-run the Step 4.5 runtime check after wiring push (or after any push-flow change). The same `xcrun simctl spawn booted log stream` invocation will surface push-related init logs in addition to the standard init line.
