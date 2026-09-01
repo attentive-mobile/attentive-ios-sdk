@@ -714,7 +714,8 @@ workflows:
 
   # Nightly validation against the Xcode beta toolchain (currently Xcode 27 beta,
   # which ships the iOS 27 SDK). Driven by a CircleCI Scheduled Pipeline (project
-  # settings, weekdays 06:00 UTC on main) that sets run_nightly_xcode_beta=true —
+  # settings, weekdays 13:00 UTC on main — US morning, so failures surface while
+  # the team is online) that sets run_nightly_xcode_beta=true —
   # never by push — so a broken beta can't block PRs or releases. Failures alert
   # via the existing Slack notification in each job.
   # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
