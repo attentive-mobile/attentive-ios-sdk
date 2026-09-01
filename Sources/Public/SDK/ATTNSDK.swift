@@ -75,8 +75,10 @@ public final class ATTNSDK: NSObject {
     /// Deprecated: fatigue is evaluated on the Attentive backend, which ignores this flag,
     /// so setting it has no effect on which creatives are shown. The value is still stored
     /// so read-back semantics remain unchanged for existing integrations, and will be
-    /// removed in a future major version.
-    @available(*, deprecated, message: "Fatigue is evaluated on the backend and this flag has no effect. This property will be removed in a future major version.")
+    /// removed in a future major version. To force a specific creative to display for
+    /// debugging, trigger it by creative ID via `trigger(_:creativeId:)` instead — that
+    /// path bypasses backend fatigue rules.
+    @available(*, deprecated, message: "Fatigue is evaluated on the backend and this flag has no effect. Trigger a creative by ID to force a specific creative for debugging. This property will be removed in a future major version.")
     @objc public var skipFatigueOnCreative: Bool = false
 
     /// When `true` (default), the SDK acts as the device's push provider: it requests push
