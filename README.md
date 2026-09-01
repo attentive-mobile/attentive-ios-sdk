@@ -779,8 +779,12 @@ Fatigue rules are evaluated by the Attentive backend. The `ATTNSDK.skipFatigueOn
 property (and the `SKIP_FATIGUE_ON_CREATIVE` environment variable) are deprecated, have no
 effect, and will be removed in a future major version.
 
-To force a specific creative to display while debugging, trigger it by creative ID. This
-bypasses all fatigue rules evaluated by the backend:
+If you need to preview a specific creative during development, `trigger(_:creativeId:)`
+lets you target that creative by ID. Whether the backend will render it depends on the
+backend's fatigue and eligibility rules for the current visitor — as noted in
+[Step 6](#step-6-optional---show-creatives), `ATTNCreativeTriggerStatus.notOpened` still
+covers the "creative is fatigued" case. Work with your Attentive contact if you need a
+guaranteed render during QA.
 
 ```swift
 sdk.trigger(view, creativeId: "your-creative-id", handler: nil)
