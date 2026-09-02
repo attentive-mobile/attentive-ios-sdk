@@ -344,7 +344,6 @@ class MockWKWebView: CustomWebView {
 
 class MockWebViewProvider: NSObject, ATTNWebViewProviding {
     var parentView: UIView?
-    var skipFatigueOnCreative: Bool = false
     var triggerHandler: ATTNCreativeTriggerCompletionHandler?
 
     private(set) var getDomainCallCount = 0

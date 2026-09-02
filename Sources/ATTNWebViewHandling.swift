@@ -127,7 +127,6 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                 configuration: ATTNCreativeUrlConfig(
                     domain: domain,
                     creativeId: creativeId,
-                    skipFatigue: webViewProvider.skipFatigueOnCreative,
                     mode: mode.rawValue,
                     userIdentity: userIdentity
                 )
@@ -457,9 +456,6 @@ fileprivate extension ATTNWebViewHandler {
     }
     var userIdentity: ATTNUserIdentity {
         webViewProvider?.getUserIdentity() ?? .init()
-    }
-    var skipFatigueOnCreative: Bool {
-        webViewProvider?.skipFatigueOnCreative ?? false
     }
 }
 /// Web view with custom hit area where only touches inside the interactive area are handled. This allows users to interact with rest of the app when creative is minimized to a bubble; also calls a closure when it is removed from its window to detect when it's no longer on screen.

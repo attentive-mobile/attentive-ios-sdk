@@ -11,7 +11,6 @@ struct ATTNConstants {
     private init() { }
 
     static let sdkVersion = "2.0.17"
-    static let skipFatigueEnvKey = "SKIP_FATIGUE_ON_CREATIVE"
 
     /// Tag-version value that classifies traffic as mobile-app on the backend.
     /// Services like `PurchaseProcessor.shouldIgnorePurchaseEvent` and

@@ -8,6 +8,14 @@
 import Foundation
 
 extension ATTNSDK {
+    /// One-shot latch for the transitional env-var warning below. Static so it survives
+    /// across `ATTNSDK` instances within a single process (hosts sometimes construct the
+    /// SDK more than once — e.g. domain-swap flows). Not lock-guarded because reads and
+    /// the single false→true write happen on the main thread from `init`, which is where
+    /// `ATTNSDK` is documented to be created; a benign duplicate warning if a host ignores
+    /// that is preferable to a lock on the init path.
+    static var didWarnAboutDeprecatedSkipFatigueEnv: Bool = false
+
     func send(event: ATTNEvent) {
         if isV2EndpointEnabled {
             sendLegacyEventAsV2(event)
@@ -77,6 +85,26 @@ extension ATTNSDK {
         api.send(event: event, userIdentity: userIdentity)
     }
 
+    /// MSDK-500: transitional signal for devs who still set `SKIP_FATIGUE_ON_CREATIVE=true`
+    /// in an Xcode scheme or CI to force-show creatives — the env-var reader is gone, so
+    /// without this log the break is completely silent. The compile-time `@available`
+    /// warning on `skipFatigueOnCreative` doesn't reach env-var callers. Delete this
+    /// helper and its call site in `ATTNSDK.init` when the deprecated property is removed
+    /// in the next major.
+    ///
+    /// The old reader matched on `.booleanValue` (i.e. `== "true"`), so `false` was a
+    /// documented no-op; matching that here avoids warning users whose scheme pins `=false`
+    /// (their setup is unchanged by this PR). The `didWarnAboutDeprecatedSkipFatigueEnv`
+    /// gate keeps a host with multiple `ATTNSDK` inits per process from getting the same
+    /// warning N times. `processInfo` is injectable so tests can exercise this path without
+    /// mutating the real process environment.
+    func warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: ProcessInfo = .processInfo) {
+        guard !Self.didWarnAboutDeprecatedSkipFatigueEnv else { return }
+        guard processInfo.environment["SKIP_FATIGUE_ON_CREATIVE"] == "true" else { return }
+        Self.didWarnAboutDeprecatedSkipFatigueEnv = true
+        Loggers.creative.warning("SKIP_FATIGUE_ON_CREATIVE=true is set but the env var no longer has any effect — fatigue is evaluated on the backend. The variable will be removed in a future major version.")
+    }
+
     private func product(from item: ATTNItem, priceFormatter: NumberFormatter) -> ATTNProduct {
         ATTNProduct(
             productId: item.productId,
@@ -94,15 +122,6 @@ extension ATTNSDK {
             price: priceFormatter.string(from: item.price.amount) ?? item.price.amount.stringValue,
             quantity: item.quantity
         )
-    }
-
-    func initializeSkipFatigueOnCreatives() {
-        if let skipFatigueValue = ProcessInfo.processInfo.environment[ATTNConstants.skipFatigueEnvKey] {
-            self.skipFatigueOnCreative = skipFatigueValue.booleanValue
-            Loggers.creative.info("SKIP_FATIGUE_ON_CREATIVE: \(skipFatigueValue, privacy: .public)")
-        } else {
-            self.skipFatigueOnCreative = false
-        }
     }
 
     // MARK: - New Event API (v2 endpoint)
