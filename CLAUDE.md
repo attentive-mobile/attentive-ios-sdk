@@ -82,7 +82,7 @@ bundle exec fastlane ios assemble_xcframework
 - **Protocol-driven**: Dependencies use protocols (`ATTNAPIProtocol`, `ATTNWebViewProviding`)
 - **Dependency injection** for testability — constructor injection with spy/mock test doubles
 - **Swift-first** with `@objc` annotations for Objective-C compatibility
-- iOS deployment target: **14.0** (set in `.ios-deployment-target`); Inbox module requires iOS 15+
+- iOS deployment target: **15.0** (set in `.ios-deployment-target`)
 - Swift version: **5.0+**
 - Version source of truth: `.version` file
 
