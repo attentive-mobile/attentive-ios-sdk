@@ -218,6 +218,24 @@ platform :ios do
       UI.success("✓ Updated Package.swift")
     end
 
+    # 3. Update Example app: Podfile platform and hardcoded pbxproj targets
+    # (the Example project does not inherit Shared.xcconfig)
+    example_podfile = abs_path("Example/Podfile")
+    if File.exist?(example_podfile)
+      content = File.read(example_podfile)
+      content.gsub!(/platform :ios, '[\d.]+'/, "platform :ios, '#{target}'")
+      File.write(example_podfile, content)
+      UI.success("✓ Updated Example/Podfile")
+    end
+
+    example_pbxproj = abs_path("Example/Example.xcodeproj/project.pbxproj")
+    if File.exist?(example_pbxproj)
+      content = File.read(example_pbxproj)
+      content.gsub!(/IPHONEOS_DEPLOYMENT_TARGET = [\d.]+;/, "IPHONEOS_DEPLOYMENT_TARGET = #{target};")
+      File.write(example_pbxproj, content)
+      UI.success("✓ Updated Example/Example.xcodeproj")
+    end
+
     UI.success("")
     UI.success("✅ iOS deployment target sync complete: #{target}")
     UI.message("")
@@ -225,6 +243,10 @@ platform :ios do
     UI.message("  - .ios-deployment-target (source of truth)")
     UI.message("  - Shared.xcconfig")
     UI.message("  - Package.swift")
+    UI.message("  - Example/Podfile")
+    UI.message("  - Example/Example.xcodeproj/project.pbxproj")
+    UI.message("")
+    UI.message("Remember to re-run: bundle exec pod install --project-directory=Example")
     UI.message("")
     UI.message("Files that read dynamically from .ios-deployment-target:")
     UI.message("  - ATTNSDKFramework.podspec")
