@@ -394,6 +394,332 @@ final class ATTNAPI: ATTNAPIProtocol {
         }
         task.resume()
     }
+
+    // MARK: - Inbox
+
+    private static let inboxHost = "https://mobile.attentivemobile.com"
+
+    /// Fetches the unread inbox message count for the current user.
+    ///
+    /// Per RFC: this endpoint is identifier-based and unauthenticated. The server scopes the
+    /// response by resolving identity from the supplied push token (and other identifiers).
+    func fetchInboxUnreadCount(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) async throws -> Int {
+        Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
+        let payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        let decoded: InboxUnreadCountResponse = try await postInboxJSON(
+            path: "/inbox/messages/unread/count",
+            payload: payload,
+            decoder: JSONDecoder()
+        )
+        Loggers.network.debug("Inbox unread count: \(decoded.unreadCount, privacy: .public)")
+        return decoded.unreadCount
+    }
+
+    /// Fetches a page of inbox messages. See the doc comment on `ATTNAPIProtocol.fetchInboxMessages`.
+    func fetchInboxMessages(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse {
+        Loggers.network.debug("Fetching inbox messages - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Page Size: \(pageSize, privacy: .public), Page Token: \(pageToken ?? "nil", privacy: .public)")
+        var payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        payload["page_size"] = pageSize
+        if let pageToken = pageToken, !pageToken.isEmpty {
+            payload["page_token"] = pageToken
+        }
+        let decoded: InboxResponse = try await postInboxJSON(
+            path: "/inbox/messages",
+            payload: payload,
+            decoder: Self.inboxJSONDecoder
+        )
+        Loggers.network.debug("Inbox messages fetched: count=\(decoded.messages.count, privacy: .public), hasNextPage=\(decoded.nextPageToken?.isEmpty == false, privacy: .public)")
+        return decoded
+    }
+
+    /// Reports a message click to the server. Body carries `c` (domain) + `visitor_id` +
+    /// `push_token` + `message_id` + `action_url`; server returns 204 No Content on success.
+    func markMessageClicked(
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws {
+        Loggers.network.debug("Reporting inbox click - Visitor ID: \(visitorId, privacy: .public), Message ID: \(messageId, privacy: .public)")
+        // Reuse `inboxIdentityPayload` so the `apns:` prefix + empty-token omission live in one place.
+        // Click contract carries no email/phone.
+        var payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        payload["message_id"] = messageId
+        if let actionURL = actionURL, !actionURL.isEmpty {
+            payload["action_url"] = actionURL
+        }
+        try await postInbox(path: "/inbox/events/clicked", payload: payload)
+    }
+
+    /// Deletes a single inbox message on the server.
+    ///
+    /// `DELETE /inbox/messages/{message_id}` — identifier-based (visitor_id + push_token),
+    /// scoped by `c` (domain). The body carries the identifiers because DELETE with a JSON
+    /// body is what the RFC contract specifies for this endpoint.
+    func deleteInboxMessage(
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws {
+        Loggers.network.debug("Deleting inbox message - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Message ID: \(messageId, privacy: .public)")
+        // The message ID occupies a single path segment. `.urlPathAllowed` leaves `/` unescaped,
+        // which would let an ID like "a/b" address the wrong route — escape it explicitly.
+        let encodedId = messageId.addingPercentEncoding(withAllowedCharacters: Self.messageIdAllowedCharacters) ?? messageId
+        let payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        _ = try await sendInboxRaw(path: "/inbox/messages/\(encodedId)", method: "DELETE", payload: payload)
+    }
+
+    /// URL-path-segment safe characters: `.urlPathAllowed` minus `/` so a message ID that
+    /// contains a slash becomes a single encoded segment (`a/b` → `a%2Fb`).
+    private static let messageIdAllowedCharacters: CharacterSet = {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/")
+        return allowed
+    }()
+
+    /// Builds the identifier fields shared by every inbox endpoint: `c` (domain), `visitor_id`,
+    /// and the optional `push_token` / `email` / `phone`. Push token is prefixed with `apns:`
+    /// so the server can route it to APNs (Android sends `fcm:...`).
+    private func inboxIdentityPayload(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "c": domain,
+            "visitor_id": visitorId
+        ]
+        if !pushToken.isEmpty { payload["push_token"] = "apns:\(pushToken)" }
+        if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+            payload["email"] = email
+        }
+        if let phone = phone?.trimmingCharacters(in: .whitespacesAndNewlines), !phone.isEmpty {
+            payload["phone"] = phone
+        }
+        return payload
+    }
+
+    /// Shared JSON-decode wrapper for inbox endpoints that return a decodable body. Maps decode
+    /// failures to `inboxResponseDecodeFailed`; other error mapping happens in `sendInboxRaw`.
+    private func postInboxJSON<T: Decodable>(
+        path: String,
+        payload: [String: Any],
+        decoder: JSONDecoder
+    ) async throws -> T {
+        let data = try await sendInboxRaw(path: path, method: "POST", payload: payload)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            Loggers.network.error("Failed to decode inbox \(path, privacy: .public) response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    /// Shared POST scaffolding for inbox endpoints that return no body (e.g. 204 No Content).
+    /// Same error mapping as `postInboxJSON`; response body (if any) is discarded.
+    private func postInbox(path: String, payload: [String: Any]) async throws {
+        _ = try await sendInboxRaw(path: path, method: "POST", payload: payload)
+    }
+
+    /// Internal worker for the inbox helpers. Builds the URL, sets the standard headers
+    /// (`Content-Type: application/json`, `x-datadog-sampling-priority: 1`) and a 15s timeout,
+    /// encodes `payload` as the body, sends the request with the given HTTP method, and
+    /// validates the response. Maps non-2xx to `inboxRequestFailed`, non-HTTP responses to
+    /// `inboxResponseDecodeFailed`, and bad URLs to `badURL`. All other transport errors
+    /// propagate. Returns the raw response body for the caller to decode (or discard).
+    private func sendInboxRaw(path: String, method: String, payload: [String: Any]) async throws -> Data {
+        guard let url = URL(string: Self.inboxHost + path) else {
+            Loggers.network.error("Invalid inbox URL for path \(path, privacy: .public)")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+
+        Loggers.network.debug("\(method, privacy: .public) \(path, privacy: .public)")
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox \(path, privacy: .public) returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+        Loggers.network.debug("Inbox \(path, privacy: .public) status: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox \(path, privacy: .public) returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+        }
+        return data
+    }
+
+    /// Marks the supplied messages as read on the server.
+    ///
+    /// PATCH /inbox/messages/read — identifier-based (visitor_id + push_token), body carries
+    /// the list of message ids. The response echoes the per-message read status and the
+    /// updated unread count so the caller can reconcile local state without a follow-up fetch.
+    func markMessagesRead(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse {
+        Loggers.network.debug("Marking inbox messages read - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
+
+        let body = UpdateReadStatusRequest(
+            clientDomainPrefix: domain,
+            visitorId: visitorId,
+            pushToken: Self.inboxPushToken(pushToken),
+            messageIds: messageIds
+        )
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/read") else {
+            Loggers.network.error("Invalid inbox mark-read URL")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try JSONEncoder().encode(body)
+
+        Loggers.network.debug("PATCH /inbox/messages/read")
+
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox mark-read returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+        Loggers.network.debug("Inbox mark-read status code: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox mark-read API returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+        }
+
+        do {
+            return try JSONDecoder().decode(UpdateReadStatusResponse.self, from: data)
+        } catch {
+            Loggers.network.error("Failed to decode inbox mark-read response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    /// The inbox backend expects push tokens namespaced by transport (e.g. `apns:<token>`).
+    /// Returns `nil` for an empty token so `push_token` is omitted from the request body
+    /// rather than sent as an empty (and unusable) identifier.
+    private static func inboxPushToken(_ pushToken: String) -> String? {
+        pushToken.isEmpty ? nil : "apns:\(pushToken)"
+    }
+
+    /// Marks the supplied messages as unread on the server.
+    ///
+    /// PATCH /inbox/messages/unread — identifier-based (visitor_id + push_token), body carries
+    /// the list of message ids. The response echoes the per-message read status and the
+    /// updated unread count so the caller can reconcile local state without a follow-up fetch.
+    func markMessagesUnread(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse {
+        Loggers.network.debug("Marking inbox messages unread - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Count: \(messageIds.count, privacy: .public)")
+
+        let body = UpdateReadStatusRequest(
+            clientDomainPrefix: domain,
+            visitorId: visitorId,
+            pushToken: Self.inboxPushToken(pushToken),
+            messageIds: messageIds
+        )
+
+        guard let url = URL(string: "https://mobile.attentivemobile.com/inbox/messages/unread") else {
+            Loggers.network.error("Invalid inbox mark-unread URL")
+            throw ATTNError.badURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("1", forHTTPHeaderField: "x-datadog-sampling-priority")
+        request.httpBody = try JSONEncoder().encode(body)
+
+        Loggers.network.debug("PATCH /inbox/messages/unread")
+
+        let (data, response) = try await dataTask(with: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            Loggers.network.error("Inbox mark-unread returned a non-HTTP response")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+        Loggers.network.debug("Inbox mark-unread status code: \(http.statusCode, privacy: .public)")
+        guard (200..<300).contains(http.statusCode) else {
+            Loggers.network.error("Inbox mark-unread API returned status \(http.statusCode, privacy: .public)")
+            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+        }
+
+        do {
+            return try JSONDecoder().decode(UpdateReadStatusResponse.self, from: data)
+        } catch {
+            Loggers.network.error("Failed to decode inbox mark-unread response: \(error.localizedDescription, privacy: .public)")
+            throw ATTNError.inboxResponseDecodeFailed
+        }
+    }
+
+    private static let inboxJSONDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        // Accept ISO-8601 timestamps with or without fractional seconds. Foundation's built-in
+        // `.iso8601` strategy uses an ISO8601DateFormatter without `.withFractionalSeconds`, so
+        // a payload like `"2026-07-15T14:22:31.847Z"` would throw and fail the whole page.
+        let withFractional = ISO8601DateFormatter()
+        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let withoutFractional = ISO8601DateFormatter()
+        withoutFractional.formatOptions = [.withInternetDateTime]
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            if let date = withFractional.date(from: string) ?? withoutFractional.date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected ISO-8601 date string, got \(string)"
+            )
+        }
+        return decoder
+    }()
+
+    /// async bridge over `URLSession.dataTask(with:completionHandler:)` — `URLSession.data(for:)`
+    /// is an extension method and can't be intercepted by `NSURLSessionMock`.
+    private func dataTask(with request: URLRequest) async throws -> (Data, URLResponse) {
+        try await withCheckedThrowingContinuation { continuation in
+            let task = urlSession.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let data = data, let response = response {
+                    continuation.resume(returning: (data, response))
+                } else {
+                    continuation.resume(throwing: URLError(.badServerResponse))
+                }
+            }
+            task.resume()
+        }
+    }
 }
 
 fileprivate extension ATTNAPI {

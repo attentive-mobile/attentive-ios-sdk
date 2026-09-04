@@ -67,6 +67,7 @@ fastlane/reports
 
 # Claude
 .claude/
+CLAUDE.local.md
 # Exceptions for shared config (if applicable)
 !.claude/CLAUDE.md
 !.claude/settings.json

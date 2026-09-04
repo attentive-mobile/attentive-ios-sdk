@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import UserNotifications
 import WebKit
 
@@ -39,6 +40,7 @@ public final class ATTNSDK: NSObject {
 
     private var _containerView: UIView?
     private let pushTokenStore = PushTokenStore()
+    private let identityStore = IdentitySnapshotStore()
     let marketingQueue = DispatchQueue(label: "com.attentive.sdk.MarketingQueue", qos: .userInitiated)
     /// All access to `pendingMarketingRequests` and `pendingMarketingExpiryTimer` is serialized through `marketingQueue`.
     var pendingMarketingRequests: [PendingMarketingRequest] = []
@@ -51,6 +53,23 @@ public final class ATTNSDK: NSObject {
     private var lastRegularOpenTime: Date?
 
     var currentPushToken: String { pushTokenStore.token }
+
+    // Backing storage for the inbox manager. Optional (not `lazy var`) so `clearUser()` can
+    // reset an already-materialized manager without creating one for hosts that never used inbox.
+    // See `materializedInboxManager()` for the construction path.
+    private var _inboxManager: InboxManager?
+
+    /// Nonisolated mirror of the inbox unread count, readable from any thread. Eagerly assigned
+    /// in `init` — `lazy var`'s initializer is not synchronized, so two concurrent first-reads of
+    /// `inboxUnreadCount` could construct two boxes and later reads (or the manager's stored
+    /// reference) would see the wrong one. `private var` (not `let`) because Swift disallows
+    /// referencing `self` from a stored-property initializer, and the `[weak self]` capture in
+    /// `onChange` needs it — so the value is set once, after `super.init()`, and never rewritten.
+    /// The weak capture prevents a retain cycle (SDK → box → onChange → SDK).
+    private var unreadCountBox: UnreadCountBox!
+
+    /// Synchronous mirror of `unreadCount`; see `.ATTNSDKInboxUnreadCountChanged`.
+    public var inboxUnreadCount: Int { unreadCountBox.count }
 
     // MARK: Instance Properties
     var parentView: UIView?
@@ -104,6 +123,41 @@ public final class ATTNSDK: NSObject {
         set { isV2EndpointEnabled = newValue }
     }
 
+    /// Determines if the SDK opens the deep link from a tapped push notification
+    /// (`attentive_open_action_url`) on the host app's behalf. Default value is false —
+    /// hosts that navigate on their own via the `ATTNSDKDeepLinkReceived` broadcast or
+    /// `consumeDeepLink()` keep working unchanged on upgrade; set to true to opt in to
+    /// SDK-driven navigation and avoid handling the same URL twice.
+    ///
+    /// When enabled, custom-scheme links are handed to `UIApplication`, which routes them back
+    /// into the host app's URL handlers. Http(s) links are opened as universal links only — if
+    /// no app has registered for them they are never sent to the browser; the URL stays
+    /// available through the `ATTNSDKDeepLinkReceived` broadcast and `consumeDeepLink()`.
+    ///
+    /// This applies to foreground taps too: when a push banner arrives while the app is active
+    /// and the user taps it, the SDK navigates immediately — with the flag off it only
+    /// broadcasts the URL. Hosts that treat in-app banner taps as log-only should leave it off.
+    ///
+    /// Set it once during SDK setup on the main thread — it is read on the main thread when a
+    /// tap is handled, and mutation from other threads is not synchronized.
+    @objc public var automaticallyOpensPushDeepLinks: Bool = false
+
+    /// Determines if the built-in inbox UI opens a message's `actionURL` when the user taps a
+    /// row. Default value is false — set to true to opt in. Mirrors
+    /// `automaticallyOpensPushDeepLinks` for the inbox surface, with one difference: unclaimed
+    /// http(s) links fall back to the browser.
+    ///
+    /// When disabled (the default), a tap still fires click tracking and the
+    /// `ATTNSDKInboxMessageTapped` broadcast (userInfo carries the actionURL) — only the
+    /// SDK-initiated open is suppressed, so hosts that navigate on their own via that broadcast
+    /// never handle the same URL twice. Ignored when an `onMessageTap` handler is passed to
+    /// `inboxView()` / `inboxViewController()`, which replaces the SDK's routing entirely. Set
+    /// it once during SDK setup on the main thread — it is read on the main thread when a tap
+    /// is handled, and mutation from other threads is not synchronized.
+    @objc public var automaticallyOpensInboxDeepLinks: Bool = false
+
+    var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
+
     public init(domain: String, mode: ATTNSDKMode, pushEnabled: Bool = true) {
         Loggers.creative.debug("Initializing ATTNSDK v\(ATTNConstants.sdkVersion, privacy: .public), Mode: \(mode.rawValue, privacy: .public), Domain: \(domain, privacy: .public), PushEnabled: \(pushEnabled, privacy: .public)")
 
@@ -115,6 +169,15 @@ public final class ATTNSDK: NSObject {
         self.api = ATTNAPI(domain: domain)
 
         super.init()
+
+        self.unreadCountBox = UnreadCountBox { [weak self] newCount in
+            guard let self = self else { return }
+            NotificationCenter.default.post(
+                name: .ATTNSDKInboxUnreadCountChanged,
+                object: self,
+                userInfo: ["attentiveInboxUnreadCount": newCount]
+            )
+        }
 
         if ATTNAPI.isInvalidDomain(domain) {
             let message = ATTNError.invalidDomain.localizedDescription
@@ -136,6 +199,7 @@ public final class ATTNSDK: NSObject {
         }
 
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
+        self.publishIdentitySnapshot()
         self.sendInfoEvent()
         self.warnIfDeprecatedSkipFatigueEnvVarIsSet()
 
@@ -199,6 +263,7 @@ public final class ATTNSDK: NSObject {
     public func identify(_ userIdentifiers: [String: Any]) {
         Loggers.event.debug("Identifying user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Identifiers: \(userIdentifiers, privacy: .public)")
         userIdentity.mergeIdentifiers(userIdentifiers)
+        publishIdentitySnapshot()
         api.send(userIdentity: userIdentity)
         Loggers.event.debug("User identity sent successfully - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
@@ -260,6 +325,7 @@ public final class ATTNSDK: NSObject {
         // next call, and any rotation (this one or a prior offline clearUser) invalidates
         // the record so a subsequent login-as-A is sent to the server. See MSDK-469.
         let currentDomain = self.domain
+        let previousVisitorId = userIdentity.visitorId
         let decision = userIdentity.planClearUser(pushToken: pushToken, domain: currentDomain)
         switch decision {
         case .skip:
@@ -268,10 +334,20 @@ public final class ATTNSDK: NSObject {
         case .retryWithoutRotation, .rotatedAndReplaced:
             // planClearUser rotates in every non-skip case; .retryWithoutRotation is
             // listed for enum exhaustiveness only.
+            //
+            // The identity has already been cleared and rotated under the lock, so republish
+            // the snapshot and drop the previous user's cached inbox state.
+            publishIdentitySnapshot()
+            resetInboxForIdentityChangeIfMaterialized()
+            Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(previousVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+
             guard !pushToken.isEmpty else {
                 // No push token means there is nothing to detach server-side. Local was
                 // already cleared and the visitor id rotated inside planClearUser.
                 Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+                // No `/user-update` will fire, so kick the inbox count re-fetch now against the
+                // freshly-generated anonymous visitor. Safe: no server-side association is pending.
+                refreshInboxUnreadCountForNewIdentityIfMaterialized()
                 return
             }
             Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
@@ -284,7 +360,18 @@ public final class ATTNSDK: NSObject {
                 email: nil,
                 phone: nil,
                 operationContext: "clearUser",
-                callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: nil)
+                callback: syncRecordingCallback(
+                    email: nil,
+                    phone: nil,
+                    pushToken: pushToken,
+                    domain: currentDomain,
+                    visitorId: visitorIdAtRequest,
+                    forward: { [weak self] _, _, _, _ in
+                        // Fire after `/user-update` returns so the server has finished detaching
+                        // the token from the previous user before we ask for the new (anon) count.
+                        self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                    }
+                )
             )
         }
     }
@@ -324,6 +411,23 @@ public final class ATTNSDK: NSObject {
         }
     }
 
+    /// Drops the previous user's cached inbox state (messages + unread count + pagination
+    /// cursor) so the next user doesn't see the wrong data — but only if the manager has
+    /// already been materialized. Constructing it here would issue an unread-count fetch for
+    /// host apps that never touch the inbox surface.
+    ///
+    /// Call after an identity change that actually rotated the visitor id. This used to live
+    /// inside `clearUserIdentifiers()`, which also owned the clearing itself; MSDK-469 moved
+    /// the clear/rotate decision into `ATTNUserIdentity.planClearUser` / `planUpdateUser`, so
+    /// the callers now invoke this separately once they know a rotation happened.
+    // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
+    // `private` only extends to same-file extensions.
+    func resetInboxForIdentityChangeIfMaterialized() {
+        if let manager = _inboxManager {
+            Task { await manager.resetForIdentityChange() }
+        }
+    }
+
     @objc(updateDomain:)
     public func update(domain: String) {
         update(domain: domain, completion: nil)
@@ -356,6 +460,87 @@ public final class ATTNSDK: NSObject {
         Loggers.creative.debug("Domain updated successfully - Old Domain: \(oldDomain, privacy: .public), New Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
         api.send(userIdentity: userIdentity)
         Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+    }
+
+    // MARK: Inbox
+
+    /// Returns an `AsyncStream` that immediately emits the current `InboxState`,
+    /// then emits on any subsequent change.
+    /// Usage: `for await state in await sdk.inboxStateStream { ... }`
+    ///
+    /// Reading this property materializes the inbox manager (subscribing to updates is
+    /// an active use).
+    public var inboxStateStream: AsyncStream<InboxState> {
+        get async {
+            await materializedInboxManager().stateStream
+        }
+    }
+
+    /// Async accessor for all messages. Materializes the inbox manager (reading messages counts
+    /// as active inbox use), which triggers a background unread-count fetch on first access.
+    public var allMessages: [Message] {
+        get async {
+            await materializedInboxManager().allMessages
+        }
+    }
+
+    /// Async accessor for unread count. Returns the most recently fetched server-authoritative
+    /// value, or `0` until the first fetch completes. Because the initial value and the
+    /// "no unread messages" value are both `0`, callers that need to distinguish "loading" from
+    /// "zero unread" should track that state themselves (e.g. via `inboxStateStream`).
+    /// Call `refreshInboxUnreadCount()` after known state changes (app launch, push open).
+    public var unreadCount: Int {
+        get async {
+            await materializedInboxManager().unreadCount
+        }
+    }
+
+    /// Refreshes the unread inbox message count from the server.
+    /// Per RFC, host apps should call this when navigating to the app's main page (e.g. on app launch)
+    /// and after opening a push notification.
+    public func refreshInboxUnreadCount() async {
+        await materializedInboxManager().refreshUnreadCount()
+    }
+
+    /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking and
+    /// broadcasts `ATTNSDKInboxMessageTapped`. Set `automaticallyOpensInboxDeepLinks = true`
+    /// to also have the SDK open the message's `actionURL` — universal links resolve into
+    /// their app, other http(s) links fall back to the browser. Pass `onMessageTap` to replace
+    /// that URL routing with your own navigation; click tracking still fires first.
+    @MainActor
+    public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
+        InboxView(viewModel: InboxViewModel(
+            inboxManager: materializedInboxManager(),
+            style: style,
+            onTap: onMessageTap,
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? false }
+        ))
+    }
+
+    /// UIKit wrapper for `inboxView(style:onMessageTap:)` — see that method for tap semantics.
+    @MainActor
+    public func inboxViewController(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> UIViewController {
+        UIHostingController(rootView: inboxView(style: style, onMessageTap: onMessageTap))
+    }
+
+    public func markRead(for messageID: Message.ID) async {
+        await materializedInboxManager().markRead(messageID)
+    }
+
+    public func markUnread(for messageID: Message.ID) async {
+        await materializedInboxManager().markUnread(messageID)
+    }
+
+    public func delete(messageID: Message.ID) async {
+        await materializedInboxManager().delete(messageID)
+    }
+
+    /// Reports a message click to the tracking endpoint and flips the message's local read
+    /// state. Hosts rendering a custom inbox UI should call this on tap; hosts using the
+    /// built-in `inboxView()` get this wired up automatically.
+    public func markClicked(for messageID: Message.ID) async {
+        await materializedInboxManager().markClicked(messageID)
     }
 
     // MARK: Push Permissions & Token
@@ -398,6 +583,7 @@ public final class ATTNSDK: NSObject {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
+        publishIdentitySnapshot()
         flushPendingMarketingRequests(with: tokenString)
         // this is called after events are sent. we need a better way to persist this
         api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
@@ -575,18 +761,6 @@ public final class ATTNSDK: NSObject {
         normalizeAndBroadcast(linkString)
     }
 
-    /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
-    /// call this to retrieve (and clear) the pending URL.
-    public func consumeDeepLink() -> URL? {
-        let url = stateLock.withLock { () -> URL? in
-            let snapshot = pendingURL
-            pendingURL = nil
-            return snapshot
-        }
-        let urlString = url?.absoluteString ?? ""
-        Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
-        return url
-    }
 
     // MARK: - Private Helpers
 
@@ -654,6 +828,7 @@ public final class ATTNSDK: NSObject {
                                     Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
                                     UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
                                     self.pushTokenStore.token = ""
+                                    self.publishIdentitySnapshot()
                                     await MainActor.run {
                                             UIApplication.shared.registerForRemoteNotifications()
                                     }
@@ -685,30 +860,6 @@ public final class ATTNSDK: NSObject {
                 self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
             }
         }
-    }
-
-    /// Normalize a raw string into a URL, stash it, and immediately post a notification.
-    internal func normalizeAndBroadcast(_ rawString: String) {
-        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
-        var candidateURL: URL?
-
-        if let trimmedURL = URL(string: trimmed), trimmedURL.scheme != nil {
-            candidateURL = trimmedURL
-        }
-
-        guard let validURL = candidateURL else {
-            Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed, privacy: .public)' - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            return
-        }
-
-        stateLock.withLock { pendingURL = validURL }
-        Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
-        NotificationCenter.default.post(
-            name: .ATTNSDKDeepLinkReceived,
-            object: nil,
-            userInfo: ["attentivePushDeeplinkUrl": validURL]
-        )
-        Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL, privacy: .public)")
     }
 
     private func setupProvisionalPush() async {
@@ -761,6 +912,76 @@ public final class ATTNSDK: NSObject {
     }
 }
 
+// MARK: Push Deep Link Handling
+extension ATTNSDK {
+    /// If the client prefers polling instead of observing NotificationCenter, or if the NotificationCenter broadcast happens too early for listener to catch it,
+    /// call this to retrieve (and clear) the pending URL.
+    public func consumeDeepLink() -> URL? {
+        let url = stateLock.withLock { () -> URL? in
+            let snapshot = pendingURL
+            pendingURL = nil
+            return snapshot
+        }
+        let urlString = url?.absoluteString ?? ""
+        Loggers.network.debug("Consuming pending deep link: \(urlString, privacy: .public)")
+        return url
+    }
+
+    /// Normalize a raw string into a URL, stash it, post a notification, and open it on the
+    /// host app's behalf when `automaticallyOpensPushDeepLinks` is enabled.
+    func normalizeAndBroadcast(_ rawString: String) {
+        let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Any URL that parses with a non-empty scheme is stored and broadcast so hosts
+        // observing ATTNSDKDeepLinkReceived (or polling consumeDeepLink()) keep visibility
+        // into every campaign URL, matching the inbox path. Only the SDK-initiated open
+        // below is gated on the scheme safety check.
+        guard let validURL = URL(string: trimmed), validURL.scheme?.isEmpty == false else {
+            Loggers.network.error("Failed to parse deep link URL from string: '\(trimmed, privacy: .public)' - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            return
+        }
+
+        stateLock.withLock { pendingURL = validURL }
+        Loggers.network.debug("Broadcasting ATTNSDKDeepLinkReceived with URL: \(validURL, privacy: .public)")
+        NotificationCenter.default.post(
+            name: .ATTNSDKDeepLinkReceived,
+            object: nil,
+            userInfo: ["attentivePushDeeplinkUrl": validURL]
+        )
+        Loggers.network.debug("Deep link notification posted successfully - URL: \(validURL, privacy: .public)")
+
+        // Server-supplied string: refuse to hand scriptable (javascript:/file:/data:) and
+        // privileged system-action (tel:/sms:/itms-*) schemes to UIApplication. The broadcast
+        // above still carries the raw URL — hosts decide for themselves.
+        guard validURL.attnIsOpenableDeepLink else {
+            Loggers.network.error("Refusing to open push deep link with unsupported scheme: \(validURL, privacy: .public)")
+            return
+        }
+
+        openDeepLink(validURL)
+    }
+
+    /// Opens a push deep link on the host app's behalf so a notification tap navigates without
+    /// any host-side wiring, matching the Android SDK's notification tap behavior.
+    private func openDeepLink(_ url: URL) {
+        guard automaticallyOpensPushDeepLinks else {
+            Loggers.network.debug("Automatic deep link opening is disabled; host app is expected to handle URL: \(url, privacy: .public)")
+            return
+        }
+
+        let isWebLink = ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        // Web links must resolve as universal links into an app; never bounce the user to the browser.
+        let options: [UIApplication.OpenExternalURLOptionsKey: Any] = isWebLink ? [.universalLinksOnly: true] : [:]
+        urlOpener.open(url, options: options) { success in
+            if success {
+                Loggers.network.debug("Opened push deep link URL: \(url, privacy: .public)")
+            } else {
+                Loggers.network.debug("No app claimed push deep link URL: \(url, privacy: .public). Host app can handle it via the ATTNSDKDeepLinkReceived broadcast or consumeDeepLink().")
+            }
+        }
+    }
+}
+
 // MARK: ATTNWebViewProviding
 extension ATTNSDK: ATTNWebViewProviding {
     var containerView: UIView? {
@@ -776,7 +997,61 @@ extension ATTNSDK: ATTNWebViewProviding {
 }
 
 // MARK: Private Helpers
+extension ATTNSDK {
+    /// Fires a background inbox unread-count refresh only when the manager already exists.
+    /// Called from the `/user-update` callback path after an identity change so the badge picks
+    /// up the newly-associated user's server count. Skips materialization so host apps that
+    /// never touch the inbox don't pay for a network call on every `clearUser`/`updateUser`.
+    /// Hops to the main queue before reading `_inboxManager` because the URLSession completion
+    /// invokes its callback on a background queue, and `materializedInboxManager()` writes
+    /// `_inboxManager` from the main thread — reading it here without the hop is a TSan/Swift 6
+    /// data race.
+    /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
+    /// chains it from the `/user-update` callback.
+    func refreshInboxUnreadCountForNewIdentityIfMaterialized() {
+        DispatchQueue.main.async { [weak self] in
+            guard let manager = self?._inboxManager else { return }
+            Task { await manager.refreshUnreadCount() }
+        }
+    }
+
+    /// Publishes the current identity (visitor id, push token, email, phone) into the
+    /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
+    /// Call after any mutation of `userIdentity` or `currentPushToken`.
+    /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
+    /// re-publishes after merging the new identifiers.
+    func publishIdentitySnapshot() {
+        let identifiers = userIdentity.identifiers
+        identityStore.update(InboxIdentitySnapshot(
+            visitorId: userIdentity.visitorId,
+            pushToken: currentPushToken,
+            email: identifiers[ATTNIdentifierType.email] as? String,
+            phone: identifiers[ATTNIdentifierType.phone] as? String
+        ))
+    }
+}
+
 fileprivate extension ATTNSDK {
+    /// Returns the existing `InboxManager` or lazily constructs one bound to this SDK
+    /// instance's api + identity store. Called on *active* inbox use only (opening the view,
+    /// explicit `refreshInboxUnreadCount()`, message mutations) so that hosts which never
+    /// interact with the inbox surface never trigger the manager's network activity.
+    func materializedInboxManager() -> InboxManager {
+        if let existing = _inboxManager { return existing }
+        // Passing `unreadCountBox` here (rather than letting the manager build its own default)
+        // is what routes every write to `storedUnreadCount` back to `inboxUnreadCount` and the
+        // `.ATTNSDKInboxUnreadCountChanged` notification.
+        let manager = InboxManager(
+            api: api,
+            identityProvider: { [weak self] in
+                self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+            },
+            unreadCountBox: unreadCountBox
+        )
+        _inboxManager = manager
+        return manager
+    }
+
     func sendInfoEvent() {
         api.send(event: ATTNInfoEvent(), userIdentity: userIdentity)
     }
@@ -789,6 +1064,26 @@ fileprivate extension ATTNSDK {
         webViewHandler?.launchCreative(parentView: view, creativeId: creativeId, handler: handler)
     }
 
+}
+
+// MARK: - Identity snapshot storage
+
+/// Thread-safe holder for the latest `InboxIdentitySnapshot`. Writers (on the main thread)
+/// publish via `update`; the inbox provider closure reads via `snapshot()` from the
+/// `InboxManager` actor executor. The serial queue serializes all access so the underlying
+/// snapshot is never read while being mutated, eliminating the data race on
+/// `userIdentity.identifiers`.
+private final class IdentitySnapshotStore: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "com.attentive.sdk.IdentitySnapshotStore", qos: .userInitiated)
+    private var current = InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+
+    func update(_ next: InboxIdentitySnapshot) {
+        queue.sync { current = next }
+    }
+
+    func snapshot() -> InboxIdentitySnapshot {
+        queue.sync { current }
+    }
 }
 
 // MARK: - PushToken storage
@@ -830,3 +1125,26 @@ extension ATTNSDK {
     }
 }
 
+// MARK: Debug Log Capture
+extension ATTNSDK {
+    /// Enables in-app log capture. Off by default; apps that don't display the SDK
+    /// log overlay pay zero buffer overhead. Set this once at launch (e.g. before
+    /// constructing the SDK) and the buffer will retain subsequent entries.
+    @objc public static var isLogCaptureEnabled: Bool {
+        get { ATTNLogBuffer.shared.isCapturing }
+        set { ATTNLogBuffer.shared.isCapturing = newValue }
+    }
+
+    /// Recent SDK log entries from the in-process ring buffer. Returns an empty
+    /// array when log capture is disabled (the default).
+    /// - Parameter since: Optional cutoff; entries older than this are filtered out.
+    @objc public static func recentLogs(since: Date? = nil) -> [ATTNLogEntry] {
+        ATTNLogBuffer.shared.snapshot(since: since)
+    }
+
+    /// Async stream that yields each SDK log entry as it is recorded after capture
+    /// is enabled. Use this to drive a live debug overlay.
+    public static var logStream: AsyncStream<ATTNLogEntry> {
+        ATTNLogBuffer.shared.stream()
+    }
+}

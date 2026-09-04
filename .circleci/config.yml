@@ -710,7 +710,9 @@ workflows:
             - assemble-xcframework
           filters:
             branches:
-              only: main
+              only:
+                - main
+                - develop
 
   # Nightly validation against the Xcode beta toolchain (currently Xcode 27 beta,
   # which ships the iOS 27 SDK). Driven by a CircleCI Scheduled Pipeline (project

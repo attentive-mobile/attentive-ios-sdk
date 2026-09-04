@@ -42,10 +42,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             userIdentity: userIdentity,
@@ -101,10 +105,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptOutMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             userIdentity: userIdentity,
@@ -183,8 +191,17 @@ extension ATTNSDK {
         case .retryWithoutRotation:
             Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
         case .rotatedAndReplaced:
-            break
+            // A different user: drop the previous user's cached inbox messages, unread count,
+            // and pagination cursor. Deliberately not done for .retryWithoutRotation, where
+            // the identifiers already matched and the cached inbox still belongs to this user.
+            resetInboxForIdentityChangeIfMaterialized()
         }
+
+        // planUpdateUser mutated `userIdentity` in place (and may have rotated the visitor
+        // id), so republish for the identity store that InboxManager reads. Unlike the old
+        // clearUserIdentifiers() + mergeIdentifiers() path there is no intermediate cleared
+        // snapshot to correct — this is the single publish for the new identity.
+        publishIdentitySnapshot()
 
         // Capture visitor id AFTER planUpdateUser so `.rotatedAndReplaced` is reflected.
         // Between here and the network response, any other rotation path (a concurrent
@@ -198,7 +215,21 @@ extension ATTNSDK {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: callback)
+            // syncRecordingCallback records the successful sync (MSDK-469) and forwards to the
+            // chained closure below, which calls the host's callback and only then re-fetches
+            // the inbox count — firing before `/user-update` completes would cache a count for
+            // an unlinked anonymous visitor and leave the badge stale until the next refresh.
+            callback: syncRecordingCallback(
+                email: email,
+                phone: phone,
+                pushToken: pushToken,
+                domain: currentDomain,
+                visitorId: visitorIdAtRequest,
+                forward: { [weak self] data, url, response, error in
+                    callback?(data, url, response, error)
+                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                }
+            )
         )
     }
 

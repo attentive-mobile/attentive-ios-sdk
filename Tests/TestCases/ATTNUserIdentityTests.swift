@@ -97,7 +97,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             identifiers: identifiers,
             visitorService: ATTNVisitorService(
                 persistentStorage: storage,
-                logger: Logger(OSLog.disabled)
+                logger: ATTNLogger.disabled
             ),
             persistentStorage: storage
         )
@@ -271,7 +271,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -306,7 +306,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -355,7 +355,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -412,7 +412,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         let firstLaunch = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: sharedStorage)
         firstLaunch.recordSuccessfulSync(email: "old@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
@@ -470,7 +470,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         let firstLaunch = ATTNUserIdentity(
             identifiers: [ATTNIdentifierType.email: "user@example.com"],
@@ -527,7 +527,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             identifiers: [:],
             visitorService: ATTNVisitorService(
                 persistentStorage: ATTNPersistentStorageMock(),
-                logger: Logger(OSLog.disabled)
+                logger: ATTNLogger.disabled
             )
         )
         runConcurrently(iterations: 200, queueLabels: ["merge", "clear"]) { i, queueIndex in
@@ -552,7 +552,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         // Simulate the prior process: sync (A, token, domain, V1), then a local rotation
         // (clearUser) that never got its detach confirmed — record still pins V1.
@@ -630,7 +630,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         // First launch: updateUser(A) confirmed.
         let firstLaunch = ATTNUserIdentity(

@@ -18,6 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     public var productListViewModel: ProductListViewModel?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Capture SDK logs into the in-app debug overlay. Must be set before SDK init
+        // so initialization logs are retained.
+        ATTNSDK.isLogCaptureEnabled = true
         initializeAttentiveSdk()
         UNUserNotificationCenter.current().delegate = self
         // Show push permission prompt
@@ -37,6 +40,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ATTNEventTracker.setup(with: sdk)
 
         sdk.useV2Endpoint = UserDefaults.standard.bool(forKey: "attentiveUseV2Endpoint")
+
+        // Opt in to SDK-driven deep link navigation (default is false so upgrading hosts
+        // that already navigate on the broadcasts don't double-navigate). Bonni has no
+        // broadcast-driven navigation of its own, so the SDK opens the URLs, which route
+        // back into DeepLinkRouter via the bonni:// scheme handlers.
+        sdk.automaticallyOpensPushDeepLinks = true
+        sdk.automaticallyOpensInboxDeepLinks = true
 
         // Register the current user with the Attentive SDK by calling the `identify` method. Each identifier is optional, but the more identifiers you provide the better the Attentive SDK will function.
         // Every time any identifiers are added/changed, call the SDK's "identify" method

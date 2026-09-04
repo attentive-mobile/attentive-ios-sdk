@@ -74,4 +74,59 @@ protocol ATTNAPIProtocol {
         operationContext: String,
         callback: ATTNAPICallback?
     )
+
+    // MARK: - Inbox
+    func fetchInboxUnreadCount(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) async throws -> Int
+
+    /// Fetches a page of inbox messages for the current user.
+    /// - Parameters:
+    ///   - pageSize: max number of messages to return; server clamps to its own upper bound.
+    ///   - pageToken: opaque cursor from a previous response's `next_page_token`; `nil` for the first page.
+    func fetchInboxMessages(
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse
+
+    /// Marks the supplied messages as read on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesRead(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
+
+    /// Marks the supplied messages as unread on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesUnread(
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
+
+    /// Reports a message click to `POST /inbox/events/clicked`. Fire-and-forget from the caller's
+    /// perspective — the endpoint returns 204 No Content. Throws on transport failure, non-2xx
+    /// status, or bad URL so the caller can decide whether to surface the error.
+    func markMessageClicked(
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws
+
+    /// Deletes a single inbox message on the server. Throws on non-2xx responses; callers
+    /// are expected to revert any optimistic UI changes on error.
+    func deleteInboxMessage(
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws
 }
