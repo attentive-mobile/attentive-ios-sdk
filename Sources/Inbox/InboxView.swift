@@ -22,6 +22,7 @@ struct InboxView: View {
             case .empty:
                 buildListView {
                     Text(String.noMessages)
+                        .listRowBackground(viewModel.style.background)
                 }
             case .loaded(let messages):
                 buildListView {
@@ -48,8 +49,9 @@ struct InboxView: View {
                                 } label: {
                                     message.isRead ? Label(String.unread, systemImage: "envelope") : Label(String.read, systemImage: "envelope.open")
                                 }
-                                .tint(.blue)
+                                .tint(viewModel.style.swipeBackground)
                             }
+                            .listRowBackground(viewModel.style.background)
                             .onAppear {
                                 // Pull-up-to-load-more: when the last row scrolls into view, ask for
                                 // the next page. The manager is a no-op when nothing more is available.
@@ -65,6 +67,7 @@ struct InboxView: View {
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
+                        .listRowBackground(viewModel.style.background)
                     }
                 }
             }
@@ -77,10 +80,34 @@ struct InboxView: View {
     private func buildListView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         List(content: content)
             .listStyle(.plain)
+            .inboxListBackground(viewModel.style.background)
             .navigationTitle(String.inbox)
             .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await viewModel.refresh()
             }
+    }
+}
+
+private extension View {
+    /// Paints `color` behind the whole message list. Hiding the List's own scroll background
+    /// needs `.scrollContentBackground(.hidden)`, which is iOS 16+; on iOS 15 the scroll
+    /// background stays opaque and only the rows' `.listRowBackground` takes the colour.
+    ///
+    /// A `nil` colour leaves the view untouched so the list keeps the system background —
+    /// the SDK's behaviour before `InboxStyle.background` existed.
+    @ViewBuilder
+    func inboxListBackground(_ color: Color?) -> some View {
+        if let color {
+            if #available(iOS 16.0, *) {
+                self
+                    .scrollContentBackground(.hidden)
+                    .background(color)
+            } else {
+                self.background(color)
+            }
+        } else {
+            self
+        }
     }
 }
