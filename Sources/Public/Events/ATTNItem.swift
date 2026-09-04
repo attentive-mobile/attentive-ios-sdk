@@ -31,7 +31,7 @@ extension ATTNItem {
     func addItem(toDictionary dictionary: inout [String: Any], with priceFormatter: NumberFormatter) {
         dictionary["productId"] = productId
         dictionary["subProductId"] = productVariantId
-        dictionary["price"] = priceFormatter.string(from: price.price)
+        dictionary["price"] = priceFormatter.string(from: price.amount)
         dictionary["currency"] = price.currency
         dictionary["quantity"] = "\(quantity)"
 

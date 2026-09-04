@@ -82,7 +82,7 @@ bundle exec fastlane ios assemble_xcframework
 - **Protocol-driven**: Dependencies use protocols (`ATTNAPIProtocol`, `ATTNWebViewProviding`)
 - **Dependency injection** for testability — constructor injection with spy/mock test doubles
 - **Swift-first** with `@objc` annotations for Objective-C compatibility
-- iOS deployment target: **14.0** (set in `.ios-deployment-target`); Inbox module requires iOS 15+
+- iOS deployment target: **15.0** (set in `.ios-deployment-target`)
 - Swift version: **5.0+**
 - Version source of truth: `.version` file
 
@@ -95,7 +95,7 @@ bundle exec fastlane ios assemble_xcframework
 - Use `ATTNLogger` for all SDK logging — never `print()`
 - String constants and keys belong in `ATTNConstants`
 - URL construction goes through `URLProvider` types, not inline
-- **Underscore prefix on stored properties is reserved.** Only use `_foo` when Swift forces it — i.e., the property is the backing storage for a public computed property of the same name (e.g., `ATTNUserIdentity._identifiers` backs the `@objc` `identifiers` wrapper). For purely-private vars (including lock-guarded ones with no public counterpart), use the plain name; `private` already conveys scope.
+- **No underscore-prefixed properties.** `_foo` reads as an ObjC-style private ivar; don't introduce new ones. When a public property needs internal backing storage (e.g., a deprecated `@objc` wrapper whose internal call sites must stay warning-free), give the backing property an intent-revealing internal name instead — e.g., `isV2EndpointEnabled` backs the deprecated `useV2Endpoint` wrapper in `ATTNSDK`. For purely-private vars, use the plain name; `private` already conveys scope. (Legacy `ATTNUserIdentity._identifiers` predates this rule — don't copy it.)
 
 ### SwiftUI (Inbox module only)
 

@@ -20,6 +20,10 @@ final class ATTNSDKTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        // MSDK-469: the sync-state record persists across launches via ATTNPersistentStorage,
+        // so tests must scrub the persisted keys or one test's success recording bleeds into
+        // the next test's setUp and skews the guard decision (skip vs retry vs rotate).
+        Self.clearPersistedSyncState()
         creativeUrlProviderSpy = ATTNCreativeUrlProviderSpy()
         apiSpy = ATTNAPISpy(domain: testDomain)
         sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
@@ -30,14 +34,24 @@ final class ATTNSDKTests: XCTestCase {
     override func tearDown() {
         ATTNEventTracker.destroy()
 
-        ProcessInfo.restoreOriginalEnvironment()
         UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        Self.clearPersistedSyncState()
 
         creativeUrlProviderSpy = nil
         sut = nil
         apiSpy = nil
 
         super.tearDown()
+    }
+
+    /// Prefix + key must match `ATTNPersistentStorage` and `ATTNUserIdentity.Constants`.
+    /// Kept as an explicit string here rather than reaching into internal types, so a
+    /// rename over there will fail these tests loudly instead of silently leaking state.
+    private static func clearPersistedSyncState() {
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
+        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain"] {
+            UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
+        }
     }
 
     func testUpdateDomain_newDomain_willUpdateAPIDomainProperty() {
@@ -97,10 +111,18 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(sdk?.getDomain(), newDomain)
     }
 
-    func testSkipFatigue_whenTrue_willUpdateUrl() {
-        let creativeId = "123456"
-        sut.skipFatigueOnCreative = true
+    /// MSDK-500: `skipFatigueOnCreative` is deprecated but the setter/getter must still
+    /// round-trip so existing integrations that read back the value keep compiling and
+    /// behaving identically. The value has no downstream effect on creative URL building.
+    @available(*, deprecated, message: "Intentionally exercises the deprecated skipFatigueOnCreative property")
+    func testSkipFatigueOnCreative_isStillSettableAndReadable_MSDK500() {
+        XCTAssertFalse(sut.skipFatigueOnCreative, "must default to false")
 
+        sut.skipFatigueOnCreative = true
+        XCTAssertTrue(sut.skipFatigueOnCreative, "setter must persist the value for read-back compatibility")
+
+        // Triggering with the flag set must still succeed — the property is inert but harmless.
+        let creativeId = "123456"
         let urlBuiltExpectation = expectation(description: "Creative URL should be built")
         creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
 
@@ -111,19 +133,92 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
     }
 
-    func testSkipFatigue_whenEnvValueIsPassed_ShouldBeTrue() {
-        ProcessInfo.swizzleEnvironment()
-        let creativeId = "123456"
-        sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
+    /// MSDK-500: `SKIP_FATIGUE_ON_CREATIVE` used to flip `skipFatigueOnCreative` at init
+    /// AND used to feed `skipFatigue=true` into the creative URL. Both behaviors are
+    /// removed. The three tests below guard the observable contracts that survive:
+    ///   1. The property is never written from the env var at init.
+    ///   2. The env var never leaks into the creative URL, even when the host also sets
+    ///      the deprecated property to `true`.
+    ///   3. The transitional warning fires on `=true`, stays quiet on `=false`/absent,
+    ///      and is one-shot per process — exercised through an injected `ProcessInfo`
+    ///      so the tests never mutate the real process environment.
+    /// The old `ProcessInfo` getter swizzle these tests replaced was a symmetric toggle
+    /// installed in `tearDown` for every test in this class, which left tests running
+    /// against a mock env whose only key was `SKIP_FATIGUE_ON_CREATIVE=true`. That masked
+    /// `XCTestConfigurationFilePath` and drove the real `UNUserNotificationCenter` /
+    /// `registerForRemoteNotifications()` paths in the SDK's XCTest guards — order-
+    /// dependent flakes. Injecting `ProcessInfo` instead keeps the real env intact.
+    @available(*, deprecated, message: "Intentionally exercises the deprecated skipFatigueOnCreative property")
+    func testSkipFatigueOnCreative_envVarIsIgnoredAtInit_MSDK500() {
+        // Fresh init on a process whose real env doesn't carry the flag — the property
+        // must sit at its default. If someone re-adds an init-time env-var reader, this
+        // starts failing on any CI runner that sets the flag.
+        XCTAssertFalse(sut.skipFatigueOnCreative,
+                       "skipFatigueOnCreative must default to false — no env-var reader should flip it at init")
 
-        let urlBuiltExpectation = expectation(description: "Creative URL should be built")
-        creativeUrlProviderSpy.buildCompanyCreativeUrlExpectation = urlBuiltExpectation
+        // Type-level guard: even if a caller opts the deprecated property in, the config
+        // handed to the URL builder must not carry a skipFatigue-shaped field. Reflecting
+        // on the config type catches a regression at construction time rather than
+        // relying on the URL formatter's rendering (which is separately guarded in
+        // `testBuildCompanyCreativeUrlForDomain_neverAppendsSkipFatigueQueryParam_MSDK500`).
+        sut.skipFatigueOnCreative = true
+        let userIdentity = ATTNUserIdentity(identifiers: [:])
+        let config = ATTNCreativeUrlConfig(
+            domain: testDomain,
+            creativeId: nil,
+            mode: "production",
+            userIdentity: userIdentity
+        )
+        let hasSkipFatigueField = Mirror(reflecting: config).children.contains { child in
+            child.label?.localizedCaseInsensitiveContains("skipfatigue") ?? false
+        }
+        XCTAssertFalse(hasSkipFatigueField,
+                       "ATTNCreativeUrlConfig must not carry any skipFatigue-shaped field to the URL builder")
+    }
 
-        sut.trigger(UIView(), creativeId: creativeId)
-        wait(for: [urlBuiltExpectation], timeout: 5.0)
+    /// MSDK-500: the transitional env-var warning must fire only for the exact `"true"`
+    /// value the old reader honored. Anything else (`"false"`, missing, garbage) was a
+    /// no-op then and must be a no-op — and non-warning — now.
+    func testWarnIfDeprecatedSkipFatigueEnvVarIsSet_onlyTriggersOnTrue_MSDK500() {
+        ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv = false
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: StubProcessInfo(env: ["SKIP_FATIGUE_ON_CREATIVE": "true"]))
+        XCTAssertTrue(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv,
+                      "warning must fire when the env var is exactly \"true\"")
 
-        XCTAssertTrue(creativeUrlProviderSpy.buildCompanyCreativeUrlWasCalled)
-        XCTAssertEqual(creativeUrlProviderSpy.usedCreativeId, creativeId)
+        // `false` mirrors what a shared scheme / CI template may still carry after the
+        // property has always been a no-op for that value — must not surface a warning.
+        ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv = false
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: StubProcessInfo(env: ["SKIP_FATIGUE_ON_CREATIVE": "false"]))
+        XCTAssertFalse(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv,
+                       "warning must not fire when the env var is \"false\" — those hosts saw no change")
+
+        ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv = false
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: StubProcessInfo(env: [:]))
+        XCTAssertFalse(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv,
+                       "warning must not fire when the env var is absent")
+
+        // Guard against strict comparison drifting to a `!= nil` check again.
+        ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv = false
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: StubProcessInfo(env: ["SKIP_FATIGUE_ON_CREATIVE": "YES"]))
+        XCTAssertFalse(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv,
+                       "warning must not fire for arbitrary non-\"true\" values")
+    }
+
+    /// Second `ATTNSDK` init in the same process must not double-log the warning.
+    func testWarnIfDeprecatedSkipFatigueEnvVarIsSet_isOneShotPerProcess_MSDK500() {
+        ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv = false
+        let stub = StubProcessInfo(env: ["SKIP_FATIGUE_ON_CREATIVE": "true"])
+
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: stub)
+        XCTAssertTrue(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv)
+
+        // Simulate a second call (a host constructing a second SDK on the same domain
+        // swap, say). The latch stays set — the observable proxy for "the warning was
+        // suppressed the second time" is that toggling it back to false and calling
+        // again shows the latch is what gated the second write.
+        sut.warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo: stub)
+        XCTAssertTrue(ATTNSDK.didWarnAboutDeprecatedSkipFatigueEnv,
+                      "latch must remain set across repeated calls; the second call is a no-op by construction")
     }
 
     func testIsCreativeOpen_whenThereAreTwoSDKInstancesAndBothTriggersCreative_ShouldNotLaunchASecondCreative() {
@@ -522,8 +617,11 @@ final class ATTNSDKTests: XCTestCase {
     // MARK: - clearUser tests
 
     func testClearUser_withPushToken_callsUpdateUserWithNilEmailAndPhone() {
-        let deviceToken = Data([0x01, 0x02, 0x03])
-        sut.registerDeviceToken(deviceToken, authorizationStatus: .authorized)
+        // A user-scoped identifier must be present for clearUser to fire /user-update — the
+        // MSDK-469 no-op guard skips clearUser when the identifier store is empty. Setting an
+        // email here is the "user is logged in and calls logout" case this test is asserting.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
 
         XCTAssertFalse(apiSpy.updateUserWasCalled)
 
@@ -645,11 +743,343 @@ final class ATTNSDKTests: XCTestCase {
                        "updateUser should store phone locally on userIdentity")
     }
 
+    // MARK: - MSDK-469 no-op guard tests
+
+    func testUpdateUser_whenIdentifiersUnchangedAndServerConfirmed_isNoOp() {
+        // Callers that fire updateUser "just to be safe" every app launch must not each mint
+        // a new visitor_id and POST /user-update. The spy's default 200 response records the
+        // sync from the first call, so the second identical call short-circuits on the
+        // (local match + sync match) branch.
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Second updateUser with identical identifiers should not fire api.updateUser")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstCall,
+                       "Second updateUser with identical identifiers should not rotate visitorId")
+    }
+
+    func testUpdateUser_whenFirstAttemptFailed_retryStillFires() {
+        // Codex P1 #2: local identifiers match after the first attempt mutates them, but the
+        // /user-update request itself failed, so the server never recorded the switch. The
+        // retry MUST fire again to reach the server; it must NOT rotate visitor_id (same
+        // identity, no reason to churn the identity graph on retry).
+        registerTestPushToken()
+        apiSpy.stubbedError = NSError(domain: "test.network", code: -1009, userInfo: nil)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstAttempt = sut.visitorId
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser retry must fire /user-update again when the first attempt failed")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstAttempt,
+                       "updateUser retry must reuse the same visitor id — rotating on retry drives the fanout the guard is trying to prevent")
+    }
+
+    func testUpdateUser_whenFirstAttemptReturned5xx_retryStillFires() {
+        // A non-2xx response from the server (with error == nil) also fails to sync. The
+        // guard must treat "HTTP 500 with nil error" the same as "transport error" — both
+        // leave the sync record unchanged and let the retry through.
+        registerTestPushToken()
+        apiSpy.stubbedResponse = HTTPURLResponse(
+            url: URL(string: "https://cdn.attn.tv/user-update")!,
+            statusCode: 500,
+            httpVersion: nil,
+            headerFields: nil
+        )
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser retry must fire when the first attempt returned a non-2xx status")
+    }
+
+    func testUpdateUser_whenPushTokenRotates_firesEvenWithSameIdentity() {
+        // APNs can rotate the device's push token independently of anything the SDK does.
+        // Server-side attachment is keyed per token, so a token change invalidates any prior
+        // /user-update confirmation and the SDK must resend to attach the new token.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        // Simulate APNs rotating the token: register a different device token.
+        sut.registerDeviceToken(Data([0xAA, 0xBB, 0xCC]), authorizationStatus: .authorized)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire again after push token rotation, even when email/phone are unchanged")
+        XCTAssertEqual(apiSpy.lastUpdateUserPushToken, "aabbcc",
+                       "The retry must carry the new push token")
+    }
+
+    func testUpdateUser_coldLaunchWithMatchingSyncRecord_isNoOp() {
+        // The Aero-style regression the whole branch is chasing. Simulates a fresh process
+        // where a prior launch already confirmed the same (email, phone, pushToken, domain)
+        // on the server. `_identifiers` is empty (email/phone are in-memory only, so they
+        // don't survive a process restart), so without the cold-launch adoption branch the
+        // call would rotate the visitor id and POST /user-update on every launch. With the
+        // adoption branch, planUpdateUser sees local empty + sync matches and returns .skip.
+        //
+        // Seed the persisted sync record BEFORE constructing the cold-launch sut — its
+        // ATTNUserIdentity.init reads the record synchronously during construction.
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
+        UserDefaults.standard.set("010203", forKey: "\(prefix):lastSyncedPushToken")
+        UserDefaults.standard.set("user@example.com", forKey: "\(prefix):lastSyncedEmail")
+        UserDefaults.standard.set("+15551234567", forKey: "\(prefix):lastSyncedPhone")
+        UserDefaults.standard.set(testDomain, forKey: "\(prefix):lastSyncedDomain")
+
+        // Fresh sut — models a cold launch reading the persisted sync record.
+        let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
+        let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+        coldLaunchSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+        // registerDeviceToken triggers a sendPushToken call on the spy — reset the guard
+        // baseline to updateUser only, since that's what this test is actually measuring.
+        XCTAssertEqual(coldLaunchSpy.updateUserCallCount, 0,
+                       "precondition: no /user-update has fired yet on the cold-launch sut")
+        let visitorIdAtColdLaunch = coldLaunchSut.visitorId
+        XCTAssertTrue(coldLaunchSut.getUserIdentity().identifiers.isEmpty,
+                      "precondition: identifiers must start empty — email/phone are not persisted")
+
+        coldLaunchSut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(coldLaunchSpy.updateUserCallCount, 0,
+                       "Cold-launch updateUser with matching persisted sync record must NOT fire /user-update")
+        XCTAssertEqual(coldLaunchSut.visitorId, visitorIdAtColdLaunch,
+                       "Cold-launch adoption must not rotate the visitor id")
+        XCTAssertEqual(coldLaunchSut.getUserIdentity().identifiers[ATTNIdentifierType.email] as? String,
+                       "user@example.com",
+                       "Adoption must populate _identifiers so subsequent in-process calls match locally")
+    }
+
+    func testUpdateUser_whenDomainChanges_firesEvenWithSameIdentity() {
+        // ATTNSDK.updateDomain(...) can retarget the SDK at a different Attentive company at
+        // runtime. A sync record confirmed against the old company must not silence an
+        // identity call the new company has never seen — otherwise switching domains leaves
+        // the new company with no /user-update for this device until the identifiers change.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.update(domain: newDomain)
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire again after updateDomain, even when email/phone are unchanged")
+    }
+
+    func testClearUser_whenDomainChanges_firesEvenAfterPriorDetach() {
+        // Same shape as the updateUser domain-change guard: a detach confirmed on old-domain
+        // does not detach the token from the same push token as seen by new-domain. Clearing
+        // after a domain switch must re-send the /user-update.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        sut.clearUser()
+        let updateUserCallsAfterFirstClear = apiSpy.updateUserCallCount
+        XCTAssertGreaterThan(updateUserCallsAfterFirstClear, 0,
+                             "precondition: first clearUser fires and records the sync for old-domain")
+
+        sut.update(domain: newDomain)
+        sut.clearUser()
+
+        XCTAssertGreaterThan(apiSpy.updateUserCallCount, updateUserCallsAfterFirstClear,
+                             "clearUser must fire again after updateDomain — the new company has not confirmed the detach")
+    }
+
+    func testUpdateUser_normalizesWhitespaceBeforeCompare() {
+        // The api layer strips whitespace before sending; the guard must do the same so
+        // `"a@b.com"` and `" a@b.com "` (server sees the same thing) collapse to a no-op
+        // on the second call instead of a spurious retry.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+
+        sut.updateUser(email: "  user@example.com  ", phone: "\t+15551234567\n")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Whitespace-only differences must not defeat the no-op guard")
+    }
+
+    func testUpdateUser_whenEmailChanged_stillFires() {
+        registerTestPushToken()
+
+        sut.updateUser(email: "first@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+
+        sut.updateUser(email: "second@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser with a different email should still fire api.updateUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdAfterFirstCall,
+                          "updateUser with a different email should rotate visitorId")
+        XCTAssertEqual(apiSpy.lastUpdateUserEmail, "second@example.com")
+    }
+
+    func testUpdateUser_whenPhoneChanged_stillFires() {
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        let visitorIdAfterFirstCall = sut.visitorId
+
+        sut.updateUser(email: "user@example.com", phone: "+15559999999")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser with a different phone should still fire api.updateUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdAfterFirstCall,
+                          "updateUser with a different phone should rotate visitorId")
+        XCTAssertEqual(apiSpy.lastUpdateUserPhone, "+15559999999")
+    }
+
+    func testUpdateUser_whenSameEmailPhoneButExtraIdentifierPresent_stillFires() {
+        // A clientUserId stored via identify(_:) would otherwise be silently dropped by
+        // updateUser's identity-replacement step. The guard must not fire when any identifier
+        // beyond the incoming email/phone is on record — switchIdentity's count mismatch
+        // ensures the switch runs and the extra identifier is cleared.
+        registerTestPushToken()
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        sut.identify([ATTNIdentifierType.clientUserId: "customer-123"])
+
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must still fire when the stored set contains identifiers beyond email/phone")
+    }
+
+    func testClearUser_whenAlreadyDetachedAndServerConfirmed_isNoOp() {
+        // The guard skips only when local is empty AND the server confirmed detach for THIS
+        // push token. This is the "second clearUser in a row" happy path: the first call
+        // fired /user-update, the spy's default 200 response recorded the sync, and the
+        // second call sees a matching sync record.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        sut.clearUser()  // first call fires; spy's 200 records lastSynced = (nil, nil, token)
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        let visitorIdAfterFirstDetach = sut.visitorId
+
+        sut.clearUser()  // second call sees local empty AND sync confirmed → skip
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1,
+                       "Second clearUser must skip when server already confirmed detach")
+        XCTAssertEqual(sut.visitorId, visitorIdAfterFirstDetach,
+                       "Second clearUser must not rotate visitorId when server already confirmed")
+    }
+
+    func testClearUser_whenLocalEmptyButServerNotConfirmed_firesDetachAndRotates() {
+        // Codex P1 #1: after a relaunch (or a prior clearUser whose /user-update failed),
+        // local identifiers are empty but the push token in UserDefaults is still attached
+        // to the previous user on the server. The guard MUST let the detach through — local
+        // emptiness alone doesn't prove server-side detachment.
+        //
+        // MSDK-469 review Comment 3: this path must also rotate the visitor id. Pre-fix it
+        // fired the detach without rotating, so the persisted visitor id kept flowing under
+        // the prior user for every subsequent event.
+        registerTestPushToken()
+        // No prior successful /user-update recorded — the persisted keys were cleared in
+        // setUp, so `lastSyncedPushToken` is nil. This mimics a fresh-launch SDK on a
+        // device whose push token survived from a prior process where clearUser did NOT
+        // successfully complete.
+        XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0)
+        let visitorIdBefore = sut.visitorId
+
+        sut.clearUser()
+
+        XCTAssertTrue(apiSpy.updateUserWasCalled,
+                      "clearUser must fire detach when the server has not confirmed detach for the current push token")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertNil(apiSpy.lastUpdateUserEmail)
+        XCTAssertNil(apiSpy.lastUpdateUserPhone)
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore,
+                          "clearUser must rotate visitor id whenever a detach fires — otherwise persisted V1 keeps attributing subsequent events to the previous user")
+    }
+
+    func testClearUser_whenLocalEmptyButNoPushToken_isSilentNoOp() {
+        // With no push token, there is nothing to detach server-side and nothing to clear
+        // locally. Neither path fires the network call.
+        XCTAssertEqual(sut.getUserIdentity().identifiers.count, 0)
+
+        sut.clearUser()
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled,
+                       "clearUser without a push token cannot fire detach and must not call api.updateUser")
+    }
+
+    func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {
+        // MSDK-469 review Comment 2: identify() bypasses the sync protocol, so it can
+        // leave local identifiers matching an incoming `updateUser(B)` without ever
+        // planning that identity through planUpdateUser. Pre-fix, planUpdateUser saw
+        // local {email:B} matching incoming (B), sync record (A) mismatching → returned
+        // .retryWithoutRotation and POSTed B under visitor V1, glueing B to A's visitor id
+        // on the server. Post-fix, the sync record's identity (A) != incoming (B) forces
+        // rotation before the POST.
+        registerTestPushToken()
+        sut.updateUser(email: "a@example.com", phone: nil)
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1)
+        let visitorIdUnderA = sut.visitorId
+
+        sut.identify([ATTNIdentifierType.email: "b@example.com"])
+        sut.updateUser(email: "b@example.com", phone: nil)
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2,
+                       "updateUser must fire; the second call is a new identity, not a retry")
+        XCTAssertEqual(apiSpy.lastUpdateUserEmail, "b@example.com")
+        XCTAssertNotEqual(sut.visitorId, visitorIdUnderA,
+                          "identify() pre-seeding a different email must not let the retry branch attach B to A's visitor id")
+    }
+
+    func testClearUser_whenIdentifiersPresent_stillFires() {
+        // Any user-scoped identifier — email in this case — means there is state to clear
+        // locally AND detach server-side; existing clearUser behavior must run unchanged.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        let visitorIdBefore = sut.visitorId
+
+        sut.clearUser()
+
+        XCTAssertTrue(apiSpy.updateUserWasCalled,
+                      "clearUser must still fire api.updateUser when user-scoped identifiers were present")
+        XCTAssertEqual(apiSpy.lastOperationContext, "clearUser")
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore,
+                          "clearUser must still rotate visitorId when user-scoped identifiers were present")
+    }
+
     // MARK: - sendLegacyEventAsV2 Tests
 
-    func testSendEvent_v2Enabled_purchase_sendNewEvent() {
+    /// MSDK-472: `useV2Endpoint` is deprecated but must stay public and fully
+    /// functional for one major version. The test itself is marked deprecated
+    /// so it can exercise the deprecated surface without compiler warnings.
+    @available(*, deprecated, message: "Intentionally exercises the deprecated useV2Endpoint wrapper")
+    func testUseV2Endpoint_deprecatedPublicToggle_remainsFunctional() {
+        XCTAssertFalse(sut.useV2Endpoint, "toggle must still default to false")
+
         sut.useV2Endpoint = true
-        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "9.99"), currency: "USD"))
+        XCTAssertTrue(sut.useV2Endpoint)
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "9.99"), currency: "USD"))
+        sut.send(event: ATTNProductViewEvent(items: [item]))
+        XCTAssertTrue(apiSpy.sendNewEventWasCalled, "deprecated toggle must still route through /mobile")
+        XCTAssertFalse(apiSpy.sendEventWasCalled)
+
+        sut.useV2Endpoint = false
+        sut.send(event: ATTNProductViewEvent(items: [item]))
+        XCTAssertTrue(apiSpy.sendEventWasCalled, "clearing the deprecated toggle must route back through /e")
+    }
+
+    func testSendEvent_v2Enabled_purchase_sendNewEvent() {
+        sut.isV2EndpointEnabled = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "9.99"), currency: "USD"))
         item.quantity = 2
         let order = ATTNOrder(orderId: "order-1")
         let event = ATTNPurchaseEvent(items: [item], order: order)
@@ -665,10 +1095,10 @@ final class ATTNSDKTests: XCTestCase {
         // MSDK-442: v2 auto-convert matches the legacy /e formula
         // (sum of item prices, quantity-agnostic) so flipping useV2Endpoint
         // doesn't silently change historical totals.
-        sut.useV2Endpoint = true
-        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        sut.isV2EndpointEnabled = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "10.00"), currency: "USD"))
         item1.quantity = 2
-        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(amount: NSDecimalNumber(string: "5.50"), currency: "USD"))
         item2.quantity = 3
         let order = ATTNOrder(orderId: "order-2")
         let event = ATTNPurchaseEvent(items: [item1, item2], order: order)
@@ -684,10 +1114,10 @@ final class ATTNSDKTests: XCTestCase {
     func testSendEvent_v2Enabled_purchase_populatesCartTotalFromLegacyFormula() {
         // Regression guard for MSDK-442: v2 auto-convert emits a cartTotal
         // computed from items so downstream systems don't see it empty.
-        sut.useV2Endpoint = true
-        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        sut.isV2EndpointEnabled = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "10.00"), currency: "USD"))
         item1.quantity = 2
-        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "5.50"), currency: "USD"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(amount: NSDecimalNumber(string: "5.50"), currency: "USD"))
         item2.quantity = 3
         let order = ATTNOrder(orderId: "order-cart-total")
         let cart = ATTNCart(cartId: "cart-1")
@@ -704,8 +1134,8 @@ final class ATTNSDKTests: XCTestCase {
     func testSendEvent_v2Enabled_purchase_preservesCallerProvidedCartTotal() {
         // Caller-supplied cartTotal on ATTNCart wins over the SDK-computed
         // fallback so hosts can pass an authoritative value.
-        sut.useV2Endpoint = true
-        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        sut.isV2EndpointEnabled = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "10.00"), currency: "USD"))
         let order = ATTNOrder(orderId: "order-caller-total")
         let cart = ATTNCart(cartId: "cart-2", cartCoupon: "SAVE10")
         cart.cartTotal = "123.45"
@@ -725,8 +1155,8 @@ final class ATTNSDKTests: XCTestCase {
         // When the host omits the cart entirely, the auto-convert still emits
         // a cart payload carrying the SDK-computed cartTotal so downstream
         // pipelines never see it empty.
-        sut.useV2Endpoint = true
-        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "USD"))
+        sut.isV2EndpointEnabled = true
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "20.00"), currency: "USD"))
         let order = ATTNOrder(orderId: "order-no-cart")
         let event = ATTNPurchaseEvent(items: [item], order: order)
 
@@ -744,7 +1174,7 @@ final class ATTNSDKTests: XCTestCase {
         // field. Verify by pointing a fresh copy of the SAME formatter recipe
         // at a comma-decimal locale and confirming it still writes `.`.
         let event = ATTNPurchaseEvent(
-            items: [ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.5"), currency: "EUR"))],
+            items: [ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "15.5"), currency: "EUR"))],
             order: ATTNOrder(orderId: "o1")
         )
         let formatter = event.priceFormatter
@@ -760,9 +1190,9 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_addToCart_sendsPerItem() {
-        sut.useV2Endpoint = true
-        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
-        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "20.00"), currency: "EUR"))
+        sut.isV2EndpointEnabled = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(amount: NSDecimalNumber(string: "20.00"), currency: "EUR"))
         let event = ATTNAddToCartEvent(items: [item1, item2])
 
         sut.send(event: event)
@@ -773,9 +1203,9 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_productView_sendsPerItem() {
-        sut.useV2Endpoint = true
-        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "15.00"), currency: "GBP"))
-        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(price: NSDecimalNumber(string: "25.00"), currency: "GBP"))
+        sut.isV2EndpointEnabled = true
+        let item1 = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "15.00"), currency: "GBP"))
+        let item2 = ATTNItem(productId: "p2", productVariantId: "v2", price: ATTNPrice(amount: NSDecimalNumber(string: "25.00"), currency: "GBP"))
         let event = ATTNProductViewEvent(items: [item1, item2])
 
         sut.send(event: event)
@@ -786,7 +1216,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_customEvent_sendsWithType() {
-        sut.useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNCustomEvent(type: "Signup", properties: ["source": "banner"])!
 
         sut.send(event: event)
@@ -796,7 +1226,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_unsupportedEvent_fallsBackToLegacy() {
-        sut.useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNInfoEvent()
 
         sut.send(event: event)
@@ -806,7 +1236,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyPurchaseItems_doesNotSend() {
-        sut.useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let order = ATTNOrder(orderId: "order-empty")
         let event = ATTNPurchaseEvent(items: [], order: order)
 
@@ -817,7 +1247,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyAddToCartItems_doesNotSend() {
-        sut.useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNAddToCartEvent(items: [])
 
         sut.send(event: event)
@@ -827,7 +1257,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Enabled_emptyProductViewItems_doesNotSend() {
-        sut.useV2Endpoint = true
+        sut.isV2EndpointEnabled = true
         let event = ATTNProductViewEvent(items: [])
 
         sut.send(event: event)
@@ -837,8 +1267,8 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testSendEvent_v2Disabled_usesLegacyPath() {
-        sut.useV2Endpoint = false
-        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(price: NSDecimalNumber(string: "10.00"), currency: "USD"))
+        sut.isV2EndpointEnabled = false
+        let item = ATTNItem(productId: "p1", productVariantId: "v1", price: ATTNPrice(amount: NSDecimalNumber(string: "10.00"), currency: "USD"))
         let event = ATTNAddToCartEvent(items: [item])
 
         sut.send(event: event)
@@ -854,6 +1284,12 @@ final class ATTNSDKTests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.005))
         }
         return condition()
+    }
+
+    /// Registers the fixed 3-byte device token used across identity + push tests, so each test
+    /// stops repeating the `Data([0x01, 0x02, 0x03])` + `.authorized` boilerplate.
+    private func registerTestPushToken() {
+        sut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
     }
 
     // MARK: - Error Handling Tests
@@ -988,4 +1424,17 @@ private final class Counter {
     private var _value = 0
     var value: Int { lock.withLock { _value } }
     func increment() { lock.withLock { _value += 1 } }
+}
+
+/// Test double for injecting an environment dictionary into
+/// `warnIfDeprecatedSkipFatigueEnvVarIsSet(processInfo:)` without touching the real
+/// process env. Subclassing `ProcessInfo` and overriding `environment` is what
+/// `ATTNAppInfo` uses on the production side as an injection seam.
+private final class StubProcessInfo: ProcessInfo {
+    private let stub: [String: String]
+    init(env: [String: String]) {
+        self.stub = env
+        super.init()
+    }
+    override var environment: [String: String] { stub }
 }

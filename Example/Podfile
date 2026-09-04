@@ -1,4 +1,4 @@
-platform :ios, '14.0'
+platform :ios, '15.0'
 
 target 'Example - Pod' do
   # The 'use_frameworks!' option builds the pods as dynamic frameworks instead of static libs.

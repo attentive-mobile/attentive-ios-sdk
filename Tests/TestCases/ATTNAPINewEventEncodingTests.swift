@@ -28,7 +28,7 @@ final class ATTNAPINewEventEncodingTests: XCTestCase {
         let metadata = ATTNAddToCartMetadata(product: product, currency: "USD")
         let event = ATTNBaseEvent(
             visitorId: identity.visitorId,
-            version: ATTNConstants.sdkVersion,
+            version: ATTNConstants.tagVersionMobileApp,
             attentiveDomain: testDomain,
             locationHref: nil,
             referrer: "",
@@ -152,7 +152,7 @@ final class ATTNAPINewEventEncodingTests: XCTestCase {
         let metadata = ATTNAddToCartMetadata(product: product, currency: "USD")
         let event = ATTNBaseEvent(
             visitorId: identity.visitorId,
-            version: ATTNConstants.sdkVersion,
+            version: ATTNConstants.tagVersionMobileApp,
             attentiveDomain: testDomain,
             locationHref: nil,
             referrer: "",

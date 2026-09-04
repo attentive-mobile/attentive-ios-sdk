@@ -62,11 +62,6 @@ struct ATTNCreativeUrlProvider: ATTNCreativeUrlProviding {
         queryItems.append(URLQueryItem(name: "sdkVersion", value: appInfo.getSdkVersion()))
         queryItems.append(URLQueryItem(name: "sdkName", value: appInfo.getSdkName()))
 
-        if configuration.skipFatigue {
-            queryItems.append(URLQueryItem(name: "skipFatigue", value: configuration.skipFatigue.stringValue))
-            Loggers.creative.info("Skip Fatigue is enabled. Keep in mind it should be disable for production.")
-        }
-
         if let creativeId = configuration.creativeId {
             queryItems.append(URLQueryItem(name: "attn_creative_id", value: creativeId))
         }

@@ -89,7 +89,15 @@ public final class ATTNSDK: NSObject {
     /// The marketing version of the SDK (e.g. `"2.0.13"`).
     @objc public static var sdkVersion: String { ATTNConstants.sdkVersion }
 
-    /// Determinates if fatigue rules evaluation will be skipped for Creative. Default value is false.
+    /// Whether fatigue rules should be skipped for creatives.
+    ///
+    /// Deprecated: fatigue is evaluated on the Attentive backend, which ignores this flag,
+    /// so setting it has no effect on which creatives are shown. The value is still stored
+    /// so read-back semantics remain unchanged for existing integrations, and will be
+    /// removed in a future major version. To force a specific creative to display for
+    /// debugging, trigger it by creative ID via `trigger(_:creativeId:)` instead — that
+    /// path bypasses backend fatigue rules.
+    @available(*, deprecated, message: "Fatigue is evaluated on the backend and this flag has no effect. Trigger a creative by ID to force a specific creative for debugging. This property will be removed in a future major version.")
     @objc public var skipFatigueOnCreative: Bool = false
 
     /// When `true` (default), the SDK acts as the device's push provider: it requests push
@@ -98,8 +106,22 @@ public final class ATTNSDK: NSObject {
     /// all push registration, token storage, and push-event handling.
     @objc public let pushEnabled: Bool
 
+    /// Whether `record(event:)` should route through the v2 `/mobile` endpoint.
+    /// Internal SDK code reads this directly; external callers use the deprecated
+    /// `useV2Endpoint` wrapper below.
+    var isV2EndpointEnabled: Bool = false
+
     /// Routes legacy `record(event:)` calls through the v2 `/mobile` endpoint instead of `/e`.
-    @objc public var useV2Endpoint: Bool = false
+    ///
+    /// Deprecated ahead of the v2 rollout (MSDK-471/MSDK-472): once the SDK
+    /// defaults to the v2 `/mobile` endpoint this toggle becomes a no-op knob,
+    /// but it stays public and functional for one major version so existing
+    /// integrations keep compiling and behaving identically.
+    @available(*, deprecated, message: "The v2 /mobile endpoint will become the SDK default; this toggle will be removed in the next major version.")
+    @objc public var useV2Endpoint: Bool {
+        get { isV2EndpointEnabled }
+        set { isV2EndpointEnabled = newValue }
+    }
 
     /// Determines if the SDK opens the deep link from a tapped push notification
     /// (`attentive_open_action_url`) on the host app's behalf. Default value is false —
@@ -179,7 +201,7 @@ public final class ATTNSDK: NSObject {
         self.webViewHandler = ATTNWebViewHandler(webViewProvider: self)
         self.publishIdentitySnapshot()
         self.sendInfoEvent()
-        self.initializeSkipFatigueOnCreatives()
+        self.warnIfDeprecatedSkipFatigueEnvVarIsSet()
 
         Loggers.creative.debug("ATTNSDK initialization successful - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Domain: \(domain, privacy: .public)")
     }
@@ -278,7 +300,14 @@ public final class ATTNSDK: NSObject {
     /// new user.
     ///
     /// - Note: If no push token has been registered (via `registerDeviceToken`), the server-side
-    ///   detach is skipped — identifiers are still cleared locally.
+    ///   detach is skipped — identifiers are still cleared locally, and the visitor ID rotates
+    ///   unless the local + sync state is already known-detached.
+    /// - Note: If the device is already anonymous locally AND the server has already confirmed
+    ///   the detach for the current push token, domain, and visitor ID, the call is a no-op:
+    ///   no visitor ID rotation and no `/user-update`. In every other case — non-empty local,
+    ///   no prior sync record, a push token or domain change since the last confirmation, or
+    ///   a prior rotation that invalidated the sync record — the visitor ID rotates and (when
+    ///   a push token is present) the detach fires. See MSDK-469.
     ///
     /// Internal implementation detail (for maintainers / AI assistants):
     /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
@@ -287,49 +316,116 @@ public final class ATTNSDK: NSObject {
     /// they only called `clearUser()`.
     @objc(clearUser)
     public func clearUser() {
-        clearUserIdentifiers()
-
         let pushToken = currentPushToken
-        guard !pushToken.isEmpty else {
-            Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-            // No `/user-update` will fire, so kick the inbox count re-fetch now against the
-            // freshly-generated anonymous visitor. Safe: no server-side association is pending.
-            refreshInboxUnreadCountForNewIdentityIfMaterialized()
+        // planClearUser owns three questions atomically under the identity lock: is the
+        // server already known-detached for THIS push token / domain / visitor id (skip),
+        // or does local need clearing / does the visitor id need rotating before the
+        // detach POST fires. Guarding on server-confirmed sync — not just local
+        // emptiness — means a relaunch after a failed /user-update still fires the detach
+        // next call, and any rotation (this one or a prior offline clearUser) invalidates
+        // the record so a subsequent login-as-A is sent to the server. See MSDK-469.
+        let currentDomain = self.domain
+        let previousVisitorId = userIdentity.visitorId
+        let decision = userIdentity.planClearUser(pushToken: pushToken, domain: currentDomain)
+        switch decision {
+        case .skip:
+            Loggers.event.debug("clearUser: skipping — already detached on server for current push token, domain, and visitor id - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
-        }
+        case .retryWithoutRotation, .rotatedAndReplaced:
+            // planClearUser rotates in every non-skip case; .retryWithoutRotation is
+            // listed for enum exhaustiveness only.
+            //
+            // The identity has already been cleared and rotated under the lock, so republish
+            // the snapshot and drop the previous user's cached inbox state.
+            publishIdentitySnapshot()
+            resetInboxForIdentityChangeIfMaterialized()
+            Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(previousVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
 
-        Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        api.updateUser(
-            pushToken: pushToken,
-            userIdentity: userIdentity,
-            email: nil,
-            phone: nil,
-            operationContext: "clearUser",
-            callback: { [weak self] _, _, _, _ in
-                // Fire after `/user-update` returns so the server has finished detaching the
-                // token from the previous user before we ask for the new (anon) count.
-                self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+            guard !pushToken.isEmpty else {
+                // No push token means there is nothing to detach server-side. Local was
+                // already cleared and the visitor id rotated inside planClearUser.
+                Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+                // No `/user-update` will fire, so kick the inbox count re-fetch now against the
+                // freshly-generated anonymous visitor. Safe: no server-side association is pending.
+                refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                return
             }
-        )
+            Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            // Capture visitor id at request-time so a rotation between request and
+            // response can't corrupt the record — see recordSuccessfulSync.
+            let visitorIdAtRequest = userIdentity.visitorId
+            api.updateUser(
+                pushToken: pushToken,
+                userIdentity: userIdentity,
+                email: nil,
+                phone: nil,
+                operationContext: "clearUser",
+                callback: syncRecordingCallback(
+                    email: nil,
+                    phone: nil,
+                    pushToken: pushToken,
+                    domain: currentDomain,
+                    visitorId: visitorIdAtRequest,
+                    forward: { [weak self] _, _, _, _ in
+                        // Fire after `/user-update` returns so the server has finished detaching
+                        // the token from the previous user before we ask for the new (anon) count.
+                        self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                    }
+                )
+            )
+        }
     }
 
-    /// Clears user identifiers and generates a new visitor ID. **Local only — no network call.**
+    /// Wraps a `/user-update` callback so a successful server response records the confirmed
+    /// (email, phone, pushToken) tuple back into `ATTNUserIdentity`. This is what makes the
+    /// MSDK-469 guards distinguish "already synced" from "needs retry" on the next call.
     ///
-    /// Both `clearUser()` and `updateUser(email:phone:callback:)` call this as their first step.
-    /// The new visitor ID is used in any subsequent API call so the server treats the device as
-    /// a fresh anonymous user.
-    func clearUserIdentifiers() {
-        let oldVisitorId = userIdentity.visitorId
-        userIdentity.clearUser()
-        publishIdentitySnapshot()
-        // Drop the previous user's cached inbox state (messages + unread count + pagination
-        // cursor) so the next user doesn't see the wrong data — but only if the manager has
-        // already been materialized. Constructing it here would issue an unread-count fetch for
-        // host apps that never touch the inbox surface.
+    /// Success is defined as `error == nil && HTTPURLResponse.isSuccessful` — a transport
+    /// error, a non-2xx status, or a nil response all leave the sync record unchanged so the
+    /// next call retries. `[weak self]` keeps this from extending the SDK's lifetime, but
+    /// even if `self` deallocates before the network completes, `userIdentity` is a
+    /// reference-typed property whose lifetime is tied to `self` — losing the recording is
+    /// safe (retry on next launch).
+    // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
+    // `private` only extends to same-file extensions. `internal` (the default) keeps it out
+    // of the public API while letting the extension call it.
+    func syncRecordingCallback(
+        email: String?,
+        phone: String?,
+        pushToken: String,
+        domain: String,
+        visitorId: String,
+        forward: ATTNAPICallback?
+    ) -> ATTNAPICallback {
+        return { [weak self] data, url, response, error in
+            let http = response as? HTTPURLResponse
+            let succeeded = (error == nil) && (http?.isSuccessful == true)
+            if succeeded {
+                // Domain AND visitor id are captured at request time — not read from
+                // `self` here — because `ATTNSDK.updateDomain(...)` and any rotation
+                // path can fire mid-flight. The sync record must reflect the values
+                // the server actually saw for this request.
+                self?.userIdentity.recordSuccessfulSync(email: email, phone: phone, pushToken: pushToken, domain: domain, visitorId: visitorId)
+            }
+            forward?(data, url, response, error)
+        }
+    }
+
+    /// Drops the previous user's cached inbox state (messages + unread count + pagination
+    /// cursor) so the next user doesn't see the wrong data — but only if the manager has
+    /// already been materialized. Constructing it here would issue an unread-count fetch for
+    /// host apps that never touch the inbox surface.
+    ///
+    /// Call after an identity change that actually rotated the visitor id. This used to live
+    /// inside `clearUserIdentifiers()`, which also owned the clearing itself; MSDK-469 moved
+    /// the clear/rotate decision into `ATTNUserIdentity.planClearUser` / `planUpdateUser`, so
+    /// the callers now invoke this separately once they know a rotation happened.
+    // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
+    // `private` only extends to same-file extensions.
+    func resetInboxForIdentityChangeIfMaterialized() {
         if let manager = _inboxManager {
             Task { await manager.resetForIdentityChange() }
         }
-        Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(oldVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
     }
 
     @objc(updateDomain:)

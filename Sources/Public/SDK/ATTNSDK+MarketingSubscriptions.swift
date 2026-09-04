@@ -144,6 +144,13 @@ extension ATTNSDK {
     ///
     /// At least one of `email` or `phone` must be provided.
     ///
+    /// If `email` and `phone` already match the stored identifiers exactly AND the server
+    /// has already confirmed the same pair for the current push token, the call is a no-op:
+    /// no visitor ID rotation, no `/user-update`, and the callback fires synchronously with
+    /// `nil`. When either the server has not yet confirmed OR the push token has changed
+    /// since the last confirmation, the request fires (or retries) even if local state
+    /// already matches. See MSDK-469.
+    ///
     /// - Parameters:
     ///   - email: The new user's email address (optional if phone is provided).
     ///   - phone: The new user's phone number in E.164 format (optional if email is provided).
@@ -153,6 +160,7 @@ extension ATTNSDK {
                                                  phone: String? = nil,
                                                  callback: ATTNAPICallback? = nil) {
         Loggers.event.debug("updateUser: switching user identity - Current Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+
         let trimmedPushToken = currentPushToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let pushToken = !trimmedPushToken.isEmpty
         ? trimmedPushToken
@@ -163,28 +171,65 @@ extension ATTNSDK {
             return
         }
         Loggers.event.debug("updateUser: proceeding with push token: \(pushToken, privacy: .public)")
-        clearUserIdentifiers()
-        var newIdentifiers: [String: Any] = [:]
-        if let email = email { newIdentifiers[ATTNIdentifierType.email] = email }
-        if let phone = phone { newIdentifiers[ATTNIdentifierType.phone] = phone }
-        userIdentity.mergeIdentifiers(newIdentifiers)
-        // clearUserIdentifiers() above published a cleared snapshot; re-publish so the
-        // identity store (read by InboxManager) sees the new email/phone, not the cleared state.
+
+        // planUpdateUser owns four questions atomically under the identity lock: does local
+        // already match the incoming pair, did the server confirm the same pair for THIS
+        // push token AND domain, is this a cold-launch adoption (local empty, sync record
+        // matches), and (when local differs) mutate + rotate visitor id. Guarding on
+        // server-confirmed sync (not just local equality) means a failed /user-update
+        // retries on the next call, and the cold-launch adoption branch stops a launch-time
+        // updateUser call from rotating the visitor id every process restart — see
+        // MSDK-469, Codex P1 #2, and the Android counterpart MSDK-470 for the adoption
+        // branch precedent.
+        let currentDomain = self.domain
+        let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken, domain: currentDomain)
+        switch decision {
+        case .skip:
+            Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            callback?(nil, nil, nil, nil)
+            return
+        case .retryWithoutRotation:
+            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        case .rotatedAndReplaced:
+            // A different user: drop the previous user's cached inbox messages, unread count,
+            // and pagination cursor. Deliberately not done for .retryWithoutRotation, where
+            // the identifiers already matched and the cached inbox still belongs to this user.
+            resetInboxForIdentityChangeIfMaterialized()
+        }
+
+        // planUpdateUser mutated `userIdentity` in place (and may have rotated the visitor
+        // id), so republish for the identity store that InboxManager reads. Unlike the old
+        // clearUserIdentifiers() + mergeIdentifiers() path there is no intermediate cleared
+        // snapshot to correct — this is the single publish for the new identity.
         publishIdentitySnapshot()
+
+        // Capture visitor id AFTER planUpdateUser so `.rotatedAndReplaced` is reflected.
+        // Between here and the network response, any other rotation path (a concurrent
+        // clearUser, an ATTNUserIdentity.clearUser() call from another caller) can still
+        // fire — the record must pin to the id the server actually saw, not to whatever
+        // `_visitorId` is by the time the callback runs.
+        let visitorIdAtRequest = userIdentity.visitorId
         api.updateUser(
             pushToken: pushToken,
             userIdentity: userIdentity,
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: { [weak self] data, url, response, error in
-                // Chain the host's callback so we can trigger the inbox count re-fetch AFTER the
-                // server has associated the new visitor with the supplied email/phone. Firing
-                // before `/user-update` completes would cache a count for an unlinked anonymous
-                // visitor and leave the badge stale until the next explicit refresh.
-                callback?(data, url, response, error)
-                self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
-            }
+            // syncRecordingCallback records the successful sync (MSDK-469) and forwards to the
+            // chained closure below, which calls the host's callback and only then re-fetches
+            // the inbox count — firing before `/user-update` completes would cache a count for
+            // an unlinked anonymous visitor and leave the badge stale until the next refresh.
+            callback: syncRecordingCallback(
+                email: email,
+                phone: phone,
+                pushToken: pushToken,
+                domain: currentDomain,
+                visitorId: visitorIdAtRequest,
+                forward: { [weak self] data, url, response, error in
+                    callback?(data, url, response, error)
+                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                }
+            )
         )
     }
 
