@@ -14,7 +14,7 @@ struct InboxMessageRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
-                .fill(message.isRead ? .clear : .blue)
+                .fill(message.isRead ? Color.clear : style.unreadIndicator)
                 .frame(width: 8, height: 8)
 
             switch message.style {
