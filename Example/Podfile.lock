@@ -1,16 +1,16 @@
 PODS:
-  - attentive-ios-sdk (0.4.2)
+  - ATTNSDKFramework (2.0.17)
 
 DEPENDENCIES:
-  - attentive-ios-sdk
+  - ATTNSDKFramework (from `../`)
 
-SPEC REPOS:
-  trunk:
-    - attentive-ios-sdk
+EXTERNAL SOURCES:
+  ATTNSDKFramework:
+    :path: "../"
 
 SPEC CHECKSUMS:
-  attentive-ios-sdk: c3349f23999bec1ce09d183965e527e9893726af
+  ATTNSDKFramework: f1b30b28c67fc6af879cce1fdd94e9d05a58d705
 
-PODFILE CHECKSUM: 457997e22519476f380452f12b08779bd5dc190f
+PODFILE CHECKSUM: 9a5c38454cc6ddb0db3e1ad4f9c00c8620397f17
 
-COCOAPODS: 1.14.3
+COCOAPODS: 1.16.2

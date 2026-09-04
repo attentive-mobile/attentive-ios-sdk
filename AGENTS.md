@@ -73,7 +73,7 @@ Before editing anything, determine:
    - **UIKit AppDelegate** (most common): `@UIApplicationMain` / `@main` on `AppDelegate`, with `application(_:didFinishLaunchingWithOptions:)`.
    - **UIKit + SceneDelegate**: `AppDelegate` plus a `SceneDelegate.swift`. SDK init still goes in `AppDelegate.application(_:didFinishLaunchingWithOptions:)` — push and lifecycle hooks for Attentive are still on the `AppDelegate`, not the scene delegate.
    - **SwiftUI `App`** (`@main struct MyApp: App`): the project may not have an `AppDelegate`. In that case, you'll need to add one via `@UIApplicationDelegateAdaptor` — see Step 3.
-5. **Deployment target**: Note the value from the app target's `IPHONEOS_DEPLOYMENT_TARGET`. The SDK requires **iOS 14.0+**. The `Inbox` module additionally requires iOS 15.0+ (you are not wiring Inbox in this pass, so 14.0 is sufficient). If the host's deployment target is below 14.0, **stop and ask the user** before raising it — bumping the deployment target is their decision.
+5. **Deployment target**: Note the value from the app target's `IPHONEOS_DEPLOYMENT_TARGET`. The SDK requires **iOS 15.0+** (all modules, Inbox included). If the host's deployment target is below 15.0, **stop and ask the user** before raising it — bumping the deployment target is their decision.
 6. **Existing `UNUserNotificationCenterDelegate`**: search for `UNUserNotificationCenterDelegate` in the project. If one exists already, you'll add Attentive's hooks to its callbacks rather than installing a new delegate.
 
 ---
@@ -481,8 +481,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 ```
 
 If the host already implements `userNotificationCenter(_:didReceive:withCompletionHandler:)`, **add** the `attentiveSdk?.handleForegroundPush` / `handlePushOpen` calls inside the existing handler, gated on whether the payload is from Attentive (look for `attentiveCallbackData` in `response.notification.request.content.userInfo` if the host needs to disambiguate). The SDK is safe to call on any payload — it no-ops on non-Attentive notifications — but if the host's existing logic eats the response, surface that to the user.
-
-For target deployment iOS 13 and earlier, replace `.banner` with `.alert` in `willPresent`.
 
 #### 5c. Notification Service Extension (optional — image attachments)
 
