@@ -727,7 +727,11 @@ platform :ios do
     end
 
     # 13. Push to CocoaPods (prerelease versions require explicit opt-in via pod version pinning)
+    #     Attempt every podspec before failing. Trunk fails often enough that a flake on
+    #     the first spec must not skip the second and leave the release half-published.
     podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
+    unpushed = []
+
     podspecs.each do |spec|
       begin
         pod_push(
@@ -735,8 +739,14 @@ platform :ios do
           allow_warnings: true
         )
       rescue => e
-        UI.user_error!("CocoaPods push failed for #{spec}: #{e.message}\nSPM and GitHub release are live. Retry with: pod trunk push #{spec} --allow-warnings")
+        UI.error("CocoaPods push failed for #{spec}: #{e.message}")
+        unpushed << spec
       end
+    end
+
+    unless unpushed.empty?
+      retry_commands = unpushed.map { |spec| "  pod trunk push #{spec} --allow-warnings" }.join("\n")
+      UI.user_error!("CocoaPods push failed for: #{unpushed.join(', ')}\nSPM and GitHub release are live. Retry with:\n#{retry_commands}")
     end
 
     UI.success("#{is_prerelease ? 'Prerelease' : 'Released'} #{new_version}.#{is_prerelease ? '' : ' PR opened to main.'}")
