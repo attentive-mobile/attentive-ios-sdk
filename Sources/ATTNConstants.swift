@@ -10,7 +10,7 @@ import Foundation
 struct ATTNConstants {
     private init() { }
 
-    static let sdkVersion = "2.0.17"
+    static let sdkVersion = "2.1.0"
 
     /// Tag-version value that classifies traffic as mobile-app on the backend.
     /// Services like `PurchaseProcessor.shouldIgnorePurchaseEvent` and
