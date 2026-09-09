@@ -1,3 +1,40 @@
+## [2.1.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.17...2.1.0) (2026-09-09)
+* MSDK-460: drop stale Inbox iOS 15 guidance from CLAUDE.md
+* MSDK-460: bump minimum deployment target to iOS 15.0 (#307)
+* MSDK-500: deprecate skipFatigueOnCreative, remove inert URL param (#305)
+* MSDK-458: nightly beta schedule at 13:00 UTC per review
+* MSDK-458: enforce main-only in-config for nightly beta jobs
+* MSDK-458: drive nightly-xcode-beta via Scheduled Pipeline parameter
+* MSDK-458: segment gems cache by Xcode toolchain
+* MSDK-458: single source of truth for Xcode versions per review
+* MSDK-458: pass Xcode cache-key as job parameter per Codex review
+* MSDK-458: update fastlane to 2.238.0 for Xcode 26.6 simctl compat
+* MSDK-458: widen integration-test event waits to 30s
+* MSDK-458: build with Xcode 26.6; validate Xcode 27 beta nightly in CI
+* MSDK-504: Add portal doc assets for iOS SDK integration guide (#306)
+* MSDK-502: lock-guard spy state per review — write ordering alone has no happens-before
+* MSDK-502: fix spy write-ordering race — record args before WasCalled flags
+* MSDK-469: guard updateUser/clearUser against no-op regenerations (#298)
+* Align encoding-test fixtures with production v2 version value
+* MSDK-487: send version=mobile-app on v2 /mobile endpoint
+* MSDK-486: make ObjC bridge test ARC ownership canonical per review
+* MSDK-486: rename ATTNPrice.price to amount, deprecate stuttering accessors
+* MSDK-472: harden parity assertions and document price fallback per review
+* MSDK-472: update CLAUDE.md underscore rule per review guidance
+* MSDK-472: rename _useV2Endpoint to isV2EndpointEnabled per review
+* MSDK-472: close parity-suite gaps — AddToCart special chars, email/phone identity
+* MSDK-472: deprecate useV2Endpoint, keep it public and functional
+* MSDK-472: add v1/v2 payload parity tests; fix v2 product price formatting
+* MSDK-457: add Analytics purpose to EmailAddress and PhoneNumber per review
+* MSDK-457: add Analytics purpose to UserID per review
+* MSDK-457: address review — declare AdvertisingData, add Analytics to DeviceID, normalize purpose order
+* MSDK-457: declare collected data types in privacy manifest
+* MSDK-312: widen event-anchored waits to 30s for CI stall headroom
+* MSDK-312: fix root causes of concurrency & webview test flake
+* Version bump 2.0.17
+* Binary Package.swift for 2.0.17
+* Version bump 2.0.17
+
 ## [2.0.17](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.16...2.0.17) (2026-08-06)
 * MSDK-312: bound runConcurrently parallelism to fix CI thread-explosion flake
 * MSDK-312: address review — injectable logger, DRY log helper, fix shadowing
