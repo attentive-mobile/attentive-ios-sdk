@@ -420,10 +420,17 @@ public final class ATTNSDK: NSObject {
     /// inside `clearUserIdentifiers()`, which also owned the clearing itself; MSDK-469 moved
     /// the clear/rotate decision into `ATTNUserIdentity.planClearUser` / `planUpdateUser`, so
     /// the callers now invoke this separately once they know a rotation happened.
+    ///
+    /// Hops to the main queue before reading `_inboxManager` for the same reason
+    /// `refreshInboxUnreadCountForNewIdentityIfMaterialized` does: `materializedInboxManager()`
+    /// writes `_inboxManager` on the main thread, while `clearUser()` / `updateUser(...)` are
+    /// public and can be called from any thread (URLSession completions, `Task`, a background
+    /// queue). Reading it without the hop is a TSan / Swift 6 strict-concurrency data race.
     // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
     // `private` only extends to same-file extensions.
     func resetInboxForIdentityChangeIfMaterialized() {
-        if let manager = _inboxManager {
+        DispatchQueue.main.async { [weak self] in
+            guard let manager = self?._inboxManager else { return }
             Task { await manager.resetForIdentityChange() }
         }
     }
