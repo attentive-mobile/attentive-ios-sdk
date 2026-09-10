@@ -23,7 +23,7 @@ struct InboxView: View {
             case .empty:
                 buildListView {
                     Text(String.noMessages)
-                        .listRowBackground(viewModel.style.background)
+                        .listRowBackground(rowBackground)
                 }
             case .loaded(let messages):
                 buildListView {
@@ -52,7 +52,7 @@ struct InboxView: View {
                                 }
                                 .tint(viewModel.style.swipeBackground)
                             }
-                            .listRowBackground(viewModel.style.background)
+                            .listRowBackground(rowBackground)
                             .onAppear {
                                 // Pull-up-to-load-more: when the last row scrolls into view, ask for
                                 // the next page. The manager is a no-op when nothing more is available.
@@ -68,7 +68,7 @@ struct InboxView: View {
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
-                        .listRowBackground(viewModel.style.background)
+                        .listRowBackground(rowBackground)
                     }
                 }
             }
@@ -77,16 +77,38 @@ struct InboxView: View {
         // render a List, and leaving them out flashed the system background on every fetch
         // and dropped the host's theme entirely whenever a fetch failed.
         .inboxListBackground(viewModel.style.background)
+        // Same reason as the background: only `.empty` and `.loaded` build a List, so titling
+        // it there left a blank nav bar on every cold launch and every failed fetch.
+        .navigationTitle(String.inbox)
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.refresh()
+        }
+    }
+
+    /// The colour each row paints behind itself.
+    ///
+    /// On iOS 16+ the theme is already painted once behind the whole inbox by
+    /// `inboxListBackground(_:)`, so rows stay clear — painting `style.background` here as well
+    /// composites the two layers, which is wasted work for an opaque colour and visibly wrong
+    /// for a translucent one (rows render darker than the gaps between them). On iOS 15
+    /// `.scrollContentBackground(.hidden)` doesn't exist, so the List's opaque scroll background
+    /// covers that fill and the rows are the only place the theme can land.
+    ///
+    /// A `nil` style background means no override at all, matching the SDK's behaviour before
+    /// `InboxStyle.background` existed.
+    private var rowBackground: Color? {
+        guard let background = viewModel.style.background else { return nil }
+        if #available(iOS 16.0, *) {
+            return .clear
+        } else {
+            return background
         }
     }
 
     private func buildListView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         List(content: content)
             .listStyle(.plain)
-            .navigationTitle(String.inbox)
-            .navigationBarTitleDisplayMode(.inline)
             .refreshable {
                 await viewModel.refresh()
             }
