@@ -49,7 +49,7 @@ final class ATTNSDKTests: XCTestCase {
     /// rename over there will fail these tests loudly instead of silently leaking state.
     private static func clearPersistedSyncState() {
         let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain"] {
+        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain", "lastSyncedVisitorId"] {
             UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
         }
     }
@@ -839,10 +839,17 @@ final class ATTNSDKTests: XCTestCase {
         UserDefaults.standard.set("user@example.com", forKey: "\(prefix):lastSyncedEmail")
         UserDefaults.standard.set("+15551234567", forKey: "\(prefix):lastSyncedPhone")
         UserDefaults.standard.set(testDomain, forKey: "\(prefix):lastSyncedDomain")
+        // The record only counts when it was confirmed under the visitor id the device still
+        // sends, so it has to be pinned to the persisted id. The visitor id lives in
+        // UserDefaults and is shared by every SDK instance in this process, so `sut`'s id is
+        // the one the cold-launch sut will read back (asserted as a precondition below).
+        UserDefaults.standard.set(sut.visitorId, forKey: "\(prefix):lastSyncedVisitorId")
 
         // Fresh sut — models a cold launch reading the persisted sync record.
         let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
         let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+        XCTAssertEqual(coldLaunchSut.visitorId, sut.visitorId,
+                       "precondition: the visitor id is persisted, so a cold launch reads the same one")
         coldLaunchSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
         // registerDeviceToken triggers a sendPushToken call on the spy — reset the guard
         // baseline to updateUser only, since that's what this test is actually measuring.
@@ -1416,6 +1423,75 @@ final class ATTNSDKTests: XCTestCase {
         await fulfillment(of: [notifiedForSut, notifiedForOther], timeout: 1.0)
         XCTAssertEqual(sut.inboxUnreadCount, 7)
         XCTAssertEqual(otherSdk.inboxUnreadCount, 99)
+    }
+
+    // MARK: - Identity snapshot / inbox ordering on identity changes
+
+    /// `planUpdateUser`'s cold-launch adoption branch mutates `_identifiers` in place and maps
+    /// to `.skip`. The snapshot the inbox reads is published from `ATTNSDK`, not from the
+    /// identity, so a `.skip` that adopted identifiers must still republish — otherwise
+    /// `identityStore` keeps the init-time `(email: nil, phone: nil)` and every inbox request
+    /// goes out without user-scoped identifiers until the next identity mutation.
+    func testUpdateUser_adoptionSkip_stillPublishesIdentitySnapshot() {
+        let email = "user@example.com"
+        let phone = "+15551234567"
+        let pushToken = "test-push-token"
+        UserDefaults.standard.set(pushToken, forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+
+        let identity = sut.getUserIdentity()
+        XCTAssertTrue(identity.identifiers.isEmpty,
+                      "precondition: email/phone are in-memory only, so a fresh SDK starts empty")
+
+        // Stand in for a previous process that already synced this pair: the sync record is
+        // persisted, `_identifiers` is not. This is exactly the cold-launch state.
+        identity.recordSuccessfulSync(
+            email: email,
+            phone: phone,
+            pushToken: pushToken,
+            domain: testDomain,
+            visitorId: identity.visitorId
+        )
+
+        sut.updateUser(email: email, phone: phone)
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled,
+                       "a matching sync record must resolve to .skip — no /user-update, no rotation")
+        XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, email,
+                       "precondition: the adoption branch must have populated _identifiers")
+
+        let snapshot = sut.publishedInboxIdentitySnapshot()
+        XCTAssertEqual(snapshot.email, email, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.phone, phone, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.visitorId, identity.visitorId)
+    }
+
+    /// `clearUser()` with no push token has no `/user-update` to chain the unread-count refresh
+    /// through, so it drops the cached inbox state and re-fetches back to back. Both must reach
+    /// the `InboxManager` actor in that order: a refresh that lands first has its server count
+    /// wiped to 0 by the reset, leaving the badge stale until the next explicit refresh.
+    ///
+    /// Pins the end state rather than reproducing the interleaving — with the ordering fix the
+    /// refresh is strictly last, so the final count is always the server's.
+    func testClearUser_noPushToken_refreshLandsAfterInboxReset() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // Materialize the manager — the reset/refresh helpers are both no-ops until it exists.
+        await sut.refreshInboxUnreadCount()
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "precondition: manager materialized with a server count")
+
+        // A distinct value so the assertion can't be satisfied by the pre-clear count.
+        apiSpy.stubbedUnreadCount = 6
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 6
+        }
+
+        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        sut.clearUser()
+
+        await fulfillment(of: [notified], timeout: 2.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 6,
+                       "the identity reset must not wipe the count the post-clear refresh stored")
     }
 }
 

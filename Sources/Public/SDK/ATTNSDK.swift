@@ -336,20 +336,25 @@ public final class ATTNSDK: NSObject {
             // listed for enum exhaustiveness only.
             //
             // The identity has already been cleared and rotated under the lock, so republish
-            // the snapshot and drop the previous user's cached inbox state.
+            // the snapshot. The previous user's cached inbox state is dropped below, on both
+            // branches — the no-detach branch has to order the drop against its own immediate
+            // count re-fetch, so it uses the combined helper instead.
             publishIdentitySnapshot()
-            resetInboxForIdentityChangeIfMaterialized()
             Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(previousVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
 
             guard !pushToken.isEmpty else {
                 // No push token means there is nothing to detach server-side. Local was
                 // already cleared and the visitor id rotated inside planClearUser.
                 Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-                // No `/user-update` will fire, so kick the inbox count re-fetch now against the
-                // freshly-generated anonymous visitor. Safe: no server-side association is pending.
-                refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                // No `/user-update` will fire, so drop the cached inbox state and kick the count
+                // re-fetch now against the freshly-generated anonymous visitor. Safe: no
+                // server-side association is pending. Both go through one helper because the
+                // reset must reach the InboxManager actor before the refresh — see
+                // `resetThenRefreshInboxForIdentityChangeIfMaterialized`.
+                resetThenRefreshInboxForIdentityChangeIfMaterialized()
                 return
             }
+            resetInboxForIdentityChangeIfMaterialized()
             Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             // Capture visitor id at request-time so a rotation between request and
             // response can't corrupt the record — see recordSuccessfulSync.
@@ -1022,6 +1027,32 @@ extension ATTNSDK {
         }
     }
 
+    /// Drops the previous user's cached inbox state and then re-fetches the unread count for the
+    /// new identity, both inside a single `Task` so they reach the `InboxManager` actor in that
+    /// order.
+    ///
+    /// Calling `resetInboxForIdentityChangeIfMaterialized()` and
+    /// `refreshInboxUnreadCountForNewIdentityIfMaterialized()` back to back does NOT order them:
+    /// the outer `DispatchQueue.main.async` blocks run FIFO, but each spawns an unstructured
+    /// `Task` whose hop onto the actor is unordered relative to the other's. If the refresh
+    /// landed first it would store the server count and the reset would immediately wipe it back
+    /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
+    /// `refreshInboxUnreadCount()` or app foreground.
+    ///
+    /// Only for identity changes with no `/user-update` in flight — i.e. `clearUser()` when there
+    /// is no push token to detach. When the detach POST does fire, the refresh must instead be
+    /// chained through its callback so the fetch runs after the server-side detach; the network
+    /// round-trip is what orders it behind the reset there.
+    func resetThenRefreshInboxForIdentityChangeIfMaterialized() {
+        DispatchQueue.main.async { [weak self] in
+            guard let manager = self?._inboxManager else { return }
+            Task {
+                await manager.resetForIdentityChange()
+                await manager.refreshUnreadCount()
+            }
+        }
+    }
+
     /// Publishes the current identity (visitor id, push token, email, phone) into the
     /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
     /// Call after any mutation of `userIdentity` or `currentPushToken`.
@@ -1035,6 +1066,13 @@ extension ATTNSDK {
             email: identifiers[ATTNIdentifierType.email] as? String,
             phone: identifiers[ATTNIdentifierType.phone] as? String
         ))
+    }
+
+    /// Reads back what `publishIdentitySnapshot()` last published. Internal, for tests: the
+    /// only other way to observe the snapshot is to materialize an `InboxManager` and let its
+    /// `@Sendable` provider resolve it, which drags a network fetch into the assertion.
+    func publishedInboxIdentitySnapshot() -> InboxIdentitySnapshot {
+        identityStore.snapshot()
     }
 }
 

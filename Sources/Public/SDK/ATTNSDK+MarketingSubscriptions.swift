@@ -186,6 +186,17 @@ extension ATTNSDK {
         switch decision {
         case .skip:
             Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            // `.skip` also covers planUpdateUser's cold-launch adoption branch, which writes the
+            // persisted sync record's (email, phone) into `_identifiers` in place without
+            // rotating. `_identifiers` is in-memory only, so the snapshot published at init still
+            // holds (email: nil, phone: nil) in that case — the inbox would then query the server
+            // without user-scoped identifiers until the next identity mutation republished.
+            // Publishing here is a no-op for the other `.skip` outcome (local already matched, so
+            // `_identifiers` didn't change) and the store has no observers, so it stays idempotent.
+            // Deliberately no unread-count refresh: `.skip` means the server already confirmed
+            // this identity under the current visitor id, and firing a fetch here would undo the
+            // "no network on a no-op call" guarantee MSDK-469 exists to provide.
+            publishIdentitySnapshot()
             callback?(nil, nil, nil, nil)
             return
         case .retryWithoutRotation:
