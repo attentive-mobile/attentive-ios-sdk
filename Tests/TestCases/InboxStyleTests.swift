@@ -85,6 +85,81 @@ final class InboxStyleTests: XCTestCase {
         XCTAssertEqual(style.swipeBackground, .blue)
     }
 
+    // MARK: - Explicit nil inherits the default
+
+    /// A wrapper SDK (React Native) builds a full `InboxStyle` from values that are each
+    /// optional on the JS side, so it needs to forward "absent" without restating the default.
+    /// Passing `nil` explicitly must land on the same colours as omitting the argument.
+    func testDesignatedInit_explicitNilColors_inheritDefaults() {
+        let unreadIndicator: Color? = nil
+        let swipeBackground: Color? = nil
+        let background: Color? = nil
+
+        let style = InboxStyle(
+            background: background,
+            unreadIndicator: unreadIndicator,
+            swipeBackground: swipeBackground
+        )
+
+        XCTAssertNil(style.background)
+        XCTAssertEqual(style.unreadIndicator, InboxStyle.defaultAccent)
+        XCTAssertEqual(style.swipeBackground, InboxStyle.defaultAccent)
+    }
+
+    func testFontConvenienceInit_explicitNilColors_inheritDefaults() {
+        let unreadIndicator: Color? = nil
+        let swipeBackground: Color? = nil
+
+        let style = InboxStyle(
+            textColor: .black,
+            background: nil,
+            unreadIndicator: unreadIndicator,
+            swipeBackground: swipeBackground
+        )
+
+        XCTAssertNil(style.background)
+        XCTAssertEqual(style.unreadIndicator, InboxStyle.defaultAccent)
+        XCTAssertEqual(style.swipeBackground, InboxStyle.defaultAccent)
+    }
+
+    /// Mixing a forwarded `nil` with a concrete colour must resolve each independently, which
+    /// is the shape of the wrapper's real call: every knob arrives separately optional.
+    func testExplicitNilAndConcreteColors_resolveIndependently() {
+        let style = InboxStyle(
+            background: Color?.none,
+            unreadIndicator: .pink,
+            swipeBackground: Color?.none
+        )
+
+        XCTAssertNil(style.background)
+        XCTAssertEqual(style.unreadIndicator, .pink)
+        XCTAssertEqual(style.swipeBackground, InboxStyle.defaultAccent)
+    }
+
+    /// The fallback the wrapper inherits by passing `nil` must stay the blue the inbox
+    /// hardcoded before these knobs existed — this is the value it no longer has to copy.
+    func testDefaultAccent_isThePreExistingBlue() {
+        XCTAssertEqual(InboxStyle.defaultAccent, .blue)
+    }
+
+    /// Compile-and-run check on the exact `UIColor?` -> `Color?` bridging the README documents
+    /// for wrapper SDKs, so the documented form can't drift from what actually builds.
+    func testWrapperBridgingFromOptionalUIColor() {
+        let providedBackground: UIColor? = .green
+        let absentIndicator: UIColor? = nil
+        let absentSwipe: UIColor? = nil
+
+        let style = InboxStyle(
+            background: providedBackground.map(Color.init(uiColor:)),
+            unreadIndicator: absentIndicator.map(Color.init(uiColor:)),
+            swipeBackground: absentSwipe.map(Color.init(uiColor:))
+        )
+
+        XCTAssertEqual(style.background, Color(uiColor: .green))
+        XCTAssertEqual(style.unreadIndicator, InboxStyle.defaultAccent)
+        XCTAssertEqual(style.swipeBackground, InboxStyle.defaultAccent)
+    }
+
     // MARK: - Source compatibility
 
     /// Existing integrations call these inits positionally / with the old argument set. They
