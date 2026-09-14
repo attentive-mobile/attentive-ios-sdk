@@ -670,45 +670,20 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
 }];
 ```
 
-### Passing pixel-tracking consent
+### Pixel-tracking consent (EU only)
 
-Under new EU regulations (France July 2026, Italy October 2026), brands must let shoppers opt in or out of email pixel-tracking (the invisible open-tracking pixels embedded in marketing emails). If your app captures that choice — for example, a checkbox in an account-creation form — record it by passing the `trackingConsent:` parameter to `optInMarketingSubscription`.
-
-> [!IMPORTANT]
-> Pixel-tracking consent is captured on **opt-in only**. `optOutMarketingSubscription` accepts the parameter for API symmetry, but the value is **not** sent to Attentive — Attentive's opt-out flow does not read a tracking-consent value, so `.accepted` / `.declined` on opt-out has no effect. Use `optInMarketingSubscription` to record a shopper's pixel-tracking choice.
-
-Values (opt-in only):
-
-| `ATTNTrackingConsent` | Meaning |
-|---|---|
-| `.accepted` | User explicitly allowed pixel tracking. Sent as `"ACCEPTED"` on the wire. |
-| `.declined` | User explicitly declined pixel tracking. Sent as `"DECLINED"` on the wire. |
-| `.unspecified` (default) | No explicit choice captured. The field is **omitted** from the request and Attentive's backend applies its own defaulting (e.g. France-locale users default to no pixel tracking). |
-
-The SDK does not prompt the user for this value — your app owns the consent-capture UX. This is not related to Apple's App Tracking Transparency (ATT) prompt; email-pixel consent is governed by EU ePrivacy on the recipient's device, not by Apple's cross-app tracking rules. See the [help article](https://help.attentive.com/hc/en-us/articles/51464632390804-France-Email-Privacy-Compliance-Update) for the compliance background.
-
-#### Swift
+EU customers subject to email pixel-tracking consent requirements can pass the shopper's choice via `trackingConsent:` on `optInMarketingSubscription`. See the [help article](https://help.attentive.com/hc/en-us/articles/51464632390804-France-Email-Privacy-Compliance-Update) for background.
 
 ```swift
 attentiveSdk.optInMarketingSubscription(
     email: "user@example.com",
-    phone: "+15551234567",
     trackingConsent: .accepted
 ) { _, _, response, error in
     // ...
 }
 ```
 
-#### Objective-C
-
-```objective-c
-[attentiveSdk optInMarketingSubscriptionWithEmail:@"user@example.com"
-                                            phone:@"+15551234567"
-                                  trackingConsent:ATTNTrackingConsentAccepted
-                                         callback:^(NSData *data, NSURL *url, NSURLResponse *response, NSError *error) {
-    // ...
-}];
-```
+Values: `.accepted`, `.declined`, or `.unspecified` (default, backend decides). The parameter is ignored on `optOutMarketingSubscription`.
 
 Existing call sites that don't pass `trackingConsent:` continue to work unchanged — they default to `.unspecified`.
 
