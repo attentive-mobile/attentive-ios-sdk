@@ -672,9 +672,12 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
 
 ### Passing pixel-tracking consent
 
-Under new EU regulations (France July 2026, Italy October 2026), brands must let shoppers opt in or out of email pixel-tracking (the invisible open-tracking pixels embedded in marketing emails). If your app captures that choice — for example, a checkbox in an account-creation form — pass it through the SDK using the `trackingConsent:` parameter on `optInMarketingSubscription` / `optOutMarketingSubscription`.
+Under new EU regulations (France July 2026, Italy October 2026), brands must let shoppers opt in or out of email pixel-tracking (the invisible open-tracking pixels embedded in marketing emails). If your app captures that choice — for example, a checkbox in an account-creation form — record it by passing the `trackingConsent:` parameter to `optInMarketingSubscription`.
 
-Values:
+> [!IMPORTANT]
+> Pixel-tracking consent is captured on **opt-in only**. `optOutMarketingSubscription` accepts the parameter for API symmetry, but the value is **not** sent to Attentive — Attentive's opt-out flow does not read a tracking-consent value, so `.accepted` / `.declined` on opt-out has no effect. Use `optInMarketingSubscription` to record a shopper's pixel-tracking choice.
+
+Values (opt-in only):
 
 | `ATTNTrackingConsent` | Meaning |
 |---|---|
