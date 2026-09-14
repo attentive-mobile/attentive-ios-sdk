@@ -541,6 +541,103 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
     }
 
+    // MARK: - trackingConsent tests
+
+    func testOptIn_legacyThreeArgSignature_defaultsToUnspecifiedTrackingConsent() {
+        // Existing call sites that don't yet pass trackingConsent must be byte-identical
+        // to before this change: the delegating three-arg overload forwards .unspecified.
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled)
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .unspecified)
+    }
+
+    func testOptIn_withAcceptedConsent_passesThroughToApi() {
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .accepted,
+            callback: nil
+        )
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled)
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .accepted)
+    }
+
+    func testOptIn_withDeclinedConsent_passesThroughToApi() {
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .declined,
+            callback: nil
+        )
+
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .declined)
+    }
+
+    func testOptIn_queuedWithoutPushToken_replaysConsentWhenTokenArrives() {
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .accepted,
+            callback: nil
+        )
+
+        XCTAssertFalse(apiSpy.sendOptInWasCalled, "Opt-in with consent should still queue when the push token is missing")
+
+        sut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+
+        XCTAssertTrue(waitForCondition({ self.apiSpy.sendOptInWasCalled }))
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .accepted, "Queued consent value must survive the push-token wait")
+    }
+
+    func testOptOut_legacyThreeArgSignature_defaultsToUnspecifiedTrackingConsent() {
+        registerTestPushToken()
+
+        sut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled)
+        XCTAssertEqual(apiSpy.lastOptOutTrackingConsent, .unspecified)
+    }
+
+    func testOptOut_withDeclinedConsent_passesThroughToApi() {
+        registerTestPushToken()
+
+        sut.optOutMarketingSubscription(
+            email: nil,
+            phone: "+15551234567",
+            trackingConsent: .declined,
+            callback: nil
+        )
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled)
+        XCTAssertEqual(apiSpy.lastOptOutTrackingConsent, .declined)
+    }
+
+    func testOptOut_queuedWithoutPushToken_replaysConsentWhenTokenArrives() {
+        sut.optOutMarketingSubscription(
+            email: nil,
+            phone: "+15551234567",
+            trackingConsent: .declined,
+            callback: nil
+        )
+
+        XCTAssertFalse(apiSpy.sendOptOutWasCalled)
+
+        sut.registerDeviceToken(Data([0x0a, 0x0b, 0x0c]), authorizationStatus: .authorized)
+
+        XCTAssertTrue(waitForCondition({ self.apiSpy.sendOptOutWasCalled }))
+        XCTAssertEqual(apiSpy.lastOptOutTrackingConsent, .declined)
+    }
+
     // MARK: - updateUser tests
 
     func testUpdateUser_callsUpdateUserExactlyOnce() {
