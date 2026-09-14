@@ -737,10 +737,22 @@ Every knob is optional and defaults to what the inbox rendered before it existed
 | --- | --- | --- |
 | `title` / `body` / `timestamp` | `.headline`/`.primary`, `.subheadline`/`.secondary`, `.caption`/`.secondary` | Font and color per text role |
 | `background` | `nil` — keeps the system list background | Background behind the message list |
-| `unreadIndicator` | `.blue` | The leading dot on unread rows |
-| `swipeBackground` | `.blue` | Background revealed by the leading swipe (mark read/unread) |
+| `unreadIndicator` | `nil` — resolves to `.blue` | The leading dot on unread rows |
+| `swipeBackground` | `nil` — resolves to `.blue` | Background revealed by the leading swipe (mark read/unread) |
 
 The trailing delete swipe always uses the system destructive red and isn't themeable.
+
+All three colors are `Color?`, and passing `nil` explicitly is the same as omitting the argument. That's mainly for wrappers and abstraction layers that always construct a full `InboxStyle` from separately-optional inputs — they can forward an absent color straight through rather than hardcoding a copy of the SDK's default:
+
+```swift
+InboxStyle(
+    background: backgroundColor.map(Color.init(uiColor:)),
+    unreadIndicator: unreadIndicatorColor.map(Color.init(uiColor:)),
+    swipeBackground: swipeBackgroundColor.map(Color.init(uiColor:))
+)
+```
+
+Note that `nil` means something slightly different per knob: `background` keeps the *system* list background, while `unreadIndicator` and `swipeBackground` take the *SDK's* own default blue.
 
 > **The navigation bar isn't part of `InboxStyle`.** The SDK only sets the inbox's navigation *title*; the bar's background and title color come from your app's `UINavigationBar` appearance. `background` fills the list up to the safe-area edges and shows through a translucent bar, so if you set a custom background, style your nav bar to match.
 
