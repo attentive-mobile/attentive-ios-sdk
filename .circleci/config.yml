@@ -30,6 +30,30 @@ parameters:
   deploy_to_testflight:
     type: string
     default: "true"
+  # Set to true only by the CircleCI Scheduled Pipeline that drives the
+  # nightly-xcode-beta workflow. In-config cron triggers are not evaluated on
+  # GitHub App–integrated projects, so the schedule lives in CircleCI project
+  # settings (UI/API), mirroring run_release / run_testflight_deploy.
+  # Verify the schedule exists and targets main (it is invisible to code review):
+  #   curl -H "Circle-Token: $CIRCLE_TOKEN" \
+  #     https://circleci.com/api/v2/project/gh/attentive-mobile/attentive-ios-sdk/schedule
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  run_nightly_xcode_beta:
+    type: boolean
+    default: false
+
+# ========================
+# Xcode Versions
+# ========================
+# Single source of truth per toolchain: each anchor drives both the executor
+# image tag and the SPM/DerivedData cache-key value, so a toolchain bump
+# always invalidates the cache.
+stable_xcode_version: &stable_xcode_version "26.6"
+# CircleCI's beta image tag floats: when "27.0" flips from beta to GA, caches
+# built against the last beta SDK are reused under this same key. At retirement
+# (MSDK-467), bump the spm/gems cache-key version prefixes to force a clean
+# rebuild against the GA toolchain.
+beta_xcode_version: &beta_xcode_version "27.0"
 
 # ========================
 # Executors
@@ -37,7 +61,20 @@ parameters:
 executors:
   macos-xcode:
     macos:
-      xcode: "26.1.1"
+      xcode: *stable_xcode_version
+    resource_class: m4pro.medium
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      FASTLANE_SKIP_UPDATE_CHECK: "YES"
+      LC_ALL: "en_US.UTF-8"
+      LANG: "en_US.UTF-8"
+
+  # Floating Xcode beta image (CircleCI overwrites the tag on each new beta release).
+  # Used only by the nightly-xcode-beta workflow — never by PR/release workflows.
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  macos-xcode-beta:
+    macos:
+      xcode: *beta_xcode_version
     resource_class: m4pro.medium
     environment:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -96,7 +133,7 @@ commands:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "✅ TestFlight Build Deployed",
+                    "text": "✅ iOS Bonni TestFlight Build Deployed",
                     "emoji": true
                   }
                 },
@@ -112,11 +149,18 @@ commands:
 
   setup-fastlane:
     description: "Install Fastlane via Bundler"
+    parameters:
+      # Segments the gems cache by toolchain, same as the SPM/DerivedData cache:
+      # native-extension gems in vendor/bundle are built against the image's Ruby
+      # patch release, which can differ between the stable and beta macOS images.
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
     steps:
       - restore_cache:
           keys:
-            - v1-gems-{{ checksum "Gemfile.lock" }}
-            - v1-gems-
+            - v2-gems-<< parameters.xcode-cache-key >>-{{ checksum "Gemfile.lock" }}
+            - v2-gems-<< parameters.xcode-cache-key >>-
       - macos/switch-ruby:
           version: "3.3"
       - run:
@@ -125,7 +169,7 @@ commands:
             bundle config set --local path 'vendor/bundle'
             bundle install
       - save_cache:
-          key: v1-gems-{{ checksum "Gemfile.lock" }}
+          key: v2-gems-<< parameters.xcode-cache-key >>-{{ checksum "Gemfile.lock" }}
           paths:
             - vendor/bundle
 
@@ -137,7 +181,17 @@ jobs:
   # Checkout and Setup
   # -----------------------
   checkout-and-setup:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+      # Segments the SPM/DerivedData cache so stable and beta toolchains never
+      # share it. A job parameter (compile-time interpolation) because cache-key
+      # {{ .Environment.* }} templates cannot read executor environment blocks.
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
+    executor: << parameters.xcode-executor >>
     steps:
       # This is our custom checkout step. We do this to ensure we are accessing Github through Github App
       # so that we have the correct permissions to both read and write to the repo via the configured
@@ -161,13 +215,15 @@ jobs:
             git checkout "${CIRCLE_SHA1}"
 
       # Setup Fastlane
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
-      # Cache Swift Package Manager dependencies
+      # Cache Swift Package Manager dependencies (keyed by Xcode version so
+      # stable and beta toolchains never share DerivedData)
       - restore_cache:
           keys:
-            - v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
-            - v1-spm-
+            - v2-spm-<< parameters.xcode-cache-key >>-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+            - v2-spm-<< parameters.xcode-cache-key >>-
 
       # Resolve dependencies via Fastlane
       - run:
@@ -175,7 +231,7 @@ jobs:
           command: bundle exec fastlane setup
 
       - save_cache:
-          key: v1-spm-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
+          key: v2-spm-<< parameters.xcode-cache-key >>-{{ checksum "attentive-ios-sdk.xcworkspace/xcshareddata/swiftpm/Package.resolved" }}
           paths:
             - ~/.swiftpm
             - ~/Library/Developer/Xcode/DerivedData
@@ -211,12 +267,20 @@ jobs:
   # Build Framework
   # -----------------------
   build-framework:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
+    executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
 
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
       - run:
           name: Build Framework via Fastlane
@@ -329,12 +393,20 @@ jobs:
   # Unit Tests with Code Coverage
   # -----------------------
   unit-tests:
-    executor: macos-xcode
+    parameters:
+      xcode-executor:
+        type: executor
+        default: macos-xcode
+      xcode-cache-key:
+        type: string
+        default: *stable_xcode_version
+    executor: << parameters.xcode-executor >>
     steps:
       - attach_workspace:
           at: .
 
-      - setup-fastlane
+      - setup-fastlane:
+          xcode-cache-key: << parameters.xcode-cache-key >>
 
       - run:
           name: Run Unit Tests with Coverage via Fastlane
@@ -582,6 +654,7 @@ workflows:
       or:
         - << pipeline.parameters.run_release >>
         - << pipeline.parameters.run_testflight_deploy >>
+        - << pipeline.parameters.run_nightly_xcode_beta >>
     jobs:
       - checkout-and-setup:
           context: *default_context
@@ -637,6 +710,46 @@ workflows:
             - assemble-xcframework
           filters:
             branches:
-              only: 
+              only:
                 - main
                 - develop
+
+  # Nightly validation against the Xcode beta toolchain (currently Xcode 27 beta,
+  # which ships the iOS 27 SDK). Driven by a CircleCI Scheduled Pipeline (project
+  # settings, weekdays 13:00 UTC on main — US morning, so failures surface while
+  # the team is online) that sets run_nightly_xcode_beta=true —
+  # never by push — so a broken beta can't block PRs or releases. Failures alert
+  # via the existing Slack notification in each job.
+  # TEMPORARY until Xcode 27 ships stable — see MSDK-467 for retirement steps.
+  nightly-xcode-beta:
+    when: << pipeline.parameters.run_nightly_xcode_beta >>
+    jobs:
+      # main-only is enforced in-config (not just by the external schedule) so an
+      # ad-hoc API trigger with run_nightly_xcode_beta=true can't run the beta
+      # path on a topic branch. Same defense as build-bonni-release above.
+      - checkout-and-setup:
+          name: checkout-and-setup-xcode-beta
+          xcode-executor: macos-xcode-beta
+          xcode-cache-key: *beta_xcode_version
+          context: *default_context
+          filters: &main_only_filter
+            branches:
+              only: main
+
+      - build-framework:
+          name: build-framework-xcode-beta
+          xcode-executor: macos-xcode-beta
+          xcode-cache-key: *beta_xcode_version
+          context: *default_context
+          filters: *main_only_filter
+          requires:
+            - checkout-and-setup-xcode-beta
+
+      - unit-tests:
+          name: unit-tests-xcode-beta
+          xcode-executor: macos-xcode-beta
+          xcode-cache-key: *beta_xcode_version
+          context: *default_context
+          filters: *main_only_filter
+          requires:
+            - checkout-and-setup-xcode-beta

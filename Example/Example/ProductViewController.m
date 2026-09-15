@@ -60,7 +60,7 @@
 
 - (ATTNItem*)buildItem {
   // Build Item with required fields
-  ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+  ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithAmount:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
   // Add some optional fields
   item.name = @"T-Shirt";
   item.category = @"Tops";

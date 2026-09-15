@@ -167,7 +167,7 @@ class ProductDetailViewController: UIViewController {
             variantName: nil,
             imageUrl: product.productImage,
             categories: product.category != nil ? [product.category!] : nil,
-            price: product.price.price.stringValue,
+            price: product.price.amount.stringValue,
             quantity: product.quantity,
             productUrl: nil
         )

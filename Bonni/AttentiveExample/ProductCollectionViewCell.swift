@@ -141,7 +141,7 @@ class ProductCollectionViewCell: UICollectionViewCell {
         productNameLabel.text = product.name ?? "Unknown Product"
         productPriceLabel.text = {
             let price = product.price
-            return "\(price.currency) \(price.price.stringValue)"
+            return "\(price.currency) \(price.amount.stringValue)"
         }()
 
         productImageView.image = UIImage(named: product.name ?? "Protective Superscreen")

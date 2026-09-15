@@ -13,7 +13,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.16'
+  pod 'attentive-ios-sdk', '2.0.17'
 end
 ```
 
@@ -32,7 +32,7 @@ SPM: Manually select https://github.com/attentive-mobile/attentive-ios-sdk in Xc
 
 ### XCFramework (Manual Integration)
 
-Universal `XCFramework` is supported for consumers on Xcode 26.1.1+.
+Universal `XCFramework` is supported for consumers on Xcode 26.6+.
 
 A pre-built `ATTNSDKFramework.xcframework` is attached to each [GitHub release](https://github.com/attentive-mobile/attentive-ios-sdk/releases). If you cannot use SPM or CocoaPods, you can integrate it manually:
 
@@ -319,8 +319,10 @@ The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProdu
 
 | Field      | Type               | Required | Description                                  |
 | ---------- | ------------------ | -------- | -------------------------------------------- |
-| `price`    | `NSDecimalNumber`  | Yes      | The price value                              |
+| `amount`   | `NSDecimalNumber`  | Yes      | The price value                              |
 | `currency` | `String`           | Yes      | The currency code (e.g. `"USD"`)             |
+
+> **Note:** `ATTNPrice.price` and `init(price:currency:)` are deprecated in favor of `amount` and `init(amount:currency:)`. See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
 
 #### ATTNOrder
 
@@ -366,7 +368,7 @@ The SDK currently supports `ATTNPurchaseEvent`, `ATTNAddToCartEvent`, `ATTNProdu
 
 #### Swift
 ```swift
-let price = ATTNPrice(price: NSDecimalNumber(string: "15.99"), currency: "USD")
+let price = ATTNPrice(amount: NSDecimalNumber(string: "15.99"), currency: "USD")
 
 // Create the Item(s) that was/were purchased
 let item = ATTNItem(productId: "222", productVariantId: "55555", price: price)
@@ -383,7 +385,7 @@ ATTNEventTracker.sharedInstance().record(event: purchase)
 
 #### Objective-C
 ```objective-c
-ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithPrice:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
+ATTNItem* item = [[ATTNItem alloc] initWithProductId:@"222" productVariantId:@"55555" price:[[ATTNPrice alloc] initWithAmount:[[NSDecimalNumber alloc] initWithString:@"15.99"] currency:@"USD"]];
 
 ATTNOrder* order = [[ATTNOrder alloc] initWithOrderId:@"778899"];
 
@@ -940,27 +942,18 @@ sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
 }];
 ```
 
-### Skip Fatigue on Creative
+### Fatigue rules
 
-For debugging purposes, you can skip fatigue rule evaluation to show your creative every time. Default value is `false`.
+Fatigue rules are evaluated by the Attentive backend. The `ATTNSDK.skipFatigueOnCreative`
+property (and the `SKIP_FATIGUE_ON_CREATIVE` environment variable) are deprecated, have no
+effect, and will be removed in a future major version.
 
-#### Swift
+To force a specific creative to display while debugging, trigger it by creative ID. This
+bypasses all fatigue rules evaluated by the backend:
 
 ```swift
-let sdk = ATTNSDK(domain: "domain")
-sdk.skipFatigueOnCreative = true
+sdk.trigger(view, creativeId: "your-creative-id", handler: nil)
 ```
-
-#### Objective-C
-
-```objective-c
-ATTNSDK *sdk = [[ATTNSDK alloc] initWithDomain:@"domain"];
-sdk.skipFatigueOnCreative = YES;
-```
-
-Alternatively, `SKIP_FATIGUE_ON_CREATIVE` can be added as an environment value in the project scheme or even included in CI files.
-
-Environment value can be a string with value `"true"` or `"false"`.
 
 ## Other functionalities
 

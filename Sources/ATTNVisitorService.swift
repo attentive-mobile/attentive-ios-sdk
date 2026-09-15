@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 struct ATTNVisitorService {
     private enum Constants {
@@ -13,28 +14,42 @@ struct ATTNVisitorService {
     }
 
     private let persistentStorage: ATTNPersistentStorageProtocol
+    private let logger: ATTNLogger
 
-    init(persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage()) {
+    init(
+        persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage(),
+        logger: ATTNLogger = Loggers.event
+    ) {
         self.persistentStorage = persistentStorage
+        self.logger = logger
     }
 
     func getVisitorId() -> String {
         guard let existingVisitorId = persistentStorage.readString(forKey: Constants.visitorIdKey) else {
-            return createNewVisitorId()
+            let newVisitorId = createNewVisitorId()
+            logNewVisitorId(newVisitorId)
+            return newVisitorId
         }
 
-        Loggers.event.info("Obtained existing visitor id: \(existingVisitorId, privacy: .public)")
+        logger.info("Obtained existing visitor id: \(existingVisitorId, privacy: .public)")
 
         return existingVisitorId
     }
 
+    /// Deliberately does not log: callers may hold a lock while calling this
+    /// (see `ATTNUserIdentity.clearUser()`), and os_log latency is unbounded.
+    /// Call `logNewVisitorId(_:)` with the returned id outside any critical
+    /// section.
     func createNewVisitorId() -> String {
         let newVisitorId = generateVisitorId()
         persistentStorage.save(newVisitorId as NSObject, forKey: Constants.visitorIdKey)
-
-        Loggers.event.info("Generated new visitor id: \(newVisitorId, privacy: .public)")
-
         return newVisitorId
+    }
+
+    /// The logging counterpart to `createNewVisitorId()`, kept separate so the
+    /// create step can run inside a lock while the log happens outside it.
+    func logNewVisitorId(_ visitorId: String) {
+        logger.info("Generated new visitor id: \(visitorId, privacy: .public)")
     }
 
 }

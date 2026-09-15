@@ -4,6 +4,20 @@
 - The built-in inbox UI can now open a tapped message's `actionURL` (unclaimed http(s) links fall back to the browser) — **opt-in** via `automaticallyOpensInboxDeepLinks = true` (default `false`). Alternatively pass `onMessageTap` to `inboxView()` / `inboxViewController()` to route taps yourself; click tracking and the `ATTNSDKInboxMessageTapped` broadcast fire either way.
 - Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
 
+## [2.0.17](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.16...2.0.17) (2026-08-06)
+* MSDK-312: bound runConcurrently parallelism to fix CI thread-explosion flake
+* MSDK-312: address review — injectable logger, DRY log helper, fix shadowing
+* MSDK-312: move visitor-id logging outside the identity lock
+* MSDK-450: tear down WebView when a creative fails to render (#291)
+* specify iOS Bonni in TestFlight deploy Slack notification
+* default TestFlight deploy toggle to off
+* separate TestFlight deploy toggle from prerelease flag in release-sdk workflow
+* does not create or push version bump branch when its a beta
+* Version bump 2.0.16
+* MSDK-312: shrink clearUser concurrency test to 50 iterations
+* Binary Package.swift for 2.0.16
+* Version bump 2.0.16
+
 ## [2.0.16](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.15...2.0.16) (2026-07-29)
 * MSDK-441: fix v2 event body encoding and restore pd deeplink (#286)
 * MSDK-442: relax v2 event API for catalog-hydration clients (#283)

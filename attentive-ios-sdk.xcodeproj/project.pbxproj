@@ -40,6 +40,8 @@
 		F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */; };
 		A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */; };
 		A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */; };
+		A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */; };
+		A048600000000000000486A0 /* ATTNPriceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A048600000000000000486A1 /* ATTNPriceTests.swift */; };
 		F952B5B42EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */; };
 		F952B5B52EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */; };
 		F952B5B62EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */; };
@@ -96,9 +98,6 @@
 		FB4E3FE52C36F7BF004B8FF0 /* ATTNWebViewHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */; };
 		FB4E3FE72C372C54004B8FF0 /* ATTNWebViewProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */; };
 		FB56D4DA2C208BAD00AF7530 /* ATTNSDK+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */; };
-		FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */; };
-		FB56D4DE2C208DC100AF7530 /* String+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4DD2C208DC100AF7530 /* String+Extension.swift */; };
-		FB56D4E12C20925500AF7530 /* ProcessInfo+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */; };
 		FB60AF0B2C1211C700C61537 /* ATTNEventURLProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB60AF0A2C1211C700C61537 /* ATTNEventURLProvider.swift */; };
 		FB65536A2C1B72D4008DB3B1 /* ATTNSDKTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */; };
 		FB65536C2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB65536B2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift */; };
@@ -199,6 +198,8 @@
 		F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKExtensionV2Tests.swift; sourceTree = "<group>"; };
 		A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPINewEventEncodingTests.swift; sourceTree = "<group>"; };
 		A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNv2DeeplinkTests.swift; sourceTree = "<group>"; };
+		A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNV1V2PayloadParityTests.swift; sourceTree = "<group>"; };
+		A048600000000000000486A1 /* ATTNPriceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPriceTests.swift; sourceTree = "<group>"; };
 		F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTrackerV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventURLProviderV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityExtensionTests.swift; sourceTree = "<group>"; };
@@ -254,9 +255,6 @@
 		FB4E3FE42C36F7BF004B8FF0 /* ATTNWebViewHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandling.swift; sourceTree = "<group>"; };
 		FB4E3FE62C372C54004B8FF0 /* ATTNWebViewProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewProviding.swift; sourceTree = "<group>"; };
 		FB56D4D92C208BAD00AF7530 /* ATTNSDK+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+Extension.swift"; sourceTree = "<group>"; };
-		FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Boolean+Extension.swift"; sourceTree = "<group>"; };
-		FB56D4DD2C208DC100AF7530 /* String+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extension.swift"; sourceTree = "<group>"; };
-		FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProcessInfo+Extension.swift"; sourceTree = "<group>"; };
 		FB60AF0A2C1211C700C61537 /* ATTNEventURLProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventURLProvider.swift; sourceTree = "<group>"; };
 		FB6553692C1B72D4008DB3B1 /* ATTNSDKTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKTests.swift; sourceTree = "<group>"; };
 		FB65536B2C1B74A9008DB3B1 /* ATTNAPIProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPIProtocol.swift; sourceTree = "<group>"; };
@@ -467,7 +465,6 @@
 				FB2983D32C0F73990039759C /* Doubles */,
 				FB2984032C0F9D650039759C /* ATTNTestEventUtils.swift */,
 				A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */,
-				FB56D4DF2C20923800AF7530 /* Extensions */,
 			);
 			path = Tests;
 			sourceTree = SOURCE_ROOT;
@@ -483,6 +480,8 @@
 				F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */,
 				A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */,
 				A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */,
+				A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */,
+				A048600000000000000486A1 /* ATTNPriceTests.swift */,
 				DCF28F9F2D692A6A00A7164F /* ATTNWebViewHandlerUITests.swift */,
 				FB2983F32C0F759D0039759C /* ATTNVisitorServiceTests.swift */,
 				F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */,
@@ -536,14 +535,6 @@
 			path = Protocols;
 			sourceTree = "<group>";
 		};
-		FB56D4DF2C20923800AF7530 /* Extensions */ = {
-			isa = PBXGroup;
-			children = (
-				FB56D4E02C20925500AF7530 /* ProcessInfo+Extension.swift */,
-			);
-			path = Extensions;
-			sourceTree = "<group>";
-		};
 		FB60AF092C12119F00C61537 /* URLProviders */ = {
 			isa = PBXGroup;
 			children = (
@@ -590,9 +581,7 @@
 		FBA9F9E82C0A77AB00C65024 /* Extension */ = {
 			isa = PBXGroup;
 			children = (
-				FB56D4DD2C208DC100AF7530 /* String+Extension.swift */,
 				F9CED4B32DF263E600780536 /* Notification+Extension.swift */,
-				FB56D4DB2C208D6100AF7530 /* Boolean+Extension.swift */,
 				FBA9F9E72C0A77AB00C65024 /* Dictionary+Extension.swift */,
 				FB35C1822C0E1FD7009FA048 /* URLSession+Extension.swift */,
 				A9D1C312A0001000000000002 /* NSLock+Extension.swift */,
@@ -878,7 +867,6 @@
 				FBA9FA0D2C0A77AB00C65024 /* ATTNPersistentStorage.swift in Sources */,
 				FBA9FA0B2C0A77AB00C65024 /* ATTNInfoEvent.swift in Sources */,
 				FBA9FA0F2C0A77AB00C65024 /* ATTNVisitorService.swift in Sources */,
-				FB56D4DE2C208DC100AF7530 /* String+Extension.swift in Sources */,
 				FB56D4DA2C208BAD00AF7530 /* ATTNSDK+Extension.swift in Sources */,
 				FBA9FA172C0A77AB00C65024 /* ATTNProductViewEvent.swift in Sources */,
 				F939F2462D64DF75002CC012 /* ATTNCreativeStateManager.swift in Sources */,
@@ -902,7 +890,6 @@
 				FB35C17D2C0E039E009FA048 /* ATTNConstants.swift in Sources */,
 				FB314CFA0001000000000001 /* ATTNSDKConfiguration.swift in Sources */,
 				F96E25382DD69244005AE2E3 /* ATTNLaunchManager.swift in Sources */,
-				FB56D4DC2C208D6100AF7530 /* Boolean+Extension.swift in Sources */,
 				FBA9FA082C0A77AB00C65024 /* Dictionary+Extension.swift in Sources */,
 				FBA9FA152C0A77AB00C65024 /* ATTNOrder.swift in Sources */,
 				FBA9FA1A2C0A77AB00C65024 /* ATTNSDK.swift in Sources */,
@@ -919,7 +906,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FB56D4E12C20925500AF7530 /* ProcessInfo+Extension.swift in Sources */,
 				FB080C712C1C755A00834BAA /* ATTNAPISpy.swift in Sources */,
 				A1B2C3D42F70A10000000004 /* ATTNURLOpenerSpy.swift in Sources */,
 				FB90EF0B2C109CB4004DFC4A /* ATTNAPIITTests.swift in Sources */,
@@ -931,6 +917,8 @@
 				F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */,
 				A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */,
 				A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */,
+				A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */,
+				A048600000000000000486A0 /* ATTNPriceTests.swift in Sources */,
 				FB2983F62C0F7CF10039759C /* ATTNUserIdentityTests.swift in Sources */,
 				FB86C0402C40669400E35580 /* ATTNProductViewEventTests.swift in Sources */,
 				FB2983F42C0F759D0039759C /* ATTNVisitorServiceTests.swift in Sources */,

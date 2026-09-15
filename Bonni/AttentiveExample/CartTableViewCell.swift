@@ -159,7 +159,7 @@ class CartTableViewCell: UITableViewCell {
         quantityLabel.text = "\(quantity)"
     }
     private func formatPrice(_ price: ATTNPrice) -> String {
-        return "\(price.currency) \(price.price.stringValue)"
+        return "\(price.currency) \(price.amount.stringValue)"
     }
     
     @objc private func increaseTapped() {

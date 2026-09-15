@@ -34,7 +34,7 @@ extension ATTNPurchaseEvent: ATTNEventRequestProvider {
                 )
             )
 
-            cartTotal = cartTotal.adding(item.price.price)
+            cartTotal = cartTotal.adding(item.price.amount)
         }
 
         let cartTotalString = priceFormatter.string(from: cartTotal)

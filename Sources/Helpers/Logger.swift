@@ -35,6 +35,16 @@ struct ATTNLogger {
         self.osLogger = Logger(subsystem: Loggers.subsystem, category: category)
     }
 
+    /// Wraps a caller-supplied `os.Logger` instead of building one from `category`.
+    init(category: String, osLogger: Logger) {
+        self.category = category
+        self.osLogger = osLogger
+    }
+
+    /// A logger whose `os.Logger` writes nowhere. Injected by tests that assert on
+    /// timing so unbounded os_log latency can't race the assertion — see MSDK-312.
+    static let disabled = Self(category: "disabled", osLogger: Logger(OSLog.disabled))
+
     // Each level forwards `message` as an autoclosure into os.Logger's own lazy
     // string interpolation. When the buffer isn't capturing, os.Logger keeps its
     // native gating: on release builds with `.debug` disabled, the closure isn't

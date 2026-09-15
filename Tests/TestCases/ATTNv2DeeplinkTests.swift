@@ -19,7 +19,7 @@ final class ATTNv2DeeplinkTests: XCTestCase {
         super.setUp()
         apiSpy = ATTNAPISpy(domain: "test.attentivemobile.com")
         sdk = ATTNSDK(api: apiSpy)
-        sdk.useV2Endpoint = true
+        sdk.isV2EndpointEnabled = true
     }
 
     override func tearDown() {

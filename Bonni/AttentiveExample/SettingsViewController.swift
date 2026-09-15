@@ -301,6 +301,14 @@ class SettingsViewController: UIViewController {
         refreshSdkInfoLabels()
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Visitor id can rotate from other screens (e.g. cart flow calling identify /
+        // updateUser). Re-read on every appearance so returning to Settings never shows a
+        // stale id.
+        refreshSdkInfoLabels()
+    }
+
     private func refreshSdkInfoLabels() {
         let sdk = getAttentiveSdk()
         domainLabel.text = "Domain: \(sdk.domain)"
@@ -514,6 +522,12 @@ class SettingsViewController: UIViewController {
                                                  : "User update failed")
                 }
             }
+            // updateUser rotates the visitor id synchronously inside planUpdateUser under
+            // the identity lock (see MSDK-469), so by the time the call returns here the
+            // sut's visitorId already reflects .rotatedAndReplaced (or is unchanged for
+            // .skip / .retryWithoutRotation). Refresh now so the label matches the SDK's
+            // current state — waiting for the async callback would show the same value.
+            self.refreshSdkInfoLabels()
         })
 
         present(alert, animated: true)
@@ -654,6 +668,10 @@ class SettingsViewController: UIViewController {
             }
 
             self.getAttentiveSdk().identify(identifiers)
+            // identify() merges identifiers without rotating the visitor id today, but
+            // refreshing here keeps the Settings label authoritative and future-proofs the
+            // Bonni app if that behavior ever changes.
+            self.refreshSdkInfoLabels()
             let summary = identifiers.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")
             self.showToast(with: "Identified: \(summary)")
         })
