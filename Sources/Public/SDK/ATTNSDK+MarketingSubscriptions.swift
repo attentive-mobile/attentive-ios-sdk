@@ -102,47 +102,15 @@ extension ATTNSDK {
     /// Same push-token semantics as ``optInMarketingSubscription(email:phone:callback:)``:
     /// push-enabled clients queue until a token arrives; non-push clients send immediately
     /// without one.
+    ///
+    /// Pixel-tracking consent is intentionally not exposed on opt-out. Subscriptions-API's
+    /// `ProcessOptOutFlowRequest` does not carry a consent field, and consent is captured
+    /// against a user property that is only meaningful while the user is subscribed —
+    /// pass consent via ``optInMarketingSubscription(email:phone:trackingConsent:callback:)``.
     @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
     public func optOutMarketingSubscription(
         email: String? = nil,
         phone: String? = nil,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optOutMarketingSubscription(
-            email: email,
-            phone: phone,
-            trackingConsent: .unspecified,
-            callback: callback
-        )
-    }
-
-    @objc(optOutMarketingSubscriptionWithEmail:callback:)
-    public func optOutMarketingSubscription(
-        email: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optOutMarketingSubscription(email: email, phone: nil, trackingConsent: .unspecified, callback: callback)
-    }
-
-    @objc(optOutMarketingSubscriptionWithPhone:callback:)
-    public func optOutMarketingSubscription(
-        phone: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optOutMarketingSubscription(email: nil, phone: phone, trackingConsent: .unspecified, callback: callback)
-    }
-
-    /// Opts the user out of marketing subscriptions. Accepts the same pixel-tracking-consent
-    /// parameter as the opt-in variant for API symmetry, but the value is **not** serialized
-    /// on the wire for opt-out — Attentive's opt-out flow does not read a tracking-consent
-    /// value, so sending it would be a no-op at best and a validator 4xx at worst. Callers
-    /// can pass any value here without effect; use the opt-in variant to record a
-    /// pixel-tracking-consent choice.
-    @objc(optOutMarketingSubscriptionWithEmail:phone:trackingConsent:callback:)
-    public func optOutMarketingSubscription(
-        email: String?,
-        phone: String?,
-        trackingConsent: ATTNTrackingConsent,
         callback: ATTNAPICallback? = nil
     ) {
         let email = normalizeContactValue(email)
@@ -160,23 +128,38 @@ extension ATTNSDK {
                 kind: .optOut,
                 email: email,
                 phone: phone,
-                trackingConsent: trackingConsent,
+                trackingConsent: .unspecified,
                 callback: callback,
                 createdAt: Date()
             ))
             return
         }
 
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptOutMarketingSubscription(
             pushToken: currentPushToken,
             email: email,
             phone: phone,
-            trackingConsent: trackingConsent,
             userIdentity: userIdentity,
             callback: callback
         )
+    }
+
+    @objc(optOutMarketingSubscriptionWithEmail:callback:)
+    public func optOutMarketingSubscription(
+        email: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optOutMarketingSubscription(email: email, phone: nil, callback: callback)
+    }
+
+    @objc(optOutMarketingSubscriptionWithPhone:callback:)
+    public func optOutMarketingSubscription(
+        phone: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optOutMarketingSubscription(email: nil, phone: phone, callback: callback)
     }
 
     /// Switches the current user identity by associating the device with new email and/or phone identifiers.
@@ -339,12 +322,11 @@ extension ATTNSDK {
                 callback: request.callback
             )
         case .optOut:
-            Loggers.event.debug("Sending queued opt-out marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public), TrackingConsent: \(request.trackingConsent.wireValue ?? "unspecified", privacy: .public)")
+            Loggers.event.debug("Sending queued opt-out marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
             api.sendOptOutMarketingSubscription(
                 pushToken: pushToken,
                 email: request.email,
                 phone: request.phone,
-                trackingConsent: request.trackingConsent,
                 userIdentity: userIdentity,
                 callback: request.callback
             )
@@ -363,6 +345,7 @@ struct PendingMarketingRequest {
     let kind: Kind
     let email: String?
     let phone: String?
+    // Only meaningful for .optIn; opt-out enqueues always pass .unspecified.
     let trackingConsent: ATTNTrackingConsent
     let callback: ATTNAPICallback?
     let createdAt: Date

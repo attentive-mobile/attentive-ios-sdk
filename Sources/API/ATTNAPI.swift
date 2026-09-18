@@ -262,11 +262,10 @@ final class ATTNAPI: ATTNAPIProtocol {
             pushToken: String,
             email: String?,
             phone: String?,
-            trackingConsent: ATTNTrackingConsent = .unspecified,
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
+            Loggers.network.debug("Sending opt-out marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
             let evsJson  = userIdentity.buildExternalVendorIdsJson()
             let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String: String]] ?? []
@@ -285,13 +284,6 @@ final class ATTNAPI: ATTNAPIProtocol {
                 payload["pt"] = pushToken
                 payload["tp"] = "apns"
             }
-            // `trackingConsent` is deliberately NOT serialized on the opt-out path.
-            // Attentive's opt-out flow does not read a tracking-consent value, so sending it
-            // has no effect downstream, and shipping it invites a stricter validator (now or
-            // later) 4xx-ing SDK opt-outs on an unknown-field. The parameter is accepted at
-            // the public API for symmetry with opt-in but is a no-op on the wire.
-            _ = trackingConsent
-
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optOutURL else {
                 Loggers.network.error("Invalid opt-out subscriptions URL")
                 callback?(nil, nil, nil, ATTNError.badURL)
