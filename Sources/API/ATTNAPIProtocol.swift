@@ -43,6 +43,7 @@ protocol ATTNAPIProtocol {
         pushToken: String,
         email: String?,
         phone: String?,
+        trackingConsent: ATTNTrackingConsent,
         userIdentity: ATTNUserIdentity,
         callback: ATTNAPICallback?
     )

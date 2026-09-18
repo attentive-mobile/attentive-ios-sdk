@@ -21,6 +21,48 @@ extension ATTNSDK {
         phone: String? = nil,
         callback: ATTNAPICallback? = nil
     ) {
+        optInMarketingSubscription(
+            email: email,
+            phone: phone,
+            trackingConsent: .unspecified,
+            callback: callback
+        )
+    }
+
+    @objc(optInMarketingSubscriptionWithEmail:callback:)
+    public func optInMarketingSubscription(
+        email: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optInMarketingSubscription(email: email, phone: nil, trackingConsent: .unspecified, callback: callback)
+    }
+
+    @objc(optInMarketingSubscriptionWithPhone:callback:)
+    public func optInMarketingSubscription(
+        phone: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optInMarketingSubscription(email: nil, phone: phone, trackingConsent: .unspecified, callback: callback)
+    }
+
+    /// Opts the user into marketing subscriptions and attaches an explicit pixel-tracking
+    /// consent choice. Same push-token semantics as
+    /// ``optInMarketingSubscription(email:phone:callback:)``.
+    ///
+    /// - Parameters:
+    ///   - email: Email address (optional if `phone` is provided).
+    ///   - phone: Phone number in E.164 format (optional if `email` is provided).
+    ///   - trackingConsent: Explicit pixel-tracking consent. Pass ``ATTNTrackingConsent/unspecified``
+    ///     when the host app has not captured an explicit choice; the backend applies its own
+    ///     defaulting (e.g. France locale → no pixel tracking).
+    ///   - callback: Called when the server responds. `nil` is acceptable.
+    @objc(optInMarketingSubscriptionWithEmail:phone:trackingConsent:callback:)
+    public func optInMarketingSubscription(
+        email: String?,
+        phone: String?,
+        trackingConsent: ATTNTrackingConsent,
+        callback: ATTNAPICallback? = nil
+    ) {
         let email = normalizeContactValue(email)
         let phone = normalizeContactValue(phone)
 
@@ -36,37 +78,23 @@ extension ATTNSDK {
                 kind: .optIn,
                 email: email,
                 phone: phone,
+                trackingConsent: trackingConsent,
                 callback: callback,
                 createdAt: Date()
             ))
             return
         }
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
             pushToken: currentPushToken,
             email: email,
             phone: phone,
+            trackingConsent: trackingConsent,
             userIdentity: userIdentity,
             callback: callback
         )
-    }
-
-    @objc(optInMarketingSubscriptionWithEmail:callback:)
-    public func optInMarketingSubscription(
-        email: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: email, phone: nil, callback: callback)
-    }
-
-    @objc(optInMarketingSubscriptionWithPhone:callback:)
-    public func optInMarketingSubscription(
-        phone: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: nil, phone: phone, callback: callback)
     }
 
     /// Opts the user out of email/SMS (a.k.a. non-push) marketing subscriptions.
@@ -74,6 +102,11 @@ extension ATTNSDK {
     /// Same push-token semantics as ``optInMarketingSubscription(email:phone:callback:)``:
     /// push-enabled clients queue until a token arrives; non-push clients send immediately
     /// without one.
+    ///
+    /// Pixel-tracking consent is intentionally not exposed on opt-out. Subscriptions-API's
+    /// `ProcessOptOutFlowRequest` does not carry a consent field, and consent is captured
+    /// against a user property that is only meaningful while the user is subscribed —
+    /// pass consent via ``optInMarketingSubscription(email:phone:trackingConsent:callback:)``.
     @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
     public func optOutMarketingSubscription(
         email: String? = nil,
@@ -95,6 +128,7 @@ extension ATTNSDK {
                 kind: .optOut,
                 email: email,
                 phone: phone,
+                trackingConsent: .unspecified,
                 callback: callback,
                 createdAt: Date()
             ))
@@ -278,11 +312,12 @@ extension ATTNSDK {
     private func sendMarketingRequest(_ request: PendingMarketingRequest, pushToken: String) {
         switch request.kind {
         case .optIn:
-            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
+            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public), TrackingConsent: \(request.trackingConsent.wireValue ?? "unspecified", privacy: .public)")
             api.sendOptInMarketingSubscription(
                 pushToken: pushToken,
                 email: request.email,
                 phone: request.phone,
+                trackingConsent: request.trackingConsent,
                 userIdentity: userIdentity,
                 callback: request.callback
             )
@@ -310,6 +345,8 @@ struct PendingMarketingRequest {
     let kind: Kind
     let email: String?
     let phone: String?
+    // Only meaningful for .optIn; opt-out enqueues always pass .unspecified.
+    let trackingConsent: ATTNTrackingConsent
     let callback: ATTNAPICallback?
     let createdAt: Date
 }

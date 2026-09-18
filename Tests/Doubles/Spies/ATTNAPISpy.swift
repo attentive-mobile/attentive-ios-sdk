@@ -60,6 +60,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         var lastOptInEmail: String?
         var lastOptInPhone: String?
         var lastOptInPushToken: String?
+        var lastOptInTrackingConsent: ATTNTrackingConsent?
         var lastOptOutEmail: String?
         var lastOptOutPhone: String?
         var lastOptOutPushToken: String?
@@ -109,6 +110,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var lastOptInEmail: String? { synced { $0.lastOptInEmail } }
     var lastOptInPhone: String? { synced { $0.lastOptInPhone } }
     var lastOptInPushToken: String? { synced { $0.lastOptInPushToken } }
+    var lastOptInTrackingConsent: ATTNTrackingConsent? { synced { $0.lastOptInTrackingConsent } }
     var lastOptOutEmail: String? { synced { $0.lastOptOutEmail } }
     var lastOptOutPhone: String? { synced { $0.lastOptOutPhone } }
     var lastOptOutPushToken: String? { synced { $0.lastOptOutPushToken } }
@@ -218,6 +220,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         pushToken: String,
         email: String?,
         phone: String?,
+        trackingConsent: ATTNTrackingConsent,
         userIdentity: ATTNUserIdentity,
         callback: ATTNAPICallback?
     ) {
@@ -225,6 +228,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
             storage.lastOptInEmail = email
             storage.lastOptInPhone = phone
             storage.lastOptInPushToken = pushToken
+            storage.lastOptInTrackingConsent = trackingConsent
             storage.sendOptInWasCalled = true
             return storage.stubbedError
         }

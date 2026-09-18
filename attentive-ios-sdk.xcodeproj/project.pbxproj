@@ -15,17 +15,19 @@
 		58B01AC5294D44140001CEBF /* libOCMock.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58B01AB6294D44140001CEBF /* libOCMock.a */; };
 		58D52E1D292EC52B00CF32DE /* ATTNSDKFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58332EC3292EC18800B1ECF3 /* ATTNSDKFramework.framework */; };
 		7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */; };
-		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
+		993A29FB3120241C3A95FA95 /* ATTNTrackingConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D7A59901D4190D5DF3B1AB9 /* ATTNTrackingConsent.swift */; };
+		A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */; };
+		A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */; };
 		A044100000000000000441C0 /* CharacterSet+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441C1 /* CharacterSet+Extension.swift */; };
+		A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */; };
+		A048600000000000000486A0 /* ATTNPriceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A048600000000000000486A1 /* ATTNPriceTests.swift */; };
+		A9D1C312A0001000000000001 /* NSLock+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000002 /* NSLock+Extension.swift */; };
 		A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */; };
 		A9D1C315A0001000000000001 /* ATTNSDK+MarketingSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */; };
+		C5CCA4F9DA7B1776E059A8D2 /* ATTNTrackingConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E5BC25023F678CDDC26183 /* ATTNTrackingConsentTests.swift */; };
 		F934CE262D495029003021C3 /* ATTNWebViewHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */; };
 		F939F2462D64DF75002CC012 /* ATTNCreativeStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */; };
 		F952B5AA2EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */; };
-		A044100000000000000441A0 /* ATTNAPINewEventEncodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */; };
-		A044100000000000000441B0 /* ATTNv2DeeplinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */; };
-		A047200000000000000472A0 /* ATTNV1V2PayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */; };
-		A048600000000000000486A0 /* ATTNPriceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A048600000000000000486A1 /* ATTNPriceTests.swift */; };
 		F952B5B42EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */; };
 		F952B5B52EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */; };
 		F952B5B62EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */; };
@@ -142,8 +144,14 @@
 		58B01AC4294D44140001CEBF /* OCMArg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OCMArg.h; sourceTree = "<group>"; };
 		58D52E19292EC52B00CF32DE /* attentive-ios-sdk Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "attentive-ios-sdk Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ATTNErrorTests.swift; sourceTree = "<group>"; };
-		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
+		99E5BC25023F678CDDC26183 /* ATTNTrackingConsentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ATTNTrackingConsentTests.swift; sourceTree = "<group>"; };
+		9D7A59901D4190D5DF3B1AB9 /* ATTNTrackingConsent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ATTNTrackingConsent.swift; sourceTree = "<group>"; };
+		A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPINewEventEncodingTests.swift; sourceTree = "<group>"; };
+		A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNv2DeeplinkTests.swift; sourceTree = "<group>"; };
 		A044100000000000000441C1 /* CharacterSet+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CharacterSet+Extension.swift"; sourceTree = "<group>"; };
+		A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNV1V2PayloadParityTests.swift; sourceTree = "<group>"; };
+		A048600000000000000486A1 /* ATTNPriceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPriceTests.swift; sourceTree = "<group>"; };
+		A9D1C312A0001000000000002 /* NSLock+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+Extension.swift"; sourceTree = "<group>"; };
 		A9D1C312A0001000000000004 /* XCTestCase+Concurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCTestCase+Concurrency.swift"; sourceTree = "<group>"; };
 		A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ATTNSDK+MarketingSubscriptions.swift"; sourceTree = "<group>"; };
 		DCF28F9F2D692A6A00A7164F /* ATTNWebViewHandlerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerUITests.swift; sourceTree = "<group>"; };
@@ -151,10 +159,6 @@
 		F934CE252D495029003021C3 /* ATTNWebViewHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNWebViewHandlerTests.swift; sourceTree = "<group>"; };
 		F939F2452D64DF75002CC012 /* ATTNCreativeStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNCreativeStateManager.swift; sourceTree = "<group>"; };
 		F952B5A92EC2914100E0E69D /* ATTNSDKExtensionV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNSDKExtensionV2Tests.swift; sourceTree = "<group>"; };
-		A044100000000000000441A1 /* ATTNAPINewEventEncodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNAPINewEventEncodingTests.swift; sourceTree = "<group>"; };
-		A044100000000000000441B1 /* ATTNv2DeeplinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNv2DeeplinkTests.swift; sourceTree = "<group>"; };
-		A047200000000000000472A1 /* ATTNV1V2PayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNV1V2PayloadParityTests.swift; sourceTree = "<group>"; };
-		A048600000000000000486A1 /* ATTNPriceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNPriceTests.swift; sourceTree = "<group>"; };
 		F952B5AC2EC2915000E0E69D /* ATTNEventTrackerV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventTrackerV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AD2EC2915000E0E69D /* ATTNEventURLProviderV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNEventURLProviderV2Tests.swift; sourceTree = "<group>"; };
 		F952B5AE2EC2915000E0E69D /* ATTNUserIdentityExtensionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTNUserIdentityExtensionTests.swift; sourceTree = "<group>"; };
@@ -402,6 +406,7 @@
 				FB86C03D2C40611A00E35580 /* ATTNAddToCartEventTests.swift */,
 				FB86C03F2C40669400E35580 /* ATTNProductViewEventTests.swift */,
 				727FA3DD8D949A05D0E11F30 /* ATTNErrorTests.swift */,
+				99E5BC25023F678CDDC26183 /* ATTNTrackingConsentTests.swift */,
 			);
 			path = TestCases;
 			sourceTree = "<group>";
@@ -441,6 +446,7 @@
 				FBA9F9FC2C0A77AB00C65024 /* ATTNSDK.swift */,
 				A9D1C315A0001000000000002 /* ATTNSDK+MarketingSubscriptions.swift */,
 				FBA9F9FD2C0A77AB00C65024 /* ATTNSDKMode.swift */,
+				9D7A59901D4190D5DF3B1AB9 /* ATTNTrackingConsent.swift */,
 			);
 			path = SDK;
 			sourceTree = "<group>";
@@ -764,6 +770,7 @@
 				FBA9FA0E2C0A77AB00C65024 /* ATTNUserAgentBuilder.swift in Sources */,
 				FBA9FA0C2C0A77AB00C65024 /* ATTNParameterValidation.swift in Sources */,
 				54226504E51EC95F3B2E536D /* HTTPURLResponse+Extension.swift in Sources */,
+				993A29FB3120241C3A95FA95 /* ATTNTrackingConsent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -805,6 +812,7 @@
 				FB2984042C0F9D650039759C /* ATTNTestEventUtils.swift in Sources */,
 				A9D1C312A0001000000000003 /* XCTestCase+Concurrency.swift in Sources */,
 				7C5CBBB7981899D2F38C79B1 /* ATTNErrorTests.swift in Sources */,
+				C5CCA4F9DA7B1776E059A8D2 /* ATTNTrackingConsentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
