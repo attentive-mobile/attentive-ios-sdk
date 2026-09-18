@@ -677,13 +677,14 @@ EU customers subject to email pixel-tracking consent requirements can pass the s
 ```swift
 attentiveSdk.optInMarketingSubscription(
     email: "user@example.com",
+    phone: nil,
     trackingConsent: .accepted
 ) { _, _, response, error in
     // ...
 }
 ```
 
-Values: `.accepted`, `.declined`, or `.unspecified` (default, backend decides). The parameter is ignored on `optOutMarketingSubscription`.
+Values: `.accepted`, `.declined`, or `.unspecified` (default, backend decides). `optOutMarketingSubscription` does not accept a consent parameter — consent is captured at opt-in.
 
 Existing call sites that don't pass `trackingConsent:` continue to work unchanged — they default to `.unspecified`.
 
