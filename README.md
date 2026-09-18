@@ -755,6 +755,8 @@ InboxStyle(
 Note that `nil` means something slightly different per knob: `background` keeps the *system* list background, while `unreadIndicator` and `swipeBackground` take the *SDK's* own default blue.
 
 > **The navigation bar isn't part of `InboxStyle`.** The SDK only sets the inbox's navigation *title*; the bar's background and title color come from your app's `UINavigationBar` appearance. `background` fills the list up to the safe-area edges and shows through a translucent bar, so if you set a custom background, style your nav bar to match.
+>
+> The SDK owns the title *string*, and sets it in all four of the inbox's states (loading, loaded, empty, and error). Both `inboxView()` and `inboxViewController()` expect the navigation container to come from your app, so if you wrap the inbox in your own `NavigationStack`/`UINavigationController` and set a title on it, `Inbox` wins throughout. Present the inbox on its own navigation destination unless you're happy with that title.
 
 > **`background` on iOS 15.** Hiding a `List`'s own scroll background requires `.scrollContentBackground(.hidden)`, which is iOS 16+. On iOS 15 the SDK colors the message rows, but the area below the last row keeps the system background. Everything else in the table above applies identically on iOS 15.
 
