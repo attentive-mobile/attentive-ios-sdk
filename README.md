@@ -653,7 +653,7 @@ struct InboxScreen: View {
 }
 ```
 
-Unread rows get a bold title and a leading blue dot; read rows don't. Tapping a row fires click tracking and broadcasts `ATTNSDKInboxMessageTapped`. Set `sdk.automaticallyOpensInboxDeepLinks = true` to also have the SDK open the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
+Unread rows get a bold title and a leading blue dot; read rows don't. The dot's color, the swipe background, and the list background are themeable — see [Customization](#customization). Tapping a row fires click tracking and broadcasts `ATTNSDKInboxMessageTapped`. Set `sdk.automaticallyOpensInboxDeepLinks = true` to also have the SDK open the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
 
 ### Show an unread badge
 
@@ -711,10 +711,56 @@ let style = InboxStyle(
     titleFont: .system(size: 16, weight: .semibold),
     bodyFont: .system(size: 14),
     timestampFont: .caption,
-    textColor: .primary
+    textColor: .primary,
+    background: Color(.systemGroupedBackground),
+    unreadIndicator: .pink,
+    swipeBackground: .pink
 )
 sdk.inboxView(style: style)
 ```
+
+Use the other initializer when the three text roles need different fonts or colors:
+```swift
+let style = InboxStyle(
+    title: .init(font: .headline, color: .primary),
+    body: .init(font: .subheadline, color: .secondary),
+    timestamp: .init(font: .caption, color: .secondary),
+    background: Color(.systemGroupedBackground),
+    unreadIndicator: .pink,
+    swipeBackground: .pink
+)
+```
+
+Every knob is optional and defaults to what the inbox rendered before it existed, so existing integrations are unaffected:
+
+| Knob | Default | Applies to |
+| --- | --- | --- |
+| `title` / `body` / `timestamp` | `.headline`/`.primary`, `.subheadline`/`.secondary`, `.caption`/`.secondary` | Font and color per text role |
+| `background` | `nil` — keeps the system list background | Background behind the message list |
+| `unreadIndicator` | `nil` — resolves to `.blue` | The leading dot on unread rows |
+| `swipeBackground` | `nil` — resolves to `.blue` | Background revealed by the leading swipe (mark read/unread) |
+
+The trailing delete swipe always uses the system destructive red and isn't themeable.
+
+All three colors are `Color?`, and passing `nil` explicitly is the same as omitting the argument. That's mainly for wrappers and abstraction layers that always construct a full `InboxStyle` from separately-optional inputs — they can forward an absent color straight through rather than hardcoding a copy of the SDK's default:
+
+```swift
+InboxStyle(
+    background: backgroundColor.map(Color.init(uiColor:)),
+    unreadIndicator: unreadIndicatorColor.map(Color.init(uiColor:)),
+    swipeBackground: swipeBackgroundColor.map(Color.init(uiColor:))
+)
+```
+
+Note that `nil` means something slightly different per knob: `background` keeps the *system* list background, while `unreadIndicator` and `swipeBackground` take the *SDK's* own default blue.
+
+> **The navigation bar isn't part of `InboxStyle`.** The SDK only sets the inbox's navigation *title*; the bar's background and title color come from your app's `UINavigationBar` appearance. `background` fills the list up to the safe-area edges and shows through a translucent bar, so if you set a custom background, style your nav bar to match.
+>
+> The SDK owns the title *string*, and sets it in all four of the inbox's states (loading, loaded, empty, and error). Both `inboxView()` and `inboxViewController()` expect the navigation container to come from your app, so if you wrap the inbox in your own `NavigationStack`/`UINavigationController` and set a title on it, `Inbox` wins throughout. Present the inbox on its own navigation destination unless you're happy with that title.
+
+> **`background` on iOS 15.** Hiding a `List`'s own scroll background requires `.scrollContentBackground(.hidden)`, which is iOS 16+. On iOS 15 the SDK colors the message rows, but the area below the last row keeps the system background. Everything else in the table above applies identically on iOS 15.
+
+> **Dark mode.** With `background` left at `nil` the inbox follows the system appearance — white in light mode, black in dark mode. Setting a fixed `background` opts out of that, so pick text colors that stay legible against it (or supply a color that adapts, e.g. one from an asset catalog with a dark variant). This differs from the Android SDK, whose inbox defaults to a fixed white background; a cross-platform integration that sets dark text for Android should set `background` on iOS too.
 
 **Custom tap handling** — takes over navigation entirely; click tracking still fires:
 ```swift
