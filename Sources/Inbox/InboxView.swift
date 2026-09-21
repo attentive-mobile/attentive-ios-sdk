@@ -23,7 +23,6 @@ struct InboxView: View {
             case .empty:
                 buildListView {
                     Text(String.noMessages)
-                        .listRowBackground(rowBackground)
                 }
             case .loaded(let messages):
                 buildListView {
@@ -52,7 +51,6 @@ struct InboxView: View {
                                 }
                                 .tint(viewModel.style.swipeBackground)
                             }
-                            .listRowBackground(rowBackground)
                             .onAppear {
                                 // Pull-up-to-load-more: when the last row scrolls into view, ask for
                                 // the next page. The manager is a no-op when nothing more is available.
@@ -68,7 +66,6 @@ struct InboxView: View {
                             Spacer()
                         }
                         .listRowSeparator(.hidden)
-                        .listRowBackground(rowBackground)
                     }
                 }
             }
@@ -107,11 +104,19 @@ struct InboxView: View {
     }
 
     private func buildListView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        List(content: content)
-            .listStyle(.plain)
-            .refreshable {
-                await viewModel.refresh()
-            }
+        List {
+            // Applied once to the whole content rather than per row-emitting site: list-row
+            // modifiers distribute across the rows a ViewBuilder produces, so this reaches the
+            // `ForEach`'s rows, the empty-state label, and the load-more spinner alike. Verified
+            // by rendering each of those three shapes and sampling pixels, since that
+            // distribution is SwiftUI behaviour rather than anything guaranteed by the type.
+            content()
+                .listRowBackground(rowBackground)
+        }
+        .listStyle(.plain)
+        .refreshable {
+            await viewModel.refresh()
+        }
     }
 }
 
