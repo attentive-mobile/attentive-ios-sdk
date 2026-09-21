@@ -77,7 +77,9 @@ public struct InboxStyle {
     /// Convenience for the common case of per-role fonts but one shared text colour.
     /// `textColor` applies to the title, body, and timestamp alike.
     ///
-    /// The colour parameters behave exactly as in the role-by-role init above.
+    /// Delegates to the role-by-role init above so the colour parameters behave identically and
+    /// the `nil`-resolution rule has exactly one home — a future change to how `nil` resolves
+    /// (an adaptive per-colour-scheme default, say) can't land in one init and miss the other.
     public init(
         titleFont: Font = .headline,
         bodyFont: Font = .subheadline,
@@ -87,11 +89,13 @@ public struct InboxStyle {
         unreadIndicator: Color? = nil,
         swipeBackground: Color? = nil
     ) {
-        self.title = Text(font: titleFont, color: textColor)
-        self.body = Text(font: bodyFont, color: textColor)
-        self.timestamp = Text(font: timestampFont, color: textColor)
-        self.background = background
-        self.unreadIndicator = unreadIndicator ?? Self.defaultAccent
-        self.swipeBackground = swipeBackground ?? Self.defaultAccent
+        self.init(
+            title: Text(font: titleFont, color: textColor),
+            body: Text(font: bodyFont, color: textColor),
+            timestamp: Text(font: timestampFont, color: textColor),
+            background: background,
+            unreadIndicator: unreadIndicator,
+            swipeBackground: swipeBackground
+        )
     }
 }
