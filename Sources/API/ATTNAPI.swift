@@ -190,10 +190,11 @@ final class ATTNAPI: ATTNAPIProtocol {
             pushToken: String,
             email: String?,
             phone: String?,
+            trackingConsent: ATTNTrackingConsent = .unspecified,
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
 
             let evsJson  = userIdentity.buildExternalVendorIdsJson()
             let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String: String]] ?? []
@@ -212,6 +213,11 @@ final class ATTNAPI: ATTNAPIProtocol {
             if !pushToken.isEmpty {
                 payload["pt"] = pushToken
                 payload["tp"] = "apns"
+            }
+            // Pixel-tracking consent: omit entirely for .unspecified so the backend applies
+            // its locale-based defaulting. `.wireValue` is nil in that case.
+            if let consent = trackingConsent.wireValue {
+                payload["trackingConsent"] = consent
             }
 
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optInURL else {
@@ -278,7 +284,6 @@ final class ATTNAPI: ATTNAPIProtocol {
                 payload["pt"] = pushToken
                 payload["tp"] = "apns"
             }
-
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optOutURL else {
                 Loggers.network.error("Invalid opt-out subscriptions URL")
                 callback?(nil, nil, nil, ATTNError.badURL)
