@@ -653,7 +653,7 @@ struct InboxScreen: View {
 }
 ```
 
-Unread rows get a bold title and a leading blue dot; read rows don't. The dot's color, the swipe background, and the list background are themeable — see [Customization](#customization). Tapping a row fires click tracking and broadcasts `ATTNSDKInboxMessageTapped`. Set `sdk.automaticallyOpensInboxDeepLinks = true` to also have the SDK open the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser).
+Unread rows get a bold title and a leading blue dot; read rows don't. The dot's color, the swipe background, and the list background are themeable — see [Customization](#customization). Tapping a row fires click tracking, broadcasts `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser). Set `sdk.automaticallyOpensInboxDeepLinks = false` to keep the tracking and broadcast but skip the SDK-driven open.
 
 ### Show an unread badge
 
@@ -770,9 +770,9 @@ sdk.inboxView { message in
 }
 ```
 
-**SDK-driven navigation** (opt-in; tracking + broadcast fire either way):
+**Broadcast-driven navigation** — if your app already navigates on `ATTNSDKInboxMessageTapped`, turn off SDK-driven opening so the same URL isn't handled twice (tracking + broadcast fire either way):
 ```swift
-sdk.automaticallyOpensInboxDeepLinks = true
+sdk.automaticallyOpensInboxDeepLinks = false
 ```
 
 ### Option B — Build your own UI
@@ -811,7 +811,7 @@ await sdk.markClicked(for: message.id)
 | `markClicked(for:)` | Click tracking — required for custom UI, automatic for `inboxView()` |
 | `inboxView(style:onMessageTap:)` | SwiftUI drop-in |
 | `inboxViewController(style:onMessageTap:)` | UIKit drop-in |
-| `automaticallyOpensInboxDeepLinks: Bool` | Opt in to SDK-driven URL opening (default `false`) |
+| `automaticallyOpensInboxDeepLinks: Bool` | SDK-driven URL opening on row tap (default `true`) |
 
 For a working example, see `Bonni/AttentiveExample/ProductViewController.swift` (badge + push-to-open).
 
