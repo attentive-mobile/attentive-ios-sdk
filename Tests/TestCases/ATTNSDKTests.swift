@@ -441,11 +441,15 @@ final class ATTNSDKTests: XCTestCase {
 
     // MARK: - Push deep link tests
 
-    func testAutomaticallyOpensDeepLinksFlags_defaultToFalse() {
+    func testAutomaticallyOpensPushDeepLinks_defaultsToFalse() {
         // MSDK-491: hosts that already navigate on the broadcasts must not double-navigate
         // on SDK upgrade — SDK-driven opening is opt-in.
         XCTAssertFalse(sut.automaticallyOpensPushDeepLinks)
-        XCTAssertFalse(sut.automaticallyOpensInboxDeepLinks)
+    }
+
+    func testAutomaticallyOpensInboxDeepLinks_defaultsToTrue() {
+        // MSDK-478: matches the Android SDK, whose inbox has always opened actionUrl by default.
+        XCTAssertTrue(sut.automaticallyOpensInboxDeepLinks)
     }
 
     func testNormalizeAndBroadcast_customSchemeURL_opensURLDirectly() {
