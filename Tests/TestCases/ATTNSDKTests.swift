@@ -902,6 +902,118 @@ final class ATTNSDKTests: XCTestCase {
                        "clearUser without a push token cannot fire detach and must not call api.updateUser")
     }
 
+    // MARK: - MSDK-517: sync record pins to the visitor id sent on the wire
+
+    func testClearUser_visitorIdOnWireEqualsCurrentVisitorId_MSDK517() {
+        // MSDK-517: ATTNAPI.updateUser used to re-read `userIdentity.visitorId` at payload
+        // build time instead of using the id the caller captured, so a concurrent rotation
+        // between capture and serialization pinned the sync record to a value the server
+        // never saw. Post-fix, the api takes `visitorId` explicitly and the wire, log, and
+        // record all use the same value.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "wire visitor id must equal the current in-memory id after clearUser — the value the sync record pins to")
+
+        // Follow-up clearUser resolves to `.skip` only when `_lastSyncedVisitorId == _visitorId`.
+        // If the recorded id and the wire id ever diverged, this skip would be silently defeated
+        // (the exact MSDK-517 failure mode).
+        let callCountAfterFirst = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callCountAfterFirst,
+                       "second clearUser must skip — proves the sync record's visitor id matches the current one")
+    }
+
+    func testClearUser_rotationInterleavedMidRequest_recordIsConsistentWithWire_MSDK517() {
+        // Deterministic race reproduction: another caller rotates the visitor id mid-flight
+        // (between the api call and its callback firing). Pre-fix the wire visitor id would
+        // be the post-rotation value (fresh read at payload build) while the record would
+        // be the caller's captured pre-rotation value → divergence. Post-fix the wire uses
+        // the caller's captured value, and the record is provably the same by construction.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        let identity = sut.getUserIdentity()
+
+        apiSpy.onUpdateUser = { _ in
+            // Simulates a concurrent detach path reaching `ATTNUserIdentity.clearUser()`
+            // (the still-public method) between the caller's capture and the sync record write.
+            identity.clearUser()
+        }
+
+        sut.clearUser()
+
+        // The wire visitor id must equal what the caller captured (planClearUser's rotation
+        // result), not the post-interleave rotation value. The two live in-memory ids differ.
+        XCTAssertNotEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                          "precondition: the interleaved clearUser rotated `_visitorId` past the captured value")
+        // And the sync record is anchored to the wire value — a follow-up clearUser under the
+        // *new* visitor id must NOT skip; the guard correctly detects the visitor-id mismatch
+        // and fires the detach against the new id. The alternative — the guard skipping while
+        // the server has an unconfirmed detach for the current visitor id — is the MSDK-517
+        // regression this test locks down.
+        let callCountAfterFirst = apiSpy.updateUserCallCount
+        apiSpy.onUpdateUser = nil
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callCountAfterFirst + 1,
+                       "clearUser after mid-flight rotation must fire the detach for the new visitor id, not skip")
+    }
+
+    func testClearUser_concurrentCallers_eventuallyConsistent_MSDK517() {
+        // Acceptance criterion: after two (or more) concurrent clearUser() calls, the sync
+        // record's visitor id equals the value the request carried, and a subsequent no-op
+        // call eventually resolves to `.skip`. Post-fix, wire equals record by construction
+        // per-call, so at most one "healing" call re-aligns the record with `_visitorId`
+        // after any interleaving. Pre-fix the drift was permanent — no number of follow-ups
+        // restored .skip because each attempt re-read the visitor id at serialization time
+        // and re-introduced the divergence.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        runConcurrently(iterations: 8, queueLabels: ["clearA", "clearB"]) { [sut] _, _ in
+            sut?.clearUser()
+        }
+
+        // First healing call may or may not fire (record may already match _visitorId
+        // depending on the ordering of the concurrent sync-record writes). The invariant
+        // to prove is that the SECOND healing call must skip — pre-fix it wouldn't.
+        sut.clearUser()
+        let callsAfterHealing = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
+                       "after one healing call, follow-up must skip — proves record/wire alignment holds under concurrency")
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "the most recent wire visitor id must equal the current in-memory id")
+    }
+
+    func testConcurrentClearUserAndUpdateUser_eventuallyConsistent_MSDK517() {
+        // Second acceptance criterion: interleaved clearUser + updateUser. The invariant we
+        // check is the same eventual-consistency property — one healing call after the
+        // concurrent burst, and the follow-up resolves to `.skip`.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        runConcurrently(iterations: 8, queueLabels: ["clear", "update"]) { [sut] _, role in
+            if role == 0 {
+                sut?.clearUser()
+            } else {
+                sut?.updateUser(email: "user@example.com", phone: nil)
+            }
+        }
+
+        // Heal by driving one of each so whichever op ran last on the record is aligned.
+        sut.clearUser()
+        sut.clearUser()
+        let callsAfterHealing = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
+                       "follow-up clearUser must skip after healing — proves record/wire alignment survives clear+update interleaving")
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "the most recent wire visitor id must equal the current in-memory id")
+    }
+
     func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {
         // MSDK-469 review Comment 2: identify() bypasses the sync protocol, so it can
         // leave local identifiers matching an incoming `updateUser(B)` without ever
