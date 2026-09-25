@@ -243,6 +243,12 @@ public final class ATTNSDK: NSObject {
     ///   no prior sync record, a push token or domain change since the last confirmation, or
     ///   a prior rotation that invalidated the sync record — the visitor ID rotates and (when
     ///   a push token is present) the detach fires. See MSDK-469.
+    /// - Note: Whenever the visitor ID rotates, the SDK also deletes its on-device record of the
+    ///   previous user's last confirmed sync — immediately, whether or not the detach is sent or
+    ///   succeeds. That record only ever stored a salted digest of the email and phone, never the
+    ///   values themselves. Without it the SDK cannot prove the detach already happened, so an
+    ///   in-flight detach that completes after a later rotation is not recorded, and the next
+    ///   call re-sends `/user-update` rather than skipping. See MSDK-516.
     ///
     /// Internal implementation detail (for maintainers / AI assistants):
     /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
