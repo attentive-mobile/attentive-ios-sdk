@@ -43,7 +43,7 @@ class InboxViewModel: ObservableObject {
         style: InboxStyle,
         onTap: ((Message) -> Void)? = nil,
         urlOpener: ATTNURLOpening = ATTNApplicationURLOpener(),
-        shouldOpenDeepLink: @escaping () -> Bool = { false }
+        shouldOpenDeepLink: @escaping () -> Bool
     ) {
         self.inboxManager = inboxManager
         self.style = style

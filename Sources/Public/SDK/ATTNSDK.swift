@@ -525,7 +525,7 @@ public final class ATTNSDK: NSObject {
             inboxManager: materializedInboxManager(),
             style: style,
             onTap: onMessageTap,
-            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? false }
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? true }
         ))
     }
 
