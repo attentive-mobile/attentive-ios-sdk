@@ -143,18 +143,17 @@ public final class ATTNSDK: NSObject {
     @objc public var automaticallyOpensPushDeepLinks: Bool = false
 
     /// Determines if the built-in inbox UI opens a message's `actionURL` when the user taps a
-    /// row. Default value is false — set to true to opt in. Mirrors
-    /// `automaticallyOpensPushDeepLinks` for the inbox surface, with one difference: unclaimed
-    /// http(s) links fall back to the browser.
+    /// row. Default value is true, matching the Android SDK's inbox — set to false to opt out.
+    /// Unlike `automaticallyOpensPushDeepLinks`, unclaimed http(s) links fall back to the browser.
     ///
-    /// When disabled (the default), a tap still fires click tracking and the
-    /// `ATTNSDKInboxMessageTapped` broadcast (userInfo carries the actionURL) — only the
-    /// SDK-initiated open is suppressed, so hosts that navigate on their own via that broadcast
-    /// never handle the same URL twice. Ignored when an `onMessageTap` handler is passed to
+    /// When disabled, a tap still fires click tracking and the `ATTNSDKInboxMessageTapped`
+    /// broadcast (userInfo carries the actionURL) — only the SDK-initiated open is suppressed.
+    /// Hosts that navigate on their own via that broadcast should set this to false so the
+    /// same URL isn't handled twice. Ignored when an `onMessageTap` handler is passed to
     /// `inboxView()` / `inboxViewController()`, which replaces the SDK's routing entirely. Set
     /// it once during SDK setup on the main thread — it is read on the main thread when a tap
     /// is handled, and mutation from other threads is not synchronized.
-    @objc public var automaticallyOpensInboxDeepLinks: Bool = false
+    @objc public var automaticallyOpensInboxDeepLinks: Bool = true
 
     var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
 
@@ -516,9 +515,9 @@ public final class ATTNSDK: NSObject {
     }
 
     /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking and
-    /// broadcasts `ATTNSDKInboxMessageTapped`. Set `automaticallyOpensInboxDeepLinks = true`
-    /// to also have the SDK open the message's `actionURL` — universal links resolve into
-    /// their app, other http(s) links fall back to the browser. Pass `onMessageTap` to replace
+    /// broadcasts `ATTNSDKInboxMessageTapped`, then opens the message's `actionURL` unless
+    /// `automaticallyOpensInboxDeepLinks` is false — universal links resolve into their app,
+    /// other http(s) links fall back to the browser. Pass `onMessageTap` to replace
     /// that URL routing with your own navigation; click tracking still fires first.
     @MainActor
     public func inboxView(style: InboxStyle = InboxStyle(), onMessageTap: ((Message) -> Void)? = nil) -> some View {
@@ -526,7 +525,7 @@ public final class ATTNSDK: NSObject {
             inboxManager: materializedInboxManager(),
             style: style,
             onTap: onMessageTap,
-            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? false }
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? true }
         ))
     }
 
