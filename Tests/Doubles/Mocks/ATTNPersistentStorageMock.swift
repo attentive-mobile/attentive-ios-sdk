@@ -21,4 +21,15 @@ final class ATTNPersistentStorageMock: ATTNPersistentStorageProtocol {
     func delete(forKey key: String) {
         lock.withLock { _ = storage.removeValue(forKey: key) }
     }
+
+    /// Every key currently stored, so tests can assert on what is actually at rest.
+    var storedKeys: Set<String> {
+        lock.withLock { Set(storage.keys) }
+    }
+
+    /// True when any stored string value contains `needle` — used to prove plaintext
+    /// contact data never reaches disk.
+    func containsStringValue(containing needle: String) -> Bool {
+        lock.withLock { storage.values.contains { ($0 as? String)?.contains(needle) == true } }
+    }
 }
