@@ -562,7 +562,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             persistentStorage: sharedStorage
         )
         firstProcess.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: firstProcess.visitorId)
-        firstProcess.clearUser() // rotates in-memory + on disk (visitorService persists), sync record unchanged
+        firstProcess.clearUser() // rotates in-memory + on disk (visitorService persists) and drops the sync record
 
         // Second process: fresh identity, reads new visitor id (V2) from storage. Sync
         // record still says V1. Cold-launch adoption must NOT fire.
@@ -657,5 +657,156 @@ final class ATTNUserIdentityTests: XCTestCase {
         )
         XCTAssertNotEqual(secondLaunch.visitorId, visitorIdUnderA,
                           "cold-launch logout must rotate; otherwise every subsequent event still uses V1, which the server associates with A")
+    }
+
+    // MARK: MSDK-516 — no contact data left at rest in the sync record
+
+    private let testEmail = "user@example.com"
+    private let testPhone = "+15551234567"
+    private let syncRecordKeys: Set<String> = [
+        "syncRecordV2.pushToken", "syncRecordV2.contactDigest", "syncRecordV2.domain", "syncRecordV2.visitorId"
+    ]
+
+    private func assertNoContactDataAtRest(_ storage: ATTNPersistentStorageMock, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertFalse(storage.containsStringValue(containing: testEmail), "email must never be persisted", file: file, line: line)
+        XCTAssertFalse(storage.containsStringValue(containing: testPhone), "phone must never be persisted", file: file, line: line)
+        XCTAssertFalse(storage.storedKeys.contains("lastSyncedEmail"), file: file, line: line)
+        XCTAssertFalse(storage.storedKeys.contains("lastSyncedPhone"), file: file, line: line)
+    }
+
+    private func assertSyncRecordCleared(_ storage: ATTNPersistentStorageMock, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(storage.storedKeys.isDisjoint(with: syncRecordKeys),
+                      "sync record must be deleted from disk, found \(storage.storedKeys.intersection(syncRecordKeys))",
+                      file: file, line: line)
+    }
+
+    func testRecordSuccessfulSync_persistsDigestNotPlaintext() {
+        let (identity, storage) = makeIsolatedIdentity()
+        identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        assertNoContactDataAtRest(storage)
+        XCTAssertNotNil(storage.readString(forKey: "syncRecordV2.contactDigest"),
+                        "a confirmed non-empty pair must still be recorded — as a digest")
+    }
+
+    func testPlanClearUser_deletesPersistedSyncRecord() {
+        // Covers clearUser() with no push token and with a failed detach: in both, no
+        // /user-update success ever overwrites the record, so planClearUser itself must drop it.
+        let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
+        identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+
+        assertSyncRecordCleared(storage)
+        assertNoContactDataAtRest(storage)
+    }
+
+    func testPlanClearUser_thenSuccessfulDetach_recordsDetachAndSkipsNextClear() {
+        // Clearing the record at rotation must not cost the "second clearUser is a no-op" path.
+        let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
+        identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        assertNoContactDataAtRest(storage)
+        XCTAssertNil(storage.readString(forKey: "syncRecordV2.contactDigest"))
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .skip)
+    }
+
+    func testPlanUpdateUser_rotation_deletesPersistedSyncRecord() {
+        let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: "a@example.com"])
+        identity.recordSuccessfulSync(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        XCTAssertEqual(
+            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced
+        )
+
+        assertSyncRecordCleared(storage)
+    }
+
+    func testPublicClearUser_deletesPersistedSyncRecord() {
+        let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
+        identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        identity.clearUser()
+
+        assertSyncRecordCleared(storage)
+    }
+
+    func testRecordSuccessfulSync_afterVisitorIdRotated_isDropped() {
+        // An updateUser(A) response landing after a logout must not write A's record back.
+        let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
+        let visitorIdAtRequest = identity.visitorId
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+
+        identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: visitorIdAtRequest)
+
+        assertSyncRecordCleared(storage)
+    }
+
+    func testInit_migratesLegacyPlaintextRecordToDigest() {
+        // An MSDK-469 record on disk keeps its skip decision after upgrade — no visitor id
+        // rotation or re-POST — while the raw email/phone are removed.
+        let storage = ATTNPersistentStorageMock()
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let visitorId = visitorService.getVisitorId()
+        storage.save(testToken as NSString, forKey: "lastSyncedPushToken")
+        storage.save(testEmail as NSString, forKey: "lastSyncedEmail")
+        storage.save(testPhone as NSString, forKey: "lastSyncedPhone")
+        storage.save(testDomain as NSString, forKey: "lastSyncedDomain")
+        storage.save(visitorId as NSString, forKey: "lastSyncedVisitorId")
+
+        let identity = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
+
+        assertNoContactDataAtRest(storage)
+        XCTAssertTrue(storage.storedKeys.isDisjoint(with: ["lastSyncedPushToken", "lastSyncedDomain", "lastSyncedVisitorId"]))
+        XCTAssertEqual(
+            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain),
+            .skip,
+            "a migrated record must still let the cold-launch adoption branch skip"
+        )
+        XCTAssertEqual(identity.visitorId, visitorId)
+    }
+
+    func testInit_legacyRecordWithoutVisitorId_isDeletedNotMigrated() {
+        // A legacy record missing its visitor id could never match, so it is dropped.
+        let storage = ATTNPersistentStorageMock()
+        storage.save(testToken as NSString, forKey: "lastSyncedPushToken")
+        storage.save(testEmail as NSString, forKey: "lastSyncedEmail")
+        storage.save(testDomain as NSString, forKey: "lastSyncedDomain")
+
+        _ = ATTNUserIdentity(
+            identifiers: [:],
+            visitorService: ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled)),
+            persistentStorage: storage
+        )
+
+        assertNoContactDataAtRest(storage)
+        assertSyncRecordCleared(storage)
+    }
+
+    func testContactDigest_isStableAcrossInstancesSharingStorage() {
+        // The salt persists, so a relaunch computes the same digest and still skips.
+        let storage = ATTNPersistentStorageMock()
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let first = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
+        first.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: first.visitorId)
+
+        let second = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
+
+        XCTAssertEqual(second.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain), .skip)
+    }
+
+    func testContactDigest_distinguishesFieldBoundaries() {
+        // ("ab", "c") vs ("a", "bc") must not collide — otherwise B could .skip as A.
+        let (identity, _) = makeIsolatedIdentity()
+        identity.recordSuccessfulSync(email: "ab", phone: "c", pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+
+        XCTAssertEqual(
+            identity.planUpdateUser(email: "a", phone: "bc", pushToken: testToken, domain: testDomain),
+            .rotatedAndReplaced
+        )
     }
 }

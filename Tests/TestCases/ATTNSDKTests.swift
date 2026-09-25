@@ -49,7 +49,12 @@ final class ATTNSDKTests: XCTestCase {
     /// rename over there will fail these tests loudly instead of silently leaking state.
     private static func clearPersistedSyncState() {
         let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain"] {
+        let suffixes = [
+            "syncRecordV2.pushToken", "syncRecordV2.contactDigest", "syncRecordV2.domain", "syncRecordV2.visitorId",
+            // Pre-MSDK-516 keys, migrated away on init — scrubbed in case a test seeds them.
+            "lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain", "lastSyncedVisitorId"
+        ]
+        for suffix in suffixes {
             UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
         }
     }
@@ -717,13 +722,12 @@ final class ATTNSDKTests: XCTestCase {
         // call would rotate the visitor id and POST /user-update on every launch. With the
         // adoption branch, planUpdateUser sees local empty + sync matches and returns .skip.
         //
-        // Seed the persisted sync record BEFORE constructing the cold-launch sut — its
-        // ATTNUserIdentity.init reads the record synchronously during construction.
-        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        UserDefaults.standard.set("010203", forKey: "\(prefix):lastSyncedPushToken")
-        UserDefaults.standard.set("user@example.com", forKey: "\(prefix):lastSyncedEmail")
-        UserDefaults.standard.set("+15551234567", forKey: "\(prefix):lastSyncedPhone")
-        UserDefaults.standard.set(testDomain, forKey: "\(prefix):lastSyncedDomain")
+        // Confirm the identity on a first "launch" BEFORE constructing the cold-launch sut —
+        // its ATTNUserIdentity.init reads the persisted record synchronously. The record holds
+        // only a digest of the pair, so it is produced by a real sync rather than seeded.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1, "precondition: first launch confirms the identity")
 
         // Fresh sut — models a cold launch reading the persisted sync record.
         let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
@@ -900,6 +904,66 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertFalse(apiSpy.updateUserWasCalled,
                        "clearUser without a push token cannot fire detach and must not call api.updateUser")
+    }
+
+    // MARK: MSDK-516 — clearUser leaves no contact data in UserDefaults
+
+    /// Every persisted SDK value, read straight from `UserDefaults` rather than via the
+    /// identity, so the assertion covers what is actually at rest.
+    private func persistedSDKStrings() -> [String: String] {
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE:"
+        return UserDefaults.standard.dictionaryRepresentation().reduce(into: [:]) { result, entry in
+            if entry.key.hasPrefix(prefix), let value = entry.value as? String {
+                result[String(entry.key.dropFirst(prefix.count))] = value
+            }
+        }
+    }
+
+    private func assertNoContactDataInUserDefaults(file: StaticString = #filePath, line: UInt = #line) {
+        let stored = persistedSDKStrings()
+        XCTAssertNil(stored["lastSyncedEmail"], file: file, line: line)
+        XCTAssertNil(stored["lastSyncedPhone"], file: file, line: line)
+        XCTAssertNil(stored["syncRecordV2.contactDigest"], "no digest of the previous user may survive clearUser", file: file, line: line)
+        let leaked = stored.filter { $0.value.contains("user@example.com") || $0.value.contains("+15551234567") }
+        XCTAssertTrue(leaked.isEmpty, "contact data at rest under \(leaked.keys.sorted())", file: file, line: line)
+    }
+
+    func testClearUser_withNoPushToken_leavesNoContactDataOnDisk() {
+        // Prior launch confirmed the user; this launch has no push token, so no detach fires.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertNotNil(persistedSDKStrings()["syncRecordV2.contactDigest"], "precondition: identity confirmed")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
+        let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+
+        coldLaunchSut.clearUser()
+
+        XCTAssertFalse(coldLaunchSpy.updateUserWasCalled, "precondition: no push token means no detach")
+        assertNoContactDataInUserDefaults()
+    }
+
+    func testClearUser_whenDetachFails_leavesNoContactDataOnDisk() {
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        apiSpy.stubbedError = NSError(domain: "test.network", code: -1009, userInfo: nil)
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2, "precondition: the detach was attempted")
+        assertNoContactDataInUserDefaults()
+    }
+
+    func testClearUser_whenDetachSucceeds_leavesNoContactDataOnDisk() {
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2)
+        assertNoContactDataInUserDefaults()
+        XCTAssertEqual(persistedSDKStrings()["syncRecordV2.visitorId"], sut.visitorId,
+                       "the confirmed detach is still recorded, so a repeat clearUser can skip")
     }
 
     func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {
