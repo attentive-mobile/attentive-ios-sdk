@@ -68,6 +68,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         var lastUpdateUserPhone: String?
         var lastOperationContext: String?
         var lastUpdateUserPushToken: String?
+        var lastUpdateUserVisitorId: String?
 
         var domain = ""
     }
@@ -118,6 +119,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var lastUpdateUserPhone: String? { synced { $0.lastUpdateUserPhone } }
     var lastOperationContext: String? { synced { $0.lastOperationContext } }
     var lastUpdateUserPushToken: String? { synced { $0.lastUpdateUserPushToken } }
+    var lastUpdateUserVisitorId: String? { synced { $0.lastUpdateUserVisitorId } }
 
     // MARK: - ATTNAPIProtocol state
     var domain: String {
@@ -253,9 +255,14 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     }
 
     // MARK: - Update User
+    /// Fires inside the stub after arguments are captured and before the callback fires, so
+    /// tests can drive interleaved state (e.g. `identity.clearUser()` mid-flight) and prove
+    /// the sync record pins to the caller's captured visitor id — the MSDK-517 invariant.
+    var onUpdateUser: ((_ visitorId: String) -> Void)?
+
     func updateUser(
         pushToken: String,
-        userIdentity: ATTNUserIdentity,
+        visitorId: String,
         email: String?,
         phone: String?,
         operationContext: String,
@@ -263,6 +270,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     ) {
         let (response, error) = synced { storage -> (HTTPURLResponse?, Error?) in
             storage.lastUpdateUserPushToken = pushToken
+            storage.lastUpdateUserVisitorId = visitorId
             storage.lastUpdateUserEmail = email
             storage.lastUpdateUserPhone = phone
             storage.lastOperationContext = operationContext
@@ -270,6 +278,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
             storage.updateUserWasCalled = true
             return (storage.stubbedResponse, storage.stubbedError)
         }
+        onUpdateUser?(visitorId)
         // Pass `stubbedResponse` so ATTNSDK.syncRecordingCallback can distinguish a real
         // 200 from a 5xx. Tests that need to simulate a failed /user-update set
         // `stubbedResponse` to a non-2xx or `stubbedError` to a non-nil error.

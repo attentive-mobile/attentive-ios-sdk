@@ -228,7 +228,7 @@ extension ATTNSDK {
         let visitorIdAtRequest = userIdentity.visitorId
         api.updateUser(
             pushToken: pushToken,
-            userIdentity: userIdentity,
+            visitorId: visitorIdAtRequest,
             email: email,
             phone: phone,
             operationContext: "updateUser",

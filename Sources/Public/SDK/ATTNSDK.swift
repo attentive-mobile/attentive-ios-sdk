@@ -280,7 +280,7 @@ public final class ATTNSDK: NSObject {
             let visitorIdAtRequest = userIdentity.visitorId
             api.updateUser(
                 pushToken: pushToken,
-                userIdentity: userIdentity,
+                visitorId: visitorIdAtRequest,
                 email: nil,
                 phone: nil,
                 operationContext: "clearUser",
