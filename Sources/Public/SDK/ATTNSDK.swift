@@ -150,9 +150,9 @@ public final class ATTNSDK: NSObject {
     /// broadcast (userInfo carries the actionURL) — only the SDK-initiated open is suppressed.
     /// Hosts that navigate on their own via that broadcast should set this to false so the
     /// same URL isn't handled twice. Ignored when an `onMessageTap` handler is passed to
-    /// `inboxView()` / `inboxViewController()`, which replaces the SDK's routing entirely. Set
-    /// it once during SDK setup on the main thread — it is read on the main thread when a tap
-    /// is handled, and mutation from other threads is not synchronized.
+    /// `inboxView()` / `inboxViewController()`, which replaces the SDK's routing entirely. The
+    /// flag is read on the main thread each time a tap is handled, so changes apply from the
+    /// next tap. Only change it from the main thread — mutation is not synchronized.
     @objc public var automaticallyOpensInboxDeepLinks: Bool = true
 
     var urlOpener: ATTNURLOpening = ATTNApplicationURLOpener()
