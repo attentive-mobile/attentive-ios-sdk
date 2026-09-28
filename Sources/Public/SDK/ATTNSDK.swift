@@ -525,7 +525,9 @@ public final class ATTNSDK: NSObject {
             inboxManager: materializedInboxManager(),
             style: style,
             onTap: onMessageTap,
-            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? true }
+            // Read at tap time so later changes to the flag apply. If the SDK has been
+            // deallocated, don't open — that's an unexpected state, not the default path.
+            shouldOpenDeepLink: { [weak self] in self?.automaticallyOpensInboxDeepLinks ?? false }
         ))
     }
 
