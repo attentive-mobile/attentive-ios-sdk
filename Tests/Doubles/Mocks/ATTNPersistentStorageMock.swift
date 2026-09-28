@@ -30,6 +30,8 @@ final class ATTNPersistentStorageMock: ATTNPersistentStorageProtocol {
     /// True when any stored string value contains `needle` — used to prove plaintext
     /// contact data never reaches disk.
     func containsStringValue(containing needle: String) -> Bool {
-        lock.withLock { storage.values.contains { ($0 as? String)?.contains(needle) == true } }
+        // `String.contains("")` is always true; an empty needle would make assertions vacuous.
+        guard !needle.isEmpty else { return false }
+        return lock.withLock { storage.values.contains { ($0 as? String)?.contains(needle) == true } }
     }
 }

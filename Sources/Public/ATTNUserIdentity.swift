@@ -86,8 +86,15 @@ public final class ATTNUserIdentity: NSObject {
     private var lastSyncedVisitorId: String?
     // Per-install HMAC key for `lastSyncedContactDigest`. Not a secret — it lives in the same
     // store as the digest — but it keeps the digest from being matched against a precomputed
-    // table or correlated across devices.
-    private let contactDigestSalt: SymmetricKey
+    // table or correlated across devices. Loaded or created on the first non-empty digest, so
+    // installs that never identify a user never write one. Guarded by `persistedStateLock`.
+    private var contactDigestSalt: SymmetricKey?
+
+    // The salt and the legacy record live in storage shared by every `ATTNUserIdentity`, while
+    // `lock` is per instance. Without a process-wide lock, two instances starting together on a
+    // fresh install could each create a salt and keep a different one in memory than the one
+    // left on disk, and digests written under the losing salt would never match again.
+    private static let persistedStateLock = NSLock()
 
     @objc public var identifiers: [String: Any] {
         get { lock.withLock { _identifiers } }
@@ -122,8 +129,7 @@ public final class ATTNUserIdentity: NSObject {
         self.persistentStorage = persistentStorage
         self._identifiers = identifiers
         self._visitorId = visitorService.getVisitorId()
-        self.contactDigestSalt = Self.loadOrCreateContactDigestSalt(persistentStorage)
-        Self.migrateLegacySyncRecord(persistentStorage, salt: contactDigestSalt)
+        Self.persistedStateLock.withLock { Self.migrateLegacySyncRecord(persistentStorage) }
         // Load sync state before super.init returns so the very first plan* call after
         // construction sees the persisted record. A failed prior /user-update whose app
         // was killed before the callback fired will show up here as "sync != local" and
@@ -402,19 +408,31 @@ public final class ATTNUserIdentity: NSObject {
     /// Non-reversible stand-in for an already-normalized `{email, phone}` pair. Returns `nil`
     /// for the empty pair so "confirmed detach" stays representable as absence.
     private func contactDigest(email: String?, phone: String?) -> String? {
-        Self.contactDigest(email: email, phone: phone, salt: contactDigestSalt)
+        Self.contactDigest(email: email, phone: phone, salt: digestSalt())
     }
 
-    private static func contactDigest(email: String?, phone: String?, salt: SymmetricKey) -> String? {
+    /// `salt` is only evaluated for a non-empty pair, so the empty pair never creates one.
+    private static func contactDigest(email: String?, phone: String?, salt: @autoclosure () -> SymmetricKey) -> String? {
         guard email != nil || phone != nil else { return nil }
         // Length-prefix each field so ("ab", "c") and ("a", "bc") can't produce the same input.
         let email = email ?? ""
         let phone = phone ?? ""
         let message = "\(email.utf8.count):\(email)|\(phone.utf8.count):\(phone)"
-        let code = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: salt)
+        let code = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: salt())
         return Data(code).base64EncodedString()
     }
 
+    /// Must NOT be called while holding `lock`: it takes `persistedStateLock`.
+    private func digestSalt() -> SymmetricKey {
+        Self.persistedStateLock.withLock {
+            if let contactDigestSalt { return contactDigestSalt }
+            let salt = Self.loadOrCreateContactDigestSalt(persistentStorage)
+            contactDigestSalt = salt
+            return salt
+        }
+    }
+
+    /// Caller MUST hold `persistedStateLock`.
     private static func loadOrCreateContactDigestSalt(_ storage: ATTNPersistentStorageProtocol) -> SymmetricKey {
         if let encoded = storage.readString(forKey: Constants.contactDigestSaltKey),
            let data = Data(base64Encoded: encoded) {
@@ -432,7 +450,8 @@ public final class ATTNUserIdentity: NSObject {
     /// from treating their confirmed identity as unsynced, which would rotate the visitor id
     /// and re-POST on the first `updateUser` after the upgrade. A record missing any of
     /// push token, domain, or visitor id could never match anyway, so it is only deleted.
-    private static func migrateLegacySyncRecord(_ storage: ATTNPersistentStorageProtocol, salt: SymmetricKey) {
+    /// Caller MUST hold `persistedStateLock`.
+    private static func migrateLegacySyncRecord(_ storage: ATTNPersistentStorageProtocol) {
         defer {
             storage.delete(forKey: Constants.legacyPushTokenKey)
             storage.delete(forKey: Constants.legacyEmailKey)
@@ -446,7 +465,7 @@ public final class ATTNUserIdentity: NSObject {
         let digest = contactDigest(
             email: normalizeContact(storage.readString(forKey: Constants.legacyEmailKey)),
             phone: normalizeContact(storage.readString(forKey: Constants.legacyPhoneKey)),
-            salt: salt
+            salt: loadOrCreateContactDigestSalt(storage)
         )
         storage.save(pushToken as NSString, forKey: Constants.syncedPushTokenKey)
         storage.save(domain as NSString, forKey: Constants.syncedDomainKey)
