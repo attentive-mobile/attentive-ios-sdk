@@ -809,4 +809,43 @@ final class ATTNUserIdentityTests: XCTestCase {
             .rotatedAndReplaced
         )
     }
+
+    func testContactDigestSalt_notWrittenUntilANonEmptyPairIsDigested() {
+        // Installs that never identify a user must not persist a salt; a detach doesn't need one.
+        let (identity, storage) = makeIsolatedIdentity()
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+        XCTAssertFalse(storage.storedKeys.contains("syncRecordV2.contactDigestSalt"))
+
+        _ = identity.planUpdateUser(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain)
+
+        XCTAssertTrue(storage.storedKeys.contains("syncRecordV2.contactDigestSalt"))
+    }
+
+    func testContactDigestSalt_concurrentFirstUseAcrossInstances_agreesOnOneSalt() {
+        // Instances sharing storage must all end up with the salt that is on disk; otherwise a
+        // digest written by one could never be reproduced after relaunch.
+        let storage = ATTNPersistentStorageMock()
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let identitiesLock = NSLock()
+        var identities: [ATTNUserIdentity] = []
+
+        // Construct and first-digest concurrently, so the race is covered wherever the salt is created.
+        DispatchQueue.concurrentPerform(iterations: 32) { _ in
+            let identity = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
+            identity.recordSuccessfulSync(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+            identitiesLock.withLock { identities.append(identity) }
+        }
+
+        for identity in identities {
+            identity.recordSuccessfulSync(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
+            // A fresh instance per write: the record is read from storage only at init.
+            let relaunched = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
+            XCTAssertEqual(
+                relaunched.planUpdateUser(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain),
+                .skip,
+                "every instance's digest must be reproducible from the persisted salt"
+            )
+        }
+    }
 }
