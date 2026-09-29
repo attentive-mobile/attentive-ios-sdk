@@ -67,9 +67,15 @@ protocol ATTNAPIProtocol {
     //   → Tells the server to re-identify the device under a new user.
     //
     // `operationContext` is used exclusively for logging — it has no effect on the API payload.
+    //
+    // `visitorId` is passed explicitly (rather than read from an `ATTNUserIdentity` reference
+    // at payload build) so the value on the wire matches the value the caller captured before
+    // handing off. MSDK-469's `recordSuccessfulSync` needs those two ids to be the same by
+    // construction, or a concurrent rotation between capture and serialization would let the
+    // sync record pin to a visitor id the server never saw (MSDK-517).
     func updateUser(
         pushToken: String,
-        userIdentity: ATTNUserIdentity,
+        visitorId: String,
         email: String?,
         phone: String?,
         operationContext: String,

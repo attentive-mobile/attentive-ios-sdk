@@ -312,4 +312,76 @@ final class ATTNAPITests: XCTestCase {
         XCTAssertTrue(sessionMock.didCallEventsApi)
         XCTAssertEqual(2, sessionMock.urlCalls.count)
     }
+
+    // MARK: - MSDK-517: wire visitor id equals the passed argument
+
+    /// Locks down the primary MSDK-517 invariant at the API boundary: `ATTNAPI.updateUser`
+    /// serializes the `visitorId` argument into the `"u"` field of the JSON payload it POSTs
+    /// to `/user-update` — without re-reading any live identity reference. Without this
+    /// direct-payload test, the SDK-level regression tests all go through `ATTNAPISpy`, which
+    /// never touched `userIdentity.visitorId` (pre-fix or post-fix), so they can't observe
+    /// whether the real `ATTNAPI` obeys its contract.
+    func testUpdateUser_payloadUField_equalsPassedVisitorIdVerbatim() throws {
+        let sessionMock = UserUpdateCapturingSessionMock()
+        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
+
+        let sentVisitorId = "visitor-passed-into-api-\(UUID().uuidString)"
+        api.updateUser(
+            pushToken: "some-push-token",
+            visitorId: sentVisitorId,
+            email: "user@example.com",
+            phone: "+15551234567",
+            operationContext: "clearUser",
+            callback: nil
+        )
+
+        let request = try XCTUnwrap(sessionMock.lastUserUpdateRequest,
+                                    "ATTNAPI.updateUser must POST to /user-update")
+        let body = try XCTUnwrap(request.httpBody, "the /user-update request must have a JSON body")
+        let payload = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(payload["u"] as? String, sentVisitorId,
+                       "payload \"u\" must equal the visitorId argument verbatim — no re-read from a live identity reference")
+    }
+
+    /// Companion assertion for `testUpdateUser_payloadUField_equalsPassedVisitorIdVerbatim`:
+    /// two consecutive calls with different `visitorId` arguments produce two payloads whose
+    /// `"u"` fields track the arguments. If `ATTNAPI` ever regressed to reading a shared
+    /// identity reference again, both payloads would carry the same (last-read) value.
+    func testUpdateUser_payloadUField_tracksEachCallArgumentIndependently() throws {
+        let sessionMock = UserUpdateCapturingSessionMock()
+        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
+
+        api.updateUser(pushToken: "tok", visitorId: "V-first", email: nil, phone: nil, operationContext: "clearUser", callback: nil)
+        api.updateUser(pushToken: "tok", visitorId: "V-second", email: nil, phone: nil, operationContext: "clearUser", callback: nil)
+
+        XCTAssertEqual(sessionMock.userUpdateRequests.count, 2)
+        let firstBody = try XCTUnwrap(sessionMock.userUpdateRequests[0].httpBody)
+        let secondBody = try XCTUnwrap(sessionMock.userUpdateRequests[1].httpBody)
+        let firstPayload = try XCTUnwrap(try JSONSerialization.jsonObject(with: firstBody) as? [String: Any])
+        let secondPayload = try XCTUnwrap(try JSONSerialization.jsonObject(with: secondBody) as? [String: Any])
+        XCTAssertEqual(firstPayload["u"] as? String, "V-first")
+        XCTAssertEqual(secondPayload["u"] as? String, "V-second")
+    }
+}
+
+/// Session mock scoped to the MSDK-517 tests: captures `/user-update` requests without the
+/// `NSURLSessionMock` "events endpoint only" fatalError guard.
+private final class UserUpdateCapturingSessionMock: URLSession {
+    var userUpdateRequests: [URLRequest] = []
+    var lastUserUpdateRequest: URLRequest? { userUpdateRequests.last }
+
+    override init() { super.init() }
+
+    override func dataTask(
+        with request: URLRequest,
+        completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void
+    ) -> URLSessionDataTask {
+        if request.url?.path.contains("/user-update") == true {
+            userUpdateRequests.append(request)
+        }
+        return NSURLSessionDataTaskMock { _, _, _ in
+            let url = request.url ?? URL(string: "https://example.invalid")!
+            completionHandler(Data(), HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil), nil)
+        }
+    }
 }

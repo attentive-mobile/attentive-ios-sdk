@@ -267,32 +267,35 @@ public final class ATTNSDK: NSObject {
         // the record so a subsequent login-as-A is sent to the server. See MSDK-469.
         let currentDomain = self.domain
         let decision = userIdentity.planClearUser(pushToken: pushToken, domain: currentDomain)
+        // planClearUser rotates in every non-skip case; .retryWithoutRotation is listed
+        // for enum exhaustiveness only. The visitor id we send on the wire and record
+        // as synced is the one planClearUser captured under its lock — reading
+        // `userIdentity.visitorId` again here would reopen a window where another
+        // rotation path (a concurrent clearUser, a bare `ATTNUserIdentity.clearUser()`,
+        // an interleaved updateUser) could substitute a different id (MSDK-517).
+        let visitorIdAtRequest: String
         switch decision {
         case .skip:
             Loggers.event.debug("clearUser: skipping — already detached on server for current push token, domain, and visitor id - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
-        case .retryWithoutRotation, .rotatedAndReplaced:
-            // planClearUser rotates in every non-skip case; .retryWithoutRotation is
-            // listed for enum exhaustiveness only.
-            guard !pushToken.isEmpty else {
-                // No push token means there is nothing to detach server-side. Local was
-                // already cleared and the visitor id rotated inside planClearUser.
-                Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-                return
-            }
-            Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            // Capture visitor id at request-time so a rotation between request and
-            // response can't corrupt the record — see recordSuccessfulSync.
-            let visitorIdAtRequest = userIdentity.visitorId
-            api.updateUser(
-                pushToken: pushToken,
-                userIdentity: userIdentity,
-                email: nil,
-                phone: nil,
-                operationContext: "clearUser",
-                callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: nil)
-            )
+        case .retryWithoutRotation(let id), .rotatedAndReplaced(let id):
+            visitorIdAtRequest = id
         }
+        guard !pushToken.isEmpty else {
+            // No push token means there is nothing to detach server-side. Local was
+            // already cleared and the visitor id rotated inside planClearUser.
+            Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+            return
+        }
+        Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(visitorIdAtRequest, privacy: .public)")
+        api.updateUser(
+            pushToken: pushToken,
+            visitorId: visitorIdAtRequest,
+            email: nil,
+            phone: nil,
+            operationContext: "clearUser",
+            callback: syncRecordingCallback(email: nil, phone: nil, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: nil)
+        )
     }
 
     /// Wraps a `/user-update` callback so a successful server response records the confirmed

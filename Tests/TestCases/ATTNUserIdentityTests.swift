@@ -118,7 +118,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let (identity, _) = makeIsolatedIdentity()
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore,
                           "clearUser must rotate whenever a detach fires; skipping rotation leaves the persisted visitor id linked to the previous user")
     }
@@ -130,7 +130,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .skip)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .skip)
         XCTAssertEqual(identity.visitorId, visitorIdBefore)
     }
 
@@ -142,7 +142,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: "old-token", domain: testDomain, visitorId: identity.visitorId)
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: "new-token", domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: "new-token", domain: testDomain).kind, .rotatedAndReplaced)
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
     }
 
@@ -156,7 +156,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore,
                           "logout after relaunch (empty local + sync record shows attached) must rotate — otherwise persisted visitor id keeps flowing to the prior user")
     }
@@ -165,7 +165,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let (identity, _) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: "user@example.com"])
         let visitorIdBefore = identity.visitorId
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
         XCTAssertEqual(identity.identifiers.count, 0)
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
     }
@@ -177,7 +177,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, "user@example.com")
@@ -194,7 +194,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .skip
         )
         XCTAssertEqual(identity.visitorId, visitorIdBefore)
@@ -211,7 +211,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .retryWithoutRotation
         )
         XCTAssertEqual(identity.visitorId, visitorIdBefore,
@@ -227,7 +227,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: "old-token", domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: "new-token", domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: "new-token", domain: testDomain).kind,
             .retryWithoutRotation
         )
     }
@@ -242,7 +242,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         ])
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertNil(identity.identifiers[ATTNIdentifierType.clientUserId])
@@ -258,7 +258,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, "user@example.com",
                        "planUpdateUser must store the normalized value, not the raw whitespaced input")
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .skip
         )
     }
@@ -294,7 +294,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             persistentStorage: sharedStorage
         )
         XCTAssertEqual(
-            secondLaunch.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            secondLaunch.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .skip,
             "Persisted sync record must survive across ATTNUserIdentity instances (i.e. app relaunches)"
         )
@@ -322,7 +322,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             persistentStorage: sharedStorage
         )
         XCTAssertEqual(
-            secondLaunch.planClearUser(pushToken: testToken, domain: testDomain),
+            secondLaunch.planClearUser(pushToken: testToken, domain: testDomain).kind,
             .skip,
             "Persisted detach confirmation must survive so a subsequent clearUser is a no-op"
         )
@@ -336,7 +336,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
-            identity.planClearUser(pushToken: testToken, domain: testDomain),
+            identity.planClearUser(pushToken: testToken, domain: testDomain).kind,
             .skip,
             "recordSuccessfulSync(nil, nil, …) must clear the previously-recorded email"
         )
@@ -380,7 +380,7 @@ final class ATTNUserIdentityTests: XCTestCase {
                       "precondition: identifiers must be empty at cold launch — email/phone are in-memory only")
 
         XCTAssertEqual(
-            secondLaunch.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            secondLaunch.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .skip,
             "Cold-launch updateUser with matching persisted sync record must SKIP — this is the Aero fanout stop"
         )
@@ -400,7 +400,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
@@ -421,7 +421,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = secondLaunch.visitorId
 
         XCTAssertEqual(
-            secondLaunch.planUpdateUser(email: "new@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain),
+            secondLaunch.planUpdateUser(email: "new@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertNotEqual(secondLaunch.visitorId, visitorIdBefore)
@@ -441,7 +441,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "old-domain", visitorId: identity.visitorId)
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "new-domain"),
+            identity.planUpdateUser(email: "user@example.com", phone: "+15551234567", pushToken: testToken, domain: "new-domain").kind,
             .retryWithoutRotation,
             "Domain change must invalidate the sync record — the new company hasn't confirmed this identity"
         )
@@ -457,7 +457,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planClearUser(pushToken: testToken, domain: "new-domain"),
+            identity.planClearUser(pushToken: testToken, domain: "new-domain").kind,
             .rotatedAndReplaced
         )
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
@@ -485,7 +485,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             persistentStorage: sharedStorage
         )
         XCTAssertEqual(
-            secondLaunch.planUpdateUser(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            secondLaunch.planUpdateUser(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain).kind,
             .skip,
             "Domain must persist across relaunches or every cold launch retries the /user-update"
         )
@@ -573,7 +573,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         )
         let v2 = secondProcess.visitorId
         XCTAssertEqual(
-            secondProcess.planUpdateUser(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            secondProcess.planUpdateUser(email: "user@example.com", phone: nil, pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced,
             "Sync record confirmed under a rotated-away visitor id must not silence updateUser — otherwise V2 is never sent to the server"
         )
@@ -595,7 +595,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.mergeIdentifiers([ATTNIdentifierType.email: "b@example.com"])
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "b@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "b@example.com", phone: nil, pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced,
             "identify() pre-seeding a DIFFERENT identity must not let the retry-without-rotation branch attach B to A's visitor id"
         )
@@ -616,7 +616,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let visitorIdBefore = identity.visitorId
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertNotEqual(identity.visitorId, visitorIdBefore)
@@ -652,7 +652,7 @@ final class ATTNUserIdentityTests: XCTestCase {
                        "precondition: visitor id survives relaunch")
 
         XCTAssertEqual(
-            secondLaunch.planClearUser(pushToken: testToken, domain: testDomain),
+            secondLaunch.planClearUser(pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
         XCTAssertNotEqual(secondLaunch.visitorId, visitorIdUnderA,
@@ -695,7 +695,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
         identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
 
         assertSyncRecordCleared(storage)
         assertNoContactDataAtRest(storage)
@@ -706,12 +706,12 @@ final class ATTNUserIdentityTests: XCTestCase {
         let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
         identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
         identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         assertNoContactDataAtRest(storage)
         XCTAssertNil(storage.readString(forKey: "syncRecordV2.contactDigest"))
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .skip)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .skip)
     }
 
     func testPlanUpdateUser_rotation_deletesPersistedSyncRecord() {
@@ -719,7 +719,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: "a@example.com", phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
 
@@ -739,7 +739,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // An updateUser(A) response landing after a logout must not write A's record back.
         let (identity, storage) = makeIsolatedIdentity(identifiers: [ATTNIdentifierType.email: testEmail])
         let visitorIdAtRequest = identity.visitorId
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
 
         identity.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: visitorIdAtRequest)
 
@@ -763,7 +763,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         assertNoContactDataAtRest(storage)
         XCTAssertTrue(storage.storedKeys.isDisjoint(with: ["lastSyncedPushToken", "lastSyncedDomain", "lastSyncedVisitorId"]))
         XCTAssertEqual(
-            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain).kind,
             .skip,
             "a migrated record must still let the cold-launch adoption branch skip"
         )
@@ -796,7 +796,7 @@ final class ATTNUserIdentityTests: XCTestCase {
 
         let second = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
 
-        XCTAssertEqual(second.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain), .skip)
+        XCTAssertEqual(second.planUpdateUser(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain).kind, .skip)
     }
 
     func testContactDigest_distinguishesFieldBoundaries() {
@@ -805,7 +805,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         identity.recordSuccessfulSync(email: "ab", phone: "c", pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
 
         XCTAssertEqual(
-            identity.planUpdateUser(email: "a", phone: "bc", pushToken: testToken, domain: testDomain),
+            identity.planUpdateUser(email: "a", phone: "bc", pushToken: testToken, domain: testDomain).kind,
             .rotatedAndReplaced
         )
     }
@@ -813,7 +813,7 @@ final class ATTNUserIdentityTests: XCTestCase {
     func testContactDigestSalt_notWrittenUntilANonEmptyPairIsDigested() {
         // Installs that never identify a user must not persist a salt; a detach doesn't need one.
         let (identity, storage) = makeIsolatedIdentity()
-        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain), .rotatedAndReplaced)
+        XCTAssertEqual(identity.planClearUser(pushToken: testToken, domain: testDomain).kind, .rotatedAndReplaced)
         identity.recordSuccessfulSync(email: nil, phone: nil, pushToken: testToken, domain: testDomain, visitorId: identity.visitorId)
         XCTAssertFalse(storage.storedKeys.contains("syncRecordV2.contactDigestSalt"))
 
@@ -842,7 +842,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             // A fresh instance per write: the record is read from storage only at init.
             let relaunched = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
             XCTAssertEqual(
-                relaunched.planUpdateUser(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain),
+                relaunched.planUpdateUser(email: testEmail, phone: nil, pushToken: testToken, domain: testDomain).kind,
                 .skip,
                 "every instance's digest must be reproducible from the persisted salt"
             )
