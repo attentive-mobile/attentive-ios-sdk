@@ -11,6 +11,13 @@ import Foundation
 /// Outcome of an `ATTNUserIdentity.planXxx` call. The MSDK-469 guards live inside those
 /// primitives; this enum tells the caller what the primitive did and what still needs to
 /// happen at the network layer.
+///
+/// The `visitorId` on each non-skip case is captured under the identity lock, in the same
+/// critical section that decided the outcome (and, for `.rotatedAndReplaced`, rotated the id).
+/// Callers must use this associated value for the `/user-update` payload and for the sync
+/// record — never re-read `ATTNUserIdentity.visitorId` after the plan call, because a
+/// concurrent rotation between plan-return and re-read would otherwise let the wire and the
+/// sync record disagree with the outcome the plan computed (MSDK-517).
 enum ATTNIdentitySyncDecision {
     /// Local state already matches the request AND the last successful `/user-update`
     /// confirmed the same state on the server. Caller should skip both rotation and network.
@@ -19,12 +26,29 @@ enum ATTNIdentitySyncDecision {
     /// Local state already matches the request but the last successful `/user-update` did
     /// NOT confirm this state (never synced, prior request failed, or the push token has
     /// changed). Caller should fire `/user-update` again to retry — no visitor ID rotation,
-    /// no local mutation.
-    case retryWithoutRotation
+    /// no local mutation. `visitorId` is the current id, captured under the lock.
+    case retryWithoutRotation(visitorId: String)
 
     /// Local state did not match the request; identifiers were replaced and visitor ID was
-    /// rotated. Caller must fire `/user-update` with the new visitor ID.
-    case rotatedAndReplaced
+    /// rotated. Caller must fire `/user-update` with `visitorId` — the id created under the
+    /// lock in this same call.
+    case rotatedAndReplaced(visitorId: String)
+
+    /// Categorical kind, discarding the associated visitor id — for equality checks in tests
+    /// that only care about which branch fired.
+    enum Kind {
+        case skip
+        case retryWithoutRotation
+        case rotatedAndReplaced
+    }
+
+    var kind: Kind {
+        switch self {
+        case .skip: return .skip
+        case .retryWithoutRotation: return .retryWithoutRotation
+        case .rotatedAndReplaced: return .rotatedAndReplaced
+        }
+    }
 }
 
 @objc(ATTNUserIdentity)
@@ -209,11 +233,14 @@ public final class ATTNUserIdentity: NSObject {
 
         // Decide + mutate + read sync record all under one lock acquisition. Two threads
         // racing on the same-identity call see a coherent snapshot: the first mutator
-        // wins, the rest observe the mutated state and return skip/retry.
+        // wins, the rest observe the mutated state and return skip/retry. Non-skip
+        // outcomes carry the visitor id observed inside this critical section so the
+        // caller doesn't have to re-read `_visitorId` afterwards — a re-read past the
+        // unlock could see a value another thread rotated to (MSDK-517).
         enum Outcome {
             case mutated(newVisitorId: String)
             case localMatchesAndSynced
-            case localMatchesButUnsynced
+            case localMatchesButUnsynced(visitorId: String)
             case adoptedFromSyncRecord
         }
         let outcome: Outcome = lock.withLock { () -> Outcome in
@@ -255,16 +282,16 @@ public final class ATTNUserIdentity: NSObject {
                 clearSyncRecordLocked()
                 return .mutated(newVisitorId: id)
             }
-            return syncMatches ? .localMatchesAndSynced : .localMatchesButUnsynced
+            return syncMatches ? .localMatchesAndSynced : .localMatchesButUnsynced(visitorId: _visitorId)
         }
         switch outcome {
         case .mutated(let newVisitorId):
             visitorService.logNewVisitorId(newVisitorId)
-            return .rotatedAndReplaced
+            return .rotatedAndReplaced(visitorId: newVisitorId)
         case .localMatchesAndSynced, .adoptedFromSyncRecord:
             return .skip
-        case .localMatchesButUnsynced:
-            return .retryWithoutRotation
+        case .localMatchesButUnsynced(let visitorId):
+            return .retryWithoutRotation(visitorId: visitorId)
         }
     }
 
@@ -297,7 +324,9 @@ public final class ATTNUserIdentity: NSObject {
             // Either local is non-empty (needs clearing), or local is empty but the
             // server has not confirmed detach for the current push token, domain, and
             // visitor id — meaning the persisted visitor id may still be linked to the
-            // previous user server-side. Rotate and, at the caller, fire detach.
+            // previous user server-side. Rotate and, at the caller, fire detach — the
+            // caller receives the rotated id via the `.rotatedAndReplaced` case so it
+            // never has to re-read `_visitorId` past the unlock point.
             _identifiers = [:]
             let id = visitorService.createNewVisitorId()
             _visitorId = id
@@ -310,7 +339,7 @@ public final class ATTNUserIdentity: NSObject {
         switch outcome {
         case .mutated(let newVisitorId):
             visitorService.logNewVisitorId(newVisitorId)
-            return .rotatedAndReplaced
+            return .rotatedAndReplaced(visitorId: newVisitorId)
         case .alreadyEmptyAndSynced:
             return .skip
         }

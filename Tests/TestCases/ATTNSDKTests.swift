@@ -969,11 +969,12 @@ final class ATTNSDKTests: XCTestCase {
     // MARK: - MSDK-517: sync record pins to the visitor id sent on the wire
 
     func testClearUser_visitorIdOnWireEqualsCurrentVisitorId_MSDK517() {
-        // MSDK-517: ATTNAPI.updateUser used to re-read `userIdentity.visitorId` at payload
-        // build time instead of using the id the caller captured, so a concurrent rotation
-        // between capture and serialization pinned the sync record to a value the server
-        // never saw. Post-fix, the api takes `visitorId` explicitly and the wire, log, and
-        // record all use the same value.
+        // MSDK-517 invariant at the SDK layer: after an uncontended `clearUser`, the id
+        // the api received equals `sut.visitorId`, and a follow-up call resolves to `.skip`
+        // (which requires `_lastSyncedVisitorId == _visitorId`). The ATTNAPI-level wire
+        // payload assertion lives in `ATTNAPITests.testUpdateUser_payloadUField_*` — via
+        // `ATTNAPISpy` alone we can only observe the argument ATTNSDK passed in, not what
+        // the real API would have serialized.
         registerTestPushToken()
         sut.identify([ATTNIdentifierType.email: "user@example.com"])
 
@@ -983,8 +984,9 @@ final class ATTNSDKTests: XCTestCase {
                        "wire visitor id must equal the current in-memory id after clearUser — the value the sync record pins to")
 
         // Follow-up clearUser resolves to `.skip` only when `_lastSyncedVisitorId == _visitorId`.
-        // If the recorded id and the wire id ever diverged, this skip would be silently defeated
-        // (the exact MSDK-517 failure mode).
+        // If the recorded id and the wire id ever diverged, this skip would be defeated on
+        // this next call (a subsequent call would then heal — cost is one extra POST per race,
+        // not permanent drift).
         let callCountAfterFirst = apiSpy.updateUserCallCount
         sut.clearUser()
         XCTAssertEqual(apiSpy.updateUserCallCount, callCountAfterFirst,
@@ -992,11 +994,13 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testClearUser_rotationInterleavedMidRequest_recordIsConsistentWithWire_MSDK517() {
-        // Deterministic race reproduction: another caller rotates the visitor id mid-flight
-        // (between the api call and its callback firing). Pre-fix the wire visitor id would
-        // be the post-rotation value (fresh read at payload build) while the record would
-        // be the caller's captured pre-rotation value → divergence. Post-fix the wire uses
-        // the caller's captured value, and the record is provably the same by construction.
+        // Deterministic race reproduction at the SDK layer: another caller rotates the
+        // visitor id mid-flight (between the api call and its callback firing). Invariant:
+        // both the wire visitor id ATTNSDK passed and the sync record it writes equal the
+        // value the plan primitive captured before the interleaving — so the guard on the
+        // NEXT clearUser correctly detects the visitor-id mismatch and fires a detach
+        // against the new id (rather than skipping while the server has no detach on
+        // record for it).
         registerTestPushToken()
         sut.identify([ATTNIdentifierType.email: "user@example.com"])
         let identity = sut.getUserIdentity()
@@ -1026,13 +1030,12 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testClearUser_concurrentCallers_eventuallyConsistent_MSDK517() {
-        // Acceptance criterion: after two (or more) concurrent clearUser() calls, the sync
-        // record's visitor id equals the value the request carried, and a subsequent no-op
-        // call eventually resolves to `.skip`. Post-fix, wire equals record by construction
-        // per-call, so at most one "healing" call re-aligns the record with `_visitorId`
-        // after any interleaving. Pre-fix the drift was permanent — no number of follow-ups
-        // restored .skip because each attempt re-read the visitor id at serialization time
-        // and re-introduced the divergence.
+        // Acceptance criterion: after concurrent clearUser() calls, at most one "healing"
+        // follow-up rotates+POSTs to re-align `_lastSyncedVisitorId` with `_visitorId`, and
+        // the call after that resolves to `.skip`. Wire and record share the visitor id
+        // the plan primitive captured under its lock, so per-call there is no drift; any
+        // divergence comes strictly from cross-call interleavings and self-heals within
+        // one additional call.
         registerTestPushToken()
         sut.identify([ATTNIdentifierType.email: "user@example.com"])
 
@@ -1042,7 +1045,7 @@ final class ATTNSDKTests: XCTestCase {
 
         // First healing call may or may not fire (record may already match _visitorId
         // depending on the ordering of the concurrent sync-record writes). The invariant
-        // to prove is that the SECOND healing call must skip — pre-fix it wouldn't.
+        // to prove is that the follow-up call must skip.
         sut.clearUser()
         let callsAfterHealing = apiSpy.updateUserCallCount
         sut.clearUser()

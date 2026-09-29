@@ -209,23 +209,23 @@ extension ATTNSDK {
         // branch precedent.
         let currentDomain = self.domain
         let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken, domain: currentDomain)
+        // planUpdateUser hands back the visitor id it observed under its lock; use that
+        // for the wire call and the sync record. Reading `userIdentity.visitorId` again
+        // here would reopen the MSDK-517 window — a concurrent rotation between plan-
+        // return and re-read could pin the record to an id the server never saw.
+        let visitorIdAtRequest: String
         switch decision {
         case .skip:
             Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             callback?(nil, nil, nil, nil)
             return
-        case .retryWithoutRotation:
-            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        case .rotatedAndReplaced:
-            break
+        case .retryWithoutRotation(let id):
+            visitorIdAtRequest = id
+            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(visitorIdAtRequest, privacy: .public)")
+        case .rotatedAndReplaced(let id):
+            visitorIdAtRequest = id
         }
 
-        // Capture visitor id AFTER planUpdateUser so `.rotatedAndReplaced` is reflected.
-        // Between here and the network response, any other rotation path (a concurrent
-        // clearUser, an ATTNUserIdentity.clearUser() call from another caller) can still
-        // fire — the record must pin to the id the server actually saw, not to whatever
-        // `_visitorId` is by the time the callback runs.
-        let visitorIdAtRequest = userIdentity.visitorId
         api.updateUser(
             pushToken: pushToken,
             visitorId: visitorIdAtRequest,
