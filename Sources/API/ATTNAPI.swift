@@ -190,7 +190,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             pushToken: String,
             email: String?,
             phone: String?,
-            trackingConsent: ATTNTrackingConsent = .unspecified,
+            trackingConsent: ATTNTrackingConsent,
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
