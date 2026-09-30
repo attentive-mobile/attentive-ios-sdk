@@ -827,6 +827,11 @@ final class ATTNUserIdentityTests: XCTestCase {
         // digest written by one could never be reproduced after relaunch.
         let storage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        // Persist the visitor id up front. `getVisitorId()` is an unlocked read-then-create, so
+        // concurrent first inits could each mint a different id; that's a separate race from
+        // the salt one under test, and a relaunch that sees a mismatched id rotates and never
+        // reaches the salt check.
+        _ = visitorService.getVisitorId()
         let identitiesLock = NSLock()
         var identities: [ATTNUserIdentity] = []
 
