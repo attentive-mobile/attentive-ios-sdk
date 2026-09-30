@@ -49,7 +49,12 @@ final class ATTNSDKTests: XCTestCase {
     /// rename over there will fail these tests loudly instead of silently leaking state.
     private static func clearPersistedSyncState() {
         let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        for suffix in ["lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain", "lastSyncedVisitorId"] {
+        let suffixes = [
+            "syncRecordV2.pushToken", "syncRecordV2.contactDigest", "syncRecordV2.domain", "syncRecordV2.visitorId",
+            // Pre-MSDK-516 keys, migrated away on init — scrubbed in case a test seeds them.
+            "lastSyncedPushToken", "lastSyncedEmail", "lastSyncedPhone", "lastSyncedDomain", "lastSyncedVisitorId"
+        ]
+        for suffix in suffixes {
             UserDefaults.standard.removeObject(forKey: "\(prefix):\(suffix)")
         }
     }
@@ -718,6 +723,64 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
     }
 
+    // MARK: - trackingConsent tests
+
+    func testOptIn_legacyThreeArgSignature_defaultsToUnspecifiedTrackingConsent() {
+        // Existing call sites that don't yet pass trackingConsent must be byte-identical
+        // to before this change: the delegating three-arg overload forwards .unspecified.
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled)
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .unspecified)
+    }
+
+    func testOptIn_withAcceptedConsent_passesThroughToApi() {
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .accepted,
+            callback: nil
+        )
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled)
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .accepted)
+    }
+
+    func testOptIn_withDeclinedConsent_passesThroughToApi() {
+        registerTestPushToken()
+
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .declined,
+            callback: nil
+        )
+
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .declined)
+    }
+
+    func testOptIn_queuedWithoutPushToken_replaysConsentWhenTokenArrives() {
+        sut.optInMarketingSubscription(
+            email: "user@example.com",
+            phone: nil,
+            trackingConsent: .accepted,
+            callback: nil
+        )
+
+        XCTAssertFalse(apiSpy.sendOptInWasCalled, "Opt-in with consent should still queue when the push token is missing")
+
+        sut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
+
+        XCTAssertTrue(waitForCondition({ self.apiSpy.sendOptInWasCalled }))
+        XCTAssertEqual(apiSpy.lastOptInEmail, "user@example.com")
+        XCTAssertEqual(apiSpy.lastOptInTrackingConsent, .accepted, "Queued consent value must survive the push-token wait")
+    }
+
     // MARK: - updateUser tests
 
     func testUpdateUser_callsUpdateUserExactlyOnce() {
@@ -836,18 +899,12 @@ final class ATTNSDKTests: XCTestCase {
         // call would rotate the visitor id and POST /user-update on every launch. With the
         // adoption branch, planUpdateUser sees local empty + sync matches and returns .skip.
         //
-        // Seed the persisted sync record BEFORE constructing the cold-launch sut — its
-        // ATTNUserIdentity.init reads the record synchronously during construction.
-        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE"
-        UserDefaults.standard.set("010203", forKey: "\(prefix):lastSyncedPushToken")
-        UserDefaults.standard.set("user@example.com", forKey: "\(prefix):lastSyncedEmail")
-        UserDefaults.standard.set("+15551234567", forKey: "\(prefix):lastSyncedPhone")
-        UserDefaults.standard.set(testDomain, forKey: "\(prefix):lastSyncedDomain")
-        // The record only counts when it was confirmed under the visitor id the device still
-        // sends, so it has to be pinned to the persisted id. The visitor id lives in
-        // UserDefaults and is shared by every SDK instance in this process, so `sut`'s id is
-        // the one the cold-launch sut will read back (asserted as a precondition below).
-        UserDefaults.standard.set(sut.visitorId, forKey: "\(prefix):lastSyncedVisitorId")
+        // Confirm the identity on a first "launch" BEFORE constructing the cold-launch sut —
+        // its ATTNUserIdentity.init reads the persisted record synchronously. The record holds
+        // only a digest of the pair, so it is produced by a real sync rather than seeded.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertEqual(apiSpy.updateUserCallCount, 1, "precondition: first launch confirms the identity")
 
         // Fresh sut — models a cold launch reading the persisted sync record.
         let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
@@ -1026,6 +1083,181 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertFalse(apiSpy.updateUserWasCalled,
                        "clearUser without a push token cannot fire detach and must not call api.updateUser")
+    }
+
+    // MARK: MSDK-516 — clearUser leaves no contact data in UserDefaults
+
+    /// Every persisted SDK value, read straight from `UserDefaults` rather than via the
+    /// identity, so the assertion covers what is actually at rest.
+    private func persistedSDKStrings() -> [String: String] {
+        let prefix = "com.attentive.iossdk.PERSISTENT_STORAGE:"
+        return UserDefaults.standard.dictionaryRepresentation().reduce(into: [:]) { result, entry in
+            if entry.key.hasPrefix(prefix), let value = entry.value as? String {
+                result[String(entry.key.dropFirst(prefix.count))] = value
+            }
+        }
+    }
+
+    private func assertNoContactDataInUserDefaults(file: StaticString = #filePath, line: UInt = #line) {
+        let stored = persistedSDKStrings()
+        XCTAssertNil(stored["lastSyncedEmail"], file: file, line: line)
+        XCTAssertNil(stored["lastSyncedPhone"], file: file, line: line)
+        XCTAssertNil(stored["syncRecordV2.contactDigest"], "no digest of the previous user may survive clearUser", file: file, line: line)
+        let leaked = stored.filter { $0.value.contains("user@example.com") || $0.value.contains("+15551234567") }
+        XCTAssertTrue(leaked.isEmpty, "contact data at rest under \(leaked.keys.sorted())", file: file, line: line)
+    }
+
+    func testClearUser_withNoPushToken_leavesNoContactDataOnDisk() {
+        // Prior launch confirmed the user; this launch has no push token, so no detach fires.
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        XCTAssertNotNil(persistedSDKStrings()["syncRecordV2.contactDigest"], "precondition: identity confirmed")
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
+        let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+
+        coldLaunchSut.clearUser()
+
+        XCTAssertFalse(coldLaunchSpy.updateUserWasCalled, "precondition: no push token means no detach")
+        assertNoContactDataInUserDefaults()
+    }
+
+    func testClearUser_whenDetachFails_leavesNoContactDataOnDisk() {
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+        apiSpy.stubbedError = NSError(domain: "test.network", code: -1009, userInfo: nil)
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2, "precondition: the detach was attempted")
+        assertNoContactDataInUserDefaults()
+    }
+
+    func testClearUser_whenDetachSucceeds_leavesNoContactDataOnDisk() {
+        registerTestPushToken()
+        sut.updateUser(email: "user@example.com", phone: "+15551234567")
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.updateUserCallCount, 2)
+        assertNoContactDataInUserDefaults()
+        XCTAssertEqual(persistedSDKStrings()["syncRecordV2.visitorId"], sut.visitorId,
+                       "the confirmed detach is still recorded, so a repeat clearUser can skip")
+    }
+
+    // MARK: - MSDK-517: sync record pins to the visitor id sent on the wire
+
+    func testClearUser_visitorIdOnWireEqualsCurrentVisitorId_MSDK517() {
+        // MSDK-517 invariant at the SDK layer: after an uncontended `clearUser`, the id
+        // the api received equals `sut.visitorId`, and a follow-up call resolves to `.skip`
+        // (which requires `_lastSyncedVisitorId == _visitorId`). The ATTNAPI-level wire
+        // payload assertion lives in `ATTNAPITests.testUpdateUser_payloadUField_*` — via
+        // `ATTNAPISpy` alone we can only observe the argument ATTNSDK passed in, not what
+        // the real API would have serialized.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        sut.clearUser()
+
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "wire visitor id must equal the current in-memory id after clearUser — the value the sync record pins to")
+
+        // Follow-up clearUser resolves to `.skip` only when `_lastSyncedVisitorId == _visitorId`.
+        // If the recorded id and the wire id ever diverged, this skip would be defeated on
+        // this next call (a subsequent call would then heal — cost is one extra POST per race,
+        // not permanent drift).
+        let callCountAfterFirst = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callCountAfterFirst,
+                       "second clearUser must skip — proves the sync record's visitor id matches the current one")
+    }
+
+    func testClearUser_rotationInterleavedMidRequest_recordIsConsistentWithWire_MSDK517() {
+        // Deterministic race reproduction at the SDK layer: another caller rotates the
+        // visitor id mid-flight (between the api call and its callback firing). Invariant:
+        // both the wire visitor id ATTNSDK passed and the sync record it writes equal the
+        // value the plan primitive captured before the interleaving — so the guard on the
+        // NEXT clearUser correctly detects the visitor-id mismatch and fires a detach
+        // against the new id (rather than skipping while the server has no detach on
+        // record for it).
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+        let identity = sut.getUserIdentity()
+
+        apiSpy.onUpdateUser = { _ in
+            // Simulates a concurrent detach path reaching `ATTNUserIdentity.clearUser()`
+            // (the still-public method) between the caller's capture and the sync record write.
+            identity.clearUser()
+        }
+
+        sut.clearUser()
+
+        // The wire visitor id must equal what the caller captured (planClearUser's rotation
+        // result), not the post-interleave rotation value. The two live in-memory ids differ.
+        XCTAssertNotEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                          "precondition: the interleaved clearUser rotated `_visitorId` past the captured value")
+        // And the sync record is anchored to the wire value — a follow-up clearUser under the
+        // *new* visitor id must NOT skip; the guard correctly detects the visitor-id mismatch
+        // and fires the detach against the new id. The alternative — the guard skipping while
+        // the server has an unconfirmed detach for the current visitor id — is the MSDK-517
+        // regression this test locks down.
+        let callCountAfterFirst = apiSpy.updateUserCallCount
+        apiSpy.onUpdateUser = nil
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callCountAfterFirst + 1,
+                       "clearUser after mid-flight rotation must fire the detach for the new visitor id, not skip")
+    }
+
+    func testClearUser_concurrentCallers_eventuallyConsistent_MSDK517() {
+        // Acceptance criterion: after concurrent clearUser() calls, at most one "healing"
+        // follow-up rotates+POSTs to re-align `_lastSyncedVisitorId` with `_visitorId`, and
+        // the call after that resolves to `.skip`. Wire and record share the visitor id
+        // the plan primitive captured under its lock, so per-call there is no drift; any
+        // divergence comes strictly from cross-call interleavings and self-heals within
+        // one additional call.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        runConcurrently(iterations: 8, queueLabels: ["clearA", "clearB"]) { [sut] _, _ in
+            sut?.clearUser()
+        }
+
+        // First healing call may or may not fire (record may already match _visitorId
+        // depending on the ordering of the concurrent sync-record writes). The invariant
+        // to prove is that the follow-up call must skip.
+        sut.clearUser()
+        let callsAfterHealing = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
+                       "after one healing call, follow-up must skip — proves record/wire alignment holds under concurrency")
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "the most recent wire visitor id must equal the current in-memory id")
+    }
+
+    func testConcurrentClearUserAndUpdateUser_eventuallyConsistent_MSDK517() {
+        // Second acceptance criterion: interleaved clearUser + updateUser. The invariant we
+        // check is the same eventual-consistency property — one healing call after the
+        // concurrent burst, and the follow-up resolves to `.skip`.
+        registerTestPushToken()
+        sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        runConcurrently(iterations: 8, queueLabels: ["clear", "update"]) { [sut] _, role in
+            if role == 0 {
+                sut?.clearUser()
+            } else {
+                sut?.updateUser(email: "user@example.com", phone: nil)
+            }
+        }
+
+        // Heal by driving one of each so whichever op ran last on the record is aligned.
+        sut.clearUser()
+        sut.clearUser()
+        let callsAfterHealing = apiSpy.updateUserCallCount
+        sut.clearUser()
+        XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
+                       "follow-up clearUser must skip after healing — proves record/wire alignment survives clear+update interleaving")
+        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
+                       "the most recent wire visitor id must equal the current in-memory id")
     }
 
     func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {

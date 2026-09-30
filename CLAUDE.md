@@ -65,7 +65,7 @@ bundle exec fastlane ios assemble_xcframework
 
 - `Sources/Public/` — Public API (SDK init, events, user identity)
 - `Sources/API/` — Internal networking and API layer
-- `Sources/Inbox/` — Inbox feature (SwiftUI, iOS 15+)
+- `Sources/Inbox/` — Inbox feature (SwiftUI)
 - `Sources/Models/` — Data models
 - `Sources/Helpers/` — Utilities, extensions, protocols
 - `Sources/URLProviders/` — URL construction
@@ -99,7 +99,6 @@ bundle exec fastlane ios assemble_xcframework
 
 ### SwiftUI (Inbox module only)
 
-- Inbox targets iOS 15+ — use `@available(iOS 15.0, *)` annotations
 - Keep views small; extract subviews when exceeding ~100 lines
 - Use `@StateObject` / `@ObservedObject` (not `@Observable` — requires iOS 17)
 

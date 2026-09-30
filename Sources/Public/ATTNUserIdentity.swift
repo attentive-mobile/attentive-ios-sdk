@@ -5,11 +5,19 @@
 //  Created by Vladimir - Work on 2024-05-29.
 //
 
+import CryptoKit
 import Foundation
 
 /// Outcome of an `ATTNUserIdentity.planXxx` call. The MSDK-469 guards live inside those
 /// primitives; this enum tells the caller what the primitive did and what still needs to
 /// happen at the network layer.
+///
+/// The `visitorId` on each non-skip case is captured under the identity lock, in the same
+/// critical section that decided the outcome (and, for `.rotatedAndReplaced`, rotated the id).
+/// Callers must use this associated value for the `/user-update` payload and for the sync
+/// record — never re-read `ATTNUserIdentity.visitorId` after the plan call, because a
+/// concurrent rotation between plan-return and re-read would otherwise let the wire and the
+/// sync record disagree with the outcome the plan computed (MSDK-517).
 enum ATTNIdentitySyncDecision {
     /// Local state already matches the request AND the last successful `/user-update`
     /// confirmed the same state on the server. Caller should skip both rotation and network.
@@ -18,22 +26,52 @@ enum ATTNIdentitySyncDecision {
     /// Local state already matches the request but the last successful `/user-update` did
     /// NOT confirm this state (never synced, prior request failed, or the push token has
     /// changed). Caller should fire `/user-update` again to retry — no visitor ID rotation,
-    /// no local mutation.
-    case retryWithoutRotation
+    /// no local mutation. `visitorId` is the current id, captured under the lock.
+    case retryWithoutRotation(visitorId: String)
 
     /// Local state did not match the request; identifiers were replaced and visitor ID was
-    /// rotated. Caller must fire `/user-update` with the new visitor ID.
-    case rotatedAndReplaced
+    /// rotated. Caller must fire `/user-update` with `visitorId` — the id created under the
+    /// lock in this same call.
+    case rotatedAndReplaced(visitorId: String)
+
+    /// Categorical kind, discarding the associated visitor id — for equality checks in tests
+    /// that only care about which branch fired.
+    enum Kind {
+        case skip
+        case retryWithoutRotation
+        case rotatedAndReplaced
+    }
+
+    var kind: Kind {
+        switch self {
+        case .skip: return .skip
+        case .retryWithoutRotation: return .retryWithoutRotation
+        case .rotatedAndReplaced: return .rotatedAndReplaced
+        }
+    }
 }
 
 @objc(ATTNUserIdentity)
 public final class ATTNUserIdentity: NSObject {
     private enum Constants {
-        static var lastSyncedPushTokenKey: String { "lastSyncedPushToken" }
-        static var lastSyncedEmailKey: String { "lastSyncedEmail" }
-        static var lastSyncedPhoneKey: String { "lastSyncedPhone" }
-        static var lastSyncedDomainKey: String { "lastSyncedDomain" }
-        static var lastSyncedVisitorIdKey: String { "lastSyncedVisitorId" }
+        // Sync-record keys. Deliberately NOT the MSDK-469 `lastSynced*` names: an SDK
+        // downgraded past MSDK-516 would read a record without `lastSyncedEmail` /
+        // `lastSyncedPhone` as "server confirmed detach" and let `clearUser()` skip while the
+        // server still links the visitor id to the user. Under new names an older SDK sees no
+        // record at all and simply retries.
+        static var syncedPushTokenKey: String { "syncRecordV2.pushToken" }
+        static var syncedContactDigestKey: String { "syncRecordV2.contactDigest" }
+        static var syncedDomainKey: String { "syncRecordV2.domain" }
+        static var syncedVisitorIdKey: String { "syncRecordV2.visitorId" }
+        static var contactDigestSaltKey: String { "syncRecordV2.contactDigestSalt" }
+
+        // MSDK-469 keys. `lastSyncedEmail` / `lastSyncedPhone` held the raw contact values;
+        // they are migrated to a digest and deleted on init (MSDK-516).
+        static var legacyPushTokenKey: String { "lastSyncedPushToken" }
+        static var legacyEmailKey: String { "lastSyncedEmail" }
+        static var legacyPhoneKey: String { "lastSyncedPhone" }
+        static var legacyDomainKey: String { "lastSyncedDomain" }
+        static var legacyVisitorIdKey: String { "lastSyncedVisitorId" }
     }
 
     private let lock = NSLock()
@@ -46,25 +84,41 @@ public final class ATTNUserIdentity: NSObject {
     // MSDK-469 guards can distinguish "no change to send" (skip) from "local matches but
     // server hasn't confirmed" (retry). All access is behind `lock`. Persisted across app
     // launches so a relaunch after a failed /user-update still retries on the next call.
-    private var _lastSyncedPushToken: String?
-    private var _lastSyncedEmail: String?
-    private var _lastSyncedPhone: String?
+    // Dropped wholesale whenever the visitor id rotates (MSDK-516) — see `clearSyncRecordLocked`.
+    private var lastSyncedPushToken: String?
+    // The guards only ever compare the confirmed {email, phone} pair for equality, so the
+    // record keeps a salted HMAC of the normalized pair instead of the values themselves —
+    // no contact data at rest (MSDK-516). `nil` means the server confirmed an empty pair
+    // (a detach).
+    private var lastSyncedContactDigest: String?
     // Domain is part of the sync record because `ATTNSDK.updateDomain(...)` can change the
     // Attentive company this device reports to at runtime. Without it, a sync record confirmed
     // against the old company would let `planUpdateUser` / `planClearUser` return `.skip` for
     // a call the new company's backend has never seen — matching what the Android SDK now
     // guards against in the counterpart PR (MSDK-470).
-    private var _lastSyncedDomain: String?
+    private var lastSyncedDomain: String?
     // The visitor id the server confirmed the tuple under. Any rotation — from `clearUser()`,
     // from a `.rotatedAndReplaced` outcome, or from a caller invoking the still-public
     // `ATTNUserIdentity.clearUser()` directly — moves `_visitorId` forward while this field
     // stays pinned to the confirmed value. That mismatch is what lets `isSyncRecordMatchingLocked`
-    // reject a stale record after an offline logout without needing every rotation site to
-    // remember to invalidate the record. Without this, a `clearUser()` that rotated locally
-    // but whose detach POST failed can be followed by an in-memory-empty relaunch + login-as-A,
-    // and the cold-launch adoption branch would `.skip` — leaving the server pinned to the
-    // old (V1, A) mapping while the device emits events as V2.
-    private var _lastSyncedVisitorId: String?
+    // reject a stale record after an offline logout. Rotation sites also drop the record
+    // outright now (MSDK-516), so this is the backstop for a rotation that bypasses them.
+    // Without it, a `clearUser()` that rotated locally but whose detach POST failed can be
+    // followed by an in-memory-empty relaunch + login-as-A, and the cold-launch adoption
+    // branch would `.skip` — leaving the server pinned to the old (V1, A) mapping while the
+    // device emits events as V2.
+    private var lastSyncedVisitorId: String?
+    // Per-install HMAC key for `lastSyncedContactDigest`. Not a secret — it lives in the same
+    // store as the digest — but it keeps the digest from being matched against a precomputed
+    // table or correlated across devices. Loaded or created on the first non-empty digest, so
+    // installs that never identify a user never write one. Guarded by `persistedStateLock`.
+    private var contactDigestSalt: SymmetricKey?
+
+    // The salt and the legacy record live in storage shared by every `ATTNUserIdentity`, while
+    // `lock` is per instance. Without a process-wide lock, two instances starting together on a
+    // fresh install could each create a salt and keep a different one in memory than the one
+    // left on disk, and digests written under the losing salt would never match again.
+    private static let persistedStateLock = NSLock()
 
     @objc public var identifiers: [String: Any] {
         get { lock.withLock { _identifiers } }
@@ -99,15 +153,15 @@ public final class ATTNUserIdentity: NSObject {
         self.persistentStorage = persistentStorage
         self._identifiers = identifiers
         self._visitorId = visitorService.getVisitorId()
+        Self.persistedStateLock.withLock { Self.migrateLegacySyncRecord(persistentStorage) }
         // Load sync state before super.init returns so the very first plan* call after
         // construction sees the persisted record. A failed prior /user-update whose app
         // was killed before the callback fired will show up here as "sync != local" and
         // the next call will retry.
-        self._lastSyncedPushToken = persistentStorage.readString(forKey: Constants.lastSyncedPushTokenKey)
-        self._lastSyncedEmail = persistentStorage.readString(forKey: Constants.lastSyncedEmailKey)
-        self._lastSyncedPhone = persistentStorage.readString(forKey: Constants.lastSyncedPhoneKey)
-        self._lastSyncedDomain = persistentStorage.readString(forKey: Constants.lastSyncedDomainKey)
-        self._lastSyncedVisitorId = persistentStorage.readString(forKey: Constants.lastSyncedVisitorIdKey)
+        self.lastSyncedPushToken = persistentStorage.readString(forKey: Constants.syncedPushTokenKey)
+        self.lastSyncedContactDigest = persistentStorage.readString(forKey: Constants.syncedContactDigestKey)
+        self.lastSyncedDomain = persistentStorage.readString(forKey: Constants.syncedDomainKey)
+        self.lastSyncedVisitorId = persistentStorage.readString(forKey: Constants.syncedVisitorIdKey)
         super.init()
     }
 
@@ -124,6 +178,7 @@ public final class ATTNUserIdentity: NSObject {
             _identifiers = [:]
             let id = visitorService.createNewVisitorId()
             _visitorId = id
+            clearSyncRecordLocked()
             return id
         }
         visitorService.logNewVisitorId(newVisitorId)
@@ -169,26 +224,29 @@ public final class ATTNUserIdentity: NSObject {
     /// in `planUpdateUser` (MSDK-470).
     func planUpdateUser(email: String?, phone: String?, pushToken: String, domain: String) -> ATTNIdentitySyncDecision {
         // Match ATTNAPI.updateUser's contract: it strips whitespace and drops empty values
-        // before sending. If we compared raw inputs against the normalized `_lastSynced*`
-        // values, "  a@b.com  " and "a@b.com" would look different here even though the
+        // before sending. If we compared raw inputs against the normalized sync
+        // record, "  a@b.com  " and "a@b.com" would look different here even though the
         // server has already recorded them as identical — causing a spurious retry.
         let normalizedEmail = Self.normalizeContact(email)
         let normalizedPhone = Self.normalizeContact(phone)
+        let incomingDigest = contactDigest(email: normalizedEmail, phone: normalizedPhone)
 
         // Decide + mutate + read sync record all under one lock acquisition. Two threads
         // racing on the same-identity call see a coherent snapshot: the first mutator
-        // wins, the rest observe the mutated state and return skip/retry.
+        // wins, the rest observe the mutated state and return skip/retry. Non-skip
+        // outcomes carry the visitor id observed inside this critical section so the
+        // caller doesn't have to re-read `_visitorId` afterwards — a re-read past the
+        // unlock could see a value another thread rotated to (MSDK-517).
         enum Outcome {
             case mutated(newVisitorId: String)
             case localMatchesAndSynced
-            case localMatchesButUnsynced
+            case localMatchesButUnsynced(visitorId: String)
             case adoptedFromSyncRecord
         }
         let outcome: Outcome = lock.withLock { () -> Outcome in
             let hasNoUserScopedIdentifiers = _identifiers.isEmpty
             let syncMatches = isSyncRecordMatchingLocked(
-                email: normalizedEmail,
-                phone: normalizedPhone,
+                contactDigest: incomingDigest,
                 pushToken: pushToken,
                 domain: domain
             )
@@ -212,8 +270,8 @@ public final class ATTNUserIdentity: NSObject {
             // under V1 — attaching B's email and push token to A's visitor id server-
             // side. The record having non-nil email/phone that disagree with the
             // incoming pair is the signal that this is a new identity, not a retry.
-            let syncRecordHasDifferentIdentity = (_lastSyncedEmail != nil || _lastSyncedPhone != nil)
-                && (_lastSyncedEmail != normalizedEmail || _lastSyncedPhone != normalizedPhone)
+            let syncRecordHasDifferentIdentity = lastSyncedContactDigest != nil
+                && lastSyncedContactDigest != incomingDigest
             if !localMatchesIncoming || syncRecordHasDifferentIdentity {
                 var replacement: [String: Any] = [:]
                 if let email = normalizedEmail { replacement[ATTNIdentifierType.email] = email }
@@ -221,18 +279,19 @@ public final class ATTNUserIdentity: NSObject {
                 _identifiers = replacement
                 let id = visitorService.createNewVisitorId()
                 _visitorId = id
+                clearSyncRecordLocked()
                 return .mutated(newVisitorId: id)
             }
-            return syncMatches ? .localMatchesAndSynced : .localMatchesButUnsynced
+            return syncMatches ? .localMatchesAndSynced : .localMatchesButUnsynced(visitorId: _visitorId)
         }
         switch outcome {
         case .mutated(let newVisitorId):
             visitorService.logNewVisitorId(newVisitorId)
-            return .rotatedAndReplaced
+            return .rotatedAndReplaced(visitorId: newVisitorId)
         case .localMatchesAndSynced, .adoptedFromSyncRecord:
             return .skip
-        case .localMatchesButUnsynced:
-            return .retryWithoutRotation
+        case .localMatchesButUnsynced(let visitorId):
+            return .retryWithoutRotation(visitorId: visitorId)
         }
     }
 
@@ -258,60 +317,62 @@ public final class ATTNUserIdentity: NSObject {
         }
         let outcome: Outcome = lock.withLock { () -> Outcome in
             let syncMatchesDetached = _identifiers.isEmpty
-                && isSyncRecordMatchingLocked(email: nil, phone: nil, pushToken: pushToken, domain: domain)
+                && isSyncRecordMatchingLocked(contactDigest: nil, pushToken: pushToken, domain: domain)
             if syncMatchesDetached {
                 return .alreadyEmptyAndSynced
             }
             // Either local is non-empty (needs clearing), or local is empty but the
             // server has not confirmed detach for the current push token, domain, and
             // visitor id — meaning the persisted visitor id may still be linked to the
-            // previous user server-side. Rotate and, at the caller, fire detach.
+            // previous user server-side. Rotate and, at the caller, fire detach — the
+            // caller receives the rotated id via the `.rotatedAndReplaced` case so it
+            // never has to re-read `_visitorId` past the unlock point.
             _identifiers = [:]
             let id = visitorService.createNewVisitorId()
             _visitorId = id
+            // Drop the record here rather than waiting for the detach to succeed: with no
+            // push token no detach fires, and a failed one never records, so waiting would
+            // leave the previous user's record on disk indefinitely (MSDK-516).
+            clearSyncRecordLocked()
             return .mutated(newVisitorId: id)
         }
         switch outcome {
         case .mutated(let newVisitorId):
             visitorService.logNewVisitorId(newVisitorId)
-            return .rotatedAndReplaced
+            return .rotatedAndReplaced(visitorId: newVisitorId)
         case .alreadyEmptyAndSynced:
             return .skip
         }
     }
 
     /// Called from the `/user-update` completion when the request succeeded (HTTP 2xx,
-    /// no transport error). Records the tuple the server confirmed — email, phone, push
-    /// token, domain, and the visitor id the request was sent under — so the next
-    /// `planUpdateUser` / `planClearUser` can distinguish "already synced" from "needs
-    /// retry". Persisted so a relaunch preserves the confirmation.
+    /// no transport error). Records the tuple the server confirmed — a digest of the
+    /// email/phone pair, push token, domain, and the visitor id the request was sent under —
+    /// so the next `planUpdateUser` / `planClearUser` can distinguish "already synced" from
+    /// "needs retry". Persisted so a relaunch preserves the confirmation.
     ///
     /// `visitorId` is the id captured at request-time (not read from `self` here) because
     /// a mid-flight rotation would otherwise let the record pin itself to a value the
-    /// server never saw. Nil email/phone are stored as absence — matching what the server
-    /// actually sees when clearUser posts an empty `m: {}` — so a subsequent clearUser
-    /// with an empty local state correctly resolves to `.skip`.
+    /// server never saw. If the visitor id has rotated since the request, the response is
+    /// dropped: the rotation already cleared the record, and writing it back would restore
+    /// the previous user's state after a logout. Nil email/phone are stored as absence —
+    /// matching what the server actually sees when clearUser posts an empty `m: {}` — so a
+    /// subsequent clearUser with an empty local state correctly resolves to `.skip`.
     func recordSuccessfulSync(email: String?, phone: String?, pushToken: String, domain: String, visitorId: String) {
-        let normalizedEmail = Self.normalizeContact(email)
-        let normalizedPhone = Self.normalizeContact(phone)
+        let digest = contactDigest(email: Self.normalizeContact(email), phone: Self.normalizeContact(phone))
         lock.withLock {
-            _lastSyncedPushToken = pushToken
-            _lastSyncedEmail = normalizedEmail
-            _lastSyncedPhone = normalizedPhone
-            _lastSyncedDomain = domain
-            _lastSyncedVisitorId = visitorId
-            persistentStorage.save(pushToken as NSString, forKey: Constants.lastSyncedPushTokenKey)
-            persistentStorage.save(domain as NSString, forKey: Constants.lastSyncedDomainKey)
-            persistentStorage.save(visitorId as NSString, forKey: Constants.lastSyncedVisitorIdKey)
-            if let email = normalizedEmail {
-                persistentStorage.save(email as NSString, forKey: Constants.lastSyncedEmailKey)
+            guard visitorId == _visitorId else { return }
+            lastSyncedPushToken = pushToken
+            lastSyncedContactDigest = digest
+            lastSyncedDomain = domain
+            lastSyncedVisitorId = visitorId
+            persistentStorage.save(pushToken as NSString, forKey: Constants.syncedPushTokenKey)
+            persistentStorage.save(domain as NSString, forKey: Constants.syncedDomainKey)
+            persistentStorage.save(visitorId as NSString, forKey: Constants.syncedVisitorIdKey)
+            if let digest {
+                persistentStorage.save(digest as NSString, forKey: Constants.syncedContactDigestKey)
             } else {
-                persistentStorage.delete(forKey: Constants.lastSyncedEmailKey)
-            }
-            if let phone = normalizedPhone {
-                persistentStorage.save(phone as NSString, forKey: Constants.lastSyncedPhoneKey)
-            } else {
-                persistentStorage.delete(forKey: Constants.lastSyncedPhoneKey)
+                persistentStorage.delete(forKey: Constants.syncedContactDigestKey)
             }
         }
     }
@@ -342,20 +403,107 @@ public final class ATTNUserIdentity: NSObject {
     }
 
     /// True when the sync record was set for this push token AND this domain AND records
-    /// the same `{email, phone}` pair AND was confirmed under the current `_visitorId`.
-    /// Push-token equality is part of the check because APNs can rotate the token — the
-    /// server-side attachment lives per token, so a token change invalidates any prior
-    /// confirmation. Domain equality handles `ATTNSDK.updateDomain(...)`; a record
+    /// the same `{email, phone}` pair (by digest) AND was confirmed under the current
+    /// `_visitorId`. Push-token equality is part of the check because APNs can rotate the
+    /// token — the server-side attachment lives per token, so a token change invalidates any
+    /// prior confirmation. Domain equality handles `ATTNSDK.updateDomain(...)`; a record
     /// confirmed against the previous Attentive company must not let the new company's
-    /// first identity call skip. Visitor-id equality handles any rotation site (including
-    /// the still-public `ATTNUserIdentity.clearUser()` and the `.rotatedAndReplaced` paths
-    /// below) — after rotation the sync record is confirmed under an id the device no
-    /// longer sends, so we must not skip or adopt. Caller MUST already hold `lock`.
-    private func isSyncRecordMatchingLocked(email: String?, phone: String?, pushToken: String, domain: String) -> Bool {
-        guard _lastSyncedPushToken == pushToken,
-              _lastSyncedDomain == domain,
-              _lastSyncedVisitorId == _visitorId else { return false }
-        return _lastSyncedEmail == email && _lastSyncedPhone == phone
+    /// first identity call skip. Visitor-id equality handles any rotation site that does not
+    /// clear the record itself — after rotation the sync record is confirmed under an id the
+    /// device no longer sends, so we must not skip or adopt. Caller MUST already hold `lock`.
+    private func isSyncRecordMatchingLocked(contactDigest: String?, pushToken: String, domain: String) -> Bool {
+        guard lastSyncedPushToken == pushToken,
+              lastSyncedDomain == domain,
+              lastSyncedVisitorId == _visitorId else { return false }
+        return lastSyncedContactDigest == contactDigest
+    }
+
+    /// Forgets the sync record in memory and on disk. Called at every visitor-id rotation:
+    /// the record describes what the server confirmed for the previous visitor id, so after
+    /// a rotation it can no longer produce a `.skip` — keeping it would only keep a trace of
+    /// the previous user on the device. A missing record makes the next call re-send
+    /// `/user-update`, which is the safe direction. Caller MUST already hold `lock`.
+    private func clearSyncRecordLocked() {
+        lastSyncedPushToken = nil
+        lastSyncedContactDigest = nil
+        lastSyncedDomain = nil
+        lastSyncedVisitorId = nil
+        persistentStorage.delete(forKey: Constants.syncedPushTokenKey)
+        persistentStorage.delete(forKey: Constants.syncedContactDigestKey)
+        persistentStorage.delete(forKey: Constants.syncedDomainKey)
+        persistentStorage.delete(forKey: Constants.syncedVisitorIdKey)
+    }
+
+    /// Non-reversible stand-in for an already-normalized `{email, phone}` pair. Returns `nil`
+    /// for the empty pair so "confirmed detach" stays representable as absence.
+    private func contactDigest(email: String?, phone: String?) -> String? {
+        Self.contactDigest(email: email, phone: phone, salt: digestSalt())
+    }
+
+    /// `salt` is only evaluated for a non-empty pair, so the empty pair never creates one.
+    private static func contactDigest(email: String?, phone: String?, salt: @autoclosure () -> SymmetricKey) -> String? {
+        guard email != nil || phone != nil else { return nil }
+        // Length-prefix each field so ("ab", "c") and ("a", "bc") can't produce the same input.
+        let email = email ?? ""
+        let phone = phone ?? ""
+        let message = "\(email.utf8.count):\(email)|\(phone.utf8.count):\(phone)"
+        let code = HMAC<SHA256>.authenticationCode(for: Data(message.utf8), using: salt())
+        return Data(code).base64EncodedString()
+    }
+
+    /// Must NOT be called while holding `lock`: it takes `persistedStateLock`.
+    private func digestSalt() -> SymmetricKey {
+        Self.persistedStateLock.withLock {
+            if let contactDigestSalt { return contactDigestSalt }
+            let salt = Self.loadOrCreateContactDigestSalt(persistentStorage)
+            contactDigestSalt = salt
+            return salt
+        }
+    }
+
+    /// Caller MUST hold `persistedStateLock`.
+    private static func loadOrCreateContactDigestSalt(_ storage: ATTNPersistentStorageProtocol) -> SymmetricKey {
+        if let encoded = storage.readString(forKey: Constants.contactDigestSaltKey),
+           let data = Data(base64Encoded: encoded) {
+            return SymmetricKey(data: data)
+        }
+        // A new salt invalidates any digest written under a lost one; the next call retries.
+        let salt = SymmetricKey(size: .bits256)
+        let encoded = salt.withUnsafeBytes { Data($0).base64EncodedString() }
+        storage.save(encoded as NSString, forKey: Constants.contactDigestSaltKey)
+        return salt
+    }
+
+    /// Converts an MSDK-469 record (raw email/phone on disk) into the digest format and
+    /// deletes the legacy keys. Migrating rather than just deleting keeps upgraded devices
+    /// from treating their confirmed identity as unsynced, which would rotate the visitor id
+    /// and re-POST on the first `updateUser` after the upgrade. A record missing any of
+    /// push token, domain, or visitor id could never match anyway, so it is only deleted.
+    /// Caller MUST hold `persistedStateLock`.
+    private static func migrateLegacySyncRecord(_ storage: ATTNPersistentStorageProtocol) {
+        defer {
+            storage.delete(forKey: Constants.legacyPushTokenKey)
+            storage.delete(forKey: Constants.legacyEmailKey)
+            storage.delete(forKey: Constants.legacyPhoneKey)
+            storage.delete(forKey: Constants.legacyDomainKey)
+            storage.delete(forKey: Constants.legacyVisitorIdKey)
+        }
+        guard let pushToken = storage.readString(forKey: Constants.legacyPushTokenKey),
+              let domain = storage.readString(forKey: Constants.legacyDomainKey),
+              let visitorId = storage.readString(forKey: Constants.legacyVisitorIdKey) else { return }
+        let digest = contactDigest(
+            email: normalizeContact(storage.readString(forKey: Constants.legacyEmailKey)),
+            phone: normalizeContact(storage.readString(forKey: Constants.legacyPhoneKey)),
+            salt: loadOrCreateContactDigestSalt(storage)
+        )
+        storage.save(pushToken as NSString, forKey: Constants.syncedPushTokenKey)
+        storage.save(domain as NSString, forKey: Constants.syncedDomainKey)
+        storage.save(visitorId as NSString, forKey: Constants.syncedVisitorIdKey)
+        if let digest {
+            storage.save(digest as NSString, forKey: Constants.syncedContactDigestKey)
+        } else {
+            storage.delete(forKey: Constants.syncedContactDigestKey)
+        }
     }
 }
 

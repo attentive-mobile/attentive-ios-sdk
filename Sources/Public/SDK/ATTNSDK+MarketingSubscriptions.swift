@@ -21,6 +21,48 @@ extension ATTNSDK {
         phone: String? = nil,
         callback: ATTNAPICallback? = nil
     ) {
+        optInMarketingSubscription(
+            email: email,
+            phone: phone,
+            trackingConsent: .unspecified,
+            callback: callback
+        )
+    }
+
+    @objc(optInMarketingSubscriptionWithEmail:callback:)
+    public func optInMarketingSubscription(
+        email: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optInMarketingSubscription(email: email, phone: nil, trackingConsent: .unspecified, callback: callback)
+    }
+
+    @objc(optInMarketingSubscriptionWithPhone:callback:)
+    public func optInMarketingSubscription(
+        phone: String,
+        callback: ATTNAPICallback? = nil
+    ) {
+        optInMarketingSubscription(email: nil, phone: phone, trackingConsent: .unspecified, callback: callback)
+    }
+
+    /// Opts the user into marketing subscriptions and attaches an explicit pixel-tracking
+    /// consent choice. Same push-token semantics as
+    /// ``optInMarketingSubscription(email:phone:callback:)``.
+    ///
+    /// - Parameters:
+    ///   - email: Email address (optional if `phone` is provided).
+    ///   - phone: Phone number in E.164 format (optional if `email` is provided).
+    ///   - trackingConsent: Explicit pixel-tracking consent. Pass ``ATTNTrackingConsent/unspecified``
+    ///     when the host app has not captured an explicit choice; the backend applies its own
+    ///     defaulting (e.g. France locale → no pixel tracking).
+    ///   - callback: Called when the server responds. `nil` is acceptable.
+    @objc(optInMarketingSubscriptionWithEmail:phone:trackingConsent:callback:)
+    public func optInMarketingSubscription(
+        email: String?,
+        phone: String?,
+        trackingConsent: ATTNTrackingConsent,
+        callback: ATTNAPICallback? = nil
+    ) {
         let email = normalizeContactValue(email)
         let phone = normalizeContactValue(phone)
 
@@ -36,6 +78,7 @@ extension ATTNSDK {
                 kind: .optIn,
                 email: email,
                 phone: phone,
+                trackingConsent: trackingConsent,
                 callback: callback,
                 createdAt: Date()
             ))
@@ -46,31 +89,16 @@ extension ATTNSDK {
         // push-enabled install; never attach it to a device the SDK doesn't own for push.
         let pushTokenToSend = pushEnabled ? token : ""
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
             pushToken: pushTokenToSend,
             email: email,
             phone: phone,
+            trackingConsent: trackingConsent,
             userIdentity: userIdentity,
             callback: callback
         )
-    }
-
-    @objc(optInMarketingSubscriptionWithEmail:callback:)
-    public func optInMarketingSubscription(
-        email: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: email, phone: nil, callback: callback)
-    }
-
-    @objc(optInMarketingSubscriptionWithPhone:callback:)
-    public func optInMarketingSubscription(
-        phone: String,
-        callback: ATTNAPICallback? = nil
-    ) {
-        optInMarketingSubscription(email: nil, phone: phone, callback: callback)
     }
 
     /// Opts the user out of email/SMS (a.k.a. non-push) marketing subscriptions.
@@ -78,6 +106,11 @@ extension ATTNSDK {
     /// Same push-token semantics as ``optInMarketingSubscription(email:phone:callback:)``:
     /// push-enabled clients queue until a token arrives; non-push clients send immediately
     /// without one.
+    ///
+    /// Pixel-tracking consent is intentionally not exposed on opt-out. Subscriptions-API's
+    /// `ProcessOptOutFlowRequest` does not carry a consent field, and consent is captured
+    /// against a user property that is only meaningful while the user is subscribed —
+    /// pass consent via ``optInMarketingSubscription(email:phone:trackingConsent:callback:)``.
     @objc(optOutMarketingSubscriptionWithEmail:phone:callback:)
     public func optOutMarketingSubscription(
         email: String? = nil,
@@ -99,6 +132,7 @@ extension ATTNSDK {
                 kind: .optOut,
                 email: email,
                 phone: phone,
+                trackingConsent: .unspecified,
                 callback: callback,
                 createdAt: Date()
             ))
@@ -183,6 +217,11 @@ extension ATTNSDK {
         // branch precedent.
         let currentDomain = self.domain
         let decision = userIdentity.planUpdateUser(email: email, phone: phone, pushToken: pushToken, domain: currentDomain)
+        // planUpdateUser hands back the visitor id it observed under its lock; use that
+        // for the wire call and the sync record. Reading `userIdentity.visitorId` again
+        // here would reopen the MSDK-517 window — a concurrent rotation between plan-
+        // return and re-read could pin the record to an id the server never saw.
+        let visitorIdAtRequest: String
         switch decision {
         case .skip:
             Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
@@ -199,9 +238,11 @@ extension ATTNSDK {
             publishIdentitySnapshot()
             callback?(nil, nil, nil, nil)
             return
-        case .retryWithoutRotation:
-            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        case .rotatedAndReplaced:
+        case .retryWithoutRotation(let id):
+            visitorIdAtRequest = id
+            Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(visitorIdAtRequest, privacy: .public)")
+        case .rotatedAndReplaced(let id):
+            visitorIdAtRequest = id
             // A different user: drop the previous user's cached inbox messages, unread count,
             // and pagination cursor. Deliberately not done for .retryWithoutRotation, where
             // the identifiers already matched and the cached inbox still belongs to this user.
@@ -214,15 +255,9 @@ extension ATTNSDK {
         // snapshot to correct — this is the single publish for the new identity.
         publishIdentitySnapshot()
 
-        // Capture visitor id AFTER planUpdateUser so `.rotatedAndReplaced` is reflected.
-        // Between here and the network response, any other rotation path (a concurrent
-        // clearUser, an ATTNUserIdentity.clearUser() call from another caller) can still
-        // fire — the record must pin to the id the server actually saw, not to whatever
-        // `_visitorId` is by the time the callback runs.
-        let visitorIdAtRequest = userIdentity.visitorId
         api.updateUser(
             pushToken: pushToken,
-            userIdentity: userIdentity,
+            visitorId: visitorIdAtRequest,
             email: email,
             phone: phone,
             operationContext: "updateUser",
@@ -320,11 +355,12 @@ extension ATTNSDK {
     private func sendMarketingRequest(_ request: PendingMarketingRequest, pushToken: String) {
         switch request.kind {
         case .optIn:
-            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public)")
+            Loggers.event.debug("Sending queued opt-in marketing subscription - Push Token: \(pushToken, privacy: .public), Email: \(request.email ?? "nil", privacy: .public), Phone: \(request.phone ?? "nil", privacy: .public), TrackingConsent: \(request.trackingConsent.wireValue ?? "unspecified", privacy: .public)")
             api.sendOptInMarketingSubscription(
                 pushToken: pushToken,
                 email: request.email,
                 phone: request.phone,
+                trackingConsent: request.trackingConsent,
                 userIdentity: userIdentity,
                 callback: request.callback
             )
@@ -352,6 +388,8 @@ struct PendingMarketingRequest {
     let kind: Kind
     let email: String?
     let phone: String?
+    // Only meaningful for .optIn; opt-out enqueues always pass .unspecified.
+    let trackingConsent: ATTNTrackingConsent
     let callback: ATTNAPICallback?
     let createdAt: Date
 }
