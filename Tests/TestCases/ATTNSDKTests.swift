@@ -1218,6 +1218,14 @@ final class ATTNSDKTests: XCTestCase {
         registerTestPushToken()
         sut.identify([ATTNIdentifierType.email: "user@example.com"])
 
+        // Collect every visitor id that goes on the wire. `onUpdateUser` fires outside the
+        // spy's lock, from whichever thread made the call, so guard the set.
+        let wireIdsLock = NSLock()
+        var wireVisitorIds = Set<String>()
+        apiSpy.onUpdateUser = { visitorId in
+            wireIdsLock.withLock { _ = wireVisitorIds.insert(visitorId) }
+        }
+
         runConcurrently(iterations: 8, queueLabels: ["clearA", "clearB"]) { [sut] _, _ in
             sut?.clearUser()
         }
@@ -1230,8 +1238,14 @@ final class ATTNSDKTests: XCTestCase {
         sut.clearUser()
         XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
                        "after one healing call, follow-up must skip — proves record/wire alignment holds under concurrency")
-        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
-                       "the most recent wire visitor id must equal the current in-memory id")
+        // Not "the *last* wire id equals the current id": two racing calls can each rotate
+        // under the lock and then reach the network in the opposite order, so the older id can
+        // be sent last while the record correctly stays on the newer one — and a real server
+        // gets no ordering guarantee between in-flight requests anyway. The MSDK-517 guarantee
+        // is that the record is only ever pinned to an id that was actually sent: the skip
+        // above proves the record holds `sut.visitorId`, so that id must have gone out.
+        XCTAssertTrue(wireIdsLock.withLock { wireVisitorIds.contains(sut.visitorId) },
+                      "the visitor id the sync record is pinned to must have been sent on the wire")
     }
 
     func testConcurrentClearUserAndUpdateUser_eventuallyConsistent_MSDK517() {
@@ -1240,6 +1254,14 @@ final class ATTNSDKTests: XCTestCase {
         // concurrent burst, and the follow-up resolves to `.skip`.
         registerTestPushToken()
         sut.identify([ATTNIdentifierType.email: "user@example.com"])
+
+        // Collect every visitor id that goes on the wire. `onUpdateUser` fires outside the
+        // spy's lock, from whichever thread made the call, so guard the set.
+        let wireIdsLock = NSLock()
+        var wireVisitorIds = Set<String>()
+        apiSpy.onUpdateUser = { visitorId in
+            wireIdsLock.withLock { _ = wireVisitorIds.insert(visitorId) }
+        }
 
         runConcurrently(iterations: 8, queueLabels: ["clear", "update"]) { [sut] _, role in
             if role == 0 {
@@ -1256,8 +1278,14 @@ final class ATTNSDKTests: XCTestCase {
         sut.clearUser()
         XCTAssertEqual(apiSpy.updateUserCallCount, callsAfterHealing,
                        "follow-up clearUser must skip after healing — proves record/wire alignment survives clear+update interleaving")
-        XCTAssertEqual(apiSpy.lastUpdateUserVisitorId, sut.visitorId,
-                       "the most recent wire visitor id must equal the current in-memory id")
+        // Not "the *last* wire id equals the current id": two racing calls can each rotate
+        // under the lock and then reach the network in the opposite order, so the older id can
+        // be sent last while the record correctly stays on the newer one — and a real server
+        // gets no ordering guarantee between in-flight requests anyway. The MSDK-517 guarantee
+        // is that the record is only ever pinned to an id that was actually sent: the skip
+        // above proves the record holds `sut.visitorId`, so that id must have gone out.
+        XCTAssertTrue(wireIdsLock.withLock { wireVisitorIds.contains(sut.visitorId) },
+                      "the visitor id the sync record is pinned to must have been sent on the wire")
     }
 
     func testUpdateUser_whenIdentifyChangesEmailBeforeUpdateUser_rotatesAndFires() {

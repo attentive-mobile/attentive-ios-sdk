@@ -24,6 +24,11 @@ final class ATTNEventTrackerTests: XCTestCase {
 
     func testSharedInstance_concurrentSetupAndAccess_doesNotCrash() {
         let sdk = ATTNSDK(domain: "domain")
+        // Seed the instance first: sharedInstance() asserts (crashing the test
+        // runner in debug builds) if an "access" block wins the race against the
+        // first "setup" block. The concurrency under test is setup/access
+        // interleaving on an already-initialized tracker, not access-before-setup.
+        ATTNEventTracker.setup(with: sdk)
         runConcurrently(iterations: 200, queueLabels: ["setup", "access"]) { _, queueIndex in
             if queueIndex == 0 {
                 ATTNEventTracker.setup(with: sdk)
