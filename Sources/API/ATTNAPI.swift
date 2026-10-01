@@ -190,10 +190,11 @@ final class ATTNAPI: ATTNAPIProtocol {
             pushToken: String,
             email: String?,
             phone: String?,
+            trackingConsent: ATTNTrackingConsent,
             userIdentity: ATTNUserIdentity,
             callback: ATTNAPICallback?
         ) {
-            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+            Loggers.network.debug("Sending opt-in marketing subscription - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
 
             let evsJson  = userIdentity.buildExternalVendorIdsJson()
             let evsArray = (try? JSONSerialization.jsonObject(with: Data(evsJson.utf8))) as? [[String: String]] ?? []
@@ -212,6 +213,11 @@ final class ATTNAPI: ATTNAPIProtocol {
             if !pushToken.isEmpty {
                 payload["pt"] = pushToken
                 payload["tp"] = "apns"
+            }
+            // Pixel-tracking consent: omit entirely for .unspecified so the backend applies
+            // its locale-based defaulting. `.wireValue` is nil in that case.
+            if let consent = trackingConsent.wireValue {
+                payload["trackingConsent"] = consent
             }
 
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optInURL else {
@@ -278,7 +284,6 @@ final class ATTNAPI: ATTNAPIProtocol {
                 payload["pt"] = pushToken
                 payload["tp"] = "apns"
             }
-
             guard let url = ATTNSDKConfiguration.Endpoint.Mobile.optOutURL else {
                 Loggers.network.error("Invalid opt-out subscriptions URL")
                 callback?(nil, nil, nil, ATTNError.badURL)
@@ -336,13 +341,17 @@ final class ATTNAPI: ATTNAPIProtocol {
     // consumer actually called, not the underlying network mechanism.
     func updateUser(
         pushToken: String,
-        userIdentity: ATTNUserIdentity,
+        visitorId: String,
         email: String? = nil,
         phone: String? = nil,
         operationContext: String = "updateUser",
         callback: ATTNAPICallback? = nil
     ) {
-        Loggers.network.debug("\(operationContext, privacy: .public): sending request - Visitor ID: \(userIdentity.visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
+        // Log, wire, and the caller's sync record all use the same `visitorId` value —
+        // deliberately passed in rather than read from a live `ATTNUserIdentity` reference,
+        // so a concurrent rotation between capture and serialization can't pin the sync
+        // record to an id the server never saw (MSDK-517).
+        Loggers.network.debug("\(operationContext, privacy: .public): sending request - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
 
         var meta: [String: Any] = [:]
         if let email = email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
@@ -354,7 +363,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         var payload: [String: Any] = [
             "c": self.domain,
-            "u": userIdentity.visitorId,
+            "u": visitorId,
             "tp": "apns",
             "v": "mobile-app-\(ATTNConstants.sdkVersion)",
             "m": meta

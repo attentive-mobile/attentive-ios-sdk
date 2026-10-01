@@ -13,7 +13,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.0.17'
+  pod 'attentive-ios-sdk', '2.1.0'
 end
 ```
 
@@ -884,6 +884,24 @@ ATTNSDK *attentiveSdk = [[ATTNSDK alloc] initWithDomain:@"YOUR_DOMAIN"
     }
 }];
 ```
+
+### Pixel-tracking consent (EU only)
+
+EU customers subject to email pixel-tracking consent requirements can pass the shopper's choice via `trackingConsent:` on `optInMarketingSubscription`. See the [help article](https://help.attentive.com/hc/en-us/articles/51464632390804-France-Email-Privacy-Compliance-Update) for background.
+
+```swift
+attentiveSdk.optInMarketingSubscription(
+    email: "user@example.com",
+    phone: nil,
+    trackingConsent: .accepted
+) { _, _, response, error in
+    // ...
+}
+```
+
+Values: `.accepted`, `.declined`, or `.unspecified` (default, backend decides). `optOutMarketingSubscription` does not accept a consent parameter — consent is captured at opt-in.
+
+Existing call sites that don't pass `trackingConsent:` continue to work unchanged — they default to `.unspecified`.
 
 ## Step 6 (optional) - Show Creatives
 

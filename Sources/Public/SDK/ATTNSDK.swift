@@ -307,6 +307,12 @@ public final class ATTNSDK: NSObject {
     ///   no prior sync record, a push token or domain change since the last confirmation, or
     ///   a prior rotation that invalidated the sync record — the visitor ID rotates and (when
     ///   a push token is present) the detach fires. See MSDK-469.
+    /// - Note: Whenever the visitor ID rotates, the SDK also deletes its on-device record of the
+    ///   previous user's last confirmed sync — immediately, whether or not the detach is sent or
+    ///   succeeds. That record only ever stored a salted digest of the email and phone, never the
+    ///   values themselves. Without it the SDK cannot prove the detach already happened, so an
+    ///   in-flight detach that completes after a later rotation is not recorded, and the next
+    ///   call re-sends `/user-update` rather than skipping. See MSDK-516.
     ///
     /// Internal implementation detail (for maintainers / AI assistants):
     /// Under the hood this calls the same `/user-update` endpoint as `updateUser`, but with
@@ -326,58 +332,61 @@ public final class ATTNSDK: NSObject {
         let currentDomain = self.domain
         let previousVisitorId = userIdentity.visitorId
         let decision = userIdentity.planClearUser(pushToken: pushToken, domain: currentDomain)
+        // planClearUser rotates in every non-skip case; .retryWithoutRotation is listed
+        // for enum exhaustiveness only. The visitor id we send on the wire and record
+        // as synced is the one planClearUser captured under its lock — reading
+        // `userIdentity.visitorId` again here would reopen a window where another
+        // rotation path (a concurrent clearUser, a bare `ATTNUserIdentity.clearUser()`,
+        // an interleaved updateUser) could substitute a different id (MSDK-517).
+        let visitorIdAtRequest: String
         switch decision {
         case .skip:
             Loggers.event.debug("clearUser: skipping — already detached on server for current push token, domain, and visitor id - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
             return
-        case .retryWithoutRotation, .rotatedAndReplaced:
-            // planClearUser rotates in every non-skip case; .retryWithoutRotation is
-            // listed for enum exhaustiveness only.
-            //
-            // The identity has already been cleared and rotated under the lock, so republish
-            // the snapshot. The previous user's cached inbox state is dropped below, on both
-            // branches — the no-detach branch has to order the drop against its own immediate
-            // count re-fetch, so it uses the combined helper instead.
-            publishIdentitySnapshot()
-            Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(previousVisitorId, privacy: .public), New Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+        case .retryWithoutRotation(let id), .rotatedAndReplaced(let id):
+            visitorIdAtRequest = id
+        }
 
-            guard !pushToken.isEmpty else {
-                // No push token means there is nothing to detach server-side. Local was
-                // already cleared and the visitor id rotated inside planClearUser.
-                Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-                // No `/user-update` will fire, so drop the cached inbox state and kick the count
-                // re-fetch now against the freshly-generated anonymous visitor. Safe: no
-                // server-side association is pending. Both go through one helper because the
-                // reset must reach the InboxManager actor before the refresh — see
-                // `resetThenRefreshInboxForIdentityChangeIfMaterialized`.
-                resetThenRefreshInboxForIdentityChangeIfMaterialized()
-                return
-            }
-            resetInboxForIdentityChangeIfMaterialized()
-            Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-            // Capture visitor id at request-time so a rotation between request and
-            // response can't corrupt the record — see recordSuccessfulSync.
-            let visitorIdAtRequest = userIdentity.visitorId
-            api.updateUser(
-                pushToken: pushToken,
-                userIdentity: userIdentity,
+        // The identity has already been cleared and rotated under the lock, so republish
+        // the snapshot. The previous user's cached inbox state is dropped below, on both
+        // branches — the no-detach branch has to order the drop against its own immediate
+        // count re-fetch, so it uses the combined helper instead.
+        publishIdentitySnapshot()
+        Loggers.creative.debug("User cleared successfully - Old Visitor ID: \(previousVisitorId, privacy: .public), New Visitor ID: \(visitorIdAtRequest, privacy: .public)")
+
+        guard !pushToken.isEmpty else {
+            // No push token means there is nothing to detach server-side. Local was
+            // already cleared and the visitor id rotated inside planClearUser.
+            Loggers.event.debug("clearUser: skipping push token detach — no push token available")
+            // No `/user-update` will fire, so drop the cached inbox state and kick the count
+            // re-fetch now against the freshly-generated anonymous visitor. Safe: no
+            // server-side association is pending. Both go through one helper because the
+            // reset must reach the InboxManager actor before the refresh — see
+            // `resetThenRefreshInboxForIdentityChangeIfMaterialized`.
+            resetThenRefreshInboxForIdentityChangeIfMaterialized()
+            return
+        }
+        resetInboxForIdentityChangeIfMaterialized()
+        Loggers.event.debug("clearUser: detaching push token from previous user - Visitor ID: \(visitorIdAtRequest, privacy: .public)")
+        api.updateUser(
+            pushToken: pushToken,
+            visitorId: visitorIdAtRequest,
+            email: nil,
+            phone: nil,
+            operationContext: "clearUser",
+            callback: syncRecordingCallback(
                 email: nil,
                 phone: nil,
-                operationContext: "clearUser",
-                callback: syncRecordingCallback(
-                    email: nil,
-                    phone: nil,
-                    pushToken: pushToken,
-                    domain: currentDomain,
-                    visitorId: visitorIdAtRequest,
-                    forward: { [weak self] _, _, _, _ in
-                        // Fire after `/user-update` returns so the server has finished detaching
-                        // the token from the previous user before we ask for the new (anon) count.
-                        self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
-                    }
-                )
+                pushToken: pushToken,
+                domain: currentDomain,
+                visitorId: visitorIdAtRequest,
+                forward: { [weak self] _, _, _, _ in
+                    // Fire after `/user-update` returns so the server has finished detaching
+                    // the token from the previous user before we ask for the new (anon) count.
+                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                }
             )
-        }
+        )
     }
 
     /// Wraps a `/user-update` callback so a successful server response records the confirmed
