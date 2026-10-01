@@ -98,7 +98,7 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
         do {
             _ = try await markRead()
             XCTFail("Expected request to throw")
-        } catch ATTNError.inboxRequestFailed(let status) {
+        } catch ATTNInboxError.requestFailed(let status) {
             XCTAssertEqual(status, 500)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -111,7 +111,7 @@ final class ATTNInboxMarkReadAPITests: XCTestCase {
         do {
             _ = try await markRead()
             XCTFail("Expected request to throw")
-        } catch ATTNError.inboxResponseDecodeFailed {
+        } catch ATTNInboxError.responseDecodeFailed {
             // expected
         } catch {
             XCTFail("Unexpected error type: \(error)")

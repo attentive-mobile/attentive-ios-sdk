@@ -106,7 +106,7 @@ final class ATTNInboxDeleteAPITests: XCTestCase {
         do {
             try await deleteMessage()
             XCTFail("Expected request to throw")
-        } catch ATTNError.inboxRequestFailed(let status) {
+        } catch ATTNInboxError.requestFailed(let status) {
             XCTAssertEqual(status, 500)
         } catch {
             XCTFail("Unexpected error type: \(error)")
