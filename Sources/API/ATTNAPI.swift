@@ -522,7 +522,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     }
 
     /// Shared JSON-decode wrapper for inbox endpoints that return a decodable body. Maps decode
-    /// failures to `inboxResponseDecodeFailed`; other error mapping happens in `sendInboxRaw`.
+    /// failures to `ATTNInboxError.responseDecodeFailed`; other error mapping happens in `sendInboxRaw`.
     private func postInboxJSON<T: Decodable>(
         path: String,
         payload: [String: Any],
@@ -533,7 +533,7 @@ final class ATTNAPI: ATTNAPIProtocol {
             return try decoder.decode(T.self, from: data)
         } catch {
             Loggers.network.error("Failed to decode inbox \(path, privacy: .public) response: \(error.localizedDescription, privacy: .public)")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
     }
 
@@ -546,8 +546,8 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// Internal worker for the inbox helpers. Builds the URL, sets the standard headers
     /// (`Content-Type: application/json`, `x-datadog-sampling-priority: 1`) and a 15s timeout,
     /// encodes `payload` as the body, sends the request with the given HTTP method, and
-    /// validates the response. Maps non-2xx to `inboxRequestFailed`, non-HTTP responses to
-    /// `inboxResponseDecodeFailed`, and bad URLs to `badURL`. All other transport errors
+    /// validates the response. Maps non-2xx to `ATTNInboxError.requestFailed`, non-HTTP responses to
+    /// `ATTNInboxError.responseDecodeFailed`, and bad URLs to `ATTNError.badURL`. All other transport errors
     /// propagate. Returns the raw response body for the caller to decode (or discard).
     private func sendInboxRaw(path: String, method: String, payload: [String: Any]) async throws -> Data {
         guard let url = URL(string: Self.inboxHost + path) else {
@@ -567,12 +567,12 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox \(path, privacy: .public) returned a non-HTTP response")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
         Loggers.network.debug("Inbox \(path, privacy: .public) status: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
             Loggers.network.error("Inbox \(path, privacy: .public) returned status \(http.statusCode, privacy: .public)")
-            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+            throw ATTNInboxError.requestFailed(statusCode: http.statusCode)
         }
         return data
     }
@@ -614,19 +614,19 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox mark-read returned a non-HTTP response")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
         Loggers.network.debug("Inbox mark-read status code: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
             Loggers.network.error("Inbox mark-read API returned status \(http.statusCode, privacy: .public)")
-            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+            throw ATTNInboxError.requestFailed(statusCode: http.statusCode)
         }
 
         do {
             return try JSONDecoder().decode(UpdateReadStatusResponse.self, from: data)
         } catch {
             Loggers.network.error("Failed to decode inbox mark-read response: \(error.localizedDescription, privacy: .public)")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
     }
 
@@ -674,19 +674,19 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox mark-unread returned a non-HTTP response")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
         Loggers.network.debug("Inbox mark-unread status code: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
             Loggers.network.error("Inbox mark-unread API returned status \(http.statusCode, privacy: .public)")
-            throw ATTNError.inboxRequestFailed(statusCode: http.statusCode)
+            throw ATTNInboxError.requestFailed(statusCode: http.statusCode)
         }
 
         do {
             return try JSONDecoder().decode(UpdateReadStatusResponse.self, from: data)
         } catch {
             Loggers.network.error("Failed to decode inbox mark-unread response: \(error.localizedDescription, privacy: .public)")
-            throw ATTNError.inboxResponseDecodeFailed
+            throw ATTNInboxError.responseDecodeFailed
         }
     }
 
