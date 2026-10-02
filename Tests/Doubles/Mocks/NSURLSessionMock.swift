@@ -56,8 +56,19 @@ class NSURLSessionMock: URLSession {
     var inboxDeleteResponseBody: Data = Data()
     var inboxDeleteError: Error?
 
+    /// When true, every inbox endpoint answers with a plain `URLResponse` instead of an
+    /// `HTTPURLResponse`, to exercise the SDK's unexpected-response-type path.
+    var inboxReturnsNonHTTPResponse = false
+
     override init() {
         super.init()
+    }
+
+    private func inboxResponse(url: URL, statusCode: Int) -> URLResponse? {
+        if inboxReturnsNonHTTPResponse {
+            return URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
+        }
+        return HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: nil)
     }
 
     override func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
@@ -81,8 +92,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxUnreadCountResponseBody
                 let status = inboxUnreadCountStatusCode
                 let error = inboxUnreadCountError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
 
@@ -91,8 +103,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxMarkReadResponseBody
                 let status = inboxMarkReadStatusCode
                 let error = inboxMarkReadError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
 
@@ -101,8 +114,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxMarkUnreadResponseBody
                 let status = inboxMarkUnreadStatusCode
                 let error = inboxMarkUnreadError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
 
@@ -111,8 +125,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxClickedResponseBody
                 let status = inboxClickedStatusCode
                 let error = inboxClickedError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
 
@@ -124,8 +139,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxDeleteResponseBody
                 let status = inboxDeleteStatusCode
                 let error = inboxDeleteError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
 
@@ -134,8 +150,9 @@ class NSURLSessionMock: URLSession {
                 let body = inboxMessagesResponseBody
                 let status = inboxMessagesStatusCode
                 let error = inboxMessagesError
+                let response = inboxResponse(url: url, statusCode: status)
                 return NSURLSessionDataTaskMock { _, _, _ in
-                    completionHandler(body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil), error)
+                    completionHandler(body, response, error)
                 }
             }
         }

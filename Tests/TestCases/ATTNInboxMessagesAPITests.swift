@@ -137,6 +137,19 @@ final class ATTNInboxMessagesAPITests: XCTestCase {
         }
     }
 
+    func testFetchInboxMessages_nonHTTPResponse_throwsUnexpectedResponseType() async {
+        sessionMock.inboxReturnsNonHTTPResponse = true
+
+        do {
+            _ = try await fetch()
+            XCTFail("Expected request to throw")
+        } catch ATTNInboxError.unexpectedResponseType {
+            // expected — rejected before decoding, so not `responseDecodeFailed`
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
     func testFetchInboxMessages_malformedBody_throwsDecodeFailed() async {
         sessionMock.inboxMessagesResponseBody = Data("not json".utf8)
 
