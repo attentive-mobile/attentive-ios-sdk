@@ -830,18 +830,17 @@ platform :ios do
     shard = Digest::MD5.hexdigest(pod_name)[0, 3].chars.join("/")
     uri = URI("https://api.github.com/repos/CocoaPods/Specs/contents/Specs/#{shard}/#{pod_name}/#{version}/#{pod_name}.podspec.json")
 
-    # Prefer the token for its rate limit, but fall back to anonymous if GitHub rejects it.
+    # Prefer the token for its rate limit, but always fall back to anonymous: CI's token is a
+    # GitHub App installation token scoped to our org, which may get a 401 or a 404 on another
+    # org's repo even when the spec exists. Only an anonymous answer is definitive.
     tokens = [ENV["GITHUB_TOKEN"], nil].uniq
-    tokens.each do |token|
+    tokens.any? do |token|
       request = Net::HTTP::Get.new(uri)
       request["Accept"] = "application/vnd.github+json"
       request["Authorization"] = "Bearer #{token}" if token
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(request) }
-      return true if response.is_a?(Net::HTTPSuccess)
-      return false if response.is_a?(Net::HTTPNotFound)
+      Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(request) }.is_a?(Net::HTTPSuccess)
     end
-    false
   rescue => e
     UI.important("Could not check CocoaPods/Specs for #{pod_name} #{version}: #{e.message}")
     false
