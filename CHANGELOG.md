@@ -1,3 +1,6 @@
+## [2.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.0...2.1.1) (2026-10-02)
+Added optional `trackingConsent:` to `optInMarketingSubscription` for EU email pixel-tracking consent
+
 ## [2.1.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.17...2.1.0) (2026-09-09)
 * MSDK-460: drop stale Inbox iOS 15 guidance from CLAUDE.md
 * MSDK-460: bump minimum deployment target to iOS 15.0 (#307)
