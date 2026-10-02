@@ -13,7 +13,7 @@ The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). T
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.1.0'
+  pod 'attentive-ios-sdk', '2.1.1'
 end
 ```
 
