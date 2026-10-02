@@ -5,6 +5,9 @@
 - Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
 - Inbox API failures now surface through `InboxState.error` **including** a new `ATTNInboxError` (`requestFailed(statusCode:)`, `responseDecodeFailed`, `unexpectedResponseType`; NSError domain `com.attentive.sdk.inbox`); other error types (bad URL as `ATTNError.badURL`, transport `URLError`, request encoding) continue to propagate unchanged. `ATTNError` itself is unchanged, so existing exhaustive `switch`es over it keep compiling (MSDK-533).
 
+## [2.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.0...2.1.1) (2026-10-02)
+Added optional `trackingConsent:` to `optInMarketingSubscription` for EU email pixel-tracking consent
+
 ## [2.1.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.0.17...2.1.0) (2026-09-09)
 * MSDK-460: drop stale Inbox iOS 15 guidance from CLAUDE.md
 * MSDK-460: bump minimum deployment target to iOS 15.0 (#307)
