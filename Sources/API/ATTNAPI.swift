@@ -546,9 +546,9 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// Internal worker for the inbox helpers. Builds the URL, sets the standard headers
     /// (`Content-Type: application/json`, `x-datadog-sampling-priority: 1`) and a 15s timeout,
     /// encodes `payload` as the body, sends the request with the given HTTP method, and
-    /// validates the response. Maps non-2xx to `ATTNInboxError.requestFailed`, non-HTTP responses to
-    /// `ATTNInboxError.responseDecodeFailed`, and bad URLs to `ATTNError.badURL`. All other transport errors
-    /// propagate. Returns the raw response body for the caller to decode (or discard).
+    /// validates the response. Maps non-2xx to `ATTNInboxError.requestFailed`, non-HTTP responses
+    /// to `ATTNInboxError.unexpectedResponseType`, and bad URLs to `ATTNError.badURL`. All other
+    /// transport errors propagate. Returns the raw response body for the caller to decode (or discard).
     private func sendInboxRaw(path: String, method: String, payload: [String: Any]) async throws -> Data {
         guard let url = URL(string: Self.inboxHost + path) else {
             Loggers.network.error("Invalid inbox URL for path \(path, privacy: .public)")
@@ -567,7 +567,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox \(path, privacy: .public) returned a non-HTTP response")
-            throw ATTNInboxError.responseDecodeFailed
+            throw ATTNInboxError.unexpectedResponseType
         }
         Loggers.network.debug("Inbox \(path, privacy: .public) status: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
@@ -614,7 +614,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox mark-read returned a non-HTTP response")
-            throw ATTNInboxError.responseDecodeFailed
+            throw ATTNInboxError.unexpectedResponseType
         }
         Loggers.network.debug("Inbox mark-read status code: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {
@@ -674,7 +674,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
         guard let http = response as? HTTPURLResponse else {
             Loggers.network.error("Inbox mark-unread returned a non-HTTP response")
-            throw ATTNInboxError.responseDecodeFailed
+            throw ATTNInboxError.unexpectedResponseType
         }
         Loggers.network.debug("Inbox mark-unread status code: \(http.statusCode, privacy: .public)")
         guard (200..<300).contains(http.statusCode) else {

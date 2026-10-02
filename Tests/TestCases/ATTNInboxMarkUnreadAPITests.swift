@@ -105,6 +105,19 @@ final class ATTNInboxMarkUnreadAPITests: XCTestCase {
         }
     }
 
+    func testMarkUnread_nonHTTPResponse_throwsUnexpectedResponseType() async {
+        sessionMock.inboxReturnsNonHTTPResponse = true
+
+        do {
+            _ = try await markUnread()
+            XCTFail("Expected request to throw")
+        } catch ATTNInboxError.unexpectedResponseType {
+            // expected — rejected before decoding, so not `responseDecodeFailed`
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
     func testMarkUnread_malformedBody_throwsDecodeFailed() async {
         sessionMock.inboxMarkUnreadResponseBody = Data("not json".utf8)
 
