@@ -732,21 +732,44 @@ platform :ios do
     podspecs = ["ATTNSDKFramework.podspec", "attentive-ios-sdk.podspec"]
     unpushed = []
 
+    #     A failed push may or may not have published the spec (trunk sometimes commits it and
+    #     still reports an error), so check CocoaPods/Specs, and retry once if it isn't there.
+    #     Runs `pod trunk push` through `sh` rather than the `pod_push` action: the action's
+    #     error only carries the exit status, while trunk's reason is in the command output.
     podspecs.each do |spec|
-      begin
-        pod_push(
-          path: spec,
-          allow_warnings: true
-        )
-      rescue => e
-        UI.error("CocoaPods push failed for #{spec}: #{e.message}")
-        unpushed << spec
+      pod_name = File.basename(spec, ".podspec")
+      pushed = false
+      last_error = nil
+
+      2.times do |attempt|
+        failed_output = nil
+        last_error = nil
+        begin
+          sh("pod trunk push '#{spec}' --allow-warnings", error_callback: ->(output) { failed_output = output })
+          last_error = trunk_error_summary(failed_output) if failed_output
+        rescue => e
+          last_error = e.message
+        end
+
+        if last_error.nil?
+          pushed = true
+        else
+          UI.error("CocoaPods push attempt #{attempt + 1} failed for #{spec}: #{last_error}")
+          if wait_for_published_spec(pod_name: pod_name, version: new_version)
+            UI.important("#{pod_name} #{new_version} is in CocoaPods/Specs despite the error. Treating as published.")
+            pushed = true
+          end
+        end
+        break if pushed
       end
+
+      unpushed << [spec, last_error] unless pushed
     end
 
     unless unpushed.empty?
-      retry_commands = unpushed.map { |spec| "  pod trunk push #{spec} --allow-warnings" }.join("\n")
-      UI.user_error!("CocoaPods push failed for: #{unpushed.join(', ')}\nSPM and GitHub release are live. Retry with:\n#{retry_commands}")
+      details = unpushed.map { |spec, error| "  #{spec}: #{error}" }.join("\n")
+      retry_commands = unpushed.map { |spec, _| "  pod trunk push #{spec} --allow-warnings" }.join("\n")
+      UI.user_error!("CocoaPods push failed:\n#{details}\nSPM and GitHub release are live. Retry with:\n#{retry_commands}")
     end
 
     UI.success("#{is_prerelease ? 'Prerelease' : 'Released'} #{new_version}.#{is_prerelease ? '' : ' PR opened to main.'}")
@@ -867,6 +890,50 @@ platform :ios do
       File.write(package_file, original_package)
       UI.message("Restored original Package.swift")
     end
+  end
+
+  # Checks the CocoaPods/Specs repo, not the trunk API: trunk records the version before it
+  # commits the spec, so a version can show up in trunk without ever being published.
+  def spec_published?(pod_name:, version:)
+    require 'net/http'
+    require 'digest'
+
+    shard = Digest::MD5.hexdigest(pod_name)[0, 3].chars.join("/")
+    uri = URI("https://api.github.com/repos/CocoaPods/Specs/contents/Specs/#{shard}/#{pod_name}/#{version}/#{pod_name}.podspec.json")
+
+    # Prefer the token for its rate limit, but always fall back to anonymous: CI's token is a
+    # GitHub App installation token scoped to our org, which may get a 401 or a 404 on another
+    # org's repo even when the spec exists. Only an anonymous answer is definitive, so a network
+    # error on the token request must also fall through rather than end the check.
+    tokens = [ENV["GITHUB_TOKEN"], nil].uniq
+    tokens.any? do |token|
+      begin
+        request = Net::HTTP::Get.new(uri)
+        request["Accept"] = "application/vnd.github+json"
+        request["Authorization"] = "Bearer #{token}" if token
+
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 10) { |http| http.request(request) }.is_a?(Net::HTTPSuccess)
+      rescue => e
+        UI.important("Could not check CocoaPods/Specs for #{pod_name} #{version} (#{token ? 'token' : 'anonymous'}): #{e.message}")
+        false
+      end
+    end
+  end
+
+  # Pulls trunk's `[!]` lines (e.g. "Calling the GitHub commit API timed out") out of a failed
+  # `pod trunk push`, skipping the deprecation notice trunk prints for attentive-ios-sdk.
+  def trunk_error_summary(output)
+    lines = output.to_s.gsub(/\e\[[0-9;]*m/, "").lines.map(&:strip).reject(&:empty?)
+    errors = lines.grep(/\[!\]/).map { |line| line.sub(/\A.*?\[!\]\s*/, "") }.reject { |line| line.include?("has been deprecated in favor of") }.uniq
+    errors.empty? ? (lines.last || "unknown error") : errors.join(" ")
+  end
+
+  def wait_for_published_spec(pod_name:, version:, attempts: 4, interval: 15)
+    attempts.times do |i|
+      return true if spec_published?(pod_name: pod_name, version: version)
+      sleep(interval) if i < attempts - 1
+    end
+    false
   end
 
   def read_ios_target
