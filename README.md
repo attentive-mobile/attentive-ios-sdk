@@ -620,6 +620,8 @@ if let url = attentiveSdk.consumeDeepLink() {
 
 ## Inbox
 
+> **Note:** The inbox is currently an MVP. Please contact your CSM to discuss access before enabling it in production.
+
 An in-app message center that renders messages Attentive delivers to a user. Each message has a title, body, timestamp, read/unread state, and optionally an image and a deep-link URL. The SDK provides both a **drop-in UI** and a **reactive state stream** so you can build your own.
 
 > New installs automatically see messages targeted at the general audience — nothing needs to be wired up server-side for a user to have inbox content.
