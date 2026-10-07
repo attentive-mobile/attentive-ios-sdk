@@ -22,13 +22,20 @@ on:
         required: false
         type: string
 
+permissions: {}
+
 jobs:
   trigger-release:
     runs-on: ubuntu-latest
+    env:
+      CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
+      CIRCLECI_PROJECT_SLUG: ${{ vars.CIRCLECI_PROJECT_SLUG }}
     steps:
       - name: Validate version format
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          if ! echo "${{ inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+          if ! printf '%s\n' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
             echo "::error::Version must be in semver format (e.g., 2.1.0 or 2.1.0-beta.1)"
             exit 1
           fi
@@ -36,15 +43,20 @@ jobs:
       - name: Trigger CircleCI release pipeline
         id: trigger
         env:
+          VERSION: ${{ inputs.version }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
+          IS_PRERELEASE: ${{ inputs.is_prerelease }}
+          DEPLOY_TO_TESTFLIGHT: ${{ inputs.deploy_to_testflight }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           payload=$(jq -n \
-            --arg version "${{ inputs.version }}" \
+            --arg branch "$BRANCH" \
+            --arg version "$VERSION" \
             --arg notes "$RELEASE_NOTES" \
-            --arg is_prerelease "${{ inputs.is_prerelease }}" \
-            --arg deploy_to_testflight "${{ inputs.deploy_to_testflight }}" \
+            --arg is_prerelease "$IS_PRERELEASE" \
+            --arg deploy_to_testflight "$DEPLOY_TO_TESTFLIGHT" \
             '{
-              branch: "${{ github.ref_name }}",
+              branch: $branch,
               parameters: {
                 run_release: true,
                 release_version: $version,
@@ -55,8 +67,8 @@ jobs:
             }')
 
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://circleci.com/api/v2/project/${{ vars.CIRCLECI_PROJECT_SLUG }}/pipeline" \
-            -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
+            "https://circleci.com/api/v2/project/${CIRCLECI_PROJECT_SLUG}/pipeline" \
+            -H "Circle-Token: $CIRCLECI_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$payload")
 
@@ -79,23 +91,26 @@ jobs:
 
           echo "pipeline_id=$pipeline_id" >> "$GITHUB_OUTPUT"
           echo "pipeline_number=$pipeline_number" >> "$GITHUB_OUTPUT"
-          echo "CircleCI pipeline triggered for version ${{ inputs.version }} (pipeline: $pipeline_number)"
+          echo "CircleCI pipeline triggered for version $VERSION (pipeline: $pipeline_number)"
 
       - name: Wait for CircleCI pipeline to complete
+        env:
+          PIPELINE_ID: ${{ steps.trigger.outputs.pipeline_id }}
+          PIPELINE_NUMBER: ${{ steps.trigger.outputs.pipeline_number }}
         run: |
-          pipeline_id="${{ steps.trigger.outputs.pipeline_id }}"
-          pipeline_number="${{ steps.trigger.outputs.pipeline_number }}"
+          pipeline_id="$PIPELINE_ID"
+          pipeline_number="$PIPELINE_NUMBER"
           poll_interval=30
           timeout=5400  # 90 minutes
           elapsed=0
 
           echo "Waiting for CircleCI pipeline $pipeline_number to complete..."
-          echo "Pipeline URL: https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_SLUG }}/${pipeline_number}"
+          echo "Pipeline URL: https://app.circleci.com/pipelines/${CIRCLECI_PROJECT_SLUG}/${pipeline_number}"
 
           while [ "$elapsed" -lt "$timeout" ]; do
             api_response=$(curl -s -w "\n%{http_code}" -X GET \
               "https://circleci.com/api/v2/pipeline/${pipeline_id}/workflow" \
-              -H "Circle-Token: ${{ secrets.CIRCLECI_TOKEN }}" \
+              -H "Circle-Token: $CIRCLECI_TOKEN" \
               -H "Content-Type: application/json")
 
             http_code=$(echo "$api_response" | tail -1)
@@ -124,7 +139,7 @@ jobs:
               name=$(echo "$response" | jq -r ".items[$i].name")
               status=$(echo "$response" | jq -r ".items[$i].status")
               wf_id=$(echo "$response" | jq -r ".items[$i].id")
-              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${{ vars.CIRCLECI_PROJECT_SLUG }}/${pipeline_number}/workflows/${wf_id})\n"
+              summary="${summary}  - ${name}: ${status} (https://app.circleci.com/pipelines/${CIRCLECI_PROJECT_SLUG}/${pipeline_number}/workflows/${wf_id})\n"
 
               case "$status" in
                 success) ;;
