@@ -34,4 +34,27 @@ final class ATTNErrorTests: XCTestCase {
         XCTAssertEqual(nsError.code, 5)
         XCTAssertEqual(nsError.localizedDescription, "The provided domain is not recognized. Please verify that the domain matches your Attentive settings.")
     }
+
+    // MARK: - ATTNInboxError
+
+    func testInboxErrorDescriptions() {
+        XCTAssertEqual(ATTNInboxError.requestFailed(statusCode: 503).localizedDescription, "Inbox request failed with status code 503")
+        XCTAssertEqual(ATTNInboxError.responseDecodeFailed.localizedDescription, "Failed to decode inbox response")
+        XCTAssertEqual(ATTNInboxError.unexpectedResponseType.localizedDescription, "Inbox request returned an unexpected response type")
+    }
+
+    func testInboxErrorDomainAndCodes() {
+        XCTAssertEqual(ATTNInboxError.errorDomain, "com.attentive.sdk.inbox")
+        XCTAssertEqual(ATTNInboxError.requestFailed(statusCode: 500).errorCode, 1)
+        XCTAssertEqual(ATTNInboxError.responseDecodeFailed.errorCode, 2)
+        XCTAssertEqual(ATTNInboxError.unexpectedResponseType.errorCode, 3)
+    }
+
+    func testInboxErrorNSErrorBridging() {
+        let error: Error = ATTNInboxError.requestFailed(statusCode: 404)
+        let nsError = error as NSError
+        XCTAssertEqual(nsError.domain, "com.attentive.sdk.inbox")
+        XCTAssertEqual(nsError.code, 1)
+        XCTAssertEqual(nsError.localizedDescription, "Inbox request failed with status code 404")
+    }
 }

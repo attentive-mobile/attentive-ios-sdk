@@ -4,13 +4,16 @@ The Attentive mobile SDK provides functionalities like gathering user identity, 
 
 ## Prerequisites
 
+### iOS Version
+We support iOS 15.0+ due to the benefits of Swift Concurrency only available on that version and higher.
+
 ### Cocoapods
 
-The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
+The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFramework`. To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.1.1'
+  pod 'ATTNSDKFramework', '2.1.1'
 end
 ```
 
@@ -573,7 +576,22 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 ### Deep Link Support
 
-Our SDK does not open URLs directly. Instead, it extracts and broadcasts a valid deep-link URL whenever a notification is tapped. Your app can then decide when and how to handle it (e.g. navigate immediately, or store it if the user is logged out).
+When a notification is tapped, the SDK extracts the deep-link URL (`attentive_open_action_url`), broadcasts it via `ATTNSDKDeepLinkReceived`, and stores it for `consumeDeepLink()`. Optionally, the SDK can also open the URL on your app's behalf — opt in with:
+
+```
+attentiveSdk.automaticallyOpensPushDeepLinks = true
+```
+
+When opted in:
+
+- **Custom-scheme URLs** (e.g. `myapp://cart`) are handed to the system, which routes them into your app's existing URL handlers (`application(_:open:options:)` / `scene(_:openURLContexts:)`).
+- **Http(s) URLs** are opened as [universal links](https://developer.apple.com/documentation/xcode/allowing-apps-and-websites-to-link-to-your-content) only. If your app has registered for the link's domain, it is delivered through your app's `NSUserActivity` handlers; the user is never sent to the browser.
+
+This means that if your app already handles its URL schemes or universal links, push deep links work with no additional wiring — matching the behavior of our Android SDK.
+
+> **⚠️ Only opt in if your app does not already navigate itself.** If your app navigates in response to the `ATTNSDKDeepLinkReceived` notification or `consumeDeepLink()`, leave `automaticallyOpensPushDeepLinks` at its default (`false`), or the same URL will be handled twice (once by your code, once by the SDK).
+
+If you handle navigation yourself (the default — e.g. navigate later, or wait until the user is logged in), use one of the options below. The SDK always broadcasts and stores the URL regardless of this setting.
 
 #### Option 1: Observe the ATTNSDKDeepLinkReceived notification
 ```
@@ -599,6 +617,205 @@ if let url = attentiveSdk.consumeDeepLink() {
   // handle navigating to the link in your app
 }
 ```
+
+## Inbox
+
+> **Note:** The inbox is currently an MVP. Please contact your CSM to discuss access before enabling it in production.
+
+An in-app message center that renders messages Attentive delivers to a user. Each message has a title, body, timestamp, read/unread state, and optionally an image and a deep-link URL. The SDK provides both a **drop-in UI** and a **reactive state stream** so you can build your own.
+
+> New installs automatically see messages targeted at the general audience — nothing needs to be wired up server-side for a user to have inbox content.
+
+**Requirements**
+- iOS 15+
+- SDK initialized (see [Step 1](#step-1---sdk-initialization)). Inbox fetches are a no-op until a `visitorId` is available.
+
+### Option A — Drop-in UI
+
+The fastest integration: one call renders the list, empty/loading states, swipe-to-delete, swipe-to-toggle-read, pull-to-refresh, and infinite scroll.
+
+**UIKit**
+```swift
+@objc private func inboxButtonTapped() {
+    guard let inboxVC = sdk.inboxViewController() else { return }
+    navigationController?.pushViewController(inboxVC, animated: true)
+}
+```
+
+**SwiftUI**
+```swift
+import SwiftUI
+import ATTNSDKFramework
+
+struct InboxScreen: View {
+    let sdk: ATTNSDK
+    var body: some View {
+        sdk.inboxView()
+    }
+}
+```
+
+Unread rows get a bold title and a leading blue dot; read rows don't. The dot's color, the swipe background, and the list background are themeable — see [Customization](#customization). Tapping a row fires click tracking, broadcasts `ATTNSDKInboxMessageTapped`, and opens the message's `actionURL` (universal links resolve into their app; other https links fall back to the browser). Set `sdk.automaticallyOpensInboxDeepLinks = false` to keep the tracking and broadcast but skip the SDK-driven open.
+
+### Show an unread badge
+
+The SDK exposes the server-authoritative unread count two ways so you can pick whichever fits your codebase. All inbox APIs are Swift-only.
+
+**UIKit (no async/await):** `sdk.inboxUnreadCount` is a plain synchronous property, and `.ATTNSDKInboxUnreadCountChanged` fires on every change. Same-value writes are deduped, so a re-fetch that returns the same count doesn't churn your badge.
+
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+
+    NotificationCenter.default.addObserver(
+        forName: .ATTNSDKInboxUnreadCountChanged,
+        object: sdk,        // filter to this SDK instance; pass nil to observe all
+        queue: .main
+    ) { [weak self] note in
+        let count = note.userInfo?["attentiveInboxUnreadCount"] as? Int ?? 0
+        self?.updateBadge(count)
+    }
+
+    // Paint the initial state — no await, no Task
+    updateBadge(sdk.inboxUnreadCount)
+
+    // Kick off a fetch so the observer has something to deliver. Reading `inboxUnreadCount`
+    // is passive — it doesn't itself trigger a network call. The README recommends calling
+    // this on app launch and after a push open regardless.
+    Task { await sdk.refreshInboxUnreadCount() }
+}
+
+private func updateBadge(_ count: Int) {
+    badgeView.isHidden = count == 0
+    badgeLabel.text = "\(count)"
+}
+```
+
+**SwiftUI / async-first codebases:** subscribe to `inboxStateStream` and read `unreadCount` when you want the freshest value. Every fetch, mutation, and refresh flows through the stream.
+
+```swift
+Task { [weak self] in
+    guard let sdk = self?.sdk else { return }
+    for await _ in await sdk.inboxStateStream {
+        let count = await sdk.unreadCount
+        await MainActor.run { self?.updateBadge(count) }
+    }
+}
+```
+
+Call `await sdk.refreshInboxUnreadCount()` on app launch and after a push open to force-refresh from the server.
+
+### Customization
+
+**Fonts and colors** — pass an `InboxStyle`:
+```swift
+let style = InboxStyle(
+    titleFont: .system(size: 16, weight: .semibold),
+    bodyFont: .system(size: 14),
+    timestampFont: .caption,
+    textColor: .primary,
+    background: Color(.systemGroupedBackground),
+    unreadIndicator: .pink,
+    swipeBackground: .pink
+)
+sdk.inboxView(style: style)
+```
+
+Use the other initializer when the three text roles need different fonts or colors:
+```swift
+let style = InboxStyle(
+    title: .init(font: .headline, color: .primary),
+    body: .init(font: .subheadline, color: .secondary),
+    timestamp: .init(font: .caption, color: .secondary),
+    background: Color(.systemGroupedBackground),
+    unreadIndicator: .pink,
+    swipeBackground: .pink
+)
+```
+
+Every knob is optional and defaults to what the inbox rendered before it existed, so existing integrations are unaffected:
+
+| Knob | Default | Applies to |
+| --- | --- | --- |
+| `title` / `body` / `timestamp` | `.headline`/`.primary`, `.subheadline`/`.secondary`, `.caption`/`.secondary` | Font and color per text role |
+| `background` | `nil` — keeps the system list background | Background behind the message list |
+| `unreadIndicator` | `nil` — resolves to `.blue` | The leading dot on unread rows |
+| `swipeBackground` | `nil` — resolves to `.blue` | Background revealed by the leading swipe (mark read/unread) |
+
+The trailing delete swipe always uses the system destructive red and isn't themeable.
+
+All three colors are `Color?`, and passing `nil` explicitly is the same as omitting the argument. That's mainly for wrappers and abstraction layers that always construct a full `InboxStyle` from separately-optional inputs — they can forward an absent color straight through rather than hardcoding a copy of the SDK's default:
+
+```swift
+InboxStyle(
+    background: backgroundColor.map(Color.init(uiColor:)),
+    unreadIndicator: unreadIndicatorColor.map(Color.init(uiColor:)),
+    swipeBackground: swipeBackgroundColor.map(Color.init(uiColor:))
+)
+```
+
+Note that `nil` means something slightly different per knob: `background` keeps the *system* list background, while `unreadIndicator` and `swipeBackground` take the *SDK's* own default blue.
+
+> **The navigation bar isn't part of `InboxStyle`.** The SDK only sets the inbox's navigation *title*; the bar's background and title color come from your app's `UINavigationBar` appearance. `background` fills the list up to the safe-area edges and shows through a translucent bar, so if you set a custom background, style your nav bar to match.
+>
+> The SDK owns the title *string*, and sets it in all four of the inbox's states (loading, loaded, empty, and error). Both `inboxView()` and `inboxViewController()` expect the navigation container to come from your app, so if you wrap the inbox in your own `NavigationStack`/`UINavigationController` and set a title on it, `Inbox` wins throughout. Present the inbox on its own navigation destination unless you're happy with that title.
+
+> **`background` on iOS 15.** Hiding a `List`'s own scroll background requires `.scrollContentBackground(.hidden)`, which is iOS 16+. On iOS 15 the SDK colors the message rows, but the area below the last row keeps the system background. Everything else in the table above applies identically on iOS 15.
+
+> **Dark mode.** With `background` left at `nil` the inbox follows the system appearance — white in light mode, black in dark mode. Setting a fixed `background` opts out of that, so pick text colors that stay legible against it (or supply a color that adapts, e.g. one from an asset catalog with a dark variant). This differs from the Android SDK, whose inbox defaults to a fixed white background; a cross-platform integration that sets dark text for Android should set `background` on iOS too.
+
+**Custom tap handling** — takes over navigation entirely; click tracking still fires:
+```swift
+sdk.inboxView { message in
+    // route however you want
+    router.open(message.actionURL)
+}
+```
+
+**Broadcast-driven navigation** — if your app already navigates on `ATTNSDKInboxMessageTapped`, turn off SDK-driven opening so the same URL isn't handled twice (tracking + broadcast fire either way):
+```swift
+sdk.automaticallyOpensInboxDeepLinks = false
+```
+
+### Option B — Build your own UI
+
+Subscribe to `inboxStateStream` — the single source of truth — and call the mutation APIs to change state:
+
+```swift
+for await state in await sdk.inboxStateStream {
+    switch state {
+    case .loading:                       // initial fetch in flight
+    case .loaded(let messages):          // render; empty list is .loaded([])
+    case .error:                         // first fetch failed; retry
+    }
+}
+
+// Mutations (all optimistic; revert on failure)
+await sdk.markRead(for: message.id)
+await sdk.markUnread(for: message.id)
+await sdk.delete(messageID: message.id)
+
+// Call this on tap when using your own UI (built-in UI already does)
+await sdk.markClicked(for: message.id)
+```
+
+### Public API cheat sheet
+
+| API | Purpose |
+|---|---|
+| `inboxStateStream: AsyncStream<InboxState>` | Reactive state: `.loading` / `.loaded([Message])` / `.error` |
+| `allMessages: [Message]` | Snapshot accessor (async) |
+| `unreadCount: Int` | Server-authoritative unread count (async) |
+| `inboxUnreadCount: Int` | Synchronous mirror of `unreadCount` (Swift, UIKit-friendly) |
+| `.ATTNSDKInboxUnreadCountChanged` | Notification posted when the unread count changes |
+| `refreshInboxUnreadCount()` | Refresh the count from the server |
+| `markRead(for:)` / `markUnread(for:)` / `delete(messageID:)` | Mutations (optimistic) |
+| `markClicked(for:)` | Click tracking — required for custom UI, automatic for `inboxView()` |
+| `inboxView(style:onMessageTap:)` | SwiftUI drop-in |
+| `inboxViewController(style:onMessageTap:)` | UIKit drop-in |
+| `automaticallyOpensInboxDeepLinks: Bool` | SDK-driven URL opening on row tap (default `true`) |
+
+For a working example, see `Bonni/AttentiveExample/ProductViewController.swift` (badge + push-to-open).
 
 ## Step 5 - Email & SMS Subscription Support
 

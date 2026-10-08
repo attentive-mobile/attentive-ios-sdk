@@ -1,3 +1,10 @@
+## Unreleased
+### Features
+- **The SDK can now open push deep links on the host app's behalf** (MSDK-213, MSDK-491) — **opt-in** via `automaticallyOpensPushDeepLinks = true` (default `false`), matching the Android SDK: custom-scheme URLs route into your app's URL handlers, http(s) URLs open as universal links only (never the browser). This applies to foreground banner taps too. Leave the flag off (the default) if your app already navigates in response to the `ATTNSDKDeepLinkReceived` broadcast or `consumeDeepLink()` — enabling it would handle the same URL twice. The URL is always broadcast and stored regardless of the setting.
+- The built-in inbox UI opens a tapped message's `actionURL` (unclaimed http(s) links fall back to the browser), matching the Android SDK — **on by default**; set `automaticallyOpensInboxDeepLinks = false` if your app navigates on the `ATTNSDKInboxMessageTapped` broadcast instead. Alternatively pass `onMessageTap` to `inboxView()` / `inboxViewController()` to route taps yourself; click tracking and the `ATTNSDKInboxMessageTapped` broadcast fire either way.
+- Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
+- Inbox API failures now surface through `InboxState.error` **including** a new `ATTNInboxError` (`requestFailed(statusCode:)`, `responseDecodeFailed`, `unexpectedResponseType`; NSError domain `com.attentive.sdk.inbox`); other error types (bad URL as `ATTNError.badURL`, transport `URLError`, request encoding) continue to propagate unchanged. `ATTNError` itself is unchanged, so existing exhaustive `switch`es over it keep compiling (MSDK-533).
+
 ## [2.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.0...2.1.1) (2026-10-02)
 Added optional `trackingConsent:` to `optInMarketingSubscription` for EU email pixel-tracking consent
 

@@ -85,10 +85,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-in marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public), TrackingConsent: \(trackingConsent.wireValue ?? "unspecified", privacy: .public)")
 
         api.sendOptInMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             trackingConsent: trackingConsent,
@@ -135,10 +139,14 @@ extension ATTNSDK {
             return
         }
 
-        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(self.currentPushToken, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
+        // A push-disabled instance may still find a token persisted by a previous
+        // push-enabled install; never attach it to a device the SDK doesn't own for push.
+        let pushTokenToSend = pushEnabled ? token : ""
+
+        Loggers.event.debug("Processing opt-out marketing subscription - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(pushTokenToSend, privacy: .public), Email: \(email ?? "nil", privacy: .public), Phone: \(phone ?? "nil", privacy: .public)")
 
         api.sendOptOutMarketingSubscription(
-            pushToken: currentPushToken,
+            pushToken: pushTokenToSend,
             email: email,
             phone: phone,
             userIdentity: userIdentity,
@@ -217,6 +225,17 @@ extension ATTNSDK {
         switch decision {
         case .skip:
             Loggers.event.debug("updateUser: skipping — identifiers unchanged and server already confirmed for current push token and domain - Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
+            // `.skip` also covers planUpdateUser's cold-launch adoption branch, which writes the
+            // persisted sync record's (email, phone) into `_identifiers` in place without
+            // rotating. `_identifiers` is in-memory only, so the snapshot published at init still
+            // holds (email: nil, phone: nil) in that case — the inbox would then query the server
+            // without user-scoped identifiers until the next identity mutation republished.
+            // Publishing here is a no-op for the other `.skip` outcome (local already matched, so
+            // `_identifiers` didn't change) and the store has no observers, so it stays idempotent.
+            // Deliberately no unread-count refresh: `.skip` means the server already confirmed
+            // this identity under the current visitor id, and firing a fetch here would undo the
+            // "no network on a no-op call" guarantee MSDK-469 exists to provide.
+            publishIdentitySnapshot()
             callback?(nil, nil, nil, nil)
             return
         case .retryWithoutRotation(let id):
@@ -224,7 +243,17 @@ extension ATTNSDK {
             Loggers.event.debug("updateUser: local already matches; retrying /user-update to reconfirm - Visitor ID: \(visitorIdAtRequest, privacy: .public)")
         case .rotatedAndReplaced(let id):
             visitorIdAtRequest = id
+            // A different user: drop the previous user's cached inbox messages, unread count,
+            // and pagination cursor. Deliberately not done for .retryWithoutRotation, where
+            // the identifiers already matched and the cached inbox still belongs to this user.
+            resetInboxForIdentityChangeIfMaterialized()
         }
+
+        // planUpdateUser mutated `userIdentity` in place (and may have rotated the visitor
+        // id), so republish for the identity store that InboxManager reads. Unlike the old
+        // clearUserIdentifiers() + mergeIdentifiers() path there is no intermediate cleared
+        // snapshot to correct — this is the single publish for the new identity.
+        publishIdentitySnapshot()
 
         api.updateUser(
             pushToken: pushToken,
@@ -232,7 +261,21 @@ extension ATTNSDK {
             email: email,
             phone: phone,
             operationContext: "updateUser",
-            callback: syncRecordingCallback(email: email, phone: phone, pushToken: pushToken, domain: currentDomain, visitorId: visitorIdAtRequest, forward: callback)
+            // syncRecordingCallback records the successful sync (MSDK-469) and forwards to the
+            // chained closure below, which calls the host's callback and only then re-fetches
+            // the inbox count — firing before `/user-update` completes would cache a count for
+            // an unlinked anonymous visitor and leave the badge stale until the next refresh.
+            callback: syncRecordingCallback(
+                email: email,
+                phone: phone,
+                pushToken: pushToken,
+                domain: currentDomain,
+                visitorId: visitorIdAtRequest,
+                forward: { [weak self] data, url, response, error in
+                    callback?(data, url, response, error)
+                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                }
+            )
         )
     }
 

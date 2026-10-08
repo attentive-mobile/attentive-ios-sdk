@@ -1,0 +1,1385 @@
+//
+//  InboxManagerTests.swift
+//  attentive-ios-sdk Tests
+//
+//  Created by Adela Gao on 7/6/26.
+//
+
+import XCTest
+@testable import ATTNSDKFramework
+
+final class InboxManagerTests: XCTestCase {
+    private var apiSpy: ATTNAPISpy!
+
+    override func setUp() {
+        super.setUp()
+        apiSpy = ATTNAPISpy(domain: "test-domain")
+    }
+
+    override func tearDown() {
+        apiSpy = nil
+        super.tearDown()
+    }
+
+    // MARK: - Helpers
+
+    private func makeMessage(id: String, isRead: Bool = false) -> Message {
+        Message(
+            id: id,
+            title: "Title \(id)",
+            body: "Body \(id)",
+            timestamp: Date(),
+            isRead: isRead
+        )
+    }
+
+    private func identityProvider(
+        visitorId: String = "v_test",
+        pushToken: String = "fcm:abc",
+        email: String? = nil,
+        phone: String? = nil
+    ) -> InboxIdentityProvider {
+        return {
+            InboxIdentitySnapshot(visitorId: visitorId, pushToken: pushToken, email: email, phone: phone)
+        }
+    }
+
+    /// Wait for the manager's state to transition to `.loaded` (i.e. init-time refresh() completed).
+    /// Times out after 1s so a bad wire-up fails loudly instead of hanging CI.
+    @discardableResult
+    private func waitForLoadedState(_ manager: InboxManager, timeout: TimeInterval = 1.0) async -> [Message]? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let state = await manager.currentInboxStateForTesting
+            if case .loaded(let messages) = state { return messages }
+            if case .error = state { return nil }
+            try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        }
+        return nil
+    }
+
+    /// Wait for the init-time refreshUnreadCount() to settle (or timeout).
+    private func waitForUnreadCountFetch(timeout: TimeInterval = 1.0) async {
+        await waitForUnreadCountFetches(count: 1, timeout: timeout)
+    }
+
+    /// Wait until the spy has observed at least `count` unread-count fetches. Used by tests
+    /// that need to observe the re-fetch spawned by `resetForIdentityChange` (or any other
+    /// out-of-band count refresh) before asserting.
+    private func waitForUnreadCountFetches(count: Int, timeout: TimeInterval = 1.0) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount < count {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    // MARK: - Initial load
+
+    func testInit_loadsFirstPageAndUnreadCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertEqual(unread, 3)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1)
+        XCTAssertNil(apiSpy.lastInboxMessagesPageToken)
+    }
+
+    func testRefresh_immediatelyAfterInit_coalescesWithInitTask() async {
+        // InboxView.task calls viewModel.refresh() immediately after materializing the manager;
+        // without coalescing, that races the init fetch and double-POSTs /inbox/messages.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 1
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        await manager.refresh()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "refresh() called during init must coalesce, not double-POST")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "refresh() called during init must not fire an extra unread-count POST")
+    }
+
+    func testRefresh_emptyVisitorId_skipsNetworkCall() async {
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider(visitorId: ""))
+        // Give the init Task a chance to run — no state transition expected since it should skip.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        _ = manager
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0)
+    }
+
+    // MARK: - Pagination
+
+    func testLoadNextPage_appendsWithoutDuplicates() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeMessage(id: "2"), makeMessage(id: "3")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.loadNextPage()
+
+        let messages = await manager.allMessages
+        let ids = messages.map(\.id)
+        XCTAssertEqual(ids, ["1", "2", "3"], "Duplicate message 2 must not be added twice")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPageToken, "cursor-2")
+    }
+
+    func testLoadNextPage_noNextToken_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        let callCountBefore = apiSpy.fetchInboxMessagesCallCount
+        await manager.loadNextPage()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callCountBefore, "loadNextPage should not fire when no next page is available")
+    }
+
+    func testLoadNextPage_firedDuringRefresh_isBlocked() async {
+        // Reproduce the race the reviewer flagged: a last-row `.onAppear` fires during a
+        // pull-to-refresh's in-flight window and captures the stale nextPageToken.
+        apiSpy.stubbedInboxMessagesResponses = [
+            // Initial page 1 (init-time)
+            InboxResponse(messages: [makeMessage(id: "old-1")], nextPageToken: "stale-cursor"),
+            // Refresh's page-1 response — set below via onFetchInboxMessages
+            InboxResponse(messages: [makeMessage(id: "new-1")], nextPageToken: "fresh-cursor"),
+            // Would-be stale page from the racing loadNextPage
+            InboxResponse(messages: [makeMessage(id: "STALE")], nextPageToken: "should-not-clobber")
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Drain init so refresh() below actually fires a new fetch.
+        _ = await manager.unreadCount
+
+        // On the refresh's fetch, interleave a loadNextPage before returning the response.
+        apiSpy.onFetchInboxMessages = { [weak self] pageToken in
+            guard let self = self else { return }
+            // Only interleave on the refresh (nil pageToken), not the racing loadNextPage.
+            guard pageToken == nil else { return }
+            // Fire the racing page load. It should be blocked by isRefreshingFirstPage.
+            await manager.loadNextPage()
+            // Clear the hook so it doesn't re-fire recursively.
+            self.apiSpy.onFetchInboxMessages = nil
+        }
+
+        let callCountBeforeRefresh = apiSpy.fetchInboxMessagesCallCount
+        await manager.refresh()
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new-1"], "stale page load must not clobber the refresh's result")
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore, "hasMore should reflect the refresh's fresh cursor, not a clobbered stale one")
+        // The discriminating check: on unfixed code, the racing loadNextPage would slip past
+        // the guard and hit the network (count +2). With the gate in place it must be blocked (+1).
+        XCTAssertEqual(
+            apiSpy.fetchInboxMessagesCallCount - callCountBeforeRefresh,
+            1,
+            "racing loadNextPage during refresh must be blocked, not fire a network call"
+        )
+    }
+
+    func testLoadingMoreStream_emitsTransitionsForRealFetchesOnly() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeMessage(id: "2")], nextPageToken: nil)
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        let callCountBeforePaging = apiSpy.fetchInboxMessagesCallCount
+
+        // Collect stream values in the background for the full duration of both calls.
+        // Uses an actor-isolated box so the collector task can push values while the test
+        // reads them after cancellation.
+        actor Observed { var values: [Bool] = []; func append(_ v: Bool) { values.append(v) } }
+        let observed = Observed()
+        let collectorReady = expectation(description: "collector subscribed")
+        let collector = Task {
+            let stream = await manager.loadingMoreStream
+            var iter = stream.makeAsyncIterator()
+            // First yield is the current value; consume it to prove subscription is live.
+            if let first = await iter.next() { await observed.append(first) }
+            collectorReady.fulfill()
+            // Keep collecting until the task is cancelled by the test.
+            while !Task.isCancelled, let next = await iter.next() {
+                await observed.append(next)
+            }
+        }
+        await fulfillment(of: [collectorReady], timeout: 1)
+
+        // Real fetch — expect true then false.
+        await manager.loadNextPage()
+        // Final page reached — this call must no-op, i.e. not emit a new transition.
+        await manager.loadNextPage()
+
+        // Wait for the expected 3 emissions (initial false + real fetch's true→false) instead of
+        // a single yield — the `defer` inside `loadNextPage` hops back to the actor before the
+        // final `false` reaches the stream, and one yield loses that hop on slower CI runners.
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline, await observed.values.count < 3 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        // Short additional settle so a bug that emits a *fourth* transition (e.g. the no-op call
+        // fanning out) is still observed and fails the assertion below.
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        collector.cancel()
+
+        let values = await observed.values
+        XCTAssertEqual(values, [false, true, false], "loadingMoreStream must emit true→false only for real fetches, not no-op calls")
+        // Discriminating check: the no-op second call must not fire a network request either.
+        XCTAssertEqual(
+            apiSpy.fetchInboxMessagesCallCount - callCountBeforePaging,
+            1,
+            "no-op loadNextPage after the last page must not hit the network"
+        )
+    }
+
+    func testLoadNextPage_updatesNextTokenAndHasMoreFlag() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeMessage(id: "2")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        var hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore)
+
+        await manager.loadNextPage()
+
+        hasMore = await manager.hasMore
+        XCTAssertFalse(hasMore)
+    }
+
+    // MARK: - Refresh behavior
+
+    func testRefresh_resetsMessagesAndPagination() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeMessage(id: "9")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Drain the init task so refresh() below is a real second fetch, not a coalesce.
+        _ = await manager.unreadCount
+
+        await manager.refresh()
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["9"], "refresh must replace the list, not append")
+        let hasMore = await manager.hasMore
+        XCTAssertFalse(hasMore)
+    }
+
+    // MARK: - Error handling
+
+    func testRefresh_errorOnFirstLoad_emitsErrorState() async {
+        apiSpy.stubbedInboxMessagesError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+
+        // Wait for the init Task to run through refresh() and update state.
+        let deadline = Date().addingTimeInterval(1.0)
+        var observed: InboxState?
+        while Date() < deadline {
+            let state = await manager.currentInboxStateForTesting
+            if case .error = state {
+                observed = state
+                break
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        if case .error = observed {
+            // expected
+        } else {
+            XCTFail("Expected .error state after init failure, got \(String(describing: observed))")
+        }
+    }
+
+    // MARK: - Mark Read
+
+    func testMarkRead_success_flipsLocalAndSyncsUnreadCountFromServer() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 1
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertTrue(messages.first?.isRead ?? false)
+        XCTAssertEqual(unread, 0, "unread_count from response should be authoritative")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkReadMessageIds, ["1"])
+        XCTAssertEqual(apiSpy.lastMarkReadVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkReadPushToken, "fcm:abc")
+    }
+
+    func testMarkRead_failure_revertsLocalFlip() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markRead("1")
+
+        let messages = await manager.allMessages
+        XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
+    }
+
+    func testMarkRead_identityChangeDuringRequest_discardsStaleResponse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 99 // stale value that must not survive the identity change
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // An identity change (e.g. clearUser/updateUser) lands while the PATCH is in flight,
+        // bumping the generation and zeroing the count for the new (logged-out) identity. Reset
+        // is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself), so the
+        // hook doesn't need to wait for a spawned re-fetch — if the generation guard were removed
+        // the PATCH's applyReadStatusResponse would clobber 0 back to 99 and fail the assertion.
+        apiSpy.onMarkMessagesRead = {
+            await manager.resetForIdentityChange()
+        }
+
+        await manager.markRead("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Stale mark-read response must not overwrite the post-reset unread count")
+    }
+
+    func testMarkRead_alreadyRead_noOpsOnLocalStateButStillCallsApi() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markRead("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0)
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1)
+    }
+
+    func testMarkRead_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markRead("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkRead_optimisticallyDecrementsUnreadCountBeforeResponse() async {
+        // Badge (`storedUnreadCount`) and row dot (`isRead`) must stay in sync between the tap
+        // and the PATCH response. Sampling the count while the PATCH is in flight proves the
+        // decrement happens optimistically, not only after the server response lands.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        var inFlightIsRead: Bool?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            guard let manager else { return }
+            inFlightUnread = await manager.currentUnreadCountForTesting
+            inFlightIsRead = await manager.currentInboxStateForTesting.firstMessageIsReadForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightIsRead, true, "row must show as read while PATCH is in flight")
+        XCTAssertEqual(inFlightUnread, 2, "badge must decrement optimistically, not wait for the server response")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2, "server response is authoritative and reconciles the optimistic value")
+    }
+
+    func testMarkRead_failure_revertsUnreadCountAlongsideFlag() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertFalse(messages.first?.isRead ?? true, "Failed mark-read must revert the local flip")
+        XCTAssertEqual(unread, 3, "Failed mark-read must revert the optimistic badge decrement")
+    }
+
+    func testMarkRead_failure_afterPeerAuthoritativeWrite_doesNotClobberCount() async {
+        // Two mark-read Tasks overlap (as `InboxViewModel.markAsRead` schedules them). Peer B
+        // succeeds first with an authoritative unread_count response; the failing A must revert
+        // the isRead flag but NOT re-increment the count — the peer's server value is truth.
+        // Without the count-revision guard, A's rollback would blindly add 1 to B's count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessage(id: "A", isRead: false), makeMessage(id: "B", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        // Peer B's response is authoritative and lands before A fails. Server truth after both:
+        // A still unread, B now read → 4 unread. Rollback of A must preserve that 4, not push to 5.
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "B", isRead: true)],
+            unreadCount: 4
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // On A's PATCH: drive B all the way through (successful, applies count=4), then fail A.
+        // This mirrors the ordering when two row taps schedule detached Tasks and B's network
+        // returns first.
+        let didRunHook = MutableString(value: "no")
+        apiSpy.onMarkMessagesRead = {
+            guard didRunHook.value == "no" else { return }
+            didRunHook.value = "running"
+            self.apiSpy.stubbedMarkReadError = nil // let B succeed
+            await manager.markRead("B")
+            self.apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1) // A fails after
+        }
+        apiSpy.stubbedMarkReadError = NSError(domain: "test", code: -1)
+
+        await manager.markRead("A")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        let a = messages.first { $0.id == "A" }
+        let b = messages.first { $0.id == "B" }
+        XCTAssertEqual(a?.isRead, false, "Failed mark-read on A must revert A's isRead flag")
+        XCTAssertEqual(b?.isRead, true, "Successful mark-read on B must persist B's flag")
+        XCTAssertEqual(unread, 4, "A's failed rollback must not clobber the authoritative count written by peer B")
+    }
+
+    func testMarkRead_zeroUnreadCount_doesNotUnderflow() async {
+        // Defensive: if `storedUnreadCount` is already 0 (out-of-sync with the message list, e.g.
+        // an unread message arrived on a later page), tapping it must not push the badge to -1.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightUnread, 0, "Unread count must clamp at 0 during the optimistic flip")
+    }
+
+    func testMarkRead_alreadyRead_leavesUnreadCountUntouched() async {
+        // Second tap on the same row must not double-decrement the badge — only the
+        // false→true transition should adjust the count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 3
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesRead = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(inFlightUnread, 3, "Already-read tap must not adjust the badge optimistically")
+    }
+
+    // MARK: - Mark Unread
+
+    func testMarkUnread_success_flipsLocalAndSyncsUnreadCountFromServer() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 7
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertFalse(messages.first?.isRead ?? true)
+        XCTAssertEqual(unread, 7, "unread_count from response should be authoritative")
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkUnreadMessageIds, ["1"])
+        XCTAssertEqual(apiSpy.lastMarkUnreadVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkUnreadPushToken, "fcm:abc")
+    }
+
+    func testMarkUnread_failure_revertsLocalFlip() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkUnreadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "Failed mark-unread must revert the local flip")
+    }
+
+    func testMarkUnread_identityChangeDuringRequest_discardsStaleResponse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 99 // stale value that must not survive the identity change
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // Reset is purely local (see testResetForIdentityChange_doesNotFetchUnreadCountItself),
+        // so the hook just performs the reset — no re-fetch needs draining. If the generation
+        // guard were removed the PATCH's applyReadStatusResponse would clobber 0 back to 99.
+        apiSpy.onMarkMessagesUnread = {
+            await manager.resetForIdentityChange()
+        }
+
+        await manager.markUnread("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Stale mark-unread response must not overwrite the post-reset unread count")
+    }
+
+    func testMarkUnread_alreadyUnread_noOpsOnLocalStateButStillCallsApi() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2)
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 1)
+    }
+
+    func testMarkUnread_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markUnread("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkUnread_optimisticallyIncrementsUnreadCountBeforeResponse() async {
+        // Symmetric to markRead: swipe→unread must bump the badge alongside the dot before the
+        // PATCH lands, so the video's swipe-to-unread step doesn't leave the two out of sync.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 3
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        var inFlightIsRead: Bool?
+        apiSpy.onMarkMessagesUnread = { [weak manager] in
+            guard let manager else { return }
+            inFlightUnread = await manager.currentUnreadCountForTesting
+            inFlightIsRead = await manager.currentInboxStateForTesting.firstMessageIsReadForTesting
+        }
+
+        await manager.markUnread("1")
+
+        XCTAssertEqual(inFlightIsRead, false, "row must show as unread while PATCH is in flight")
+        XCTAssertEqual(inFlightUnread, 3, "badge must increment optimistically, not wait for the server response")
+    }
+
+    func testMarkUnread_failure_revertsUnreadCountAlongsideFlag() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markUnread("1")
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        XCTAssertTrue(messages.first?.isRead ?? false, "Failed mark-unread must revert the local flip")
+        XCTAssertEqual(unread, 2, "Failed mark-unread must revert the optimistic badge increment")
+    }
+
+    func testMarkUnread_alreadyUnread_leavesUnreadCountUntouched() async {
+        // Swiping unread on an already-unread row must not double-increment the badge — only
+        // the true→false transition should adjust the count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.stubbedMarkUnreadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: false)],
+            unreadCount: 2
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        var inFlightUnread: Int?
+        apiSpy.onMarkMessagesUnread = { [weak manager] in
+            inFlightUnread = await manager?.currentUnreadCountForTesting
+        }
+
+        await manager.markUnread("1")
+
+        XCTAssertEqual(inFlightUnread, 2, "Already-unread swipe must not adjust the badge optimistically")
+    }
+
+    // MARK: - Delete
+
+    func testDelete_success_removesLocallyAndCallsApi() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["2"])
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+        XCTAssertEqual(apiSpy.lastDeleteMessageId, "1")
+        XCTAssertEqual(apiSpy.lastDeleteVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastDeletePushToken, "fcm:abc")
+    }
+
+    func testDelete_failure_revertsAtOriginalPosition() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [
+                    makeMessage(id: "1"),
+                    makeMessage(id: "2"),
+                    makeMessage(id: "3")
+                ],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("2")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2", "3"], "Failed delete must revert to the original ordering")
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 1)
+    }
+
+    func testDelete_identityChangeDuringRequest_dropsRevert() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Identity reset lands while the DELETE is in flight — the revert path must not
+        // resurrect the removed message into the fresh (empty) list.
+        apiSpy.onDeleteInboxMessage = { await manager.resetForIdentityChange() }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.isEmpty, "Revert must be dropped when the generation has moved past this call")
+    }
+
+    func testDelete_failedRefreshDuringRequest_stillReverts() async {
+        // A refresh that starts mid-DELETE bumps `messagesGeneration` but if it fails, it
+        // preserves the current (already-optimistically-removed) list. The revert must still
+        // apply — otherwise the row is hidden until the next successful refresh.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        apiSpy.onDeleteInboxMessage = { [weak apiSpy] in
+            // Simulate a pull-to-refresh landing mid-delete that also fails.
+            apiSpy?.stubbedInboxMessagesError = NSError(domain: "test", code: -2)
+            await manager.refresh()
+        }
+
+        await manager.delete("1")
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"], "A failed refresh mid-DELETE must not swallow the revert")
+    }
+
+    func testDelete_unreadMessage_success_decrementsUnreadCount() async {
+        // The delete endpoint returns only `{ message_id }`, so the SDK maintains the badge
+        // locally: deleting an unread message must decrement the stored count.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2, "Deleting an unread message must decrement the badge")
+    }
+
+    func testDelete_readMessage_success_leavesUnreadCountUntouched() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: true)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 3, "Deleting an already-read message must not change the badge")
+    }
+
+    func testDelete_unreadMessage_failure_revertsUnreadCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 3, "Failed delete of an unread message must revert the badge decrement")
+    }
+
+    func testDelete_unreadMessage_zeroCount_doesNotUnderflow() async {
+        // Defensive: if the local count is somehow already 0 (out-of-sync with server truth),
+        // deleting an unread message must not push it to -1.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 0
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.delete("1")
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 0, "Unread count must clamp at 0")
+    }
+
+    func testDelete_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.delete("does-not-exist")
+
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    // MARK: - Identity change
+
+    func testResetForIdentityChange_clearsMessagesAndCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2")], nextPageToken: "cursor-2")
+        ]
+        apiSpy.stubbedUnreadCount = 5
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.resetForIdentityChange()
+
+        let messages = await manager.allMessages
+        let unread = await manager.unreadCount
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(messages.isEmpty, "previous user's messages must not survive an identity reset")
+        XCTAssertEqual(unread, 0)
+        XCTAssertFalse(hasMore, "pagination cursor must be dropped so next user doesn't fetch prev user's next page")
+    }
+
+    func testResetForIdentityChange_doesNotFetchUnreadCountItself() async {
+        // The re-fetch belongs on the `/user-update` callback path (see `ATTNSDK`), not on the
+        // reset itself: firing here would race the server-side visitor→email/phone association
+        // and cache a count for an unlinked anonymous visitor. Reset stays purely local.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        await manager.resetForIdentityChange()
+        // Give any accidentally-spawned task time to run.
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "reset must be purely local — the count re-fetch fires from ATTNSDK's /user-update callback")
+    }
+
+    func testResetForIdentityChange_followedByRefreshUnreadCount_populatesNewCount() async {
+        // Simulates ATTNSDK's flow: reset synchronously, then (after /user-update returns) the
+        // SDK invokes refreshUnreadCount() so the new identity's badge lands without waiting for
+        // the host to open the inbox.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Awaiting unreadCount drains initialRefreshTask so the subsequent refreshUnreadCount()
+        // does real work instead of coalescing with the init fetch.
+        _ = await manager.unreadCount
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        apiSpy.stubbedUnreadCount = 7
+        await manager.resetForIdentityChange()
+        await manager.refreshUnreadCount()
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countBefore + 1, "refreshUnreadCount() after reset must issue exactly one new count POST")
+        XCTAssertEqual(unread, 7, "the refreshed value must land in the cache")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "reset+refresh must not re-fetch messages — that stays under the inbox view's control")
+    }
+
+    func testResetForIdentityChange_duringInitFetch_followupRefreshStillPostsForNewIdentity() async {
+        // Regression guard: an identity change that lands *before* the init fetch drains must
+        // not leave `refreshUnreadCount()` coalescing with a stale init task. If reset failed to
+        // drop `initialRefreshTask`, the SDK's post-`/user-update` refresh would await the
+        // discarded init response and skip issuing a POST — the new user's badge would stick at 0.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+
+        // Freeze the init-time count fetch inside its stub so the init task is guaranteed to
+        // still be alive when `resetForIdentityChange` fires below.
+        let initFetchStarted = expectation(description: "init count fetch started")
+        let releaseInitFetch = MutableString(value: "no")
+        apiSpy.onFetchInboxUnreadCount = { [weak apiSpy] in
+            // Only block the very first fetch — the post-reset one must return promptly.
+            guard apiSpy?.fetchInboxUnreadCountCallCount == 1 else { return }
+            initFetchStarted.fulfill()
+            while releaseInitFetch.value == "no" {
+                try? await Task.sleep(nanoseconds: 5_000_000)
+            }
+        }
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        await fulfillment(of: [initFetchStarted], timeout: 1)
+
+        // Reset while the init fetch is still suspended inside the stub. The old-identity
+        // response, when it finally comes back, is dropped by the generation guard.
+        apiSpy.stubbedUnreadCount = 9
+        await manager.resetForIdentityChange()
+
+        // Now unblock the init fetch and issue the post-`/user-update` refresh.
+        releaseInitFetch.value = "yes"
+        await manager.refreshUnreadCount()
+
+        let unread = await manager.unreadCount
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 2, "post-reset refresh must issue its own POST instead of coalescing with the stale init task")
+        XCTAssertEqual(unread, 9, "new identity's server value must land in the cache")
+    }
+
+    // MARK: - Pull-to-refresh includes unread count
+
+    func testRefresh_alsoRefreshesUnreadCount() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil),
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 1
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Awaiting `unreadCount` drains `initialRefreshTask` so the subsequent refresh()
+        // does real work instead of coalescing with the init fetch.
+        _ = await manager.unreadCount
+
+        let countBefore = apiSpy.fetchInboxUnreadCountCallCount
+        await manager.refresh()
+
+        XCTAssertGreaterThan(apiSpy.fetchInboxUnreadCountCallCount, countBefore, "refresh() must also refresh the unread count")
+    }
+
+    // MARK: - Refresh error preserves pagination cursor
+
+    func testRefresh_errorAfterInitialSuccess_preservesNextPageToken() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: "cursor-2")
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        // Drain the init task so refresh() below is a real second fetch, not a coalesce.
+        _ = await manager.unreadCount
+
+        // Stub the next refresh to throw.
+        apiSpy.stubbedInboxMessagesResponses = []
+        apiSpy.stubbedInboxMessagesError = NSError(domain: "test", code: -1)
+
+        await manager.refresh()
+
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore, "refresh error must not wipe the pagination cursor from the last successful fetch")
+    }
+
+    // MARK: - Click tracking
+
+    private func makeMessageWithAction(id: String, actionURL: String?, isRead: Bool = false) -> Message {
+        Message(
+            id: id,
+            title: "Title \(id)",
+            body: "Body \(id)",
+            timestamp: Date(),
+            isRead: isRead,
+            actionURLString: actionURL
+        )
+    }
+
+    func testMarkClicked_firesApiWithMessageIdAndActionURL() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://cart", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1)
+        XCTAssertEqual(apiSpy.lastMarkClickedMessageId, "1")
+        XCTAssertEqual(apiSpy.lastMarkClickedVisitorId, "v_test")
+        XCTAssertEqual(apiSpy.lastMarkClickedPushToken, "fcm:abc")
+        XCTAssertEqual(apiSpy.lastMarkClickedActionURL, "myapp://cart")
+    }
+
+    func testMarkClicked_flipsLocalReadStateAndFiresMarkRead() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "click must flip local read state via markRead")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1, "click must delegate the read side to markRead")
+    }
+
+    func testMarkClicked_blankActionURL_skipsClickPostButStillMarksRead() async {
+        // Server rejects blank action_url with 400; SDK must not POST. Read side still runs.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: nil, isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "click POST must be skipped when actionURL is blank")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 1, "mark-read still runs regardless of actionURL")
+    }
+
+    func testMarkClicked_emptyActionURLString_skipsClickPost() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "   ", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "whitespace-only actionURL is treated as blank")
+    }
+
+    func testMarkClicked_alreadyRead_stillFiresApiButDoesNotDoubleEmit() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x", isRead: true)],
+                nextPageToken: nil
+            )
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1, "already-read messages must still be tracked as clicked")
+    }
+
+    func testMarkClicked_unknownMessage_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        await manager.markClicked("does-not-exist")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0, "Unknown message ID must not hit the network")
+    }
+
+    func testMarkClicked_emptyVisitorId_skipsNetworkCall() async {
+        // Seed a message via a real init fetch (visitorId present), then flip identity to empty
+        // via a mutable provider so `markClicked` finds the message but hits the empty-visitor
+        // guard. Waiting on `waitForLoadedState` avoids a timing-based sleep.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x")],
+                nextPageToken: nil
+            )
+        ]
+        let visitorIdBox = MutableString(value: "v_test")
+        let provider: InboxIdentityProvider = {
+            InboxIdentitySnapshot(visitorId: visitorIdBox.value, pushToken: "abc", email: nil, phone: nil)
+        }
+        let manager = InboxManager(api: apiSpy, identityProvider: provider)
+        _ = await waitForLoadedState(manager)
+
+        // Identity change: subsequent operations should see an empty visitor id.
+        visitorIdBox.value = ""
+
+        await manager.markClicked("1")
+
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0)
+    }
+
+    func testMarkClicked_apiFailure_isSwallowed() async {
+        // Message has an actionURL so the click POST is actually attempted; failure must not
+        // propagate to the caller and must not undo the mark-read flip (mark-read is stubbed
+        // to succeed independently).
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(
+                messages: [makeMessageWithAction(id: "1", actionURL: "myapp://x", isRead: false)],
+                nextPageToken: nil
+            )
+        ]
+        apiSpy.stubbedMarkClickedError = NSError(domain: "test", code: -1)
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 0
+        )
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+
+        // Must not throw or crash — errors are logged, not surfaced.
+        await manager.markClicked("1")
+
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.first?.isRead ?? false, "mark-read flip must survive a click POST failure")
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 1, "click POST is attempted (actionURL non-empty)")
+    }
+
+    // MARK: - UnreadCountBox mirror (UIKit / Objective-C friendly)
+
+    /// Collects every `onChange` callback fired by the box. Callbacks arrive from whichever
+    /// thread wrote the count (typically the actor's executor), so writes are lock-guarded.
+    private final class BoxObserver: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storedValues: [Int] = []
+
+        var values: [Int] { lock.withLock { storedValues } }
+
+        func append(_ value: Int) { lock.withLock { storedValues.append(value) } }
+    }
+
+    func testUnreadCountBox_initialFetchPublishesCountToObserver() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 7
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        XCTAssertEqual(box.count, 7, "synchronous read must reflect the server-authoritative count")
+        XCTAssertEqual(observer.values, [7], "onChange fires exactly once for the initial 0 → 7 transition")
+    }
+
+    func testUnreadCountBox_dedupsSameValueWrites() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 4
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        // Server returns the same 4 again; box must not fan out a second notification.
+        await manager.refreshUnreadCount()
+        await waitForUnreadCountFetches(count: 2)
+
+        XCTAssertEqual(observer.values, [4], "same-value re-fetch must not re-fire onChange")
+        XCTAssertEqual(box.count, 4)
+    }
+
+    func testUnreadCountBox_markReadDecrementsSynchronousMirror() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedMarkReadResponse = UpdateReadStatusResponse(
+            messages: [.init(messageId: "1", isRead: true)],
+            unreadCount: 2
+        )
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.markRead("1")
+
+        XCTAssertEqual(box.count, 2, "authoritative count from mark-read response reaches the mirror")
+        // 0 → 3 (init) → 2 (optimistic decrement) → 2 (server reconcile, deduped)
+        XCTAssertEqual(observer.values, [3, 2], "server reconcile to same value as optimistic must dedup")
+    }
+
+    func testUnreadCountBox_resetForIdentityChangeZeroesMirror() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 5
+
+        let observer = BoxObserver()
+        let box = UnreadCountBox(onChange: { observer.append($0) })
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        await manager.resetForIdentityChange()
+
+        XCTAssertEqual(box.count, 0, "identity reset must return the mirror to 0")
+        XCTAssertEqual(observer.values, [5, 0], "reset fires a distinct 5 → 0 transition")
+    }
+
+    func testUnreadCountBox_reentrantReadInsideCallbackDoesNotDeadlock() async {
+        // Realistic UIKit pattern: a NotificationCenter observer synchronously reads
+        // `sdk.inboxUnreadCount` from inside the same callback. That must NOT deadlock — the
+        // box's internal lock must be released before `onChange` runs. A regression would hang
+        // this test at the 1s `waitForUnreadCountFetch` and fail the deadline.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 9
+
+        let seen = BoxObserver()
+        // Capture the box weakly and read `count` synchronously from inside the callback so the
+        // re-entrant lock acquire is actually exercised (not the closure argument).
+        weak var weakBox: UnreadCountBox?
+        let box = UnreadCountBox(onChange: { _ in
+            if let reentrantCount = weakBox?.count {
+                seen.append(reentrantCount)
+            }
+        })
+        weakBox = box
+
+        let manager = InboxManager(
+            api: apiSpy,
+            identityProvider: identityProvider(),
+            unreadCountBox: box
+        )
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+
+        XCTAssertEqual(box.count, 9)
+        XCTAssertEqual(seen.values, [9], "re-entrant `count` read from inside onChange must return the just-written value without deadlocking")
+    }
+}
+
+/// Mutable reference container used by tests that need to flip an identity field between
+/// operations without rebuilding the manager. Tests run single-threaded so no locking is
+/// required; `@unchecked Sendable` satisfies the `@Sendable` closure requirement.
+private final class MutableString: @unchecked Sendable {
+    var value: String
+    init(value: String) { self.value = value }
+}
+
+extension InboxState {
+    /// Test-only convenience: peek at the first message's `isRead` from a `.loaded` state,
+    /// used by mid-flight sampling in the mark-read/unread optimistic-badge tests.
+    var firstMessageIsReadForTesting: Bool? {
+        if case .loaded(let messages) = self { return messages.first?.isRead }
+        return nil
+    }
+}

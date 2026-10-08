@@ -444,6 +444,161 @@ final class ATTNSDKTests: XCTestCase {
             XCTAssertEqual(escaped["double"] as? Double, 1.5)
         }
 
+    // MARK: - Push deep link tests
+
+    func testAutomaticallyOpensPushDeepLinks_defaultsToFalse() {
+        // MSDK-491: hosts that already navigate on the broadcasts must not double-navigate
+        // on SDK upgrade — SDK-driven opening is opt-in.
+        XCTAssertFalse(sut.automaticallyOpensPushDeepLinks)
+    }
+
+    func testAutomaticallyOpensInboxDeepLinks_defaultsToTrue() {
+        // MSDK-478: matches the Android SDK, whose inbox has always opened actionUrl by default.
+        XCTAssertTrue(sut.automaticallyOpensInboxDeepLinks)
+    }
+
+    func testNormalizeAndBroadcast_customSchemeURL_opensURLDirectly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+        XCTAssertNil(urlOpenerSpy.lastOptions[.universalLinksOnly])
+    }
+
+    func testNormalizeAndBroadcast_httpsURL_opensAsUniversalLinkOnly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("https://example.com/product/1")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "https://example.com/product/1")!])
+        XCTAssertEqual(urlOpenerSpy.lastOptions[.universalLinksOnly] as? Bool, true)
+    }
+
+    func testNormalizeAndBroadcast_trimsWhitespaceBeforeOpening() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("  myapp://cart\n")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+    }
+
+    func testNormalizeAndBroadcast_autoOpenNotOptedIn_doesNotOpenButKeepsPendingURL() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+    }
+
+    func testNormalizeAndBroadcast_invalidURLString_doesNotOpenOrStore() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("not a url")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_emptySchemeURL_doesNotOpenOrStore() {
+        // "://foo" parses via URL(string:) with scheme == "" (not nil) — it must not slip
+        // past validation into UIApplication.open.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("://foo")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_scriptableSchemes_doNotOpenButAreStillBroadcast() {
+        // Blocked schemes must never reach UIApplication.open — even with auto-open opted
+        // in — but hosts observing the broadcast (or polling consumeDeepLink()) keep
+        // visibility for logging/audit.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        for blocked in ["javascript:alert(1)", "file:///etc/passwd", "data:text/html,hi", "about:blank", "vbscript:msgbox"] {
+            let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil)
+
+            sut.normalizeAndBroadcast(blocked)
+
+            XCTAssertFalse(urlOpenerSpy.openWasCalled, "\(blocked) must not be opened")
+            XCTAssertEqual(sut.consumeDeepLink(), URL(string: blocked), "\(blocked) must still be stored for host visibility")
+            wait(for: [notificationExpectation], timeout: 1.0)
+        }
+    }
+
+    func testNormalizeAndBroadcast_privilegedSystemSchemes_doNotOpenButAreStillBroadcast() {
+        // tel:/sms:/itms-* trigger system prompts (dialer, composer, App Store) — an
+        // escalation a push tap must never cause, even with auto-open opted in. Broadcast
+        // still fires for host visibility.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        for blocked in [
+            "tel:+15551234", "telprompt:+15551234", "sms:+15551234", "mailto:a@b.com",
+            "facetime://+15551234", "facetime-audio://+15551234",
+            "itms-apps://apps.apple.com/app/id1", "itms-services://?action=download-manifest"
+        ] {
+            sut.normalizeAndBroadcast(blocked)
+
+            XCTAssertFalse(urlOpenerSpy.openWasCalled, "\(blocked) must not be opened")
+            XCTAssertEqual(sut.consumeDeepLink(), URL(string: blocked), "\(blocked) must still be stored for host visibility")
+        }
+    }
+
+    func testOpenableDeepLinkScheme_acceptsNonRFCSchemesThatiOS15Parses() {
+        // Underscores and leading digits are non-RFC but registrable in Info.plist, and the
+        // lenient pre-iOS 17 URL(string:) parses them — those taps must not be dropped.
+        // (Tested via the scheme helper: the iOS 17+ parser used by the test host refuses to
+        // construct such URLs at all, so the URL-level property can't be exercised directly.)
+        for scheme in ["myapp", "my-app", "my_app", "1password", "firebase_dynamiclinks", "web+shop", "com.example.app"] {
+            XCTAssertTrue(URL.attnIsOpenableDeepLinkScheme(scheme), "\(scheme) should be openable")
+        }
+    }
+
+    func testOpenableDeepLinkScheme_rejectsBlockedEmptyAndMalformedSchemes() {
+        for scheme in [nil, "", "my app", "javascript", "JAVASCRIPT", "file", "data", "tel", "sms", "mailto", "itms-services"] {
+            XCTAssertFalse(URL.attnIsOpenableDeepLinkScheme(scheme), "\(scheme ?? "nil") should be rejected")
+        }
+    }
+
+    func testNormalizeAndBroadcast_postsDeepLinkNotification() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil) { notification in
+            notification.userInfo?["attentivePushDeeplinkUrl"] as? URL == URL(string: "myapp://cart")
+        }
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        wait(for: [notificationExpectation], timeout: 1.0)
+    }
+
+    func testConsumeDeepLink_secondCallReturnsNil() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
     func testOptIn_withoutPushToken_isQueuedAndSentAfterTokenRegistration() {
         sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
 
@@ -544,6 +699,28 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
         XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
         XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
+    }
+
+    func testOptIn_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        // A previous push-enabled install may have persisted a token; a push-disabled
+        // instance must not attach it to marketing requests.
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled, "Opt-in should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
+    }
+
+    func testOptOut_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
     }
 
     // MARK: - trackingConsent tests
@@ -732,6 +909,8 @@ final class ATTNSDKTests: XCTestCase {
         // Fresh sut — models a cold launch reading the persisted sync record.
         let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
         let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+        XCTAssertEqual(coldLaunchSut.visitorId, sut.visitorId,
+                       "precondition: the visitor id is persisted, so a cold launch reads the same one")
         coldLaunchSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
         // registerDeviceToken triggers a sendPushToken call on the spy — reset the guard
         // baseline to updateUser only, since that's what this test is actually measuring.
@@ -1455,6 +1634,128 @@ final class ATTNSDKTests: XCTestCase {
         }
         // Bounded by number of set operations; the precise count depends on timing.
         XCTAssertLessThanOrEqual(counter.value, 200)
+    }
+
+    // MARK: - Inbox unread count sync mirror
+
+    /// End-to-end coverage for the SDK-level glue that connects `InboxManager` writes to
+    /// `ATTNSDK.inboxUnreadCount` and `.ATTNSDKInboxUnreadCountChanged`. The manager-level tests
+    /// exercise `UnreadCountBox` in isolation; this pins the wiring — the box being passed into
+    /// `materializedInboxManager()`, the notification firing with the SDK as `object`, and
+    /// `userInfo["attentiveInboxUnreadCount"]` carrying the new value.
+    func testInboxUnreadCount_notificationFiresWithSDKObjectAndPayload() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [], nextPageToken: nil)
+        ]
+
+        // Filter on the SDK instance so a stray notification from another test can't satisfy the
+        // expectation. `handler` returns true to fulfill the expectation.
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 4
+        }
+
+        // Materialize the manager and drive the fetch. This is the same path a UIKit host would
+        // take on app launch per the README.
+        await sut.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notified], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "synchronous mirror must reflect the post-fetch count")
+    }
+
+    func testInboxUnreadCount_objectFilterIsolatesSDKInstances() async {
+        apiSpy.stubbedUnreadCount = 7
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // A second SDK on its own API spy so the notifications are independent.
+        let otherApiSpy = ATTNAPISpy(domain: "OTHER")
+        otherApiSpy.stubbedUnreadCount = 99
+        otherApiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+        let otherSdk = ATTNSDK(api: otherApiSpy, urlBuilder: ATTNCreativeUrlProviderSpy())
+
+        // Only `sut`'s fetch should satisfy this — expectation is filtered by object.
+        let notifiedForSut = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 7
+        }
+        let notifiedForOther = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: otherSdk) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 99
+        }
+
+        await sut.refreshInboxUnreadCount()
+        await otherSdk.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notifiedForSut, notifiedForOther], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 7)
+        XCTAssertEqual(otherSdk.inboxUnreadCount, 99)
+    }
+
+    // MARK: - Identity snapshot / inbox ordering on identity changes
+
+    /// `planUpdateUser`'s cold-launch adoption branch mutates `_identifiers` in place and maps
+    /// to `.skip`. The snapshot the inbox reads is published from `ATTNSDK`, not from the
+    /// identity, so a `.skip` that adopted identifiers must still republish — otherwise
+    /// `identityStore` keeps the init-time `(email: nil, phone: nil)` and every inbox request
+    /// goes out without user-scoped identifiers until the next identity mutation.
+    func testUpdateUser_adoptionSkip_stillPublishesIdentitySnapshot() {
+        let email = "user@example.com"
+        let phone = "+15551234567"
+        let pushToken = "test-push-token"
+        UserDefaults.standard.set(pushToken, forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+
+        let identity = sut.getUserIdentity()
+        XCTAssertTrue(identity.identifiers.isEmpty,
+                      "precondition: email/phone are in-memory only, so a fresh SDK starts empty")
+
+        // Stand in for a previous process that already synced this pair: the sync record is
+        // persisted, `_identifiers` is not. This is exactly the cold-launch state.
+        identity.recordSuccessfulSync(
+            email: email,
+            phone: phone,
+            pushToken: pushToken,
+            domain: testDomain,
+            visitorId: identity.visitorId
+        )
+
+        sut.updateUser(email: email, phone: phone)
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled,
+                       "a matching sync record must resolve to .skip — no /user-update, no rotation")
+        XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, email,
+                       "precondition: the adoption branch must have populated _identifiers")
+
+        let snapshot = sut.publishedInboxIdentitySnapshot()
+        XCTAssertEqual(snapshot.email, email, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.phone, phone, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.visitorId, identity.visitorId)
+    }
+
+    /// `clearUser()` with no push token has no `/user-update` to chain the unread-count refresh
+    /// through, so it drops the cached inbox state and re-fetches back to back. Both must reach
+    /// the `InboxManager` actor in that order: a refresh that lands first has its server count
+    /// wiped to 0 by the reset, leaving the badge stale until the next explicit refresh.
+    ///
+    /// Pins the end state rather than reproducing the interleaving — with the ordering fix the
+    /// refresh is strictly last, so the final count is always the server's.
+    func testClearUser_noPushToken_refreshLandsAfterInboxReset() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // Materialize the manager — the reset/refresh helpers are both no-ops until it exists.
+        await sut.refreshInboxUnreadCount()
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "precondition: manager materialized with a server count")
+
+        // A distinct value so the assertion can't be satisfied by the pre-clear count.
+        apiSpy.stubbedUnreadCount = 6
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 6
+        }
+
+        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        sut.clearUser()
+
+        await fulfillment(of: [notified], timeout: 2.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 6,
+                       "the identity reset must not wipe the count the post-clear refresh stored")
     }
 }
 

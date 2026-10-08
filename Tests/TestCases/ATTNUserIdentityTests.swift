@@ -97,7 +97,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             identifiers: identifiers,
             visitorService: ATTNVisitorService(
                 persistentStorage: storage,
-                logger: Logger(OSLog.disabled)
+                logger: ATTNLogger.disabled
             ),
             persistentStorage: storage
         )
@@ -271,7 +271,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -306,7 +306,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -355,7 +355,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
 
         let firstLaunch = ATTNUserIdentity(
@@ -412,7 +412,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         let firstLaunch = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: sharedStorage)
         firstLaunch.recordSuccessfulSync(email: "old@example.com", phone: "+15551234567", pushToken: testToken, domain: testDomain, visitorId: firstLaunch.visitorId)
@@ -470,7 +470,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         let firstLaunch = ATTNUserIdentity(
             identifiers: [ATTNIdentifierType.email: "user@example.com"],
@@ -527,7 +527,7 @@ final class ATTNUserIdentityTests: XCTestCase {
             identifiers: [:],
             visitorService: ATTNVisitorService(
                 persistentStorage: ATTNPersistentStorageMock(),
-                logger: Logger(OSLog.disabled)
+                logger: ATTNLogger.disabled
             )
         )
         runConcurrently(iterations: 200, queueLabels: ["merge", "clear"]) { i, queueIndex in
@@ -552,7 +552,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         // Simulate the prior process: sync (A, token, domain, V1), then a local rotation
         // (clearUser) that never got its detach confirmed — record still pins V1.
@@ -630,7 +630,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         let sharedStorage = ATTNPersistentStorageMock()
         let visitorService = ATTNVisitorService(
             persistentStorage: sharedStorage,
-            logger: Logger(OSLog.disabled)
+            logger: ATTNLogger.disabled
         )
         // First launch: updateUser(A) confirmed.
         let firstLaunch = ATTNUserIdentity(
@@ -750,7 +750,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // An MSDK-469 record on disk keeps its skip decision after upgrade — no visitor id
         // rotation or re-POST — while the raw email/phone are removed.
         let storage = ATTNPersistentStorageMock()
-        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: ATTNLogger.disabled)
         let visitorId = visitorService.getVisitorId()
         storage.save(testToken as NSString, forKey: "lastSyncedPushToken")
         storage.save(testEmail as NSString, forKey: "lastSyncedEmail")
@@ -779,7 +779,7 @@ final class ATTNUserIdentityTests: XCTestCase {
 
         _ = ATTNUserIdentity(
             identifiers: [:],
-            visitorService: ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled)),
+            visitorService: ATTNVisitorService(persistentStorage: storage, logger: ATTNLogger.disabled),
             persistentStorage: storage
         )
 
@@ -790,7 +790,7 @@ final class ATTNUserIdentityTests: XCTestCase {
     func testContactDigest_isStableAcrossInstancesSharingStorage() {
         // The salt persists, so a relaunch computes the same digest and still skips.
         let storage = ATTNPersistentStorageMock()
-        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: ATTNLogger.disabled)
         let first = ATTNUserIdentity(identifiers: [:], visitorService: visitorService, persistentStorage: storage)
         first.recordSuccessfulSync(email: testEmail, phone: testPhone, pushToken: testToken, domain: testDomain, visitorId: first.visitorId)
 
@@ -826,7 +826,7 @@ final class ATTNUserIdentityTests: XCTestCase {
         // Instances sharing storage must all end up with the salt that is on disk; otherwise a
         // digest written by one could never be reproduced after relaunch.
         let storage = ATTNPersistentStorageMock()
-        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: Logger(OSLog.disabled))
+        let visitorService = ATTNVisitorService(persistentStorage: storage, logger: ATTNLogger.disabled)
         // Persist the visitor id up front. `getVisitorId()` is an unlocked read-then-create, so
         // concurrent first inits could each mint a different id; that's a separate race from
         // the salt one under test, and a relaunch that sees a mismatched id rotates and never

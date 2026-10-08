@@ -151,6 +151,14 @@ Create release: zip XCFramework, compute checksum, tag, GitHub release, CocoaPod
 
 Upload a new build to TestFlight
 
+### ios build_xcframework
+
+```sh
+[bundle exec] fastlane ios build_xcframework
+```
+
+
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
