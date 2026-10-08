@@ -390,6 +390,9 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             stateManager.updateState(.open)
             Loggers.creative.debug("Creative opened and generated impression event")
 
+        case ATTNCreativeEmailLeadParser.action:
+            handleEmailLead(body, origin: message.frameInfo.securityOrigin)
+
         case String(format: "%@ true", Constants.visibilityEvent)
             where stateManager.getState() == .open:
             Loggers.creative.debug("document-visibility: true — suppressing premature closure")
@@ -445,6 +448,16 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
         }
     }
 
+    private func handleEmailLead(_ body: [String: Any], origin: WKSecurityOrigin) {
+        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: origin.protocol, host: origin.host) else {
+            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(origin.host, privacy: .public)")
+            return
+        }
+        guard let lead = ATTNCreativeEmailLeadParser.parse(body) else { return }
+        // Don't log the email itself; it's the user's personal data.
+        Loggers.creative.debug("Creative email lead received")
+        webViewProvider?.didReceiveCreativeEmailLead(lead)
+    }
 }
 
 fileprivate extension ATTNWebViewHandler {
