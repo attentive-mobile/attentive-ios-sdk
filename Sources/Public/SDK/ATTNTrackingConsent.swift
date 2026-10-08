@@ -6,8 +6,8 @@
 import Foundation
 
 /// Explicit pixel-tracking-consent choice supplied by the host app when calling
-/// ``ATTNSDK/optInMarketingSubscription(email:phone:trackingConsent:callback:)`` or
-/// ``ATTNSDK/optOutMarketingSubscription(email:phone:trackingConsent:callback:)``.
+/// ``ATTNSDK/optInMarketingSubscription(email:phone:trackingConsent:callback:)``.
+/// Consent is captured at opt-in only; `optOutMarketingSubscription` takes no consent value.
 ///
 /// The SDK does not prompt the user for this value — host apps own the consent-capture UX
 /// (checkbox in an account-creation form, preference toggle, etc.) and pass the resulting
