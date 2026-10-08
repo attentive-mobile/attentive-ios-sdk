@@ -9,11 +9,11 @@ We support iOS 15.0+ due to the benefits of Swift Concurrency only available on 
 
 ### Cocoapods
 
-The attentive-ios-sdk is available through [CocoaPods](https://cocoapods.org). To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
+The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFramework`. To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
 target 'MyApp' do
-  pod 'attentive-ios-sdk', '2.1.1'
+  pod 'ATTNSDKFramework', '2.1.1'
 end
 ```
 
