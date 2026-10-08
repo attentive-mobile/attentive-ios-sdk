@@ -67,6 +67,14 @@ public final class ATTNSDK: NSObject {
     /// The visitor ID for the current user. Rotates when `clearUser()` is called.
     @objc public var visitorId: String { userIdentity.visitorId }
 
+    /// Called each time a user submits their email address in a creative.
+    ///
+    /// Use it to read the address the user entered, for example to prefill an account form.
+    /// It is called on the main queue, once per submission: submitting an address that is
+    /// already subscribed calls it again, and a user who already gave an email isn't asked
+    /// for one again. See ``ATTNCreativeEmailLead``.
+    @objc public var creativeEmailLeadHandler: ATTNCreativeEmailLeadHandler?
+
     /// The marketing version of the SDK (e.g. `"2.0.13"`).
     @objc public static var sdkVersion: String { ATTNConstants.sdkVersion }
 
@@ -782,6 +790,12 @@ extension ATTNSDK: ATTNWebViewProviding {
     func getMode() -> ATTNSDKMode { mode }
 
     func getUserIdentity() -> ATTNUserIdentity { userIdentity }
+
+    func didReceiveCreativeEmailLead(_ lead: ATTNCreativeEmailLead) {
+        Task { @MainActor [weak self] in
+            self?.creativeEmailLeadHandler?(lead)
+        }
+    }
 }
 
 // MARK: Private Helpers
