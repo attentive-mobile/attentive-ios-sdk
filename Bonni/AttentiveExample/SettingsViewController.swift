@@ -550,7 +550,8 @@ class SettingsViewController: UIViewController {
     @objc private func showCreativeTapped() {
         let sdk = self.getAttentiveSdk()
         sdk.creativeEmailLeadHandler = { [weak self] lead in
-            let alert = UIAlertController(title: "Email lead", message: lead.email ?? "(no email)", preferredStyle: .alert)
+            let message = "\(lead.email ?? "(no email)")\nCreative \(lead.creativeId ?? "(no ID)")"
+            let alert = UIAlertController(title: "Email lead", message: message, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))
             self?.present(alert, animated: true)
         }

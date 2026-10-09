@@ -793,14 +793,14 @@ sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
 
 ### Read emails submitted in a creative
 
-Set `creativeEmailLeadHandler` to get the email address each time a user submits one in a creative, for example to prefill your sign-up form. The handler is called on the main queue.
+Set `creativeEmailLeadHandler` to get the email address each time a user submits one in a creative, for example to prefill your sign-up form. The handler is called on the main queue with an `ATTNCreativeEmailLead`, which has the submitted `email`, the `creativeId` of the creative it was submitted in, and the creative's full message in `rawPayload`.
 
 #### Swift
 
 ```swift
 sdk.creativeEmailLeadHandler = { lead in
   guard let email = lead.email else { return }
-  print("User submitted \(email)")
+  print("User submitted \(email) in creative \(lead.creativeId ?? "unknown")")
 }
 ```
 
@@ -809,7 +809,7 @@ sdk.creativeEmailLeadHandler = { lead in
 ```objective-c
 sdk.creativeEmailLeadHandler = ^(ATTNCreativeEmailLead *lead) {
   if (lead.email != nil) {
-    NSLog(@"User submitted %@", lead.email);
+    NSLog(@"User submitted %@ in creative %@", lead.email, lead.creativeId);
   }
 };
 ```
