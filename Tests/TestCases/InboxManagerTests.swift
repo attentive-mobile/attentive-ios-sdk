@@ -881,6 +881,65 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(unread, 3, "Failed delete of an unread message must revert the badge decrement")
     }
 
+    func testDelete_unreadMessage_failureAfterCountRefresh_keepsServerCount() async {
+        // Adela's repro on #327: count 3, delete unread "1" (badge → 2), a count refresh lands
+        // mid-DELETE and restores the server's 3 (the message still exists there), then the
+        // DELETE fails. The revert must not add 1 on top of the fresh server value.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1", isRead: false)], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        apiSpy.stubbedDeleteInboxMessageError = NSError(domain: "test", code: -1)
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        await waitForUnreadCountFetch()
+        // Drain the init-time refresh so the mid-flight `refreshUnreadCount()` issues a real
+        // fetch instead of coalescing with the already-finished init task.
+        _ = await manager.unreadCount
+        let fetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        apiSpy.onDeleteInboxMessage = {
+            let midFlight = await manager.currentUnreadCountForTesting
+            XCTAssertEqual(midFlight, 2, "precondition: optimistic decrement applied")
+            await manager.refreshUnreadCount()
+        }
+
+        await manager.delete("1")
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, fetchesBefore + 1, "precondition: the mid-DELETE refresh hit the server")
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 3, "A count refresh mid-DELETE is authoritative; the failed delete must not push it to 4")
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"], "The message itself is still restored")
+    }
+
+    func testResetForIdentityChange_duringFirstFetch_leavesLoadedEmptyNotLoading() async {
+        // Count-only callers never re-fetch messages after a reset, and the reset discards the
+        // in-flight first page, so `.loading` must not survive it.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "previous-user")], nextPageToken: nil)
+        ]
+        let resetDone = expectation(description: "reset ran mid-fetch")
+        let managerBox = ManagerBox()
+        apiSpy.onFetchInboxMessages = { _ in
+            // The init-time fetch can start before the test stores the manager in the box.
+            while managerBox.manager == nil { await Task.yield() }
+            await managerBox.manager?.resetForIdentityChange()
+            resetDone.fulfill()
+        }
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        managerBox.manager = manager
+        await fulfillment(of: [resetDone], timeout: 1.0)
+        _ = await manager.allMessages // drain the init task, whose response is discarded
+
+        guard case .loaded(let messages) = await manager.currentInboxStateForTesting else {
+            return XCTFail("a reset during the first fetch must not strand the state at .loading")
+        }
+        XCTAssertTrue(messages.isEmpty, "the previous identity's in-flight page must be discarded")
+    }
+
     func testDelete_unreadMessage_zeroCount_doesNotUnderflow() async {
         // Defensive: if the local count is somehow already 0 (out-of-sync with server truth),
         // deleting an unread message must not push it to -1.
@@ -1373,6 +1432,18 @@ final class InboxManagerTests: XCTestCase {
 private final class MutableString: @unchecked Sendable {
     var value: String
     init(value: String) { self.value = value }
+}
+
+/// Lets an API-spy hook reach a manager that is constructed after the hook is installed — the
+/// init-time fetch starts inside `InboxManager.init`, before a local `let` could be captured.
+/// Locked because the hook can read it while the test is still assigning it.
+private final class ManagerBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: InboxManager?
+    var manager: InboxManager? {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
 }
 
 extension InboxState {

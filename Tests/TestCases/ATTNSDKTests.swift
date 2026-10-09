@@ -713,6 +713,20 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
     }
 
+    func testInbox_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() async {
+        // Adela's repro on #327: the stale token reached both inbox requests.
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        XCTAssertEqual(pushDisabledSut.publishedInboxIdentitySnapshot().pushToken, "",
+                       "The inbox identity snapshot must not carry a token when pushEnabled is false")
+
+        _ = await pushDisabledSut.unreadCount
+
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "", "Unread-count request must not send the stale token")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "", "Messages request must not send the stale token")
+    }
+
     func testOptOut_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
         UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
         let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
@@ -1756,6 +1770,165 @@ final class ATTNSDKTests: XCTestCase {
         await fulfillment(of: [notified], timeout: 2.0)
         XCTAssertEqual(sut.inboxUnreadCount, 6,
                        "the identity reset must not wipe the count the post-clear refresh stored")
+    }
+
+    // MARK: - Inbox: account / identity changes and lazy creation (MSDK-545)
+
+    func testUpdateDomain_withMaterializedInbox_replacesPreviousAccountsMessages() async {
+        // Inbox requests are scoped by domain, so the previous account's cached messages must
+        // not survive a domain switch.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor"),
+            InboxResponse(messages: [makeInboxMessage(id: "new-account")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["old-account"], "precondition: manager materialized with the first account's inbox")
+
+        sut.update(domain: newDomain)
+
+        let after = await waitForInboxMessageIds(["new-account"])
+        XCTAssertEqual(after, ["new-account"], "a domain change must reset and re-fetch the materialized inbox")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 2)
+        XCTAssertNil(apiSpy.lastInboxMessagesPageToken, "the re-fetch must start from page 1, not the old account's cursor")
+    }
+
+    func testClearUser_noPushToken_reloadsInboxMessagesForNewIdentity() async {
+        // Re-fetching only the count left an open inbox empty after the identity reset.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+
+        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        sut.clearUser()
+
+        let after = await waitForInboxMessageIds(["anonymous"])
+        XCTAssertEqual(after, ["anonymous"], "clearUser must re-fetch messages, not just the unread count")
+    }
+
+    func testClearUser_duringFirstInboxFetch_doesNotStrandLoadingState() async {
+        // The reset discards the in-flight first-page response; without a messages re-fetch the
+        // state stayed `.loading` forever.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+        ]
+        let fired = Counter()
+        apiSpy.onFetchInboxMessages = { [sut] _ in
+            guard fired.value == 0 else { return }
+            fired.increment()
+            sut?.clearUser()
+        }
+
+        let stream = await sut.inboxStateStream
+        let loadedIds: [String]? = await withTaskGroup(of: [String]?.self) { group in
+            group.addTask {
+                for await state in stream {
+                    if case .loaded(let messages) = state, messages.map(\.id) == ["anonymous"] {
+                        return messages.map(\.id)
+                    }
+                }
+                return nil
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+
+        XCTAssertEqual(loadedIds, ["anonymous"], "an identity change during the first fetch must still end in .loaded")
+    }
+
+    func testClearUser_withPushToken_failedDetach_doesNotRefetchPreviousUsersMessages() async {
+        // Codex/Adela on #329: the server resolves the inbox partly by push token, and the detach
+        // isn't confirmed (here it outright failed), so a messages re-fetch could bring the
+        // previous user's inbox back after logout. Only the count may be re-fetched.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+
+        sut.clearUser()
+
+        let after = await waitForInboxMessageIds([])
+        XCTAssertEqual(after, [], "clearUser must drop the previous user's cached messages")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "after a clearUser that POSTs /user-update, messages must not be re-fetched with the same push token")
+    }
+
+    func testUpdateUser_retryWithoutRotation_keepsLoadedInboxWithoutRefetchingMessages() async {
+        // Adela on #329: the retry path resets nothing, so a messages refresh would only throw
+        // away the loaded pages (back to page 1, cursor dropped). Count only.
+        registerTestPushToken()
+        // A failed /user-update leaves local identifiers set but the sync record unconfirmed, so
+        // the same call again takes `.retryWithoutRotation`.
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+        sut.updateUser(email: "user@example.com", phone: nil)
+        apiSpy.stubbedError = nil
+
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "p1")], nextPageToken: "cursor-2")
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["p1"], "precondition: manager materialized after the first updateUser")
+        let visitorIdBefore = sut.visitorId
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        sut.updateUser(email: "user@example.com", phone: nil)
+
+        XCTAssertEqual(sut.visitorId, visitorIdBefore, "precondition: retry path, no rotation")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the retry path must not re-fetch messages")
+        let after = await sut.allMessages
+        XCTAssertEqual(after.map(\.id), ["p1"], "the retry path must keep the loaded list")
+    }
+
+    func testInboxAccessors_concurrentFirstUse_materializeOneManager() async {
+        // Two managers would each run their own init-time fetch.
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<50 {
+                group.addTask { [sut] in _ = await sut?.unreadCount }
+            }
+        }
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "concurrent first use must construct exactly one InboxManager")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "concurrent first use must construct exactly one InboxManager")
+    }
+
+    private func makeInboxMessage(id: String) -> Message {
+        Message(id: id, title: "Title \(id)", body: "Body \(id)", timestamp: Date(), isRead: false)
+    }
+
+    /// Polls until the spy has seen at least `count` unread-count fetches (or a 2s timeout).
+    private func waitForUnreadCountFetches(atLeast count: Int, timeout: TimeInterval = 2.0) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount < count {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertGreaterThanOrEqual(apiSpy.fetchInboxUnreadCountCallCount, count, "expected the post-change count refresh")
+    }
+
+    /// Polls `sut.allMessages` until it holds exactly `ids` (or a 2s timeout), returning the last
+    /// ids seen so a failure shows what the inbox actually held.
+    private func waitForInboxMessageIds(_ ids: [String], timeout: TimeInterval = 2.0) async -> [String] {
+        let deadline = Date().addingTimeInterval(timeout)
+        var latest: [String] = []
+        while Date() < deadline {
+            latest = await sut.allMessages.map(\.id)
+            if latest == ids { return latest }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return latest
     }
 }
 

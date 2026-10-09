@@ -265,6 +265,8 @@ extension ATTNSDK {
             // chained closure below, which calls the host's callback and only then re-fetches
             // the inbox count — firing before `/user-update` completes would cache a count for
             // an unlinked anonymous visitor and leave the badge stale until the next refresh.
+            // Count only, on both `.rotatedAndReplaced` and `.retryWithoutRotation`; see
+            // `refreshInboxUnreadCountForNewIdentityIfMaterialized` for why not messages.
             callback: syncRecordingCallback(
                 email: email,
                 phone: phone,
