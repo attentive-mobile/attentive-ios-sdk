@@ -565,8 +565,8 @@ actor InboxManager {
     /// new identity is intentionally NOT spawned here: `updateUser` starts the server-side
     /// visitor→email/phone association *after* this reset, so a fetch fired now would run
     /// against an unlinked anonymous visitor and cache the wrong count. Callers (see
-    /// `ATTNSDK.refreshInboxForNewIdentityIfMaterialized`) should invoke `refresh()` from the
-    /// `/user-update` callback instead — that guarantees the fetch sees the new identity.
+    /// `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`) should invoke
+    /// `refreshUnreadCount()` from the `/user-update` callback instead.
     func resetForIdentityChange() {
         refreshGeneration &+= 1
         messagesGeneration &+= 1
@@ -585,10 +585,16 @@ actor InboxManager {
         // identity's badge stuck at 0. Post-reset the cached count is already 0, so any
         // `awaitInitialRefresh()` reader is served correctly by short-circuiting on nil.
         initialRefreshTask = nil
-        // Only re-emit when we were already surfacing a loaded list — never override an
-        // in-flight .loading state, which would strand hosts that don't re-present InboxView.
-        if case .loaded = currentState {
+        // Surface the cleared list. A `.loading` state is replaced too: the bumped generation
+        // discards the in-flight first-page response, and callers that only re-fetch the count
+        // never fetch messages again, so `.loading` would otherwise be stranded indefinitely.
+        // Callers that do re-fetch (`refresh()`) emit `.loading` again on their own, since
+        // `hasFetchedFirstPage` is now false.
+        switch currentState {
+        case .loaded, .loading:
             send(.loaded([]))
+        case .error:
+            break
         }
     }
 }

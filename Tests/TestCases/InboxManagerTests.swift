@@ -914,6 +914,32 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(messages.map(\.id), ["1"], "The message itself is still restored")
     }
 
+    func testResetForIdentityChange_duringFirstFetch_leavesLoadedEmptyNotLoading() async {
+        // Count-only callers never re-fetch messages after a reset, and the reset discards the
+        // in-flight first page, so `.loading` must not survive it.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "previous-user")], nextPageToken: nil)
+        ]
+        let resetDone = expectation(description: "reset ran mid-fetch")
+        let managerBox = ManagerBox()
+        apiSpy.onFetchInboxMessages = { _ in
+            // The init-time fetch can start before the test stores the manager in the box.
+            while managerBox.manager == nil { await Task.yield() }
+            await managerBox.manager?.resetForIdentityChange()
+            resetDone.fulfill()
+        }
+
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        managerBox.manager = manager
+        await fulfillment(of: [resetDone], timeout: 1.0)
+        _ = await manager.allMessages // drain the init task, whose response is discarded
+
+        guard case .loaded(let messages) = await manager.currentInboxStateForTesting else {
+            return XCTFail("a reset during the first fetch must not strand the state at .loading")
+        }
+        XCTAssertTrue(messages.isEmpty, "the previous identity's in-flight page must be discarded")
+    }
+
     func testDelete_unreadMessage_zeroCount_doesNotUnderflow() async {
         // Defensive: if the local count is somehow already 0 (out-of-sync with server truth),
         // deleting an unread message must not push it to -1.
@@ -1406,6 +1432,18 @@ final class InboxManagerTests: XCTestCase {
 private final class MutableString: @unchecked Sendable {
     var value: String
     init(value: String) { self.value = value }
+}
+
+/// Lets an API-spy hook reach a manager that is constructed after the hook is installed — the
+/// init-time fetch starts inside `InboxManager.init`, before a local `let` could be captured.
+/// Locked because the hook can read it while the test is still assigning it.
+private final class ManagerBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: InboxManager?
+    var manager: InboxManager? {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
 }
 
 extension InboxState {
