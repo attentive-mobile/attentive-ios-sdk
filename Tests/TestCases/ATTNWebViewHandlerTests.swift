@@ -410,6 +410,12 @@ class MockWebViewProvider: NSObject, ATTNWebViewProviding {
         getUserIdentityCallCount += 1
         return mockUserIdentity
     }
+
+    private(set) var receivedEmailLeads: [ATTNCreativeEmailLead] = []
+
+    func didReceiveCreativeEmailLead(_ lead: ATTNCreativeEmailLead) {
+        receivedEmailLeads.append(lead)
+    }
 }
 
 class MockCreativeUrlProvider: ATTNCreativeUrlProviding {

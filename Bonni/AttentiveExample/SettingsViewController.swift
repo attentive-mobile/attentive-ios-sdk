@@ -548,7 +548,13 @@ class SettingsViewController: UIViewController {
     }
 
     @objc private func showCreativeTapped() {
-        self.getAttentiveSdk().trigger(self.view)
+        let sdk = self.getAttentiveSdk()
+        sdk.creativeEmailLeadHandler = { [weak self] lead in
+            let alert = UIAlertController(title: "Email lead", message: lead.email ?? "(no email)", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self?.present(alert, animated: true)
+        }
+        sdk.trigger(self.view)
     }
 
     private func isValidDomain(_ domain: String) -> Bool {
