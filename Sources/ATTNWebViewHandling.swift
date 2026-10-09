@@ -367,7 +367,14 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
 extension ATTNWebViewHandler: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        let messageBody = message.body as? String ?? "Empty"
+        let origin = message.frameInfo.securityOrigin
+        handleScriptMessage(message.body, originProtocol: origin.protocol, originHost: origin.host)
+    }
+
+    /// Handles a message posted by the creative page. Separate from the `WKScriptMessageHandler`
+    /// method because `WKScriptMessage` and `WKSecurityOrigin` can't be created in tests.
+    func handleScriptMessage(_ rawBody: Any, originProtocol: String, originHost: String) {
+        let messageBody = rawBody as? String ?? "Empty"
         Loggers.creative.debug("Web event message: \(messageBody, privacy: .public). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO", privacy: .public)")
 
         if messageBody == "CLOSE" {
@@ -377,7 +384,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
 
         guard let parent = self.webViewProvider?.parentView else { return }
 
-        guard let body = message.body as? [String: Any],
+        guard let body = rawBody as? [String: Any],
                     let action = body["action"] as? String else {
             return
         }
@@ -391,7 +398,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             Loggers.creative.debug("Creative opened and generated impression event")
 
         case ATTNCreativeEmailLeadParser.action:
-            handleEmailLead(body, origin: message.frameInfo.securityOrigin)
+            handleEmailLead(body, originProtocol: originProtocol, originHost: originHost)
 
         case String(format: "%@ true", Constants.visibilityEvent)
             where stateManager.getState() == .open:
@@ -448,14 +455,14 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
         }
     }
 
-    private func handleEmailLead(_ body: [String: Any], origin: WKSecurityOrigin) {
-        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: origin.protocol, host: origin.host) else {
-            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(origin.host, privacy: .public)")
+    private func handleEmailLead(_ body: [String: Any], originProtocol: String, originHost: String) {
+        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: originProtocol, host: originHost) else {
+            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(originHost, privacy: .public)")
             return
         }
         guard let lead = ATTNCreativeEmailLeadParser.parse(body) else { return }
-        // Don't log the email itself; it's the user's personal data.
-        Loggers.creative.debug("Creative email lead received")
+        // The email is the user's personal data, so it's redacted outside of a debugger.
+        Loggers.creative.debug("Creative email lead received: email \(lead.email ?? "nil", privacy: .private), creative \(lead.creativeId ?? "nil", privacy: .public)")
         webViewProvider?.didReceiveCreativeEmailLead(lead)
     }
 }
