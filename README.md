@@ -817,6 +817,9 @@ sdk.creativeEmailLeadHandler = ^(ATTNCreativeEmailLead *lead) {
 > [!NOTE]
 > A lead means the user *submitted* an email, not that they're a new subscriber. Submitting an address that's already subscribed calls the handler again, so dedupe if you need to. The address is passed through as the creative sent it: surrounding whitespace is trimmed, but letter case is kept. A user who has already given an email isn't asked for it again, so their next creative doesn't call the handler.
 
+> [!IMPORTANT]
+> Not every creative type reports email submissions. Canvas creatives don't, so the handler isn't called for emails submitted in them.
+
 ### Fatigue rules
 
 Fatigue rules are evaluated by the Attentive backend. The `ATTNSDK.skipFatigueOnCreative`
