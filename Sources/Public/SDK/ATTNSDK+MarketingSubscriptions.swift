@@ -263,8 +263,8 @@ extension ATTNSDK {
             operationContext: "updateUser",
             // syncRecordingCallback records the successful sync (MSDK-469) and forwards to the
             // chained closure below, which calls the host's callback and only then re-fetches
-            // the inbox count — firing before `/user-update` completes would cache a count for
-            // an unlinked anonymous visitor and leave the badge stale until the next refresh.
+            // the inbox (messages + count) — firing before `/user-update` completes would cache
+            // results for an unlinked anonymous visitor until the next refresh.
             callback: syncRecordingCallback(
                 email: email,
                 phone: phone,
@@ -273,7 +273,7 @@ extension ATTNSDK {
                 visitorId: visitorIdAtRequest,
                 forward: { [weak self] data, url, response, error in
                     callback?(data, url, response, error)
-                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+                    self?.refreshInboxForNewIdentityIfMaterialized()
                 }
             )
         )
