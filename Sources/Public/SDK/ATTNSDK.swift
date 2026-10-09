@@ -362,8 +362,8 @@ public final class ATTNSDK: NSObject {
             // already cleared and the visitor id rotated inside planClearUser.
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
             // No `/user-update` will fire, so drop the cached inbox state and kick the messages +
-            // count re-fetch now against the freshly-generated anonymous visitor. Safe: no
-            // server-side association is pending. Both go through one helper because the
+            // count re-fetch now against the freshly-generated anonymous visitor. Safe: no token
+            // is sent, so no server-side association is pending. Both go through one helper because the
             // reset must reach the InboxManager actor before the refresh — see
             // `resetThenRefreshInboxIfMaterialized`.
             resetThenRefreshInboxIfMaterialized()
@@ -384,9 +384,9 @@ public final class ATTNSDK: NSObject {
                 domain: currentDomain,
                 visitorId: visitorIdAtRequest,
                 forward: { [weak self] _, _, _, _ in
-                    // Fire after `/user-update` returns so the server has finished detaching
-                    // the token from the previous user before we fetch the new (anon) inbox.
-                    self?.refreshInboxForNewIdentityIfMaterialized()
+                    // Count only: the detach may not have been applied yet (see the helper),
+                    // so re-fetching messages here could bring back the previous user's inbox.
+                    self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
                 }
             )
         )
@@ -1025,21 +1025,26 @@ extension ATTNSDK: ATTNWebViewProviding {
 
 // MARK: Private Helpers
 extension ATTNSDK {
-    /// Re-fetches the inbox's first page of messages and its unread count, only when the manager
-    /// already exists. Called from the `/user-update` callback path after an identity change so
-    /// both the list and the badge pick up the newly-associated user. Re-fetching only the count
-    /// left an open inbox empty after the reset, and a switch during the first fetch stranded the
-    /// state at `.loading` (the reset discards that response). This matches what the manager
-    /// already does at construction, so badge-only hosts see no new kind of request. Skips
-    /// materialization so hosts that never touch the inbox don't pay for a network call on every
-    /// `clearUser`/`updateUser`. Reads the manager through the lock-guarded
-    /// `existingInboxManager()`; the URLSession completion calls this from a background queue.
+    /// Fires a background inbox unread-count refresh only when the manager already exists.
+    /// Called from the `/user-update` callback path after an identity change so the badge picks
+    /// up the new identity's server count. Skips materialization so host apps that never touch
+    /// the inbox don't pay for a network call on every `clearUser`/`updateUser`. Reads the
+    /// manager through the lock-guarded `existingInboxManager()`; the URLSession completion
+    /// calls this from a background queue.
+    ///
+    /// Deliberately count-only — do not widen to `refresh()` (messages). The server resolves the
+    /// inbox partly by push token, and neither a failed nor a successful `/user-update` means
+    /// the token has been detached from (or re-associated away from) the previous user yet, so
+    /// a messages fetch here can repopulate the previous user's content after a logout or user
+    /// switch. It also runs on `updateUser`'s `.retryWithoutRotation`, where nothing was reset
+    /// and a messages refresh would throw away the loaded pages. An open inbox shows the reset
+    /// (empty) list until the host reopens it or pulls to refresh (MSDK-545).
     /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
     /// chains it from the `/user-update` callback.
-    func refreshInboxForNewIdentityIfMaterialized() {
+    func refreshInboxUnreadCountForNewIdentityIfMaterialized() {
         DispatchQueue.main.async { [weak self] in
             guard let manager = self?.existingInboxManager() else { return }
-            Task { await manager.refresh() }
+            Task { await manager.refreshUnreadCount() }
         }
     }
 
@@ -1047,17 +1052,18 @@ extension ATTNSDK {
     /// a single `Task` so they reach the `InboxManager` actor in that order.
     ///
     /// Calling `resetInboxForIdentityChangeIfMaterialized()` and
-    /// `refreshInboxForNewIdentityIfMaterialized()` back to back does NOT order them:
+    /// `refreshInboxUnreadCountForNewIdentityIfMaterialized()` back to back does NOT order them:
     /// the outer `DispatchQueue.main.async` blocks run FIFO, but each spawns an unstructured
     /// `Task` whose hop onto the actor is unordered relative to the other's. If the refresh
     /// landed first it would store the server count and the reset would immediately wipe it back
     /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
     /// `refreshInboxUnreadCount()` or app foreground.
     ///
-    /// Only for changes with no `/user-update` in flight: `clearUser()` when there is no push
-    /// token to detach, and a domain change. When the detach POST does fire, the refresh must
-    /// instead be chained through its callback so the fetch runs after the server-side detach;
-    /// the network round-trip is what orders it behind the reset there.
+    /// Only for changes with no push-token association pending, which is what makes a messages
+    /// fetch safe here: `clearUser()` with no push token (requests carry no token, so the server
+    /// can only resolve the new anonymous visitor) and a domain change (the new account's inbox
+    /// for this device is the right one). Paths that POST `/user-update` use the count-only
+    /// `refreshInboxUnreadCountForNewIdentityIfMaterialized` from its callback instead.
     func resetThenRefreshInboxIfMaterialized() {
         DispatchQueue.main.async { [weak self] in
             guard let manager = self?.existingInboxManager() else { return }

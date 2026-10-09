@@ -1844,6 +1844,55 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(loadedIds, ["anonymous"], "an identity change during the first fetch must still end in .loaded")
     }
 
+    func testClearUser_withPushToken_failedDetach_doesNotRefetchPreviousUsersMessages() async {
+        // Codex/Adela on #329: the server resolves the inbox partly by push token, and the detach
+        // isn't confirmed (here it outright failed), so a messages re-fetch could bring the
+        // previous user's inbox back after logout. Only the count may be re-fetched.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+
+        sut.clearUser()
+
+        let after = await waitForInboxMessageIds([])
+        XCTAssertEqual(after, [], "clearUser must drop the previous user's cached messages")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "after a clearUser that POSTs /user-update, messages must not be re-fetched with the same push token")
+    }
+
+    func testUpdateUser_retryWithoutRotation_keepsLoadedInboxWithoutRefetchingMessages() async {
+        // Adela on #329: the retry path resets nothing, so a messages refresh would only throw
+        // away the loaded pages (back to page 1, cursor dropped). Count only.
+        registerTestPushToken()
+        // A failed /user-update leaves local identifiers set but the sync record unconfirmed, so
+        // the same call again takes `.retryWithoutRotation`.
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+        sut.updateUser(email: "user@example.com", phone: nil)
+        apiSpy.stubbedError = nil
+
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "p1")], nextPageToken: "cursor-2")
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["p1"], "precondition: manager materialized after the first updateUser")
+        let visitorIdBefore = sut.visitorId
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        sut.updateUser(email: "user@example.com", phone: nil)
+
+        XCTAssertEqual(sut.visitorId, visitorIdBefore, "precondition: retry path, no rotation")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the retry path must not re-fetch messages")
+        let after = await sut.allMessages
+        XCTAssertEqual(after.map(\.id), ["p1"], "the retry path must keep the loaded list")
+    }
+
     func testInboxAccessors_concurrentFirstUse_materializeOneManager() async {
         // Two managers would each run their own init-time fetch.
         await withTaskGroup(of: Void.self) { group in
@@ -1858,6 +1907,15 @@ final class ATTNSDKTests: XCTestCase {
 
     private func makeInboxMessage(id: String) -> Message {
         Message(id: id, title: "Title \(id)", body: "Body \(id)", timestamp: Date(), isRead: false)
+    }
+
+    /// Polls until the spy has seen at least `count` unread-count fetches (or a 2s timeout).
+    private func waitForUnreadCountFetches(atLeast count: Int, timeout: TimeInterval = 2.0) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount < count {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertGreaterThanOrEqual(apiSpy.fetchInboxUnreadCountCallCount, count, "expected the post-change count refresh")
     }
 
     /// Polls `sut.allMessages` until it holds exactly `ids` (or a 2s timeout), returning the last
