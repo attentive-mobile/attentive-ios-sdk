@@ -37,6 +37,7 @@ final class ATTNInboxMessagesAPITests: XCTestCase {
         identity: ATTNUserIdentity? = nil
     ) async throws -> InboxResponse {
         try await api.fetchInboxMessages(
+            domain: testDomain,
             pushToken: pushToken,
             email: email,
             phone: phone,

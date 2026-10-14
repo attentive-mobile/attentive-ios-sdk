@@ -413,13 +413,14 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// Per RFC: this endpoint is identifier-based and unauthenticated. The server scopes the
     /// response by resolving identity from the supplied push token (and other identifiers).
     func fetchInboxUnreadCount(
+        domain: String,
         pushToken: String,
         email: String?,
         phone: String?,
         visitorId: String
     ) async throws -> Int {
         Loggers.network.debug("Fetching inbox unread count - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public)")
-        let payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        let payload = inboxIdentityPayload(domain: domain, pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
         let decoded: InboxUnreadCountResponse = try await postInboxJSON(
             path: "/inbox/messages/unread/count",
             payload: payload,
@@ -431,6 +432,7 @@ final class ATTNAPI: ATTNAPIProtocol {
 
     /// Fetches a page of inbox messages. See the doc comment on `ATTNAPIProtocol.fetchInboxMessages`.
     func fetchInboxMessages(
+        domain: String,
         pushToken: String,
         email: String?,
         phone: String?,
@@ -439,7 +441,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         pageToken: String?
     ) async throws -> InboxResponse {
         Loggers.network.debug("Fetching inbox messages - Visitor ID: \(visitorId, privacy: .public), Push Token: \(pushToken, privacy: .public), Page Size: \(pageSize, privacy: .public), Page Token: \(pageToken ?? "nil", privacy: .public)")
-        var payload = inboxIdentityPayload(pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
+        var payload = inboxIdentityPayload(domain: domain, pushToken: pushToken, email: email, phone: phone, visitorId: visitorId)
         payload["page_size"] = pageSize
         if let pageToken = pageToken, !pageToken.isEmpty {
             payload["page_token"] = pageToken
@@ -456,6 +458,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// Reports a message click to the server. Body carries `c` (domain) + `visitor_id` +
     /// `push_token` + `message_id` + `action_url`; server returns 204 No Content on success.
     func markMessageClicked(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageId: String,
@@ -464,7 +467,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         Loggers.network.debug("Reporting inbox click - Visitor ID: \(visitorId, privacy: .public), Message ID: \(messageId, privacy: .public)")
         // Reuse `inboxIdentityPayload` so the `apns:` prefix + empty-token omission live in one place.
         // Click contract carries no email/phone.
-        var payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        var payload = inboxIdentityPayload(domain: domain, pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
         payload["message_id"] = messageId
         if let actionURL = actionURL, !actionURL.isEmpty {
             payload["action_url"] = actionURL
@@ -478,6 +481,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// scoped by `c` (domain). The body carries the identifiers because DELETE with a JSON
     /// body is what the RFC contract specifies for this endpoint.
     func deleteInboxMessage(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageId: String
@@ -486,7 +490,7 @@ final class ATTNAPI: ATTNAPIProtocol {
         // The message ID occupies a single path segment. `.urlPathAllowed` leaves `/` unescaped,
         // which would let an ID like "a/b" address the wrong route — escape it explicitly.
         let encodedId = messageId.addingPercentEncoding(withAllowedCharacters: Self.messageIdAllowedCharacters) ?? messageId
-        let payload = inboxIdentityPayload(pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
+        let payload = inboxIdentityPayload(domain: domain, pushToken: pushToken, email: nil, phone: nil, visitorId: visitorId)
         _ = try await sendInboxRaw(path: "/inbox/messages/\(encodedId)", method: "DELETE", payload: payload)
     }
 
@@ -502,6 +506,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// and the optional `push_token` / `email` / `phone`. Push token is prefixed with `apns:`
     /// so the server can route it to APNs (Android sends `fcm:...`).
     private func inboxIdentityPayload(
+        domain: String,
         pushToken: String,
         email: String?,
         phone: String?,
@@ -583,6 +588,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// the list of message ids. The response echoes the per-message read status and the
     /// updated unread count so the caller can reconcile local state without a follow-up fetch.
     func markMessagesRead(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageIds: [String]
@@ -643,6 +649,7 @@ final class ATTNAPI: ATTNAPIProtocol {
     /// the list of message ids. The response echoes the per-message read status and the
     /// updated unread count so the caller can reconcile local state without a follow-up fetch.
     func markMessagesUnread(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageIds: [String]

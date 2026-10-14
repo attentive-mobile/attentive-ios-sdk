@@ -19,6 +19,10 @@ struct InboxIdentitySnapshot: Sendable {
     let pushToken: String
     let email: String?
     let phone: String?
+    /// The Attentive domain (`c`) every inbox request for this snapshot targets. Published by
+    /// `ATTNSDK` before the API switches domains, so the manager can tell that its cached state
+    /// belongs to another account (see `dropStateIfDomainChanged()`).
+    let domain: String
 }
 
 /// Closure that supplies the identifiers needed to call the inbox endpoints.
@@ -100,8 +104,15 @@ actor InboxManager {
     /// delete's revert path should still apply. Read only by `delete(_:)` for that reason.
     private var messagesReplacedCount: UInt = 0
 
+    /// The domain the cached messages, cursor, and count were fetched under. Compared against the
+    /// identity snapshot's domain at the start of every operation and before every response is
+    /// applied, so an `update(domain:)` drops the previous account's state on the actor itself,
+    /// regardless of when the SDK's explicit reset Task lands (MSDK-545).
+    private var dataDomain: String
+
     var allMessages: [Message] {
         get async {
+            dropStateIfDomainChanged()
             await awaitInitialRefresh()
             return orderedMessagesSnapshot()
         }
@@ -109,6 +120,7 @@ actor InboxManager {
 
     var unreadCount: Int {
         get async {
+            dropStateIfDomainChanged()
             await awaitInitialRefresh()
             return storedUnreadCount
         }
@@ -143,6 +155,7 @@ actor InboxManager {
     /// Returns an AsyncStream that immediately emits the current state,
     /// then emits all subsequent state changes.
     var stateStream: AsyncStream<InboxState> {
+        dropStateIfDomainChanged()
         let currentState = self.currentState
         return AsyncStream { continuation in
             let id = UUID()
@@ -181,6 +194,7 @@ actor InboxManager {
         self.api = api
         self.identityProvider = identityProvider
         self.unreadCountBox = unreadCountBox
+        self.dataDomain = identityProvider().domain
         // Fetch the first page of messages and the unread count on construction so passive-badge
         // hosts (`sdk.unreadCount`) and stream/`allMessages` consumers both resolve without
         // needing to present `inboxView()`. Non-inbox hosts never construct the manager — see
@@ -195,6 +209,7 @@ actor InboxManager {
     /// previously loaded messages. The two fetches run concurrently. Callers should invoke
     /// this on inbox open / pull-to-refresh / push open.
     func refresh() async {
+        dropStateIfDomainChanged()
         // Coalesce with the init-time fetch. `InboxView.task` fires immediately after
         // materializing the manager, so without this the first open would double-POST and race
         // its own init generation.
@@ -211,6 +226,8 @@ actor InboxManager {
     /// flight, or a first-page refresh is running. Subscribers to `loadingMoreStream` observe
     /// the in-flight state; callers do not need to inspect a return value.
     func loadNextPage() async {
+        // Before reading the cursor: never send one account's `page_token` to another's domain.
+        dropStateIfDomainChanged()
         guard hasFetchedFirstPage,
               !isRefreshingFirstPage,
               !isLoadingNextPage,
@@ -233,6 +250,7 @@ actor InboxManager {
 
         do {
             let response = try await api.fetchInboxMessages(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 email: identity.email,
                 phone: identity.phone,
@@ -240,6 +258,7 @@ actor InboxManager {
                 pageSize: Self.defaultPageSize,
                 pageToken: pageToken
             )
+            dropStateIfDomainChanged()
             guard generation == messagesGeneration else {
                 // Identity or refresh() moved on; discard this page.
                 return
@@ -257,6 +276,7 @@ actor InboxManager {
     /// authoritative value. Errors are logged; the previously stored count is preserved.
     /// If multiple refreshes are in flight, only the most recently issued one is honored.
     func refreshUnreadCount() async {
+        dropStateIfDomainChanged()
         // Coalesce with the init-time fetch. A host that follows the RFC and calls
         // `refreshInboxUnreadCount()` on app launch would otherwise race the manager's own
         // init fetch and produce two identical POSTs.
@@ -308,6 +328,7 @@ actor InboxManager {
 
         do {
             let response = try await api.fetchInboxMessages(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 email: identity.email,
                 phone: identity.phone,
@@ -315,12 +336,14 @@ actor InboxManager {
                 pageSize: Self.defaultPageSize,
                 pageToken: nil
             )
+            dropStateIfDomainChanged()
             guard generation == messagesGeneration else { return }
             replaceMessages(with: response.messages)
             nextPageToken = response.nextPageToken
             hasFetchedFirstPage = true
             send(.loaded(orderedMessagesSnapshot()))
         } catch {
+            dropStateIfDomainChanged()
             guard generation == messagesGeneration else { return }
             Loggers.network.error("Failed to refresh inbox messages: \(error.localizedDescription, privacy: .public)")
             // Preserve the previously loaded list and its pagination cursor on error; only
@@ -342,12 +365,14 @@ actor InboxManager {
         let generation = refreshGeneration
         do {
             let count = try await api.fetchInboxUnreadCount(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 email: identity.email,
                 phone: identity.phone,
                 visitorId: identity.visitorId
             )
             // Drop superseded responses so a slow earlier call cannot overwrite a fresher one.
+            dropStateIfDomainChanged()
             guard generation == refreshGeneration else { return }
             let previous = storedUnreadCount
             storedUnreadCount = count
@@ -365,6 +390,8 @@ actor InboxManager {
     /// Marks a message read. Optimistically flips the local state, then reconciles from the
     /// server response. On failure the local flip is reverted so the UI reflects true state.
     func markRead(_ messageID: Message.ID) async {
+        // Before the message lookup: a cached id from another account must not reach this domain.
+        dropStateIfDomainChanged()
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
         guard let identity = requireIdentity(context: "inbox mark-read") else { return }
@@ -394,14 +421,17 @@ actor InboxManager {
 
         do {
             let response = try await api.markMessagesRead(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
                 messageIds: [messageID]
             )
+            dropStateIfDomainChanged()
             guard generation == refreshGeneration else { return }
             applyReadStatusResponse(response)
         } catch {
             Loggers.network.error("Failed to mark inbox message read: \(error.localizedDescription, privacy: .public)")
+            dropStateIfDomainChanged()
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, !previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
@@ -419,6 +449,7 @@ actor InboxManager {
     /// Marks a message unread. Optimistically flips the local state, then reconciles from the
     /// server response. On failure the local flip is reverted so the UI reflects true state.
     func markUnread(_ messageID: Message.ID) async {
+        dropStateIfDomainChanged()
         guard let previousIsRead = messagesByID[messageID]?.isRead else { return }
 
         guard let identity = requireIdentity(context: "inbox mark-unread") else { return }
@@ -442,14 +473,17 @@ actor InboxManager {
 
         do {
             let response = try await api.markMessagesUnread(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
                 messageIds: [messageID]
             )
+            dropStateIfDomainChanged()
             guard generation == refreshGeneration else { return }
             applyReadStatusResponse(response)
         } catch {
             Loggers.network.error("Failed to mark inbox message unread: \(error.localizedDescription, privacy: .public)")
+            dropStateIfDomainChanged()
             guard generation == refreshGeneration else { return }
             if messagesByID[messageID] != nil, previousIsRead {
                 messagesByID[messageID]?.isRead = previousIsRead
@@ -465,6 +499,7 @@ actor InboxManager {
     /// On failure the local removal is reverted (message re-inserted at its original index)
     /// so the UI reflects true state.
     func delete(_ messageID: Message.ID) async {
+        dropStateIfDomainChanged()
         guard let removedMessage = messagesByID[messageID],
               let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
 
@@ -496,12 +531,14 @@ actor InboxManager {
 
         do {
             try await api.deleteInboxMessage(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
                 messageId: messageID
             )
         } catch {
             Loggers.network.error("Failed to delete inbox message: \(error.localizedDescription, privacy: .public)")
+            dropStateIfDomainChanged()
             guard replacedCountAtStart == messagesReplacedCount else { return }
             guard messagesByID[messageID] == nil else { return }
             messagesByID[messageID] = removedMessage
@@ -524,6 +561,7 @@ actor InboxManager {
     /// the message has no `actionURL` because the server contract requires a non-blank
     /// `action_url` (returns 400 otherwise).
     func markClicked(_ messageID: Message.ID) async {
+        dropStateIfDomainChanged()
         guard let message = messagesByID[messageID] else { return }
         guard let identity = requireIdentity(context: "inbox click tracking") else { return }
 
@@ -548,6 +586,7 @@ actor InboxManager {
         }
         do {
             try await api.markMessageClicked(
+                domain: identity.domain,
                 pushToken: identity.pushToken,
                 visitorId: identity.visitorId,
                 messageId: messageId,
@@ -556,6 +595,20 @@ actor InboxManager {
         } catch {
             Loggers.network.error("Failed to report inbox click: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Drops the cached state when the identity snapshot now targets a different domain than the
+    /// one it was fetched under. Idempotent: once `dataDomain` matches, it's a no-op, so the SDK's
+    /// explicit domain-change reset and the per-operation checks can race without double-resetting
+    /// (a second reset would wipe a count the new domain already returned). Returns whether it reset.
+    @discardableResult
+    func dropStateIfDomainChanged() -> Bool {
+        let currentDomain = identityProvider().domain
+        guard currentDomain != dataDomain else { return false }
+        Loggers.network.debug("Inbox domain changed from \(self.dataDomain, privacy: .public) to \(currentDomain, privacy: .public); dropping cached inbox state")
+        resetForIdentityChange()
+        dataDomain = currentDomain
+        return true
     }
 
     /// Clears all cached inbox state (messages, unread count, pagination cursor) and bumps both
