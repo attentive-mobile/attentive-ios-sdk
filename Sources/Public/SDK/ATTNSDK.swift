@@ -437,16 +437,17 @@ public final class ATTNSDK: NSObject {
     /// the clear/rotate decision into `ATTNUserIdentity.planClearUser` / `planUpdateUser`, so
     /// the callers now invoke this separately once they know a rotation happened.
     ///
-    /// Reads the manager through `existingInboxManager()` (lock-guarded), since `clearUser()` /
-    /// `updateUser(...)` can be called from any thread. The main-queue hop is kept so this and
-    /// the other inbox helpers run their outer blocks in FIFO order.
+    /// Captures the manager *at call time* through the lock-guarded `existingInboxManager()`
+    /// (`clearUser()` / `updateUser(...)` can be called from any thread). Deliberately no
+    /// deferred lookup: an earlier `DispatchQueue.main.async` hop here meant a manager created
+    /// just after the identity change — which already reads the new identity — could be found
+    /// by the late block and wiped, emptying a freshly loaded inbox (MSDK-545). Only a manager
+    /// that existed before the change holds the previous identity's data.
     // Not `private`: `updateUser` lives in ATTNSDK+MarketingSubscriptions.swift, and Swift's
     // `private` only extends to same-file extensions.
     func resetInboxForIdentityChangeIfMaterialized() {
-        DispatchQueue.main.async { [weak self] in
-            guard let manager = self?.existingInboxManager() else { return }
-            Task { await manager.resetForIdentityChange() }
-        }
+        guard let manager = existingInboxManager() else { return }
+        Task { await manager.resetForIdentityChange() }
     }
 
     @objc(updateDomain:)
@@ -1028,9 +1029,9 @@ extension ATTNSDK {
     /// Fires a background inbox unread-count refresh only when the manager already exists.
     /// Called from the `/user-update` callback path after an identity change so the badge picks
     /// up the new identity's server count. Skips materialization so host apps that never touch
-    /// the inbox don't pay for a network call on every `clearUser`/`updateUser`. Reads the
-    /// manager through the lock-guarded `existingInboxManager()`; the URLSession completion
-    /// calls this from a background queue.
+    /// the inbox don't pay for a network call on every `clearUser`/`updateUser`. Captures the
+    /// manager at call time through the lock-guarded `existingInboxManager()`; the URLSession
+    /// completion calls this from a background queue.
     ///
     /// Deliberately count-only — do not widen to `refresh()` (messages). The server resolves the
     /// inbox partly by push token, and neither a failed nor a successful `/user-update` means
@@ -1042,10 +1043,8 @@ extension ATTNSDK {
     /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
     /// chains it from the `/user-update` callback.
     func refreshInboxUnreadCountForNewIdentityIfMaterialized() {
-        DispatchQueue.main.async { [weak self] in
-            guard let manager = self?.existingInboxManager() else { return }
-            Task { await manager.refreshUnreadCount() }
-        }
+        guard let manager = existingInboxManager() else { return }
+        Task { await manager.refreshUnreadCount() }
     }
 
     /// Drops the cached inbox state and then re-fetches messages and the unread count, both inside
@@ -1053,8 +1052,8 @@ extension ATTNSDK {
     ///
     /// Calling `resetInboxForIdentityChangeIfMaterialized()` and
     /// `refreshInboxUnreadCountForNewIdentityIfMaterialized()` back to back does NOT order them:
-    /// the outer `DispatchQueue.main.async` blocks run FIFO, but each spawns an unstructured
-    /// `Task` whose hop onto the actor is unordered relative to the other's. If the refresh
+    /// each spawns an unstructured `Task` whose hop onto the actor is unordered relative to the
+    /// other's. If the refresh
     /// landed first it would store the server count and the reset would immediately wipe it back
     /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
     /// `refreshInboxUnreadCount()` or app foreground.
@@ -1065,12 +1064,12 @@ extension ATTNSDK {
     /// for this device is the right one). Paths that POST `/user-update` use the count-only
     /// `refreshInboxUnreadCountForNewIdentityIfMaterialized` from its callback instead.
     func resetThenRefreshInboxIfMaterialized() {
-        DispatchQueue.main.async { [weak self] in
-            guard let manager = self?.existingInboxManager() else { return }
-            Task {
-                await manager.resetForIdentityChange()
-                await manager.refresh()
-            }
+        // Captured at call time, like the other helpers: a manager created after this point
+        // already reads the new identity/domain and must not be reset.
+        guard let manager = existingInboxManager() else { return }
+        Task {
+            await manager.resetForIdentityChange()
+            await manager.refresh()
         }
     }
 
