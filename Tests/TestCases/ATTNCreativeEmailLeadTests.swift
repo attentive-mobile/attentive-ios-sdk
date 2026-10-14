@@ -82,7 +82,26 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         XCTAssertNil(ATTNCreativeEmailLeadParser.parse(["action": "LEAD", "email": "user@example.com"]))
     }
 
+    func testParse_excludesSenderOriginFromRawPayload() {
+        let lead = ATTNCreativeEmailLeadParser.parse(["action": "EMAIL_LEAD", "__origin": "https://creatives.attn.tv"])
+
+        XCTAssertNil(lead?.rawPayload["__origin"])
+        XCTAssertEqual(lead?.rawPayload["action"] as? String, "EMAIL_LEAD")
+    }
+
     // MARK: Origin
+
+    func testIsTrustedSenderOrigin_acceptsCreativesOrigin() {
+        XCTAssertTrue(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin("https://creatives.attn.tv"))
+    }
+
+    func testIsTrustedSenderOrigin_rejectsOtherOrigins() {
+        XCTAssertFalse(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin(nil))
+        XCTAssertFalse(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin("null"))
+        XCTAssertFalse(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin("http://creatives.attn.tv"))
+        XCTAssertFalse(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin("https://creatives.attn.tv.example.com"))
+        XCTAssertFalse(ATTNCreativeEmailLeadParser.isTrustedSenderOrigin("https://creatives.attn.tv:8443"))
+    }
 
     func testIsTrustedOrigin_acceptsCreativesHostOverHttps() {
         XCTAssertTrue(ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: "https", host: "creatives.attn.tv"))
@@ -103,7 +122,7 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         let (handler, provider) = makeHandler()
 
         handler.handleScriptMessage(
-            ["action": "EMAIL_LEAD", "email": "user@example.com", "creativeId": 1230751],
+            ["action": "EMAIL_LEAD", "email": "user@example.com", "creativeId": 1230751, "__origin": "https://creatives.attn.tv"],
             originProtocol: "https",
             originHost: "creatives.attn.tv"
         )
@@ -111,18 +130,53 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         XCTAssertEqual(provider.receivedEmailLeads.count, 1)
         XCTAssertEqual(provider.receivedEmailLeads.first?.email, "user@example.com")
         XCTAssertEqual(provider.receivedEmailLeads.first?.creativeId, "1230751")
+        XCTAssertNil(provider.receivedEmailLeads.first?.rawPayload["__origin"])
     }
 
-    func testHandleScriptMessage_withUntrustedOrigin_dropsLead() {
+    func testHandleScriptMessage_withUntrustedFrameOrigin_dropsLead() {
         let (handler, provider) = makeHandler()
 
         handler.handleScriptMessage(
-            ["action": "EMAIL_LEAD", "email": "user@example.com"],
+            ["action": "EMAIL_LEAD", "email": "user@example.com", "__origin": "https://creatives.attn.tv"],
             originProtocol: "https",
             originHost: "example.com"
         )
 
         XCTAssertTrue(provider.receivedEmailLeads.isEmpty)
+    }
+
+    func testHandleScriptMessage_withUntrustedSenderOrigin_dropsLead() {
+        // A cross-origin child frame posting to the creative page: the frame that calls the
+        // message handler is the creative page, but the original sender isn't.
+        let (handler, provider) = makeHandler()
+
+        handler.handleScriptMessage(
+            ["action": "EMAIL_LEAD", "email": "forged@example.com", "__origin": "null"],
+            originProtocol: "https",
+            originHost: "creatives.attn.tv"
+        )
+
+        XCTAssertTrue(provider.receivedEmailLeads.isEmpty)
+    }
+
+    func testHandleScriptMessage_withoutSenderOrigin_dropsLead() {
+        let (handler, provider) = makeHandler()
+
+        handler.handleScriptMessage(
+            ["action": "EMAIL_LEAD", "email": "user@example.com"],
+            originProtocol: "https",
+            originHost: "creatives.attn.tv"
+        )
+
+        XCTAssertTrue(provider.receivedEmailLeads.isEmpty)
+    }
+
+    func testMakeWebView_injectedListenerForwardsSenderOrigin() {
+        let (handler, _) = makeHandler()
+
+        let scripts = handler.makeWebView().configuration.userContentController.userScripts
+
+        XCTAssertTrue(scripts.contains { $0.source.contains("__origin: event.origin") })
     }
 
     func testHandleScriptMessage_withOtherAction_doesNotForwardLead() {

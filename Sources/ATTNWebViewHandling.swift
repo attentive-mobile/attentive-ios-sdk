@@ -75,7 +75,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-        let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
+        let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { var message = event.data.__attentive; if (typeof message === 'object' && !Array.isArray(message)) { message = Object.assign({}, message, { \#(ATTNCreativeEmailLeadParser.senderOriginKey): event.origin }); } window.webkit.messageHandlers.log.postMessage(message); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
         let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         configuration.userContentController.addUserScript(userScript)
         let webView = CustomWebView(frame: .zero, configuration: configuration)
@@ -456,8 +456,12 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
     }
 
     private func handleEmailLead(_ body: [String: Any], originProtocol: String, originHost: String) {
-        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: originProtocol, host: originHost) else {
-            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(originHost, privacy: .public)")
+        // The frame that calls the message handler and the frame that sent the original
+        // `postMessage` can differ, so both must be the creative page.
+        let senderOrigin = body[ATTNCreativeEmailLeadParser.senderOriginKey] as? String
+        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: originProtocol, host: originHost),
+              ATTNCreativeEmailLeadParser.isTrustedSenderOrigin(senderOrigin) else {
+            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(originHost, privacy: .public), sender \(senderOrigin ?? "nil", privacy: .public)")
             return
         }
         guard let lead = ATTNCreativeEmailLeadParser.parse(body) else { return }
