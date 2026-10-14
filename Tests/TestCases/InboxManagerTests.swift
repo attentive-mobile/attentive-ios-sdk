@@ -37,10 +37,11 @@ final class InboxManagerTests: XCTestCase {
         visitorId: String = "v_test",
         pushToken: String = "fcm:abc",
         email: String? = nil,
-        phone: String? = nil
+        phone: String? = nil,
+        domain: String = "test-domain"
     ) -> InboxIdentityProvider {
         return {
-            InboxIdentitySnapshot(visitorId: visitorId, pushToken: pushToken, email: email, phone: phone)
+            InboxIdentitySnapshot(visitorId: visitorId, pushToken: pushToken, email: email, phone: phone, domain: domain)
         }
     }
 
@@ -914,6 +915,99 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(messages.map(\.id), ["1"], "The message itself is still restored")
     }
 
+    // MARK: - Domain changes (MSDK-545)
+
+    /// Identity provider whose domain the test can flip, standing in for `ATTNSDK` publishing a
+    /// new snapshot on `update(domain:)` before the explicit reset reaches the actor.
+    private func switchableDomainProvider(_ domain: MutableString) -> InboxIdentityProvider {
+        return {
+            InboxIdentitySnapshot(visitorId: "v_test", pushToken: "fcm:abc", email: nil, phone: nil, domain: domain.value)
+        }
+    }
+
+    func testDomainChange_loadNextPage_doesNotSendPreviousAccountsCursor() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "old-1")], nextPageToken: "old-cursor")
+        ]
+        let domain = MutableString(value: "old-domain")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchableDomainProvider(domain))
+        _ = await waitForLoadedState(manager)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1)
+
+        domain.value = "new-domain"
+        await manager.loadNextPage()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the old account's page_token must never be sent to the new domain")
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.isEmpty, "the previous account's messages must be dropped")
+    }
+
+    func testDomainChange_markRead_doesNotSendPreviousAccountsMessageId() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "old-1", isRead: false)], nextPageToken: nil)
+        ]
+        let domain = MutableString(value: "old-domain")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchableDomainProvider(domain))
+        _ = await waitForLoadedState(manager)
+
+        domain.value = "new-domain"
+        await manager.markRead("old-1")
+
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0, "a cached message id from the old account must not reach the new domain")
+    }
+
+    func testDomainChange_inFlightPageFromPreviousDomain_isNotAppended() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "old-1")], nextPageToken: "old-cursor"),
+            InboxResponse(messages: [makeMessage(id: "old-2")], nextPageToken: nil)
+        ]
+        let domain = MutableString(value: "old-domain")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchableDomainProvider(domain))
+        _ = await waitForLoadedState(manager)
+
+        // The domain flips while the old account's page 2 is in flight.
+        apiSpy.onFetchInboxMessages = { pageToken in
+            if pageToken == "old-cursor" { domain.value = "new-domain" }
+        }
+        await manager.loadNextPage()
+
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, "old-domain", "precondition: the page request was built for the old domain")
+        let messages = await manager.allMessages
+        XCTAssertTrue(messages.isEmpty, "a page from the previous domain must be dropped, not appended")
+    }
+
+    func testDomainChange_requestsCarrySnapshotDomain() async {
+        let domain = MutableString(value: "old-domain")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchableDomainProvider(domain))
+        _ = await waitForLoadedState(manager)
+        _ = await manager.unreadCount
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, "old-domain")
+
+        domain.value = "new-domain"
+        await manager.refreshUnreadCount()
+
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, "new-domain", "requests must take the domain from the identity snapshot")
+    }
+
+    func testDropStateIfDomainChanged_isIdempotent() async {
+        // The SDK's explicit reset and the per-operation check can land in either order; the
+        // second must not wipe a count the new domain already returned.
+        apiSpy.stubbedUnreadCount = 2
+        let domain = MutableString(value: "old-domain")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchableDomainProvider(domain))
+        _ = await waitForLoadedState(manager)
+        _ = await manager.unreadCount
+
+        domain.value = "new-domain"
+        apiSpy.stubbedUnreadCount = 7
+        await manager.refreshUnreadCount() // drops old state, then fetches the new domain's count
+        let didReset = await manager.dropStateIfDomainChanged()
+
+        XCTAssertFalse(didReset, "a second domain check for the same domain must be a no-op")
+        let count = await manager.unreadCount
+        XCTAssertEqual(count, 7)
+    }
+
     func testResetForIdentityChange_duringFirstFetch_leavesLoadedEmptyNotLoading() async {
         // Count-only callers never re-fetch messages after a reset, and the reset discards the
         // in-flight first page, so `.loading` must not survive it.
@@ -1242,7 +1336,7 @@ final class InboxManagerTests: XCTestCase {
         ]
         let visitorIdBox = MutableString(value: "v_test")
         let provider: InboxIdentityProvider = {
-            InboxIdentitySnapshot(visitorId: visitorIdBox.value, pushToken: "abc", email: nil, phone: nil)
+            InboxIdentitySnapshot(visitorId: visitorIdBox.value, pushToken: "abc", email: nil, phone: nil, domain: "test-domain")
         }
         let manager = InboxManager(api: apiSpy, identityProvider: provider)
         _ = await waitForLoadedState(manager)

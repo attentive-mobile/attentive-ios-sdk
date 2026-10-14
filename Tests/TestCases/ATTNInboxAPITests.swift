@@ -35,6 +35,7 @@ final class ATTNInboxAPITests: XCTestCase {
         identity: ATTNUserIdentity? = nil
     ) async throws -> Int {
         try await api.fetchInboxUnreadCount(
+            domain: testDomain,
             pushToken: pushToken,
             email: email,
             phone: phone,

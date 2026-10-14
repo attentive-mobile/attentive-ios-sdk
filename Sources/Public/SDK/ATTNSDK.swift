@@ -478,15 +478,31 @@ public final class ATTNSDK: NSObject {
     private func updateDomainInternal(_ domain: String) {
         let oldDomain = self.domain
         self.domain = domain
+        // Publish the new domain to the inbox before the API switches: from here the inbox manager
+        // treats its cached state as the previous account's and drops it at the start of its next
+        // operation (or response), so no old cursor or message id can reach the new domain.
+        publishIdentitySnapshot()
         api.update(domain: domain)
         Loggers.creative.debug("Domain updated successfully - Old Domain: \(oldDomain, privacy: .public), New Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        api.send(userIdentity: userIdentity)
+        // Clear an open inbox now rather than on its next operation.
+        resetInboxForDomainChangeIfMaterialized()
+        // Count-only, and only after the new domain has the identity event: a refresh queued
+        // right behind a fire-and-forget send could reach the new domain before it can resolve
+        // this visitor and cache an empty list and a 0 count. Messages reload on the host's next
+        // refresh or inbox open. The push token isn't re-sent to the new domain on this path.
+        api.send(userIdentity: userIdentity) { [weak self] _, _, _, _ in
+            self?.refreshInboxUnreadCountForNewIdentityIfMaterialized()
+        }
         Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        Loggers.creative.debug("Identity event sent with new domain - Domain: \(domain, privacy: .public), Visitor ID: \(self.userIdentity.visitorId, privacy: .public)")
-        // Inbox requests are scoped by domain (`c`), so a materialized manager would otherwise
-        // keep showing the previous account's messages, cursor, and count. `api` already targets
-        // the new domain, so the refresh fetches the new account's inbox.
-        resetThenRefreshInboxIfMaterialized()
+    }
+
+    /// Asks a materialized inbox manager to drop the previous account's state after
+    /// `update(domain:)`. Idempotent on the actor (`dropStateIfDomainChanged()`), so it is safe
+    /// whether it lands before or after the manager's own per-operation check. Captures the
+    /// manager at call time, like the identity helpers.
+    private func resetInboxForDomainChangeIfMaterialized() {
+        guard let manager = existingInboxManager() else { return }
+        Task { await manager.dropStateIfDomainChanged() }
     }
 
     // MARK: Inbox
@@ -1058,14 +1074,14 @@ extension ATTNSDK {
     /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
     /// `refreshInboxUnreadCount()` or app foreground.
     ///
-    /// Only for changes with no push-token association pending, which is what makes a messages
-    /// fetch safe here: `clearUser()` with no push token (requests carry no token, so the server
-    /// can only resolve the new anonymous visitor) and a domain change (the new account's inbox
-    /// for this device is the right one). Paths that POST `/user-update` use the count-only
-    /// `refreshInboxUnreadCountForNewIdentityIfMaterialized` from its callback instead.
+    /// Only for `clearUser()` with no push token: no token is sent, so the server can only resolve
+    /// the new anonymous visitor, which makes a messages fetch safe here. Paths that POST
+    /// `/user-update` use the count-only `refreshInboxUnreadCountForNewIdentityIfMaterialized`
+    /// from its callback instead, and a domain change refreshes the count from its identity
+    /// event's callback (see `updateDomainInternal`).
     func resetThenRefreshInboxIfMaterialized() {
         // Captured at call time, like the other helpers: a manager created after this point
-        // already reads the new identity/domain and must not be reset.
+        // already reads the new identity and must not be reset.
         guard let manager = existingInboxManager() else { return }
         Task {
             await manager.resetForIdentityChange()
@@ -1073,9 +1089,9 @@ extension ATTNSDK {
         }
     }
 
-    /// Publishes the current identity (visitor id, push token, email, phone) into the
+    /// Publishes the current identity (visitor id, push token, email, phone, domain) into the
     /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
-    /// Call after any mutation of `userIdentity` or `currentPushToken`.
+    /// Call after any mutation of `userIdentity`, `currentPushToken`, or `domain`.
     /// Internal (not fileprivate) because `updateUser` in ATTNSDK+MarketingSubscriptions.swift
     /// re-publishes after merging the new identifiers.
     func publishIdentitySnapshot() {
@@ -1087,7 +1103,8 @@ extension ATTNSDK {
             // partly by it. Inbox requests omit `push_token` when this is empty.
             pushToken: pushEnabled ? currentPushToken : "",
             email: identifiers[ATTNIdentifierType.email] as? String,
-            phone: identifiers[ATTNIdentifierType.phone] as? String
+            phone: identifiers[ATTNIdentifierType.phone] as? String,
+            domain: domain
         ))
     }
 
@@ -1123,7 +1140,7 @@ fileprivate extension ATTNSDK {
             let manager = InboxManager(
                 api: api,
                 identityProvider: { [weak self] in
-                    self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+                    self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil, domain: "")
                 },
                 unreadCountBox: unreadCountBox
             )
@@ -1155,7 +1172,7 @@ fileprivate extension ATTNSDK {
 /// `userIdentity.identifiers`.
 private final class IdentitySnapshotStore: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.attentive.sdk.IdentitySnapshotStore", qos: .userInitiated)
-    private var current = InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil)
+    private var current = InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil, domain: "")
 
     func update(_ next: InboxIdentitySnapshot) {
         queue.sync { current = next }

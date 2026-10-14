@@ -32,6 +32,7 @@ final class ATTNInboxMarkUnreadAPITests: XCTestCase {
         identity: ATTNUserIdentity? = nil
     ) async throws -> UpdateReadStatusResponse {
         try await api.markMessagesUnread(
+            domain: testDomain,
             pushToken: pushToken,
             visitorId: (identity ?? userIdentity).visitorId,
             messageIds: messageIds

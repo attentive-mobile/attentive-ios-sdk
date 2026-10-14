@@ -35,6 +35,7 @@ final class ATTNInboxClickAPITests: XCTestCase {
         identity: ATTNUserIdentity? = nil
     ) async throws {
         try await api.markMessageClicked(
+            domain: testDomain,
             pushToken: pushToken,
             visitorId: (identity ?? userIdentity).visitorId,
             messageId: messageId,

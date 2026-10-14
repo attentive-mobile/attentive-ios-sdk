@@ -32,6 +32,7 @@ final class ATTNInboxDeleteAPITests: XCTestCase {
         identity: ATTNUserIdentity? = nil
     ) async throws {
         try await api.deleteInboxMessage(
+            domain: testDomain,
             pushToken: pushToken,
             visitorId: (identity ?? userIdentity).visitorId,
             messageId: messageId

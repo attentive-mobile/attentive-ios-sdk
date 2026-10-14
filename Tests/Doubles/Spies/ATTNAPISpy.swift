@@ -299,11 +299,13 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var onFetchInboxUnreadCount: (@Sendable () async -> Void)?
 
     func fetchInboxUnreadCount(
+        domain: String,
         pushToken: String,
         email: String?,
         phone: String?,
         visitorId: String
     ) async throws -> Int {
+        lastInboxRequestDomain = domain
         fetchInboxUnreadCountWasCalled = true
         fetchInboxUnreadCountCallCount += 1
         lastInboxPushToken = pushToken
@@ -333,6 +335,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var onFetchInboxMessages: (@Sendable (_ pageToken: String?) async -> Void)?
 
     func fetchInboxMessages(
+        domain: String,
         pushToken: String,
         email: String?,
         phone: String?,
@@ -340,6 +343,7 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         pageSize: Int,
         pageToken: String?
     ) async throws -> InboxResponse {
+        lastInboxRequestDomain = domain
         fetchInboxMessagesWasCalled = true
         let callIndex = fetchInboxMessagesCallCount
         fetchInboxMessagesCallCount += 1
@@ -371,10 +375,12 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var onMarkMessagesRead: (@Sendable () async -> Void)?
 
     func markMessagesRead(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageIds: [String]
     ) async throws -> UpdateReadStatusResponse {
+        lastInboxRequestDomain = domain
         markMessagesReadWasCalled = true
         markMessagesReadCallCount += 1
         lastMarkReadPushToken = pushToken
@@ -401,10 +407,12 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var onMarkMessagesUnread: (@Sendable () async -> Void)?
 
     func markMessagesUnread(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageIds: [String]
     ) async throws -> UpdateReadStatusResponse {
+        lastInboxRequestDomain = domain
         markMessagesUnreadWasCalled = true
         markMessagesUnreadCallCount += 1
         lastMarkUnreadPushToken = pushToken
@@ -425,11 +433,13 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var stubbedMarkClickedError: Error?
 
     func markMessageClicked(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageId: String,
         actionURL: String?
     ) async throws {
+        lastInboxRequestDomain = domain
         markMessageClickedWasCalled = true
         markMessageClickedCallCount += 1
         lastMarkClickedPushToken = pushToken
@@ -438,6 +448,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         lastMarkClickedActionURL = actionURL
         if let error = stubbedMarkClickedError { throw error }
     }
+
+    // MARK: - Inbox (all endpoints)
+    /// The `domain` the most recent inbox call (any endpoint) was made with.
+    private(set) var lastInboxRequestDomain: String?
 
     // MARK: - Inbox Delete
     private(set) var deleteInboxMessageCallCount = 0
@@ -450,10 +464,12 @@ final class ATTNAPISpy: ATTNAPIProtocol {
     var onDeleteInboxMessage: (@Sendable () async -> Void)?
 
     func deleteInboxMessage(
+        domain: String,
         pushToken: String,
         visitorId: String,
         messageId: String
     ) async throws {
+        lastInboxRequestDomain = domain
         deleteInboxMessageCallCount += 1
         lastDeletePushToken = pushToken
         lastDeleteVisitorId = visitorId

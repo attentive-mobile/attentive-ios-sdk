@@ -177,7 +177,7 @@ final class InboxViewModelTests: XCTestCase {
             apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [message], nextPageToken: nil)]
         }
         manager = InboxManager(api: apiSpy) {
-            InboxIdentitySnapshot(visitorId: "v_test", pushToken: "abc123", email: nil, phone: nil)
+            InboxIdentitySnapshot(visitorId: "v_test", pushToken: "abc123", email: nil, phone: nil, domain: "test-domain")
         }
         // Coalesces with the init-time fetch, guaranteeing the seeded page is cached on return.
         await manager.refresh()

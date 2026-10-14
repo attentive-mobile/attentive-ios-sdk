@@ -67,7 +67,9 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertTrue(apiSpy.updateDomainWasCalled)
         XCTAssertTrue(apiSpy.domainWasSet)
-        XCTAssertTrue(apiSpy.sendUserIdentityWasCalled)
+        // The identity event goes out through the callback variant so the inbox count refresh
+        // can run after it (MSDK-545).
+        XCTAssertTrue(apiSpy.sendUserIdentityCallbackWasCalled)
 
         XCTAssertEqual(apiSpy.domain, newDomain)
     }
@@ -81,6 +83,7 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertFalse(apiSpy.updateDomainWasCalled)
         XCTAssertFalse(apiSpy.domainWasSet)
         XCTAssertFalse(apiSpy.sendUserIdentityWasCalled)
+        XCTAssertFalse(apiSpy.sendUserIdentityCallbackWasCalled)
 
         XCTAssertEqual(apiSpy.domain, testDomain)
     }
@@ -1774,22 +1777,26 @@ final class ATTNSDKTests: XCTestCase {
 
     // MARK: - Inbox: account / identity changes and lazy creation (MSDK-545)
 
-    func testUpdateDomain_withMaterializedInbox_replacesPreviousAccountsMessages() async {
-        // Inbox requests are scoped by domain, so the previous account's cached messages must
-        // not survive a domain switch.
+    func testUpdateDomain_withMaterializedInbox_dropsPreviousAccountsInbox() async {
+        // Inbox requests are scoped by domain, so the previous account's cached messages must not
+        // survive a domain switch. Messages aren't eagerly re-fetched (a fetch right behind the
+        // identity event could reach the new domain before it can resolve this visitor); only
+        // the count is, from the identity event's callback.
         apiSpy.stubbedInboxMessagesResponses = [
-            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor"),
-            InboxResponse(messages: [makeInboxMessage(id: "new-account")], nextPageToken: nil)
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
         ]
         let before = await sut.allMessages
         XCTAssertEqual(before.map(\.id), ["old-account"], "precondition: manager materialized with the first account's inbox")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
         sut.update(domain: newDomain)
 
-        let after = await waitForInboxMessageIds(["new-account"])
-        XCTAssertEqual(after, ["new-account"], "a domain change must reset and re-fetch the materialized inbox")
-        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 2)
-        XCTAssertNil(apiSpy.lastInboxMessagesPageToken, "the re-fetch must start from page 1, not the old account's cursor")
+        let after = await sut.allMessages
+        XCTAssertEqual(after.map(\.id), [], "a domain change must drop the previous account's messages")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain, "the post-change count fetch must target the new domain")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "messages must not be eagerly re-fetched on a domain change")
+        XCTAssertTrue(apiSpy.sendUserIdentityCallbackWasCalled, "the count refresh runs from the identity event's callback")
     }
 
     func testClearUser_noPushToken_reloadsInboxMessagesForNewIdentity() async {
