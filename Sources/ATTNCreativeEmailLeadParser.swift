@@ -8,6 +8,11 @@ import Foundation
 internal enum ATTNCreativeEmailLeadParser {
     static let action = "EMAIL_LEAD"
 
+    /// Sent when a page that asks for email and phone together (a 2-in-1 creative) is submitted.
+    /// Those creatives never send `EMAIL_LEAD`. A `LEAD` from an SMS page that follows an email
+    /// page repeats the email the `EMAIL_LEAD` already reported.
+    static let leadAction = "LEAD"
+
     /// Key the injected listener adds to each forwarded message, holding the `event.origin` of
     /// the frame that sent it. A creative can't set it: the listener overwrites any existing value.
     static let senderOriginKey = "__origin"
@@ -15,7 +20,23 @@ internal enum ATTNCreativeEmailLeadParser {
     /// Parses an `EMAIL_LEAD` creative message. Returns `nil` if `body` isn't an `EMAIL_LEAD` message.
     static func parse(_ body: [String: Any]) -> ATTNCreativeEmailLead? {
         guard body["action"] as? String == action else { return nil }
-        return ATTNCreativeEmailLead(
+        return makeLead(from: body)
+    }
+
+    /// Parses a `LEAD` creative message. Returns `nil` unless it carries an email that differs from
+    /// the `userEmail` the creative already had, so a `LEAD` that only repeats a known email is skipped.
+    static func parseLead(_ body: [String: Any]) -> ATTNCreativeEmailLead? {
+        guard body["action"] as? String == leadAction,
+              let email = nonBlankString(body["email"]) else { return nil }
+        if let userEmail = nonBlankString(body["userEmail"]),
+           email.caseInsensitiveCompare(userEmail) == .orderedSame {
+            return nil
+        }
+        return makeLead(from: body)
+    }
+
+    private static func makeLead(from body: [String: Any]) -> ATTNCreativeEmailLead {
+        ATTNCreativeEmailLead(
             email: nonBlankString(body["email"]),
             creativeId: creativeId(from: body["creativeId"]),
             rawPayload: body.filter { $0.key != senderOriginKey }

@@ -57,6 +57,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     // launch orchestration and the native timeout).
     private var currentLaunchEpoch: UInt64 = 0
 
+    // Lowercased emails reported to the host since the last launch, so a `LEAD` that repeats an
+    // email an earlier page already reported isn't reported again. Main-thread only: script
+    // messages arrive on the main thread, and launches clear it there.
+    private var reportedLeadEmails = Set<String>()
+
     // Injectable for tests so the launching-timeout unit tests don't have to wait
     // the full 5s per case.
     let launchTimeoutInterval: TimeInterval
@@ -170,6 +175,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                     }
                     webViewProvider.webView = nil
                 }
+                self.reportedLeadEmails.removeAll()
                 webViewProvider.webView = self.makeWebView(launchEpoch: epoch)
 
                 guard let webView = webViewProvider.webView as? CustomWebView else { return }
@@ -397,8 +403,8 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             stateManager.updateState(.open)
             Loggers.creative.debug("Creative opened and generated impression event")
 
-        case ATTNCreativeEmailLeadParser.action:
-            handleEmailLead(body, originProtocol: originProtocol, originHost: originHost)
+        case ATTNCreativeEmailLeadParser.action, ATTNCreativeEmailLeadParser.leadAction:
+            handleEmailLead(action: action, body: body, originProtocol: originProtocol, originHost: originHost)
 
         case String(format: "%@ true", Constants.visibilityEvent)
             where stateManager.getState() == .open:
@@ -455,16 +461,31 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
         }
     }
 
-    private func handleEmailLead(_ body: [String: Any], originProtocol: String, originHost: String) {
+    private func handleEmailLead(action: String, body: [String: Any], originProtocol: String, originHost: String) {
         // The frame that calls the message handler and the frame that sent the original
         // `postMessage` can differ, so both must be the creative page.
         let senderOrigin = body[ATTNCreativeEmailLeadParser.senderOriginKey] as? String
         guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: originProtocol, host: originHost),
               ATTNCreativeEmailLeadParser.isTrustedSenderOrigin(senderOrigin) else {
-            Loggers.creative.debug("Ignoring EMAIL_LEAD from untrusted origin: \(originHost, privacy: .public), sender \(senderOrigin ?? "nil", privacy: .public)")
+            Loggers.creative.debug("Ignoring \(action, privacy: .public) from untrusted origin: \(originHost, privacy: .public), sender \(senderOrigin ?? "nil", privacy: .public)")
             return
         }
-        guard let lead = ATTNCreativeEmailLeadParser.parse(body) else { return }
+        let lead: ATTNCreativeEmailLead
+        if action == ATTNCreativeEmailLeadParser.action {
+            guard let emailLead = ATTNCreativeEmailLeadParser.parse(body) else { return }
+            if let email = emailLead.email {
+                reportedLeadEmails.insert(email.lowercased())
+            }
+            lead = emailLead
+        } else {
+            guard let newLead = ATTNCreativeEmailLeadParser.parseLead(body),
+                  let email = newLead.email,
+                  reportedLeadEmails.insert(email.lowercased()).inserted else {
+                Loggers.creative.debug("Creative LEAD received without a new email")
+                return
+            }
+            lead = newLead
+        }
         // The email is the user's personal data, so it's redacted outside of a debugger.
         Loggers.creative.debug("Creative email lead received: email \(lead.email ?? "nil", privacy: .private), creative \(lead.creativeId ?? "nil", privacy: .public)")
         webViewProvider?.didReceiveCreativeEmailLead(lead)

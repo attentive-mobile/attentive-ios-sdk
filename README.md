@@ -815,6 +815,8 @@ sdk.creativeEmailLeadHandler = ^(ATTNCreativeEmailLead *lead) {
 ```
 
 > [!NOTE]
+> The handler is called when a user submits an email page of a creative, and when a page that asks for email and phone together is submitted with an email the creative didn't already have. An email already reported since the creative was last triggered isn't reported again from a later page.
+>
 > A lead means the user *submitted* an email, not that they're a new subscriber. Submitting an address that's already subscribed calls the handler again, so dedupe if you need to. The address is passed through as the creative sent it: surrounding whitespace is trimmed, but letter case is kept. A user who has already given an email isn't asked for it again, so their next creative doesn't call the handler.
 
 > [!IMPORTANT]
