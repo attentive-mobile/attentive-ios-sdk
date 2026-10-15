@@ -550,6 +550,13 @@ public final class ATTNSDK: NSObject {
     /// pull-to-refresh; the built-in `inboxView()` does it on appear. Results arrive through
     /// `inboxStateStream`. On failure the previously loaded list is kept (`.error` is only
     /// emitted when nothing has loaded yet).
+    ///
+    /// Don't call this immediately after `clearUser()` or `updateUser(email:phone:)`. The server
+    /// resolves the inbox partly by push token, and the token may not be detached from the
+    /// previous user yet, so an immediate reload can return the previous user's messages. For this
+    /// reason the SDK itself re-fetches only the unread count after those calls whenever a push
+    /// token is involved; reloading on a later user action (reopening the inbox, pull-to-refresh)
+    /// is fine (MSDK-549).
     public func refreshInboxMessages() async {
         await materializedInboxManager().refresh()
     }
