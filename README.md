@@ -807,6 +807,8 @@ for await isLoadingMore in await sdk.inboxLoadingMoreStream { /* show/hide a foo
 
 New pages and refreshed lists arrive as a new `.loaded` on `inboxStateStream`, so keep rendering from the stream.
 
+> **Don't call `refreshInboxMessages()` right after `clearUser()` or `updateUser(...)`.** The server identifies the inbox partly by push token, and the token may still be linked to the previous user for a moment, so an immediate reload can show that user's messages. After those calls the SDK clears the list, and when a push token is involved it re-fetches only the unread count; reload messages on the next user action, such as reopening the inbox or pull-to-refresh.
+
 ### Public API cheat sheet
 
 | API | Purpose |
