@@ -1877,6 +1877,34 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertFalse(hasMore, "pagination follows the refreshed page")
     }
 
+    func testRefreshInboxMessages_streamDrivenCustomUI_firstPullFetches() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
+        ]
+        // Custom UI renders only from the stream; never reads allMessages/unreadCount.
+        let stream = await sut.inboxStateStream
+        let initialLoaded = expectation(description: "initial page emitted")
+        let listener = Task {
+            for await state in stream {
+                if case .loaded(let messages) = state, messages.map(\.id) == ["old"] {
+                    initialLoaded.fulfill()
+                    return
+                }
+            }
+        }
+        await fulfillment(of: [initialLoaded], timeout: 1.0)
+        listener.cancel()
+        let callsBefore = apiSpy.fetchInboxMessagesCallCount
+
+        await sut.refreshInboxMessages()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callsBefore + 1,
+                       "first pull-to-refresh should fetch page 1")
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new"])
+    }
+
     func testHasMoreInboxMessages_afterDomainChange_isFalse() async {
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
