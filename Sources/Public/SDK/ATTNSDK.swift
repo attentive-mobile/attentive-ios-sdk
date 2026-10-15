@@ -70,10 +70,13 @@ public final class ATTNSDK: NSObject {
     /// Called each time a user submits their email address in a creative.
     ///
     /// Use it to read the address the user entered, for example to prefill an account form.
-    /// It is called on the main queue, once per submission: submitting an address that is
-    /// already subscribed calls it again, and a user who already gave an email isn't asked
-    /// for one again. Not every creative type reports email submissions: canvas creatives
-    /// don't, so it isn't called for them. See ``ATTNCreativeEmailLead``.
+    /// It is called on the main queue each time a user submits an email page of a creative, and
+    /// when a page that asks for email and phone together is submitted with an email the creative
+    /// didn't already have. An email already reported since the creative was last triggered isn't
+    /// reported again from a later page, but submitting an address that is already subscribed
+    /// calls it again. A user who already gave an email isn't asked for one again. Not every
+    /// creative type reports email submissions: canvas creatives don't, so it isn't called for
+    /// them. See ``ATTNCreativeEmailLead``.
     @objc public var creativeEmailLeadHandler: ATTNCreativeEmailLeadHandler?
 
     /// The marketing version of the SDK (e.g. `"2.0.13"`).

@@ -82,6 +82,29 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         XCTAssertNil(ATTNCreativeEmailLeadParser.parse(["action": "LEAD", "email": "user@example.com"]))
     }
 
+    func testParseLead_withNewEmail_returnsLead() {
+        let lead = ATTNCreativeEmailLeadParser.parseLead(
+            ["action": "LEAD", "email": "twoinone@example.com", "phone": "+15555550100", "userEmail": "known@example.com", "creativeId": 1230751]
+        )
+
+        XCTAssertEqual(lead?.email, "twoinone@example.com")
+        XCTAssertEqual(lead?.creativeId, "1230751")
+        XCTAssertEqual(lead?.rawPayload["action"] as? String, "LEAD")
+    }
+
+    func testParseLead_withKnownEmail_returnsNil() {
+        XCTAssertNil(ATTNCreativeEmailLeadParser.parseLead(["action": "LEAD", "email": "Known@Example.com", "userEmail": "known@example.com"]))
+    }
+
+    func testParseLead_withoutEmail_returnsNil() {
+        XCTAssertNil(ATTNCreativeEmailLeadParser.parseLead(["action": "LEAD", "phone": "+15555550100"]))
+        XCTAssertNil(ATTNCreativeEmailLeadParser.parseLead(["action": "LEAD", "email": " "]))
+    }
+
+    func testParseLead_withOtherAction_returnsNil() {
+        XCTAssertNil(ATTNCreativeEmailLeadParser.parseLead(["action": "EMAIL_LEAD", "email": "user@example.com"]))
+    }
+
     func testParse_excludesSenderOriginFromRawPayload() {
         let lead = ATTNCreativeEmailLeadParser.parse(["action": "EMAIL_LEAD", "__origin": "https://creatives.attn.tv"])
 
@@ -171,6 +194,62 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         XCTAssertTrue(provider.receivedEmailLeads.isEmpty)
     }
 
+    func testHandleScriptMessage_withLeadWithNewEmail_forwardsLead() {
+        let (handler, provider) = makeHandler()
+
+        post(["action": "LEAD", "email": "twoinone@example.com", "phone": "+15555550100", "userEmail": "known@example.com"], to: handler)
+
+        XCTAssertEqual(provider.receivedEmailLeads.map(\.email), ["twoinone@example.com"])
+    }
+
+    func testHandleScriptMessage_withLeadRepeatingReportedOrKnownEmail_doesNotForwardLead() {
+        let (handler, provider) = makeHandler()
+
+        post(["action": "EMAIL_LEAD", "email": "first@example.com"], to: handler)
+        post(["action": "LEAD", "email": "First@Example.com", "phone": "+15555550100"], to: handler)
+        post(["action": "LEAD", "email": "known@example.com", "userEmail": "known@example.com"], to: handler)
+        post(["action": "LEAD", "phone": "+15555550100"], to: handler)
+        post(["action": "LEAD", "email": "second@example.com"], to: handler)
+        post(["action": "LEAD", "email": "second@example.com"], to: handler)
+
+        XCTAssertEqual(provider.receivedEmailLeads.map(\.email), ["first@example.com", "second@example.com"])
+    }
+
+    func testHandleScriptMessage_withRepeatedEmailLead_forwardsEachSubmission() {
+        // Resubmitting an email page is a new submission, unlike a later page repeating it.
+        let (handler, provider) = makeHandler()
+
+        post(["action": "EMAIL_LEAD", "email": "user@example.com"], to: handler)
+        post(["action": "EMAIL_LEAD", "email": "user@example.com"], to: handler)
+
+        XCTAssertEqual(provider.receivedEmailLeads.count, 2)
+    }
+
+    func testHandleScriptMessage_withLeadFromUntrustedSender_dropsLead() {
+        let (handler, provider) = makeHandler()
+
+        handler.handleScriptMessage(
+            ["action": "LEAD", "email": "forged@example.com", "__origin": "null"],
+            originProtocol: "https",
+            originHost: "creatives.attn.tv"
+        )
+
+        XCTAssertTrue(provider.receivedEmailLeads.isEmpty)
+    }
+
+    func testLaunchCreative_clearsReportedEmails() {
+        let (handler, provider) = makeHandler()
+        post(["action": "EMAIL_LEAD", "email": "user@example.com"], to: handler)
+        let launched = expectation(description: "web view set up")
+        provider.webViewSetupExpectation = launched
+
+        handler.launchCreative(parentView: provider.parentView ?? UIView())
+        wait(for: [launched], timeout: 10)
+        post(["action": "LEAD", "email": "user@example.com", "phone": "+15555550100"], to: handler)
+
+        XCTAssertEqual(provider.receivedEmailLeads.count, 2)
+    }
+
     func testMakeWebView_injectedListenerForwardsSenderOrigin() {
         let (handler, _) = makeHandler()
 
@@ -217,6 +296,12 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
     }
 
     // MARK: Helpers
+
+    private func post(_ body: [String: Any], to handler: ATTNWebViewHandler) {
+        var message = body
+        message["__origin"] = "https://creatives.attn.tv"
+        handler.handleScriptMessage(message, originProtocol: "https", originHost: "creatives.attn.tv")
+    }
 
     private func makeHandler() -> (ATTNWebViewHandler, MockWebViewProvider) {
         let provider = MockWebViewProvider()
