@@ -202,7 +202,16 @@ actor InboxManager {
         // `refreshUnreadCount`) so it doesn't try to coalesce with itself.
         initialRefreshTask = Task { [weak self] in
             await self?.performMessagesAndUnreadCountRefresh()
+            // Drop the handle once it settles, so later `refresh()` / `refreshUnreadCount()` calls
+            // only coalesce while the init fetch is actually running. Otherwise a stream-only host
+            // (one that never reads `allMessages` / `unreadCount`) has its first refresh await the
+            // finished task and return without a request.
+            await self?.clearInitialRefreshTask()
         }
+    }
+
+    private func clearInitialRefreshTask() {
+        initialRefreshTask = nil
     }
 
     /// Fetches the first page of inbox messages and the latest unread count, replacing any
