@@ -1775,6 +1775,120 @@ final class ATTNSDKTests: XCTestCase {
                        "the identity reset must not wipe the count the post-clear refresh stored")
     }
 
+    // MARK: - Inbox: custom-UI paging and refresh (MSDK-558)
+
+    func testLoadMoreInboxMessages_appendsNextPageUsingCursor() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        let firstPage = await sut.allMessages
+        XCTAssertEqual(firstPage.map(\.id), ["1"], "precondition: first page loaded")
+        let hasMoreBefore = await sut.hasMoreInboxMessages
+        XCTAssertTrue(hasMoreBefore, "a next_page_token means more pages")
+
+        await sut.loadMoreInboxMessages()
+
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"])
+        XCTAssertEqual(apiSpy.lastInboxMessagesPageToken, "cursor-2")
+        let hasMoreAfter = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMoreAfter, "no next_page_token on the last page")
+    }
+
+    func testLoadMoreInboxMessages_noMorePages_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let callCountBefore = apiSpy.fetchInboxMessagesCallCount
+
+        await sut.loadMoreInboxMessages()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callCountBefore)
+    }
+
+    func testLoadMoreInboxMessages_emitsAppendedListOnStateStream() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let stream = await sut.inboxStateStream
+
+        let received = expectation(description: "appended page emitted on inboxStateStream")
+        let listener = Task {
+            for await state in stream {
+                if case .loaded(let messages) = state, messages.map(\.id) == ["1", "2"] {
+                    received.fulfill()
+                    return
+                }
+            }
+        }
+
+        await sut.loadMoreInboxMessages()
+
+        await fulfillment(of: [received], timeout: 1.0)
+        listener.cancel()
+    }
+
+    func testInboxLoadingMoreStream_reportsInFlightPageFetch() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let stream = await sut.inboxLoadingMoreStream
+
+        let started = expectation(description: "loading-more turned on")
+        let finished = expectation(description: "loading-more turned off after the fetch")
+        let listener = Task {
+            var sawTrue = false
+            for await isLoading in stream {
+                if isLoading, !sawTrue {
+                    sawTrue = true
+                    started.fulfill()
+                } else if !isLoading, sawTrue {
+                    finished.fulfill()
+                    return
+                }
+            }
+        }
+
+        await sut.loadMoreInboxMessages()
+
+        await fulfillment(of: [started, finished], timeout: 1.0, enforceOrder: true)
+        listener.cancel()
+    }
+
+    func testRefreshInboxMessages_replacesListAndResetsPagination() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: "old-cursor"),
+            InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+
+        await sut.refreshInboxMessages()
+
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new"], "refresh replaces rather than appends")
+        XCTAssertNil(apiSpy.lastInboxMessagesPageToken, "refresh fetches page 1, without a cursor")
+        let hasMore = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMore, "pagination follows the refreshed page")
+    }
+
+    func testHasMoreInboxMessages_afterDomainChange_isFalse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
+        ]
+        _ = await sut.allMessages
+
+        sut.update(domain: newDomain)
+
+        let hasMore = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMore, "the previous account's cursor must not report more pages")
+    }
+
     // MARK: - Inbox: account / identity changes and lazy creation (MSDK-545)
 
     func testUpdateDomain_withMaterializedInbox_dropsPreviousAccountsInbox() async {

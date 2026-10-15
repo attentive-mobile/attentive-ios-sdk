@@ -545,6 +545,49 @@ public final class ATTNSDK: NSObject {
         await materializedInboxManager().refreshUnreadCount()
     }
 
+    /// Re-fetches the first page of inbox messages and the unread count, replacing the loaded
+    /// list and resetting pagination. Hosts rendering a custom inbox UI should call this on
+    /// pull-to-refresh; the built-in `inboxView()` does it on appear. Results arrive through
+    /// `inboxStateStream`. On failure the previously loaded list is kept (`.error` is only
+    /// emitted when nothing has loaded yet).
+    public func refreshInboxMessages() async {
+        await materializedInboxManager().refresh()
+    }
+
+    /// Fetches the next page of inbox messages and appends it. Hosts rendering a custom inbox
+    /// UI should call this when the user scrolls near the end of the list; the built-in
+    /// `inboxView()` does it automatically. The appended list arrives as a new `.loaded` on
+    /// `inboxStateStream`.
+    ///
+    /// Safe to call repeatedly: it's a no-op when there are no more pages, a page fetch is
+    /// already in flight, or the first page hasn't loaded yet. On failure the loaded list is
+    /// kept and the call can simply be retried.
+    public func loadMoreInboxMessages() async {
+        await materializedInboxManager().loadNextPage()
+    }
+
+    /// Whether the server reported more pages after the last successful fetch. `false` until the
+    /// first page has loaded. Read it after a `.loaded` emission to decide whether to show a
+    /// "load more" affordance; `loadMoreInboxMessages()` is safe to call regardless.
+    public var hasMoreInboxMessages: Bool {
+        get async {
+            let manager = materializedInboxManager()
+            // A pagination cursor from another account's domain is about to be dropped, so don't
+            // report it as more pages.
+            await manager.dropStateIfDomainChanged()
+            return await manager.hasMore
+        }
+    }
+
+    /// Returns an `AsyncStream` that immediately emits whether a next-page fetch is in flight,
+    /// then emits on every change. Use it to show a footer spinner in a custom inbox UI. Calls
+    /// to `loadMoreInboxMessages()` that no-op never flip it.
+    public var inboxLoadingMoreStream: AsyncStream<Bool> {
+        get async {
+            await materializedInboxManager().loadingMoreStream
+        }
+    }
+
     /// Returns the SDK's default inbox UI. On row tap the SDK fires click tracking and
     /// broadcasts `ATTNSDKInboxMessageTapped`, then opens the message's `actionURL` unless
     /// `automaticallyOpensInboxDeepLinks` is false — universal links resolve into their app,

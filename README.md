@@ -797,7 +797,15 @@ await sdk.delete(messageID: message.id)
 
 // Call this on tap when using your own UI (built-in UI already does)
 await sdk.markClicked(for: message.id)
+
+// Paging and refresh (built-in UI already does both)
+await sdk.loadMoreInboxMessages()   // when the last row appears; no-op if nothing more or already loading
+await sdk.refreshInboxMessages()    // pull-to-refresh: re-fetches page 1 and the unread count
+let canLoadMore = await sdk.hasMoreInboxMessages
+for await isLoadingMore in await sdk.inboxLoadingMoreStream { /* show/hide a footer spinner */ }
 ```
+
+New pages and refreshed lists arrive as a new `.loaded` on `inboxStateStream`, so keep rendering from the stream.
 
 ### Public API cheat sheet
 
@@ -809,6 +817,10 @@ await sdk.markClicked(for: message.id)
 | `inboxUnreadCount: Int` | Synchronous mirror of `unreadCount` (Swift, UIKit-friendly) |
 | `.ATTNSDKInboxUnreadCountChanged` | Notification posted when the unread count changes |
 | `refreshInboxUnreadCount()` | Refresh the count from the server |
+| `refreshInboxMessages()` | Re-fetch page 1 and the count (pull-to-refresh) — required for custom UI, automatic for `inboxView()` |
+| `loadMoreInboxMessages()` | Fetch and append the next page — required for custom UI, automatic for `inboxView()` |
+| `hasMoreInboxMessages: Bool` | Whether more pages are available (async) |
+| `inboxLoadingMoreStream: AsyncStream<Bool>` | Next-page fetch in flight, for a footer spinner |
 | `markRead(for:)` / `markUnread(for:)` / `delete(messageID:)` | Mutations (optimistic) |
 | `markClicked(for:)` | Click tracking — required for custom UI, automatic for `inboxView()` |
 | `inboxView(style:onMessageTap:)` | SwiftUI drop-in |
