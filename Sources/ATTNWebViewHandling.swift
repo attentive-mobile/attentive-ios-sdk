@@ -57,6 +57,11 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
     // launch orchestration and the native timeout).
     private var currentLaunchEpoch: UInt64 = 0
 
+    // Lowercased emails reported to the host since the last launch, so a `LEAD` that repeats an
+    // email an earlier page already reported isn't reported again. Main-thread only: script
+    // messages arrive on the main thread, and launches clear it there.
+    private var reportedLeadEmails = Set<String>()
+
     // Injectable for tests so the launching-timeout unit tests don't have to wait
     // the full 5s per case.
     let launchTimeoutInterval: TimeInterval
@@ -75,7 +80,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(self, name: Constants.scriptMessageHandlerName)
 
-        let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { window.webkit.messageHandlers.log.postMessage(event.data.__attentive); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
+        let userScriptWithEventListener = #"window.addEventListener('message', function(event) { if (event.data && event.data.__attentive) { var message = event.data.__attentive; if (typeof message === 'object' && !Array.isArray(message)) { message = Object.assign({}, message, { \#(ATTNCreativeEmailLeadParser.senderOriginKey): event.origin }); } window.webkit.messageHandlers.log.postMessage(message); } }, false); window.addEventListener('visibilitychange', function(event) { window.webkit.messageHandlers.log.postMessage("\#(Constants.visibilityEvent) " + document.hidden); }, false);"#
         let userScript = WKUserScript(source: userScriptWithEventListener, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         configuration.userContentController.addUserScript(userScript)
         let webView = CustomWebView(frame: .zero, configuration: configuration)
@@ -170,6 +175,7 @@ class ATTNWebViewHandler: NSObject, ATTNWebViewHandling {
                     }
                     webViewProvider.webView = nil
                 }
+                self.reportedLeadEmails.removeAll()
                 webViewProvider.webView = self.makeWebView(launchEpoch: epoch)
 
                 guard let webView = webViewProvider.webView as? CustomWebView else { return }
@@ -367,7 +373,14 @@ extension ATTNWebViewHandler: WKNavigationDelegate {
 
 extension ATTNWebViewHandler: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        let messageBody = message.body as? String ?? "Empty"
+        let origin = message.frameInfo.securityOrigin
+        handleScriptMessage(message.body, originProtocol: origin.protocol, originHost: origin.host)
+    }
+
+    /// Handles a message posted by the creative page. Separate from the `WKScriptMessageHandler`
+    /// method because `WKScriptMessage` and `WKSecurityOrigin` can't be created in tests.
+    func handleScriptMessage(_ rawBody: Any, originProtocol: String, originHost: String) {
+        let messageBody = rawBody as? String ?? "Empty"
         Loggers.creative.debug("Web event message: \(messageBody, privacy: .public). is creative open: \(self.stateManager.getState() == .open ? "YES" : "NO", privacy: .public)")
 
         if messageBody == "CLOSE" {
@@ -377,7 +390,7 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
 
         guard let parent = self.webViewProvider?.parentView else { return }
 
-        guard let body = message.body as? [String: Any],
+        guard let body = rawBody as? [String: Any],
                     let action = body["action"] as? String else {
             return
         }
@@ -389,6 +402,9 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
         case "IMPRESSION":
             stateManager.updateState(.open)
             Loggers.creative.debug("Creative opened and generated impression event")
+
+        case ATTNCreativeEmailLeadParser.action, ATTNCreativeEmailLeadParser.leadAction:
+            handleEmailLead(action: action, body: body, originProtocol: originProtocol, originHost: originHost)
 
         case String(format: "%@ true", Constants.visibilityEvent)
             where stateManager.getState() == .open:
@@ -445,6 +461,37 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
         }
     }
 
+    private func handleEmailLead(action: String, body: [String: Any], originProtocol: String, originHost: String) {
+        // The frame that calls the message handler and the frame that sent the original
+        // `postMessage` can differ, so both must be the creative page.
+        let senderOrigin = body[ATTNCreativeEmailLeadParser.senderOriginKey] as? String
+        guard ATTNCreativeEmailLeadParser.isTrustedOrigin(protocol: originProtocol, host: originHost),
+              ATTNCreativeEmailLeadParser.isTrustedSenderOrigin(senderOrigin) else {
+            Loggers.creative.debug("Ignoring \(action, privacy: .public) from untrusted origin: \(originHost, privacy: .public), sender \(senderOrigin ?? "nil", privacy: .public)")
+            return
+        }
+        let lead: ATTNCreativeEmailLead
+        if action == ATTNCreativeEmailLeadParser.action {
+            guard let emailLead = ATTNCreativeEmailLeadParser.parse(body) else { return }
+            if let email = emailLead.email {
+                reportedLeadEmails.insert(email.lowercased())
+            }
+            lead = emailLead
+        } else {
+            guard let newLead = ATTNCreativeEmailLeadParser.parseLead(body),
+                  let email = newLead.email,
+                  reportedLeadEmails.insert(email.lowercased()).inserted else {
+                Loggers.creative.debug("Creative LEAD received without a new email")
+                return
+            }
+            lead = newLead
+        }
+        // The email is the user's personal data, so log only whether one was present. Not
+        // `privacy: .private`: `ATTNLogger` ignores per-argument privacy and writes the whole
+        // message as public, and also keeps it in the in-app log buffer (MSDK-555).
+        Loggers.creative.debug("Creative email lead received: has email \(lead.email != nil, privacy: .public), creative \(lead.creativeId ?? "nil", privacy: .public)")
+        webViewProvider?.didReceiveCreativeEmailLead(lead)
+    }
 }
 
 fileprivate extension ATTNWebViewHandler {
