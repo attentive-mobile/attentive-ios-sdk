@@ -1022,6 +1022,37 @@ sdk.trigger(view, creativeId: "YOUR_CREATIVE_ID") { status in
 }];
 ```
 
+### Read emails submitted in a creative
+
+Set `creativeEmailLeadHandler` to get the email address each time a user submits one in a creative, for example to prefill your sign-up form. The handler is called on the main queue with an `ATTNCreativeEmailLead`, which has the submitted `email`, the `creativeId` of the creative it was submitted in, and the creative's full message in `rawPayload`.
+
+#### Swift
+
+```swift
+sdk.creativeEmailLeadHandler = { lead in
+  guard let email = lead.email else { return }
+  print("User submitted \(email) in creative \(lead.creativeId ?? "unknown")")
+}
+```
+
+#### Objective-C
+
+```objective-c
+sdk.creativeEmailLeadHandler = ^(ATTNCreativeEmailLead *lead) {
+  if (lead.email != nil) {
+    NSLog(@"User submitted %@ in creative %@", lead.email, lead.creativeId);
+  }
+};
+```
+
+> [!NOTE]
+> The handler is called when a user submits an email page of a creative, and when a page that asks for email and phone together is submitted with an email the creative didn't already have. An email already reported since the creative was last triggered isn't reported again from a later page.
+>
+> A lead means the user *submitted* an email, not that they're a new subscriber. Submitting an address that's already subscribed calls the handler again, so dedupe if you need to. The address is passed through as the creative sent it: surrounding whitespace is trimmed, but letter case is kept. A user who has already given an email isn't asked for it again, so their next creative doesn't call the handler.
+
+> [!IMPORTANT]
+> Not every creative type reports email submissions. Canvas creatives don't, so the handler isn't called for emails submitted in them.
+
 ### Fatigue rules
 
 Fatigue rules are evaluated by the Attentive backend. The `ATTNSDK.skipFatigueOnCreative`

@@ -15,4 +15,5 @@ protocol ATTNWebViewProviding: NSObjectProtocol {
     func getDomain() -> String
     func getMode() -> ATTNSDKMode
     func getUserIdentity() -> ATTNUserIdentity
+    func didReceiveCreativeEmailLead(_ lead: ATTNCreativeEmailLead)
 }

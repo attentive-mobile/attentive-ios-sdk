@@ -1,0 +1,76 @@
+//
+//  ATTNCreativeEmailLeadParser.swift
+//  attentive-ios-sdk-framework
+//
+
+import Foundation
+
+internal enum ATTNCreativeEmailLeadParser {
+    static let action = "EMAIL_LEAD"
+
+    /// Sent when a page that asks for email and phone together (a 2-in-1 creative) is submitted.
+    /// Those creatives never send `EMAIL_LEAD`. A `LEAD` from an SMS page that follows an email
+    /// page repeats the email the `EMAIL_LEAD` already reported.
+    static let leadAction = "LEAD"
+
+    /// Key the injected listener adds to each forwarded message, holding the `event.origin` of
+    /// the frame that sent it. A creative can't set it: the listener overwrites any existing value.
+    static let senderOriginKey = "__origin"
+
+    /// Parses an `EMAIL_LEAD` creative message. Returns `nil` if `body` isn't an `EMAIL_LEAD` message.
+    static func parse(_ body: [String: Any]) -> ATTNCreativeEmailLead? {
+        guard body["action"] as? String == action else { return nil }
+        return makeLead(from: body)
+    }
+
+    /// Parses a `LEAD` creative message. Returns `nil` unless it carries an email that differs from
+    /// the `userEmail` the creative already had, so a `LEAD` that only repeats a known email is skipped.
+    static func parseLead(_ body: [String: Any]) -> ATTNCreativeEmailLead? {
+        guard body["action"] as? String == leadAction,
+              let email = nonBlankString(body["email"]) else { return nil }
+        if let userEmail = nonBlankString(body["userEmail"]),
+           email.caseInsensitiveCompare(userEmail) == .orderedSame {
+            return nil
+        }
+        return makeLead(from: body)
+    }
+
+    private static func makeLead(from body: [String: Any]) -> ATTNCreativeEmailLead {
+        ATTNCreativeEmailLead(
+            email: nonBlankString(body["email"]),
+            creativeId: creativeId(from: body["creativeId"]),
+            rawPayload: body.filter { $0.key != senderOriginKey }
+        )
+    }
+
+    /// Whether a script message came from the Attentive creative page. Any frame in the
+    /// web view can post to the message handler, so leads from other origins are dropped.
+    static func isTrustedOrigin(protocol scheme: String, host: String) -> Bool {
+        scheme == ATTNSDKConfiguration.Endpoint.scheme && host == ATTNSDKConfiguration.Endpoint.Creatives.host
+    }
+
+    /// Whether the frame that posted the original `window.postMessage` is the Attentive creative
+    /// page. The message handler only sees the frame that forwarded it, which is always the
+    /// creative page, so a cross-origin child frame could otherwise forge a lead.
+    static func isTrustedSenderOrigin(_ origin: String?) -> Bool {
+        origin == "\(ATTNSDKConfiguration.Endpoint.scheme)://\(ATTNSDKConfiguration.Endpoint.Creatives.host)"
+    }
+
+    /// Trims surrounding whitespace and returns nil for a blank result. Returning the trimmed
+    /// value (not the original) is what the public docs promise, and it keeps `userEmail` and
+    /// `reportedLeadEmails` comparisons from treating " a@b.com " and "a@b.com" as different.
+    private static func nonBlankString(_ value: Any?) -> String? {
+        guard let string = value as? String else { return nil }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// Creatives send the ID as either a string or a number.
+    private static func creativeId(from value: Any?) -> String? {
+        guard let value else { return nil }
+        // JSON booleans bridge to the same type as numbers, and would cast to Int; they aren't IDs.
+        if CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID() { return nil }
+        if let number = value as? Int { return String(number) }
+        return nonBlankString(value)
+    }
+}
