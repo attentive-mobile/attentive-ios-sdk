@@ -745,7 +745,7 @@ platform :ios do
         failed_output = nil
         last_error = nil
         begin
-          sh("pod trunk push '#{spec}' --allow-warnings", error_callback: ->(output) { failed_output = output })
+          sh("pod trunk push '#{abs_path(spec)}' --allow-warnings", error_callback: ->(output) { failed_output = output })
           last_error = trunk_error_summary(failed_output) if failed_output
         rescue => e
           last_error = e.message
