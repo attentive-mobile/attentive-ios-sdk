@@ -13,7 +13,7 @@ The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFrame
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '2.1.1'
+  pod 'ATTNSDKFramework', '2.2.0'
 end
 ```
 
