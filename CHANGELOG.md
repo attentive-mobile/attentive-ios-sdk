@@ -1,3 +1,6 @@
+## [2.2.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.1...2.2.0) (2026-10-16)
+Inbox MVP with paging APIs and ATTNInboxError; opt-in push deep links; inbox deep links with URL validation; creative email lead handler; debug log capture
+
 ## Unreleased
 ### Features
 - **The SDK can now open push deep links on the host app's behalf** (MSDK-213, MSDK-491) — **opt-in** via `automaticallyOpensPushDeepLinks = true` (default `false`), matching the Android SDK: custom-scheme URLs route into your app's URL handlers, http(s) URLs open as universal links only (never the browser). This applies to foreground banner taps too. Leave the flag off (the default) if your app already navigates in response to the `ATTNSDKDeepLinkReceived` broadcast or `consumeDeepLink()` — enabling it would handle the same URL twice. The URL is always broadcast and stored regardless of the setting.
