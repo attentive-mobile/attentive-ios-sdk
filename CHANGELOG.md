@@ -1,10 +1,33 @@
-## Unreleased
-### Features
-- **The SDK can now open push deep links on the host app's behalf** (MSDK-213, MSDK-491) — **opt-in** via `automaticallyOpensPushDeepLinks = true` (default `false`), matching the Android SDK: custom-scheme URLs route into your app's URL handlers, http(s) URLs open as universal links only (never the browser). This applies to foreground banner taps too. Leave the flag off (the default) if your app already navigates in response to the `ATTNSDKDeepLinkReceived` broadcast or `consumeDeepLink()` — enabling it would handle the same URL twice. The URL is always broadcast and stored regardless of the setting.
-- The built-in inbox UI opens a tapped message's `actionURL` (unclaimed http(s) links fall back to the browser), matching the Android SDK — **on by default**; set `automaticallyOpensInboxDeepLinks = false` if your app navigates on the `ATTNSDKInboxMessageTapped` broadcast instead. Alternatively pass `onMessageTap` to `inboxView()` / `inboxViewController()` to route taps yourself; click tracking and the `ATTNSDKInboxMessageTapped` broadcast fire either way.
-- Server-supplied deep-link URLs are validated before the SDK opens them: scriptable schemes (`javascript:`, `file:`, `data:`, `about:`, `vbscript:`) and privileged system-action schemes (`tel:`, `sms:`, `mailto:`, `facetime:`, `itms-*`, …) are never opened, though they are still broadcast for host visibility.
-- Inbox API failures now surface through `InboxState.error` **including** a new `ATTNInboxError` (`requestFailed(statusCode:)`, `responseDecodeFailed`, `unexpectedResponseType`; NSError domain `com.attentive.sdk.inbox`); other error types (bad URL as `ATTNError.badURL`, transport `URLError`, request encoding) continue to propagate unchanged. `ATTNError` itself is unchanged, so existing exhaustive `switch`es over it keep compiling (MSDK-533).
-- Custom inbox UIs can now page and refresh: `loadMoreInboxMessages()`, `refreshInboxMessages()`, `hasMoreInboxMessages`, and `inboxLoadingMoreStream`. Previously only the built-in `inboxView()` could load past the first page or re-fetch the list (MSDK-558).
+## [2.2.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.1...2.2.0) (2026-10-16)
+### What's new
+
+#### Inbox (MVP)
+- **Built-in inbox UI:** `inboxView()` (SwiftUI) and `inboxViewController()` (UIKit), styleable with `InboxStyle`.
+- **Build your own UI:** render from `inboxStateStream` or `allMessages`, and use `markRead(for:)`, `markUnread(for:)`, `delete(messageID:)` and `markClicked(for:)`.
+- **Paging and refresh for custom UIs:** `loadMoreInboxMessages()`, `refreshInboxMessages()`, `hasMoreInboxMessages` and `inboxLoadingMoreStream`.
+- **Unread badge:** `inboxUnreadCount`, `unreadCount`, `refreshInboxUnreadCount()` and the `ATTNSDKInboxUnreadCountChanged` notification.
+- **Message taps open the message's link by default.** Set `automaticallyOpensInboxDeepLinks = false` to route taps yourself with `onMessageTap` or the `ATTNSDKInboxMessageTapped` notification. Click tracking fires either way.
+- **Inbox-specific failures** surface as the new `ATTNInboxError` through `InboxState.error`. `ATTNError` is unchanged.
+
+#### Push deep links
+- **Opt-in:** set `automaticallyOpensPushDeepLinks = true` and the SDK opens a tapped push notification's deep link for you. Custom-scheme links route into your app's URL handlers; http(s) links open as universal links only. The default is off, so apps that already handle `ATTNSDKDeepLinkReceived` or `consumeDeepLink()` work unchanged.
+- **Server-supplied deep links are validated.** Scriptable schemes (such as `javascript:`) and system-action schemes (such as `tel:` and `sms:`) are never opened. They're still broadcast so your app can see them.
+
+#### Creative email leads
+- **`creativeEmailLeadHandler`** is called on the main queue with an `ATTNCreativeEmailLead` (`email`, `creativeId`, `rawPayload`) when a user submits their email in an Attentive creative. Only messages from Attentive's creative host are accepted, and the SDK never logs the address.
+
+#### Debug log capture
+- **In-app log capture** for debug tooling: `ATTNSDK.isLogCaptureEnabled`, `recentLogs(since:)`, `logStream` and `ATTNLogEntry`.
+
+### Upgrade notes
+- **No breaking changes.** All new APIs are additive.
+- **Inbox APIs are Swift-only** (structs and `async`), so they aren't available from Objective-C.
+- **Minimum iOS version** is 15.0, unchanged from 2.1.x.
+
+### Known limitations (inbox MVP)
+- **After `clearUser()` or `updateUser(...)`,** an open inbox shows an empty list until it's reopened or refreshed. Don't call `refreshInboxMessages()` right after those calls; reload on the user's next action instead.
+- **After `update(domain:)`,** the previous account's inbox is cleared, and messages reload on the next refresh.
+- **The inbox error screen has no retry control yet.** Reopen the inbox to retry.
 
 ## [2.1.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.0...2.1.1) (2026-10-02)
 Added optional `trackingConsent:` to `optInMarketingSubscription` for EU email pixel-tracking consent
