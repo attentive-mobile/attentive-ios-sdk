@@ -34,6 +34,17 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         XCTAssertEqual(lead?.email, "User@Example.COM")
     }
 
+    func testParse_trimsSurroundingWhitespaceButKeepsCase() {
+        let lead = ATTNCreativeEmailLeadParser.parse(["action": "EMAIL_LEAD", "email": "  User@Example.COM \n", "creativeId": " 1230751 "])
+
+        XCTAssertEqual(lead?.email, "User@Example.COM")
+        XCTAssertEqual(lead?.creativeId, "1230751")
+    }
+
+    func testParseLead_withPaddedKnownEmail_returnsNil() {
+        XCTAssertNil(ATTNCreativeEmailLeadParser.parseLead(["action": "LEAD", "email": " known@example.com ", "userEmail": "known@example.com "]))
+    }
+
     func testParse_withoutEmail_returnsNilEmail() {
         let lead = ATTNCreativeEmailLeadParser.parse(["action": "EMAIL_LEAD"])
 
@@ -213,6 +224,16 @@ final class ATTNCreativeEmailLeadTests: XCTestCase {
         post(["action": "LEAD", "email": "second@example.com"], to: handler)
 
         XCTAssertEqual(provider.receivedEmailLeads.map(\.email), ["first@example.com", "second@example.com"])
+    }
+
+    func testHandleScriptMessage_withPaddedEmail_forwardsTrimmedAndDedupes() {
+        // Codex on #331: the untrimmed value reached the host and defeated the duplicate check.
+        let (handler, provider) = makeHandler()
+
+        post(["action": "EMAIL_LEAD", "email": " first@example.com "], to: handler)
+        post(["action": "LEAD", "email": "first@example.com", "phone": "+15555550100"], to: handler)
+
+        XCTAssertEqual(provider.receivedEmailLeads.map(\.email), ["first@example.com"])
     }
 
     func testHandleScriptMessage_withRepeatedEmailLead_forwardsEachSubmission() {

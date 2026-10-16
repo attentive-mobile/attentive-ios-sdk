@@ -81,4 +81,70 @@ protocol ATTNAPIProtocol {
         operationContext: String,
         callback: ATTNAPICallback?
     )
+
+    // MARK: - Inbox
+    //
+    // Every inbox method takes the `domain` (`c`) explicitly instead of reading the API's current
+    // domain at send time: the caller passes the domain from the same identity snapshot it used
+    // for the other identifiers, so a request can never pair one account's cursor or message ids
+    // with another account's domain across `update(domain:)` (MSDK-545).
+    func fetchInboxUnreadCount(
+        domain: String,
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String
+    ) async throws -> Int
+
+    /// Fetches a page of inbox messages for the current user.
+    /// - Parameters:
+    ///   - pageSize: max number of messages to return; server clamps to its own upper bound.
+    ///   - pageToken: opaque cursor from a previous response's `next_page_token`; `nil` for the first page.
+    func fetchInboxMessages(
+        domain: String,
+        pushToken: String,
+        email: String?,
+        phone: String?,
+        visitorId: String,
+        pageSize: Int,
+        pageToken: String?
+    ) async throws -> InboxResponse
+
+    /// Marks the supplied messages as read on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesRead(
+        domain: String,
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
+
+    /// Marks the supplied messages as unread on the server. Returns the server-confirmed
+    /// per-message read status and the resulting authoritative unread count.
+    func markMessagesUnread(
+        domain: String,
+        pushToken: String,
+        visitorId: String,
+        messageIds: [String]
+    ) async throws -> UpdateReadStatusResponse
+
+    /// Reports a message click to `POST /inbox/events/clicked`. Fire-and-forget from the caller's
+    /// perspective — the endpoint returns 204 No Content. Throws on transport failure, non-2xx
+    /// status, or bad URL so the caller can decide whether to surface the error.
+    func markMessageClicked(
+        domain: String,
+        pushToken: String,
+        visitorId: String,
+        messageId: String,
+        actionURL: String?
+    ) async throws
+
+    /// Deletes a single inbox message on the server. Throws on non-2xx responses; callers
+    /// are expected to revert any optimistic UI changes on error.
+    func deleteInboxMessage(
+        domain: String,
+        pushToken: String,
+        visitorId: String,
+        messageId: String
+    ) async throws
 }

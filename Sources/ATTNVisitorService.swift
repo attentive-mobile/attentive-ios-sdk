@@ -14,11 +14,11 @@ struct ATTNVisitorService {
     }
 
     private let persistentStorage: ATTNPersistentStorageProtocol
-    private let logger: Logger
+    private let logger: ATTNLogger
 
     init(
         persistentStorage: ATTNPersistentStorageProtocol = ATTNPersistentStorage(),
-        logger: Logger = Loggers.event
+        logger: ATTNLogger = Loggers.event
     ) {
         self.persistentStorage = persistentStorage
         self.logger = logger

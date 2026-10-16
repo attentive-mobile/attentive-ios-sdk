@@ -67,7 +67,9 @@ final class ATTNSDKTests: XCTestCase {
 
         XCTAssertTrue(apiSpy.updateDomainWasCalled)
         XCTAssertTrue(apiSpy.domainWasSet)
-        XCTAssertTrue(apiSpy.sendUserIdentityWasCalled)
+        // The identity event goes out through the callback variant so the inbox count refresh
+        // can run after it (MSDK-545).
+        XCTAssertTrue(apiSpy.sendUserIdentityCallbackWasCalled)
 
         XCTAssertEqual(apiSpy.domain, newDomain)
     }
@@ -81,6 +83,7 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertFalse(apiSpy.updateDomainWasCalled)
         XCTAssertFalse(apiSpy.domainWasSet)
         XCTAssertFalse(apiSpy.sendUserIdentityWasCalled)
+        XCTAssertFalse(apiSpy.sendUserIdentityCallbackWasCalled)
 
         XCTAssertEqual(apiSpy.domain, testDomain)
     }
@@ -444,6 +447,161 @@ final class ATTNSDKTests: XCTestCase {
             XCTAssertEqual(escaped["double"] as? Double, 1.5)
         }
 
+    // MARK: - Push deep link tests
+
+    func testAutomaticallyOpensPushDeepLinks_defaultsToFalse() {
+        // MSDK-491: hosts that already navigate on the broadcasts must not double-navigate
+        // on SDK upgrade — SDK-driven opening is opt-in.
+        XCTAssertFalse(sut.automaticallyOpensPushDeepLinks)
+    }
+
+    func testAutomaticallyOpensInboxDeepLinks_defaultsToTrue() {
+        // MSDK-478: matches the Android SDK, whose inbox has always opened actionUrl by default.
+        XCTAssertTrue(sut.automaticallyOpensInboxDeepLinks)
+    }
+
+    func testNormalizeAndBroadcast_customSchemeURL_opensURLDirectly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+        XCTAssertNil(urlOpenerSpy.lastOptions[.universalLinksOnly])
+    }
+
+    func testNormalizeAndBroadcast_httpsURL_opensAsUniversalLinkOnly() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("https://example.com/product/1")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "https://example.com/product/1")!])
+        XCTAssertEqual(urlOpenerSpy.lastOptions[.universalLinksOnly] as? Bool, true)
+    }
+
+    func testNormalizeAndBroadcast_trimsWhitespaceBeforeOpening() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        sut.normalizeAndBroadcast("  myapp://cart\n")
+
+        XCTAssertEqual(urlOpenerSpy.openedURLs, [URL(string: "myapp://cart")!])
+    }
+
+    func testNormalizeAndBroadcast_autoOpenNotOptedIn_doesNotOpenButKeepsPendingURL() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+    }
+
+    func testNormalizeAndBroadcast_invalidURLString_doesNotOpenOrStore() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("not a url")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_emptySchemeURL_doesNotOpenOrStore() {
+        // "://foo" parses via URL(string:) with scheme == "" (not nil) — it must not slip
+        // past validation into UIApplication.open.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("://foo")
+
+        XCTAssertFalse(urlOpenerSpy.openWasCalled)
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
+    func testNormalizeAndBroadcast_scriptableSchemes_doNotOpenButAreStillBroadcast() {
+        // Blocked schemes must never reach UIApplication.open — even with auto-open opted
+        // in — but hosts observing the broadcast (or polling consumeDeepLink()) keep
+        // visibility for logging/audit.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        for blocked in ["javascript:alert(1)", "file:///etc/passwd", "data:text/html,hi", "about:blank", "vbscript:msgbox"] {
+            let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil)
+
+            sut.normalizeAndBroadcast(blocked)
+
+            XCTAssertFalse(urlOpenerSpy.openWasCalled, "\(blocked) must not be opened")
+            XCTAssertEqual(sut.consumeDeepLink(), URL(string: blocked), "\(blocked) must still be stored for host visibility")
+            wait(for: [notificationExpectation], timeout: 1.0)
+        }
+    }
+
+    func testNormalizeAndBroadcast_privilegedSystemSchemes_doNotOpenButAreStillBroadcast() {
+        // tel:/sms:/itms-* trigger system prompts (dialer, composer, App Store) — an
+        // escalation a push tap must never cause, even with auto-open opted in. Broadcast
+        // still fires for host visibility.
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+        sut.automaticallyOpensPushDeepLinks = true
+
+        for blocked in [
+            "tel:+15551234", "telprompt:+15551234", "sms:+15551234", "mailto:a@b.com",
+            "facetime://+15551234", "facetime-audio://+15551234",
+            "itms-apps://apps.apple.com/app/id1", "itms-services://?action=download-manifest"
+        ] {
+            sut.normalizeAndBroadcast(blocked)
+
+            XCTAssertFalse(urlOpenerSpy.openWasCalled, "\(blocked) must not be opened")
+            XCTAssertEqual(sut.consumeDeepLink(), URL(string: blocked), "\(blocked) must still be stored for host visibility")
+        }
+    }
+
+    func testOpenableDeepLinkScheme_acceptsNonRFCSchemesThatiOS15Parses() {
+        // Underscores and leading digits are non-RFC but registrable in Info.plist, and the
+        // lenient pre-iOS 17 URL(string:) parses them — those taps must not be dropped.
+        // (Tested via the scheme helper: the iOS 17+ parser used by the test host refuses to
+        // construct such URLs at all, so the URL-level property can't be exercised directly.)
+        for scheme in ["myapp", "my-app", "my_app", "1password", "firebase_dynamiclinks", "web+shop", "com.example.app"] {
+            XCTAssertTrue(URL.attnIsOpenableDeepLinkScheme(scheme), "\(scheme) should be openable")
+        }
+    }
+
+    func testOpenableDeepLinkScheme_rejectsBlockedEmptyAndMalformedSchemes() {
+        for scheme in [nil, "", "my app", "javascript", "JAVASCRIPT", "file", "data", "tel", "sms", "mailto", "itms-services"] {
+            XCTAssertFalse(URL.attnIsOpenableDeepLinkScheme(scheme), "\(scheme ?? "nil") should be rejected")
+        }
+    }
+
+    func testNormalizeAndBroadcast_postsDeepLinkNotification() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        let notificationExpectation = expectation(forNotification: .ATTNSDKDeepLinkReceived, object: nil) { notification in
+            notification.userInfo?["attentivePushDeeplinkUrl"] as? URL == URL(string: "myapp://cart")
+        }
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        wait(for: [notificationExpectation], timeout: 1.0)
+    }
+
+    func testConsumeDeepLink_secondCallReturnsNil() {
+        let urlOpenerSpy = ATTNURLOpenerSpy()
+        sut.urlOpener = urlOpenerSpy
+
+        sut.normalizeAndBroadcast("myapp://cart")
+
+        XCTAssertEqual(sut.consumeDeepLink(), URL(string: "myapp://cart"))
+        XCTAssertNil(sut.consumeDeepLink())
+    }
+
     func testOptIn_withoutPushToken_isQueuedAndSentAfterTokenRegistration() {
         sut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
 
@@ -544,6 +702,42 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
         XCTAssertEqual(apiSpy.lastOptOutPhone, "+15551234567")
         XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Non-push opt-out should send with an empty push token")
+    }
+
+    func testOptIn_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        // A previous push-enabled install may have persisted a token; a push-disabled
+        // instance must not attach it to marketing requests.
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optInMarketingSubscription(email: "user@example.com", phone: nil, callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptInWasCalled, "Opt-in should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
+    }
+
+    func testInbox_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() async {
+        // Adela's repro on #327: the stale token reached both inbox requests.
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        XCTAssertEqual(pushDisabledSut.publishedInboxIdentitySnapshot().pushToken, "",
+                       "The inbox identity snapshot must not carry a token when pushEnabled is false")
+
+        _ = await pushDisabledSut.unreadCount
+
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "", "Unread-count request must not send the stale token")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "", "Messages request must not send the stale token")
+    }
+
+    func testOptOut_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
+        UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        pushDisabledSut.optOutMarketingSubscription(email: nil, phone: "+15551234567", callback: nil)
+
+        XCTAssertTrue(apiSpy.sendOptOutWasCalled, "Opt-out should send immediately when pushEnabled is false")
+        XCTAssertEqual(apiSpy.lastOptOutPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
     }
 
     // MARK: - trackingConsent tests
@@ -732,6 +926,8 @@ final class ATTNSDKTests: XCTestCase {
         // Fresh sut — models a cold launch reading the persisted sync record.
         let coldLaunchSpy = ATTNAPISpy(domain: testDomain)
         let coldLaunchSut = ATTNSDK(api: coldLaunchSpy, urlBuilder: creativeUrlProviderSpy)
+        XCTAssertEqual(coldLaunchSut.visitorId, sut.visitorId,
+                       "precondition: the visitor id is persisted, so a cold launch reads the same one")
         coldLaunchSut.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
         // registerDeviceToken triggers a sendPushToken call on the spy — reset the guard
         // baseline to updateUser only, since that's what this test is actually measuring.
@@ -1455,6 +1651,433 @@ final class ATTNSDKTests: XCTestCase {
         }
         // Bounded by number of set operations; the precise count depends on timing.
         XCTAssertLessThanOrEqual(counter.value, 200)
+    }
+
+    // MARK: - Inbox unread count sync mirror
+
+    /// End-to-end coverage for the SDK-level glue that connects `InboxManager` writes to
+    /// `ATTNSDK.inboxUnreadCount` and `.ATTNSDKInboxUnreadCountChanged`. The manager-level tests
+    /// exercise `UnreadCountBox` in isolation; this pins the wiring — the box being passed into
+    /// `materializedInboxManager()`, the notification firing with the SDK as `object`, and
+    /// `userInfo["attentiveInboxUnreadCount"]` carrying the new value.
+    func testInboxUnreadCount_notificationFiresWithSDKObjectAndPayload() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [], nextPageToken: nil)
+        ]
+
+        // Filter on the SDK instance so a stray notification from another test can't satisfy the
+        // expectation. `handler` returns true to fulfill the expectation.
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 4
+        }
+
+        // Materialize the manager and drive the fetch. This is the same path a UIKit host would
+        // take on app launch per the README.
+        await sut.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notified], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "synchronous mirror must reflect the post-fetch count")
+    }
+
+    func testInboxUnreadCount_objectFilterIsolatesSDKInstances() async {
+        apiSpy.stubbedUnreadCount = 7
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // A second SDK on its own API spy so the notifications are independent.
+        let otherApiSpy = ATTNAPISpy(domain: "OTHER")
+        otherApiSpy.stubbedUnreadCount = 99
+        otherApiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+        let otherSdk = ATTNSDK(api: otherApiSpy, urlBuilder: ATTNCreativeUrlProviderSpy())
+
+        // Only `sut`'s fetch should satisfy this — expectation is filtered by object.
+        let notifiedForSut = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 7
+        }
+        let notifiedForOther = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: otherSdk) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 99
+        }
+
+        await sut.refreshInboxUnreadCount()
+        await otherSdk.refreshInboxUnreadCount()
+
+        await fulfillment(of: [notifiedForSut, notifiedForOther], timeout: 1.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 7)
+        XCTAssertEqual(otherSdk.inboxUnreadCount, 99)
+    }
+
+    // MARK: - Identity snapshot / inbox ordering on identity changes
+
+    /// `planUpdateUser`'s cold-launch adoption branch mutates `_identifiers` in place and maps
+    /// to `.skip`. The snapshot the inbox reads is published from `ATTNSDK`, not from the
+    /// identity, so a `.skip` that adopted identifiers must still republish — otherwise
+    /// `identityStore` keeps the init-time `(email: nil, phone: nil)` and every inbox request
+    /// goes out without user-scoped identifiers until the next identity mutation.
+    func testUpdateUser_adoptionSkip_stillPublishesIdentitySnapshot() {
+        let email = "user@example.com"
+        let phone = "+15551234567"
+        let pushToken = "test-push-token"
+        UserDefaults.standard.set(pushToken, forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+
+        let identity = sut.getUserIdentity()
+        XCTAssertTrue(identity.identifiers.isEmpty,
+                      "precondition: email/phone are in-memory only, so a fresh SDK starts empty")
+
+        // Stand in for a previous process that already synced this pair: the sync record is
+        // persisted, `_identifiers` is not. This is exactly the cold-launch state.
+        identity.recordSuccessfulSync(
+            email: email,
+            phone: phone,
+            pushToken: pushToken,
+            domain: testDomain,
+            visitorId: identity.visitorId
+        )
+
+        sut.updateUser(email: email, phone: phone)
+
+        XCTAssertFalse(apiSpy.updateUserWasCalled,
+                       "a matching sync record must resolve to .skip — no /user-update, no rotation")
+        XCTAssertEqual(identity.identifiers[ATTNIdentifierType.email] as? String, email,
+                       "precondition: the adoption branch must have populated _identifiers")
+
+        let snapshot = sut.publishedInboxIdentitySnapshot()
+        XCTAssertEqual(snapshot.email, email, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.phone, phone, "adoption must republish the snapshot for the inbox")
+        XCTAssertEqual(snapshot.visitorId, identity.visitorId)
+    }
+
+    /// `clearUser()` with no push token has no `/user-update` to chain the unread-count refresh
+    /// through, so it drops the cached inbox state and re-fetches back to back. Both must reach
+    /// the `InboxManager` actor in that order: a refresh that lands first has its server count
+    /// wiped to 0 by the reset, leaving the badge stale until the next explicit refresh.
+    ///
+    /// Pins the end state rather than reproducing the interleaving — with the ordering fix the
+    /// refresh is strictly last, so the final count is always the server's.
+    func testClearUser_noPushToken_refreshLandsAfterInboxReset() async {
+        apiSpy.stubbedUnreadCount = 4
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+
+        // Materialize the manager — the reset/refresh helpers are both no-ops until it exists.
+        await sut.refreshInboxUnreadCount()
+        XCTAssertEqual(sut.inboxUnreadCount, 4, "precondition: manager materialized with a server count")
+
+        // A distinct value so the assertion can't be satisfied by the pre-clear count.
+        apiSpy.stubbedUnreadCount = 6
+        let notified = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
+            (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 6
+        }
+
+        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        sut.clearUser()
+
+        await fulfillment(of: [notified], timeout: 2.0)
+        XCTAssertEqual(sut.inboxUnreadCount, 6,
+                       "the identity reset must not wipe the count the post-clear refresh stored")
+    }
+
+    // MARK: - Inbox: custom-UI paging and refresh (MSDK-558)
+
+    func testLoadMoreInboxMessages_appendsNextPageUsingCursor() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        let firstPage = await sut.allMessages
+        XCTAssertEqual(firstPage.map(\.id), ["1"], "precondition: first page loaded")
+        let hasMoreBefore = await sut.hasMoreInboxMessages
+        XCTAssertTrue(hasMoreBefore, "a next_page_token means more pages")
+
+        await sut.loadMoreInboxMessages()
+
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"])
+        XCTAssertEqual(apiSpy.lastInboxMessagesPageToken, "cursor-2")
+        let hasMoreAfter = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMoreAfter, "no next_page_token on the last page")
+    }
+
+    func testLoadMoreInboxMessages_noMorePages_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let callCountBefore = apiSpy.fetchInboxMessagesCallCount
+
+        await sut.loadMoreInboxMessages()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callCountBefore)
+    }
+
+    func testLoadMoreInboxMessages_emitsAppendedListOnStateStream() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let stream = await sut.inboxStateStream
+
+        let received = expectation(description: "appended page emitted on inboxStateStream")
+        let listener = Task {
+            for await state in stream {
+                if case .loaded(let messages) = state, messages.map(\.id) == ["1", "2"] {
+                    received.fulfill()
+                    return
+                }
+            }
+        }
+
+        await sut.loadMoreInboxMessages()
+
+        await fulfillment(of: [received], timeout: 1.0)
+        listener.cancel()
+    }
+
+    func testInboxLoadingMoreStream_reportsInFlightPageFetch() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let stream = await sut.inboxLoadingMoreStream
+
+        let started = expectation(description: "loading-more turned on")
+        let finished = expectation(description: "loading-more turned off after the fetch")
+        let listener = Task {
+            var sawTrue = false
+            for await isLoading in stream {
+                if isLoading, !sawTrue {
+                    sawTrue = true
+                    started.fulfill()
+                } else if !isLoading, sawTrue {
+                    finished.fulfill()
+                    return
+                }
+            }
+        }
+
+        await sut.loadMoreInboxMessages()
+
+        await fulfillment(of: [started, finished], timeout: 1.0, enforceOrder: true)
+        listener.cancel()
+    }
+
+    func testRefreshInboxMessages_replacesListAndResetsPagination() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: "old-cursor"),
+            InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+
+        await sut.refreshInboxMessages()
+
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new"], "refresh replaces rather than appends")
+        XCTAssertNil(apiSpy.lastInboxMessagesPageToken, "refresh fetches page 1, without a cursor")
+        let hasMore = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMore, "pagination follows the refreshed page")
+    }
+
+    func testRefreshInboxMessages_streamDrivenCustomUI_firstPullFetches() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
+        ]
+        // Custom UI renders only from the stream; never reads allMessages/unreadCount.
+        let stream = await sut.inboxStateStream
+        let initialLoaded = expectation(description: "initial page emitted")
+        let listener = Task {
+            for await state in stream {
+                if case .loaded(let messages) = state, messages.map(\.id) == ["old"] {
+                    initialLoaded.fulfill()
+                    return
+                }
+            }
+        }
+        await fulfillment(of: [initialLoaded], timeout: 1.0)
+        listener.cancel()
+        let callsBefore = apiSpy.fetchInboxMessagesCallCount
+
+        await sut.refreshInboxMessages()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, callsBefore + 1,
+                       "first pull-to-refresh should fetch page 1")
+        let messages = await sut.allMessages
+        XCTAssertEqual(messages.map(\.id), ["new"])
+    }
+
+    func testHasMoreInboxMessages_afterDomainChange_isFalse() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
+        ]
+        _ = await sut.allMessages
+
+        sut.update(domain: newDomain)
+
+        let hasMore = await sut.hasMoreInboxMessages
+        XCTAssertFalse(hasMore, "the previous account's cursor must not report more pages")
+    }
+
+    // MARK: - Inbox: account / identity changes and lazy creation (MSDK-545)
+
+    func testUpdateDomain_withMaterializedInbox_dropsPreviousAccountsInbox() async {
+        // Inbox requests are scoped by domain, so the previous account's cached messages must not
+        // survive a domain switch. Messages aren't eagerly re-fetched (a fetch right behind the
+        // identity event could reach the new domain before it can resolve this visitor); only
+        // the count is, from the identity event's callback.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["old-account"], "precondition: manager materialized with the first account's inbox")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        sut.update(domain: newDomain)
+
+        let after = await sut.allMessages
+        XCTAssertEqual(after.map(\.id), [], "a domain change must drop the previous account's messages")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain, "the post-change count fetch must target the new domain")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "messages must not be eagerly re-fetched on a domain change")
+        XCTAssertTrue(apiSpy.sendUserIdentityCallbackWasCalled, "the count refresh runs from the identity event's callback")
+    }
+
+    func testClearUser_noPushToken_reloadsInboxMessagesForNewIdentity() async {
+        // Re-fetching only the count left an open inbox empty after the identity reset.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+
+        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        sut.clearUser()
+
+        let after = await waitForInboxMessageIds(["anonymous"])
+        XCTAssertEqual(after, ["anonymous"], "clearUser must re-fetch messages, not just the unread count")
+    }
+
+    func testClearUser_duringFirstInboxFetch_doesNotStrandLoadingState() async {
+        // The reset discards the in-flight first-page response; without a messages re-fetch the
+        // state stayed `.loading` forever.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+        ]
+        let fired = Counter()
+        apiSpy.onFetchInboxMessages = { [sut] _ in
+            guard fired.value == 0 else { return }
+            fired.increment()
+            sut?.clearUser()
+        }
+
+        let stream = await sut.inboxStateStream
+        let loadedIds: [String]? = await withTaskGroup(of: [String]?.self) { group in
+            group.addTask {
+                for await state in stream {
+                    if case .loaded(let messages) = state, messages.map(\.id) == ["anonymous"] {
+                        return messages.map(\.id)
+                    }
+                }
+                return nil
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+
+        XCTAssertEqual(loadedIds, ["anonymous"], "an identity change during the first fetch must still end in .loaded")
+    }
+
+    func testClearUser_withPushToken_failedDetach_doesNotRefetchPreviousUsersMessages() async {
+        // Codex/Adela on #329: the server resolves the inbox partly by push token, and the detach
+        // isn't confirmed (here it outright failed), so a messages re-fetch could bring the
+        // previous user's inbox back after logout. Only the count may be re-fetched.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil)
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+
+        sut.clearUser()
+
+        let after = await waitForInboxMessageIds([])
+        XCTAssertEqual(after, [], "clearUser must drop the previous user's cached messages")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "after a clearUser that POSTs /user-update, messages must not be re-fetched with the same push token")
+    }
+
+    func testUpdateUser_retryWithoutRotation_keepsLoadedInboxWithoutRefetchingMessages() async {
+        // Adela on #329: the retry path resets nothing, so a messages refresh would only throw
+        // away the loaded pages (back to page 1, cursor dropped). Count only.
+        registerTestPushToken()
+        // A failed /user-update leaves local identifiers set but the sync record unconfirmed, so
+        // the same call again takes `.retryWithoutRotation`.
+        apiSpy.stubbedError = URLError(.notConnectedToInternet)
+        sut.updateUser(email: "user@example.com", phone: nil)
+        apiSpy.stubbedError = nil
+
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "p1")], nextPageToken: "cursor-2")
+        ]
+        let before = await sut.allMessages
+        XCTAssertEqual(before.map(\.id), ["p1"], "precondition: manager materialized after the first updateUser")
+        let visitorIdBefore = sut.visitorId
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+
+        sut.updateUser(email: "user@example.com", phone: nil)
+
+        XCTAssertEqual(sut.visitorId, visitorIdBefore, "precondition: retry path, no rotation")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the retry path must not re-fetch messages")
+        let after = await sut.allMessages
+        XCTAssertEqual(after.map(\.id), ["p1"], "the retry path must keep the loaded list")
+    }
+
+    func testInboxAccessors_concurrentFirstUse_materializeOneManager() async {
+        // Two managers would each run their own init-time fetch.
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<50 {
+                group.addTask { [sut] in _ = await sut?.unreadCount }
+            }
+        }
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "concurrent first use must construct exactly one InboxManager")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "concurrent first use must construct exactly one InboxManager")
+    }
+
+    private func makeInboxMessage(id: String) -> Message {
+        Message(id: id, title: "Title \(id)", body: "Body \(id)", timestamp: Date(), isRead: false)
+    }
+
+    /// Polls until the spy has seen at least `count` unread-count fetches (or a 2s timeout).
+    private func waitForUnreadCountFetches(atLeast count: Int, timeout: TimeInterval = 2.0) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline, apiSpy.fetchInboxUnreadCountCallCount < count {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertGreaterThanOrEqual(apiSpy.fetchInboxUnreadCountCallCount, count, "expected the post-change count refresh")
+    }
+
+    /// Polls `sut.allMessages` until it holds exactly `ids` (or a 2s timeout), returning the last
+    /// ids seen so a failure shows what the inbox actually held.
+    private func waitForInboxMessageIds(_ ids: [String], timeout: TimeInterval = 2.0) async -> [String] {
+        let deadline = Date().addingTimeInterval(timeout)
+        var latest: [String] = []
+        while Date() < deadline {
+            latest = await sut.allMessages.map(\.id)
+            if latest == ids { return latest }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return latest
     }
 }
 

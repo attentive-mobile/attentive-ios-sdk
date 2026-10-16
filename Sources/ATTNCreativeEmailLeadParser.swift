@@ -56,10 +56,13 @@ internal enum ATTNCreativeEmailLeadParser {
         origin == "\(ATTNSDKConfiguration.Endpoint.scheme)://\(ATTNSDKConfiguration.Endpoint.Creatives.host)"
     }
 
+    /// Trims surrounding whitespace and returns nil for a blank result. Returning the trimmed
+    /// value (not the original) is what the public docs promise, and it keeps `userEmail` and
+    /// `reportedLeadEmails` comparisons from treating " a@b.com " and "a@b.com" as different.
     private static func nonBlankString(_ value: Any?) -> String? {
-        guard let string = value as? String,
-              !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return string
+        guard let string = value as? String else { return nil }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Creatives send the ID as either a string or a number.

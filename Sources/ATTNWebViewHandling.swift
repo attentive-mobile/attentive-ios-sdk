@@ -486,8 +486,10 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
             }
             lead = newLead
         }
-        // The email is the user's personal data, so it's redacted outside of a debugger.
-        Loggers.creative.debug("Creative email lead received: email \(lead.email ?? "nil", privacy: .private), creative \(lead.creativeId ?? "nil", privacy: .public)")
+        // The email is the user's personal data, so log only whether one was present. Not
+        // `privacy: .private`: `ATTNLogger` ignores per-argument privacy and writes the whole
+        // message as public, and also keeps it in the in-app log buffer (MSDK-555).
+        Loggers.creative.debug("Creative email lead received: has email \(lead.email != nil, privacy: .public), creative \(lead.creativeId ?? "nil", privacy: .public)")
         webViewProvider?.didReceiveCreativeEmailLead(lead)
     }
 }
