@@ -9,22 +9,11 @@ let package = Package(
     products: [
         .library(name: "ATTNSDKFramework", targets: ["ATTNSDKFramework"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
-    ],
     targets: [
-        .target(
+        .binaryTarget(
             name: "ATTNSDKFramework",
-            path: "Sources",
-            resources: [.process("Resources")]
-        ),
-        .testTarget(
-            name: "ATTNSDKFrameworkTests",
-            dependencies: [
-                "ATTNSDKFramework",
-                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
-            ],
-            path: "Tests"
+            url: "https://github.com/attentive-mobile/attentive-ios-sdk/releases/download/2.2.0/ATTNSDKFramework.xcframework.zip",
+            checksum: "5ff6f11ae2ca65af5840786b0c27e70adf5cbc19ace37ad8484fbc3bb99f68c1"
         )
     ]
 )
