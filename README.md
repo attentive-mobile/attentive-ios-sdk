@@ -9,6 +9,22 @@ We support iOS 15.0+ due to the benefits of Swift Concurrency only available on 
 
 ### Cocoapods
 
+> [!IMPORTANT]
+> **CocoaPods will not receive new SDK versions after December 2, 2026.** On that date the CocoaPods trunk becomes [read-only](https://blog.cocoapods.org/CocoaPods-Specs-Repo/), so new releases of `ATTNSDKFramework` can no longer be published there. Apps already installing the SDK through CocoaPods keep working, but they won't get new fixes or features.
+>
+> **To keep receiving updates, switch to [Swift Package Manager](#swift-package-manager-recommended).** The module name is the same (`import ATTNSDKFramework`), so no code changes are needed:
+>
+> 1. Remove `pod 'ATTNSDKFramework'` from your Podfile and run `pod install` (or `pod deintegrate` if it was your only pod).
+> 2. In Xcode, add the package `https://github.com/attentive-mobile/attentive-ios-sdk` to your app target.
+>
+> If you can't move off CocoaPods yet, you can point your Podfile at a release tag in this repository instead of trunk:
+>
+> ```ruby
+> pod 'ATTNSDKFramework', :git => 'https://github.com/attentive-mobile/attentive-ios-sdk.git', :tag => '2.2.0'
+> ```
+>
+> If you integrate through the Attentive React Native SDK, these steps don't apply. Follow the React Native SDK's README instead.
+
 The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFramework`. To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
 ```ruby
