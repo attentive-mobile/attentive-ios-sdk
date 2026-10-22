@@ -88,6 +88,8 @@ platform :ios do
       content = File.read(readme_file)
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
       content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
+      # The post-trunk `:git` fallback pins a release tag rather than a version.
+      content.gsub!(/(pod 'ATTNSDKFramework', :git => '[^']*', :tag => )'[^']*'/, "\\1'#{version}'")
       File.write(readme_file, content)
       UI.success("✓ Updated README.md")
     end
