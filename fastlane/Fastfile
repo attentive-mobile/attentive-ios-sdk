@@ -6,6 +6,8 @@ FASTLANE_REPORTS_DIR=ENV['FASTLANE_REPORTS_DIR'] || "fastlane/reports"
 FASTLANE_BUILD_OUTPUT_DIR=ENV['FASTLANE_BUILD_OUTPUT_DIR'] || "fastlane/build"
 FASTLANE_TEST_OUTPUT_DIR=ENV['FASTLANE_TEST_OUTPUT_DIR'] || "fastlane/test_output"
 FASTLANE_TEST_DEVICE=ENV['FASTLANE_TEST_DEVICE'] || "iPhone 17 Pro"
+# CocoaPods trunk stops accepting new podspecs on this date (UTC): https://blog.cocoapods.org/CocoaPods-Specs-Repo/
+COCOAPODS_TRUNK_READ_ONLY_DATE = "2026-12-02"
 
 def abs_path(relative_path)
   File.join(REPO_ROOT, relative_path)
@@ -87,7 +89,13 @@ platform :ios do
     if File.exist?(readme_file)
       content = File.read(readme_file)
       content.gsub!(/pod 'attentive-ios-sdk', '[^']*'/, "pod 'attentive-ios-sdk', '#{version}'")
-      content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
+      # Once trunk is read-only, new versions can't be published there, so the trunk snippet stays on the
+      # last version that was.
+      if Time.now.utc.strftime("%Y-%m-%d") < COCOAPODS_TRUNK_READ_ONLY_DATE
+        content.gsub!(/pod 'ATTNSDKFramework', '[^']*'/, "pod 'ATTNSDKFramework', '#{version}'")
+      else
+        UI.important("⚠️ CocoaPods trunk is read-only; leaving the README trunk snippet on its last published version")
+      end
       # The post-trunk `:git` fallback pins a release tag rather than a version.
       content.gsub!(/(pod 'ATTNSDKFramework', :git => '[^']*', :tag => )'[^']*'/, "\\1'#{version}'")
       File.write(readme_file, content)
