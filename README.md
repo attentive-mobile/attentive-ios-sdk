@@ -12,10 +12,13 @@ We support iOS 15.0+ due to the benefits of Swift Concurrency only available on 
 > [!IMPORTANT]
 > **CocoaPods will not receive new SDK versions after December 2, 2026.** On that date the CocoaPods trunk becomes [read-only](https://blog.cocoapods.org/CocoaPods-Specs-Repo/), so new releases of `ATTNSDKFramework` can no longer be published there. Apps already installing the SDK through CocoaPods keep working, but they won't get new fixes or features.
 >
-> **To keep receiving updates, switch to [Swift Package Manager](#swift-package-manager-recommended).** The module name is the same (`import ATTNSDKFramework`), so no code changes are needed:
+> **To keep receiving updates, switch to [Swift Package Manager](#swift-package-manager-recommended):**
 >
 > 1. Remove `pod 'ATTNSDKFramework'` from your Podfile and run `pod install` (or `pod deintegrate` if it was your only pod).
 > 2. In Xcode, add the package `https://github.com/attentive-mobile/attentive-ios-sdk` to your app target.
+> 3. Update your imports if needed:
+>    - **Swift:** no changes. `import ATTNSDKFramework` works the same.
+>    - **Objective-C:** replace the CocoaPods imports (`ATTNSDKFramework-Swift.h` and `ATTNSDKFramework-umbrella.h`) with `@import ATTNSDKFramework;`.
 >
 > If you can't move off CocoaPods yet, you can point your Podfile at a release tag in this repository instead of trunk:
 >
@@ -23,7 +26,7 @@ We support iOS 15.0+ due to the benefits of Swift Concurrency only available on 
 > pod 'ATTNSDKFramework', :git => 'https://github.com/attentive-mobile/attentive-ios-sdk.git', :tag => '2.2.0'
 > ```
 >
-> If you integrate through the Attentive React Native SDK, these steps don't apply. Follow the React Native SDK's README instead.
+> If you integrate through the [Attentive React Native SDK](https://github.com/attentive-mobile/attentive-react-native-sdk), don't follow these steps. Guidance for React Native apps is coming in that repository.
 
 The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFramework`. To install the SDK in a separate project using Cocoapods, include the pod in your application’s Podfile:
 
@@ -131,6 +134,10 @@ import ATTNSDKFramework
 
 #### Objective-C
 ```objective-c
+// Swift Package Manager or XCFramework
+@import ATTNSDKFramework;
+
+// CocoaPods
 #import "ATTNSDKFramework-Swift.h"
 #import "ATTNSDKFramework-umbrella.h"
 ```
