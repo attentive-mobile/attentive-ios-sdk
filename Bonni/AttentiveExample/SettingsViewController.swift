@@ -14,8 +14,16 @@ import UserNotifications
 class SettingsViewController: UIViewController {
 
     // MARK: - New state
-    private var currentEmail: String?
-    private var currentPhone: String?
+    // Persisted so the opt-in/out buttons still work after a relaunch; the SDK keeps no
+    // raw contact values at rest (MSDK-516), so Bonni can't read them back from it.
+    private var currentEmail: String? {
+        get { UserDefaults.standard.string(forKey: "attentiveCurrentEmail") }
+        set { UserDefaults.standard.set(newValue, forKey: "attentiveCurrentEmail") }
+    }
+    private var currentPhone: String? {
+        get { UserDefaults.standard.string(forKey: "attentiveCurrentPhone") }
+        set { UserDefaults.standard.set(newValue, forKey: "attentiveCurrentPhone") }
+    }
 
     // MARK: - UI Components
 
@@ -299,6 +307,8 @@ class SettingsViewController: UIViewController {
         setupUI()
         setupActions()
         refreshSdkInfoLabels()
+        currentEmailLabel.text = "Current email: \(currentEmail ?? "")"
+        currentPhoneLabel.text = "Current phone: \(currentPhone ?? "")"
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -561,6 +571,7 @@ class SettingsViewController: UIViewController {
 
             let sdk = self.getAttentiveSdk()
             sdk.update(domain: newDomain)
+            UserDefaults.standard.set(newDomain, forKey: "attentiveDomain")
             self.refreshSdkInfoLabels()
             self.showToast(with: "Domain updated to “\(newDomain)”")
         })
