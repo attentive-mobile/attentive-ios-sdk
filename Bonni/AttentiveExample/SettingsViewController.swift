@@ -686,6 +686,16 @@ class SettingsViewController: UIViewController {
             }
 
             self.getAttentiveSdk().identify(identifiers)
+            // identify() merges, so only overwrite the saved contacts that were entered; the
+            // opt-in/out buttons then target what the SDK was last identified with.
+            if let email = identifiers[ATTNIdentifierType.email] as? String {
+                self.currentEmail = email
+                self.currentEmailLabel.text = "Current email: \(email)"
+            }
+            if let phone = identifiers[ATTNIdentifierType.phone] as? String {
+                self.currentPhone = phone
+                self.currentPhoneLabel.text = "Current phone: \(phone)"
+            }
             // identify() merges identifiers without rotating the visitor id today, but
             // refreshing here keeps the Settings label authoritative and future-proofs the
             // Bonni app if that behavior ever changes.
