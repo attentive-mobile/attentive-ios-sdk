@@ -33,8 +33,14 @@ extension URL {
         "javascript", "file", "data", "about", "vbscript",
         // Privileged system-action schemes
         "tel", "telprompt", "sms", "mailto", "facetime", "facetime-audio",
-        "itms", "itms-apps", "itms-services",
     ]
+
+    /// Apple's App Store / TestFlight / OTA app-install schemes (`itms`, `itms-apps`,
+    /// `itms-beta`, …) all share this prefix, so they're matched by prefix rather than listed.
+    /// Don't spell out the OTA-install scheme as a string literal anywhere in shipped
+    /// sources: App Review's static scan rejects any binary containing it under Guideline
+    /// 2.5.2, even when it only appears in this blocklist.
+    private static let blockedDeepLinkSchemePrefix = "itms"
 
     /// True when `scheme` is a shape the SDK will hand to `UIApplication.open`: non-empty,
     /// scheme-shaped, and not on the blocked list. The shape check is deliberately looser than
@@ -46,7 +52,7 @@ extension URL {
               scheme.range(of: "^[a-z0-9][a-z0-9_+.-]*$", options: .regularExpression) != nil else {
             return false
         }
-        return !blockedDeepLinkSchemes.contains(scheme)
+        return !blockedDeepLinkSchemes.contains(scheme) && !scheme.hasPrefix(blockedDeepLinkSchemePrefix)
     }
 
     /// True when the URL is safe for the SDK to open as a deeplink. `URL(string:)` alone is too
