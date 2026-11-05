@@ -14,8 +14,10 @@ import UserNotifications
 class SettingsViewController: UIViewController {
 
     // MARK: - New state
-    // Persisted so the opt-in/out buttons still work after a relaunch; the SDK keeps no
-    // raw contact values at rest (MSDK-516), so Bonni can't read them back from it.
+    // Bonni's own saved copy, persisted so the opt-in/out buttons still work after a relaunch;
+    // the SDK keeps no raw contact values at rest (MSDK-516), so Bonni can't read them back
+    // from it. This isn't SDK state: the SDK holds email/phone in memory only, so after a
+    // relaunch or Clear User it may hold none. Log Out clears these; Clear User leaves them.
     private var currentEmail: String? {
         get { UserDefaults.standard.string(forKey: "attentiveCurrentEmail") }
         set { UserDefaults.standard.set(newValue, forKey: "attentiveCurrentEmail") }
@@ -277,7 +279,7 @@ class SettingsViewController: UIViewController {
 
     private let currentEmailLabel: UILabel = {
         let label = UILabel()
-        label.text = "Current email:"
+        label.text = "Saved email:"
         label.numberOfLines = 1
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -285,7 +287,7 @@ class SettingsViewController: UIViewController {
 
     private let currentPhoneLabel: UILabel = {
         let label = UILabel()
-        label.text = "Current phone:"
+        label.text = "Saved phone:"
         label.numberOfLines = 1
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -307,8 +309,8 @@ class SettingsViewController: UIViewController {
         setupUI()
         setupActions()
         refreshSdkInfoLabels()
-        currentEmailLabel.text = "Current email: \(currentEmail ?? "")"
-        currentPhoneLabel.text = "Current phone: \(currentPhone ?? "")"
+        currentEmailLabel.text = "Saved email: \(currentEmail ?? "")"
+        currentPhoneLabel.text = "Saved phone: \(currentPhone ?? "")"
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -518,8 +520,8 @@ class SettingsViewController: UIViewController {
             self.currentEmail = (email?.isEmpty == false) ? email : nil
             self.currentPhone = (phone?.isEmpty == false) ? phone : nil
 
-            self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
-            self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
+            self.currentEmailLabel.text = "Saved email: \(self.currentEmail ?? "")"
+            self.currentPhoneLabel.text = "Saved phone: \(self.currentPhone ?? "")"
 
             self.getAttentiveSdk().updateUser(
                 email: self.currentEmail,
@@ -570,10 +572,17 @@ class SettingsViewController: UIViewController {
             }
 
             let sdk = self.getAttentiveSdk()
-            sdk.update(domain: newDomain)
-            UserDefaults.standard.set(newDomain, forKey: "attentiveDomain")
-            self.refreshSdkInfoLabels()
-            self.showToast(with: "Domain updated to “\(newDomain)”")
+            // Save only a domain the SDK accepted: ATTNSDK(domain:) asserts on an invalid one at
+            // launch, so a bad saved value would crash every Debug launch. The completion runs on main.
+            sdk.update(domain: newDomain) { error in
+                if let error {
+                    self.showToast(with: error.localizedDescription)
+                    return
+                }
+                UserDefaults.standard.set(newDomain, forKey: "attentiveDomain")
+                self.refreshSdkInfoLabels()
+                self.showToast(with: "Domain updated to “\(newDomain)”")
+            }
         })
 
         present(alert, animated: true)
@@ -686,15 +695,15 @@ class SettingsViewController: UIViewController {
             }
 
             self.getAttentiveSdk().identify(identifiers)
-            // identify() merges, so only overwrite the saved contacts that were entered; the
-            // opt-in/out buttons then target what the SDK was last identified with.
+            // identify() merges, so overwrite only the saved contacts that were entered,
+            // keeping the opt-in/out buttons on the contacts most recently identified.
             if let email = identifiers[ATTNIdentifierType.email] as? String {
                 self.currentEmail = email
-                self.currentEmailLabel.text = "Current email: \(email)"
+                self.currentEmailLabel.text = "Saved email: \(email)"
             }
             if let phone = identifiers[ATTNIdentifierType.phone] as? String {
                 self.currentPhone = phone
-                self.currentPhoneLabel.text = "Current phone: \(phone)"
+                self.currentPhoneLabel.text = "Saved phone: \(phone)"
             }
             // identify() merges identifiers without rotating the visitor id today, but
             // refreshing here keeps the Settings label authoritative and future-proofs the
@@ -722,8 +731,8 @@ class SettingsViewController: UIViewController {
         getAttentiveSdk().clearUser()
         currentEmail = nil
         currentPhone = nil
-        currentEmailLabel.text = "Current email:"
-        currentPhoneLabel.text = "Current phone:"
+        currentEmailLabel.text = "Saved email:"
+        currentPhoneLabel.text = "Saved phone:"
         accountInfoLabel.text = "Login Info: Guest"
         refreshSdkInfoLabels()
         showToast(with: "Logged out — push token detached")
@@ -797,7 +806,7 @@ class SettingsViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             let text = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
             self.currentEmail = (text?.isEmpty == false) ? text : nil
-            self.currentEmailLabel.text = "Current email: \(self.currentEmail ?? "")"
+            self.currentEmailLabel.text = "Saved email: \(self.currentEmail ?? "")"
             self.getAttentiveSdk().identify([ATTNIdentifierType.email : self.currentEmail ?? ""])
         })
         present(alert, animated: true)
@@ -813,7 +822,7 @@ class SettingsViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             let text = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines)
             self.currentPhone = (text?.isEmpty == false) ? text : nil
-            self.currentPhoneLabel.text = "Current phone: \(self.currentPhone ?? "")"
+            self.currentPhoneLabel.text = "Saved phone: \(self.currentPhone ?? "")"
             self.getAttentiveSdk().identify([ATTNIdentifierType.phone : self.currentPhone ?? ""])
         })
         present(alert, animated: true)
