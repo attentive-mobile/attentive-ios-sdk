@@ -579,6 +579,15 @@ final class ATTNSDKTests: XCTestCase {
         }
     }
 
+    func testOpenableDeepLinkScheme_rejectsEveryAppStoreFamilyScheme() {
+        // App Store / TestFlight / OTA-install schemes are blocked by the shared `itms` prefix,
+        // not by name, so the SDK binary never carries the OTA-install scheme literal that
+        // App Review flags under Guideline 2.5.2.
+        for scheme in ["itms", "itmss", "itms-apps", "itms-appss", "itms-beta", "itms-services", "ITMS-SERVICES"] {
+            XCTAssertFalse(URL.attnIsOpenableDeepLinkScheme(scheme), "\(scheme) should be rejected")
+        }
+    }
+
     func testNormalizeAndBroadcast_postsDeepLinkNotification() {
         let urlOpenerSpy = ATTNURLOpenerSpy()
         sut.urlOpener = urlOpenerSpy
