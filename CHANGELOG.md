@@ -1,3 +1,6 @@
+## [2.2.1](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.2.0...2.2.1) (2026-11-05)
+Fixes App Store rejections under Guideline 2.5.2: the SDK binary no longer contains the `itms-services` string. The SDK still never opens App Store, TestFlight or app-install deep links (any `itms`-prefixed scheme) itself; it still broadcasts them to your app.
+
 ## [2.2.0](https://github.com/attentive-mobile/attentive-ios-sdk/compare/2.1.1...2.2.0) (2026-10-16)
 ### What's new
 
