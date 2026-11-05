@@ -23,7 +23,7 @@ We support iOS 15.0+ due to the benefits of Swift Concurrency only available on 
 > If you can't move off CocoaPods yet, you can point your Podfile at a release tag in this repository instead of trunk:
 >
 > ```ruby
-> pod 'ATTNSDKFramework', :git => 'https://github.com/attentive-mobile/attentive-ios-sdk.git', :tag => '2.2.0'
+> pod 'ATTNSDKFramework', :git => 'https://github.com/attentive-mobile/attentive-ios-sdk.git', :tag => '2.2.1'
 > ```
 >
 > If you integrate through the [Attentive React Native SDK](https://github.com/attentive-mobile/attentive-react-native-sdk), don't follow these steps. Guidance for React Native apps is coming in that repository.
@@ -32,7 +32,7 @@ The SDK is available through [CocoaPods](https://cocoapods.org) as `ATTNSDKFrame
 
 ```ruby
 target 'MyApp' do
-  pod 'ATTNSDKFramework', '2.2.0'
+  pod 'ATTNSDKFramework', '2.2.1'
 end
 ```
 
