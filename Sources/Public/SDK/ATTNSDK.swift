@@ -56,6 +56,9 @@ public final class ATTNSDK: NSObject {
     /// lack of a token wait for this, because the server resolves the inbox recipient by a
     /// registered push token.
     private var serverConfirmedPushToken: (token: String, domain: String)?
+    /// Set by `failedToRegisterForPush` and cleared by `registerDeviceToken`. Guarded by
+    /// `stateLock`. While set and no token is cached, the inbox shows as empty rather than loading.
+    private var didFailToRegisterForPush = false
 
     var currentPushToken: String { pushTokenStore.token }
 
@@ -378,12 +381,12 @@ public final class ATTNSDK: NSObject {
             // No push token means there is nothing to detach server-side. Local was
             // already cleared and the visitor id rotated inside planClearUser.
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-            // No `/user-update` will fire, so drop the cached inbox state and queue the messages +
-            // count re-fetch for the freshly-generated anonymous visitor. With no token the fetch
-            // waits until the server has registered one. Both go through one helper because the
-            // reset must reach the InboxManager actor before the refresh — see
-            // `resetThenRefreshInboxIfMaterialized`.
-            resetThenRefreshInboxIfMaterialized()
+            // No `/user-update` will fire, so drop the cached inbox state and queue a count-only
+            // re-fetch for the freshly-generated anonymous visitor; it waits until the server has
+            // registered a token. Both go through one helper because the reset must reach the
+            // InboxManager actor before the refresh — see
+            // `resetThenRefreshInboxUnreadCountIfMaterialized`.
+            resetThenRefreshInboxUnreadCountIfMaterialized()
             return
         }
         resetInboxForIdentityChangeIfMaterialized()
@@ -692,6 +695,7 @@ public final class ATTNSDK: NSObject {
             return
         }
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        stateLock.withLock { didFailToRegisterForPush = false }
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
         publishIdentitySnapshot()
@@ -746,6 +750,12 @@ public final class ATTNSDK: NSObject {
             return
         }
         Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription, privacy: .public)")
+        stateLock.withLock { didFailToRegisterForPush = true }
+        // No token is coming from this attempt, so don't leave an open inbox on its spinner. A
+        // manager created later checks the same flag when it's built.
+        if let manager = existingInboxManager() {
+            showEmptyInboxIfPushTokenUnavailable(manager)
+        }
     }
 
     // MARK: App Events
@@ -1156,8 +1166,8 @@ extension ATTNSDK {
         Task { await manager.refreshUnreadCount() }
     }
 
-    /// Drops the cached inbox state and then re-fetches messages and the unread count, both inside
-    /// a single `Task` so they reach the `InboxManager` actor in that order.
+    /// Drops the cached inbox state and then re-fetches the unread count, both inside a single
+    /// `Task` so they reach the `InboxManager` actor in that order.
     ///
     /// Calling `resetInboxForIdentityChangeIfMaterialized()` and
     /// `refreshInboxUnreadCountForNewIdentityIfMaterialized()` back to back does NOT order them:
@@ -1168,19 +1178,21 @@ extension ATTNSDK {
     /// `refreshInboxUnreadCount()` or app foreground.
     ///
     /// Only for `clearUser()` with no push token, which sends no `/user-update` to chain a
-    /// refresh from. Inbox fetches wait for a push token, so the refresh itself runs once the
-    /// server confirms the token `registerDeviceToken` sends for the new anonymous visitor (see
-    /// `pushTokenRegistrationCallback`). Paths that POST
-    /// `/user-update` use the count-only `refreshInboxUnreadCountForNewIdentityIfMaterialized`
-    /// from its callback instead, and a domain change refreshes the count from its identity
-    /// event's callback (see `updateDomainInternal`).
-    func resetThenRefreshInboxIfMaterialized() {
+    /// refresh from. Inbox fetches wait for a push token, so the count fetch runs once the server
+    /// confirms the token `registerDeviceToken` sends (see `pushTokenRegistrationCallback`).
+    ///
+    /// Count only, like the refresh after `/user-update`: the server identifies the inbox
+    /// recipient by push token, and with no detach sent the token may still be linked to the
+    /// previous user, so a messages fetch with it could bring back their inbox. An open inbox
+    /// shows the reset (empty) list until it's reopened or refreshed. A domain change refreshes
+    /// the count from its identity event's callback instead (see `updateDomainInternal`).
+    func resetThenRefreshInboxUnreadCountIfMaterialized() {
         // Captured at call time, like the other helpers: a manager created after this point
         // already reads the new identity and must not be reset.
         guard let manager = existingInboxManager() else { return }
         Task {
             await manager.resetForIdentityChange()
-            await manager.refresh()
+            await manager.refreshUnreadCount()
         }
     }
 
@@ -1207,6 +1219,17 @@ extension ATTNSDK {
             }
             forward?(data, url, response, error)
         }
+    }
+
+    /// Replaces `manager`'s first-load spinner with an empty inbox when no push token is coming:
+    /// push is disabled, or APNs registration failed and no token is cached. Otherwise the inbox
+    /// would sit on `.loading` for good, since it makes no requests without a token. The held
+    /// fetches stay recorded, so a token registered later still loads it.
+    private func showEmptyInboxIfPushTokenUnavailable(_ manager: InboxManager) {
+        let isPushTokenUnavailable = !pushEnabled
+            || (stateLock.withLock { didFailToRegisterForPush } && currentPushToken.isEmpty)
+        guard isPushTokenUnavailable else { return }
+        Task { await manager.showEmptyInboxWithoutPushToken() }
     }
 
     private func recordPushTokenConfirmedByServer(_ token: String, domain: String) {
@@ -1269,8 +1292,8 @@ fileprivate extension ATTNSDK {
         // otherwise each build a manager (each starting its own fetch) and hand callers and
         // streams different state stores. `InboxManager.init` only spawns a Task, so holding the
         // lock across it doesn't call back into the SDK.
-        inboxManagerLock.withLock {
-            if let existing = _inboxManager { return existing }
+        let (manager, isNew) = inboxManagerLock.withLock { () -> (InboxManager, Bool) in
+            if let existing = _inboxManager { return (existing, false) }
             if !pushEnabled {
                 Loggers.network.warning("The inbox requires Attentive push. With pushEnabled false there is no push token, so the inbox makes no requests.")
             }
@@ -1285,8 +1308,12 @@ fileprivate extension ATTNSDK {
                 unreadCountBox: unreadCountBox
             )
             _inboxManager = manager
-            return manager
+            return (manager, true)
         }
+        if isNew {
+            showEmptyInboxIfPushTokenUnavailable(manager)
+        }
+        return manager
     }
 
     func sendInfoEvent() {
