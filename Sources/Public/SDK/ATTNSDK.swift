@@ -51,11 +51,18 @@ public final class ATTNSDK: NSObject {
     private var pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
     private var lastRegularOpenTime: Date?
-    /// The push token, and the domain it was sent for, that the server last confirmed through a
-    /// successful `/token` request in this process. Guarded by `stateLock`. Inbox fetches held for
-    /// lack of a token wait for this, because the server resolves the inbox recipient by a
-    /// registered push token.
-    private var serverConfirmedPushToken: (token: String, domain: String)?
+    /// A push token together with the domain and visitor id one `/token` request sent it for.
+    private struct PushTokenRegistration: Equatable {
+        let token: String
+        let domain: String
+        let visitorId: String
+    }
+    /// The registration the server last confirmed through a successful `/token` request in this
+    /// process. Guarded by `stateLock`. Inbox fetches held for lack of a token wait for this,
+    /// because the server resolves the inbox recipient by a registered push token. The visitor
+    /// id is part of the match: `clearUser()` with no token rotates it without a detach, so a
+    /// confirmation from before that logout must not count for the new visitor.
+    private var serverConfirmedPushToken: PushTokenRegistration?
     /// Set by `failedToRegisterForPush` and cleared by `registerDeviceToken`. Guarded by
     /// `stateLock`. While set and no token is cached, the inbox shows as empty rather than loading.
     private var didFailToRegisterForPush = false
@@ -700,9 +707,9 @@ public final class ATTNSDK: NSObject {
         pushTokenStore.token = tokenString
         publishIdentitySnapshot()
         flushPendingMarketingRequests(with: tokenString)
-        // Captured before the send: an `update(domain:)` landing mid-flight must not count this
-        // registration for the new domain.
-        let domainAtSend = domain
+        // Captured before the send, which reads both: an `update(domain:)` or `clearUser()` landing
+        // mid-flight must not count this registration for the new domain or visitor.
+        let registration = PushTokenRegistration(token: tokenString, domain: domain, visitorId: userIdentity.visitorId)
         let logResultAndForward: ATTNAPICallback = { data, url, response, error in
             Loggers.event.debug("----- Push-Token Request Result -----")
             if let url = url {
@@ -731,14 +738,15 @@ public final class ATTNSDK: NSObject {
             tokenString,
             userIdentity: userIdentity,
             authorizationStatus: authorizationStatus,
-            callback: pushTokenRegistrationCallback(token: tokenString, domain: domainAtSend, forward: logResultAndForward)
+            callback: pushTokenRegistrationCallback(for: registration, forward: logResultAndForward)
         )
         // Inbox fetches held for lack of a token run from the callback above, once the server has
-        // registered the token. If it already registered this one earlier in this process (the
-        // cached copy is dropped when push permission flips to authorized, and APNs returns the
-        // same token), run them now: `sendPushToken` drops a repeat send inside its debounce
-        // window without calling back.
-        if isPushTokenConfirmedByServer(tokenString, domain: domainAtSend) {
+        // registered the token. If it already confirmed this exact registration earlier in this
+        // process (the cached copy is dropped when push permission flips to authorized, and APNs
+        // returns the same token), run them now: `sendPushToken` drops a repeat send inside its
+        // debounce window without calling back. A logout in between rotates the visitor id, so
+        // this waits for the new visitor's `/token` to succeed instead.
+        if isConfirmedByServer(registration) {
             refreshInboxDeferredForPushTokenIfMaterialized()
         }
     }
@@ -996,7 +1004,10 @@ public final class ATTNSDK: NSObject {
                     token,
                     userIdentity: userIdentity,
                     authorizationStatus: updated.authorizationStatus,
-                    callback: self.pushTokenRegistrationCallback(token: token, domain: self.domain, forward: nil)
+                    callback: self.pushTokenRegistrationCallback(
+                        for: PushTokenRegistration(token: token, domain: self.domain, visitorId: self.userIdentity.visitorId),
+                        forward: nil
+                    )
                 )
                 self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
             }
@@ -1205,16 +1216,16 @@ extension ATTNSDK {
         Task { await manager.refreshDeferredForPushToken() }
     }
 
-    /// Wraps a `/token` callback so a successful registration records `token` as known to the
-    /// server for `domain`, then runs inbox fetches held for lack of a push token. They wait for
-    /// this rather than for the token to be known locally: the server resolves the inbox recipient
-    /// by a registered token, so asking while `/token` is still in flight could cache an empty
-    /// inbox. A failed send records nothing and leaves them held; a later successful registration,
-    /// or any inbox fetch that goes out with the token, settles them.
-    private func pushTokenRegistrationCallback(token: String, domain: String, forward: ATTNAPICallback?) -> ATTNAPICallback {
+    /// Wraps a `/token` callback so a successful send records `registration` as confirmed by the
+    /// server, then runs inbox fetches held for lack of a push token. They wait for this rather
+    /// than for the token to be known locally: the server resolves the inbox recipient by a
+    /// registered token, so asking while `/token` is still in flight could cache an empty inbox.
+    /// A failed send records nothing and leaves them held; a later successful registration, or
+    /// any inbox fetch that goes out with the token, settles them.
+    private func pushTokenRegistrationCallback(for registration: PushTokenRegistration, forward: ATTNAPICallback?) -> ATTNAPICallback {
         return { [weak self] data, url, response, error in
             if error == nil, (response as? HTTPURLResponse)?.isSuccessful == true {
-                self?.recordPushTokenConfirmedByServer(token, domain: domain)
+                self?.recordConfirmedByServer(registration)
                 self?.refreshInboxDeferredForPushTokenIfMaterialized()
             }
             forward?(data, url, response, error)
@@ -1232,12 +1243,12 @@ extension ATTNSDK {
         Task { await manager.showEmptyInboxWithoutPushToken() }
     }
 
-    private func recordPushTokenConfirmedByServer(_ token: String, domain: String) {
-        stateLock.withLock { serverConfirmedPushToken = (token, domain) }
+    private func recordConfirmedByServer(_ registration: PushTokenRegistration) {
+        stateLock.withLock { serverConfirmedPushToken = registration }
     }
 
-    private func isPushTokenConfirmedByServer(_ token: String, domain: String) -> Bool {
-        stateLock.withLock { serverConfirmedPushToken?.token == token && serverConfirmedPushToken?.domain == domain }
+    private func isConfirmedByServer(_ registration: PushTokenRegistration) -> Bool {
+        stateLock.withLock { serverConfirmedPushToken == registration }
     }
 
     /// Drops the cached push token so APNs re-registration sends a fresh one. Inbox requests are
