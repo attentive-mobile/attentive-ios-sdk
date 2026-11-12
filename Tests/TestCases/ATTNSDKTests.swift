@@ -2173,6 +2173,42 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain)
     }
 
+    func testRegisterDeviceToken_tokenConfirmedForPreviousVisitor_waitsForNewVisitorsRegistration() async {
+        // A logout during a permission flip: the cached token is dropped, `clearUser()` takes the
+        // no-token branch (new visitor id, no detach), then APNs returns the same token. The
+        // server's earlier confirmation was for the previous user's visitor, so it must not
+        // release fetches for the new one; the new visitor's `/token` has to succeed first.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        let visitorIdBefore = sut.visitorId
+        sut.clearCachedPushToken()
+        sut.clearUser()
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore, "precondition: the logout rotated the visitor id")
+        // Let the logout's inbox reset land, then a host refresh during the gap is held.
+        _ = await waitForInboxMessageIds([])
+        await sut.refreshInboxMessages()
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "precondition: the refresh is held without a token")
+        // The new visitor's `/token` is still in flight (or dropped by the debounce).
+        apiSpy.holdsSendPushTokenCallbacks = true
+
+        registerTestPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "a confirmation for the previous visitor must not release the new visitor's held fetch")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, countFetchesBefore,
+                       "nor the held count re-fetch")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        let messages = await waitForInboxMessageIds(["anonymous"])
+        XCTAssertEqual(messages, ["anonymous"], "the held fetch runs once the new visitor's registration succeeds")
+    }
+
     func testInbox_whenPushDisabled_showsEmptyInboxInsteadOfLoading() async {
         // Adela on #340: a push-disabled install never gets a token, so without a terminal state
         // the inbox would sit on its spinner for good.
