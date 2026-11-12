@@ -1057,6 +1057,42 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "a fetch that already ran with the token must not repeat")
     }
 
+    func testShowEmptyInboxWithoutPushToken_replacesLoading_andLaterTokenStillLoads() async {
+        // Adela on #340: when no token is coming, `.loading` would never resolve.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        await manager.refresh()
+
+        await manager.showEmptyInboxWithoutPushToken()
+
+        guard case .loaded(let empty) = await manager.currentInboxStateForTesting, empty.isEmpty else {
+            return XCTFail("the spinner must give way to an empty inbox")
+        }
+        pushToken.value = "fcm:abc"
+        await manager.refreshDeferredForPushToken()
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"], "the held fetch still runs once a token is registered")
+    }
+
+    func testShowEmptyInboxWithoutPushToken_withTokenOrLoadedInbox_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "fcm:abc")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        _ = await waitForLoadedState(manager)
+
+        // Loaded with a token, then the token is dropped: the loaded list must stay.
+        pushToken.value = ""
+        await manager.showEmptyInboxWithoutPushToken()
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"], "an already-loaded inbox must not be emptied")
+    }
+
     func testRefreshDeferredForPushToken_afterIdentityReset_dropsPreviousIdentitysFetch() async {
         // Re-fetching messages right after an identity change can bring back the previous user's
         // inbox (MSDK-549), so a messages refresh skipped before the reset must not run for the

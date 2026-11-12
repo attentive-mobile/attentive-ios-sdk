@@ -323,6 +323,18 @@ actor InboxManager {
         }
     }
 
+    /// Shows an empty inbox in place of the first load's spinner when `ATTNSDK` knows no push token
+    /// is coming: push is disabled, or APNs registration failed. Without a token the inbox makes
+    /// no requests, so `.loading` would never resolve. Skipped fetches stay recorded, so a token
+    /// registered later still loads the inbox.
+    func showEmptyInboxWithoutPushToken() {
+        guard identityProvider().pushToken.isEmpty,
+              !hasFetchedFirstPage,
+              case .loading = currentState else { return }
+        Loggers.network.debug("No push token is coming; showing an empty inbox until one is registered")
+        send(.loaded([]))
+    }
+
     /// Fetches the first page of messages and the server-authoritative unread count concurrently.
     /// Shared by init-time load and every `refresh()`. `skipNotify: false` lets subscribers get a
     /// nudge to re-read `unreadCount` when the count arrives after the messages have already
