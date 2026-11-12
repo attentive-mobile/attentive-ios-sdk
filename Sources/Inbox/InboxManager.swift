@@ -111,7 +111,7 @@ actor InboxManager {
     private var dataDomain: String
 
     /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken()` runs
-    /// them once `ATTNSDK` registers a token. A fetch of the same kind that gets past the gate in
+    /// them once the server has registered a token. A fetch of the same kind that gets past the gate in
     /// the meantime settles its entry, so the token's arrival doesn't repeat it.
     private var fetchesDeferredForPushToken: Set<DeferredFetch> = []
 
@@ -303,7 +303,7 @@ actor InboxManager {
     }
 
     /// Runs the fetches that were skipped while no push token was known. Called by `ATTNSDK`
-    /// once it registers a token. Messages and count are re-fetched together when the messages
+    /// once the server has registered a token. Messages and count are re-fetched together when the messages
     /// were skipped, so an inbox opened before the token arrived loads; when only the count was
     /// skipped (e.g. the refresh after an identity change), only the count is re-fetched, keeping
     /// the count-only rule in `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`.
