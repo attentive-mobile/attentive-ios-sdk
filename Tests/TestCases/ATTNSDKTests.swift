@@ -2099,6 +2099,92 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastInboxPushToken, "010203")
     }
 
+    func testRegisterDeviceToken_heldInboxFetch_waitsForTokenRegistrationToComplete() async {
+        // The server resolves the inbox recipient by a registered push token, so asking while
+        // `/token` is still in flight could come back empty for a brand-new token (Codex on #340).
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        await sut.refreshInboxMessages()
+        apiSpy.holdsSendPushTokenCallbacks = true
+
+        registerTestPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "the held fetch must wait for /token to complete")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "the held fetch must run once /token succeeds")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "010203")
+    }
+
+    func testRegisterDeviceToken_failedTokenRegistration_keepsInboxFetchHeld() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        await sut.refreshInboxMessages()
+        apiSpy.stubbedResponse = makeHTTPResponse(statusCode: 500)
+
+        registerTestPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "a failed registration must not release the held fetch")
+
+        apiSpy.stubbedResponse = makeHTTPResponse(statusCode: 200)
+        registerTestPushToken()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "a later successful registration must release it")
+    }
+
+    func testRegisterDeviceToken_tokenServerAlreadyRegistered_releasesHeldFetchEvenIfSendIsDropped() async {
+        // Push permission flipping to authorized drops the cached token and APNs returns the same
+        // one. That re-registration can fall inside `sendPushToken`'s debounce window, which drops
+        // the send without calling back, so the held fetch can't wait on it.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        sut.clearCachedPushToken()
+        await sut.refreshInboxMessages()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "precondition: the refresh is held without a token")
+        // Stands in for the debounced send, which never calls back.
+        apiSpy.holdsSendPushTokenCallbacks = true
+
+        registerTestPushToken()
+
+        let messages = await waitForInboxMessageIds(["2"])
+        XCTAssertEqual(messages, ["2"], "a token the server already registered must release the held fetch right away")
+    }
+
+    func testRegisterDeviceToken_tokenRegisteredForPreviousDomain_waitsForNewDomainRegistration() async {
+        // `/token` registers the token for one domain, and a domain change doesn't re-send it.
+        registerTestPushToken()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: nil),
+            InboxResponse(messages: [makeInboxMessage(id: "new-account")], nextPageToken: nil)
+        ]
+        _ = await sut.allMessages
+        sut.update(domain: newDomain)
+        sut.clearCachedPushToken()
+        await sut.refreshInboxMessages()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "precondition: the refresh is held without a token")
+        apiSpy.holdsSendPushTokenCallbacks = true
+
+        registerTestPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "a registration confirmed for the previous domain must not release a fetch for the new one")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        let messages = await waitForInboxMessageIds(["new-account"])
+        XCTAssertEqual(messages, ["new-account"])
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain)
+    }
+
     func testRegisterDeviceToken_withoutMaterializedInbox_makesNoInboxRequest() async {
         // Hosts that never use the inbox must not pay for inbox requests on token registration.
         registerTestPushToken()
@@ -2123,6 +2209,10 @@ final class ATTNSDKTests: XCTestCase {
 
     private func makeInboxMessage(id: String) -> Message {
         Message(id: id, title: "Title \(id)", body: "Body \(id)", timestamp: Date(), isRead: false)
+    }
+
+    private func makeHTTPResponse(statusCode: Int) -> HTTPURLResponse? {
+        HTTPURLResponse(url: URL(string: "https://mobile.attentivemobile.com/token")!, statusCode: statusCode, httpVersion: nil, headerFields: nil)
     }
 
     /// Polls until the spy has seen at least `count` unread-count fetches (or a 2s timeout).
