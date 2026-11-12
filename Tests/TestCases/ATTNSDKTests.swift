@@ -1968,33 +1968,38 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertTrue(apiSpy.sendUserIdentityCallbackWasCalled, "the count refresh runs from the identity event's callback")
     }
 
-    func testClearUser_noPushToken_reloadsInboxMessagesForNewIdentity() async {
-        // Re-fetching only the count left an open inbox empty after the identity reset.
+    func testClearUser_noPushToken_refetchesOnlyUnreadCountOnceTokenIsRegistered() async {
+        // Adela on #340: with no token, no detach is sent, so the server may still link the token
+        // to the previous user. A messages re-fetch with it could bring their inbox back after
+        // logout, so only the count may be re-fetched.
         registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
-            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
-            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil)
         ]
         let before = await sut.allMessages
         XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
+        let countFetchesBefore = apiSpy.fetchInboxUnreadCountCallCount
 
-        // The cached token was dropped, so this takes the no-detach early return. The re-fetch
-        // waits for APNs to return the token.
+        // The cached token was dropped (as when push permission flips to authorized), so this
+        // takes the no-detach early return. The count re-fetch waits for APNs to return the token.
         sut.clearCachedPushToken()
         sut.clearUser()
         registerTestPushToken()
 
-        let after = await waitForInboxMessageIds(["anonymous"])
-        XCTAssertEqual(after, ["anonymous"], "clearUser must re-fetch messages, not just the unread count")
+        await waitForUnreadCountFetches(atLeast: countFetchesBefore + 1)
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "010203", "the count re-fetch goes out with the registered token")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1,
+                       "after a no-token clearUser, messages must not be re-fetched with the same push token")
+        let after = await waitForInboxMessageIds([])
+        XCTAssertEqual(after, [], "clearUser must drop the previous user's cached messages")
     }
 
     func testClearUser_duringFirstInboxFetch_doesNotStrandLoadingState() async {
-        // The reset discards the in-flight first-page response; without a messages re-fetch the
-        // state stayed `.loading` forever.
+        // The reset discards the in-flight first-page response, and the follow-up refresh is
+        // count-only, so the reset itself must leave a terminal state rather than `.loading`.
         registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
-            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
-            InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
+            InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil)
         ]
         let fired = Counter()
         apiSpy.onFetchInboxMessages = { [sut] _ in
@@ -2006,26 +2011,9 @@ final class ATTNSDKTests: XCTestCase {
             sut?.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
         }
 
-        let stream = await sut.inboxStateStream
-        let loadedIds: [String]? = await withTaskGroup(of: [String]?.self) { group in
-            group.addTask {
-                for await state in stream {
-                    if case .loaded(let messages) = state, messages.map(\.id) == ["anonymous"] {
-                        return messages.map(\.id)
-                    }
-                }
-                return nil
-            }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                return nil
-            }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
-        }
+        let reachedEmpty = await waitForLoadedInboxState(of: sut, ids: [])
 
-        XCTAssertEqual(loadedIds, ["anonymous"], "an identity change during the first fetch must still end in .loaded")
+        XCTAssertTrue(reachedEmpty, "an identity change during the first fetch must still end in .loaded")
     }
 
     func testClearUser_withPushToken_failedDetach_doesNotRefetchPreviousUsersMessages() async {
@@ -2185,6 +2173,46 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain)
     }
 
+    func testInbox_whenPushDisabled_showsEmptyInboxInsteadOfLoading() async {
+        // Adela on #340: a push-disabled install never gets a token, so without a terminal state
+        // the inbox would sit on its spinner for good.
+        let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
+
+        let reachedEmpty = await waitForLoadedInboxState(of: pushDisabledSut, ids: [])
+
+        XCTAssertTrue(reachedEmpty, "a push-disabled inbox must settle on an empty list, not .loading")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "and still make no requests")
+    }
+
+    func testFailedToRegisterForPush_beforeInboxOpens_showsEmptyInbox_andLaterTokenStillLoads() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        sut.failedToRegisterForPush(URLError(.notConnectedToInternet))
+
+        let reachedEmpty = await waitForLoadedInboxState(of: sut, ids: [])
+        XCTAssertTrue(reachedEmpty, "with APNs registration failed, the inbox must settle on an empty list")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0)
+
+        // A later registration (e.g. the next foreground retry) still loads the held fetch.
+        registerTestPushToken()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"])
+    }
+
+    func testFailedToRegisterForPush_withInboxOpen_replacesLoadingWithEmptyInbox() async {
+        // Open the inbox before APNs answers: no token yet, so it's loading.
+        await sut.refreshInboxMessages()
+        let settledEarly = await waitForLoadedInboxState(of: sut, ids: [], timeout: 0.2)
+        XCTAssertFalse(settledEarly, "precondition: still loading while a token may yet arrive")
+
+        sut.failedToRegisterForPush(URLError(.notConnectedToInternet))
+
+        let reachedEmpty = await waitForLoadedInboxState(of: sut, ids: [])
+        XCTAssertTrue(reachedEmpty, "a registration failure must replace the spinner with an empty inbox")
+    }
+
     func testRegisterDeviceToken_withoutMaterializedInbox_makesNoInboxRequest() async {
         // Hosts that never use the inbox must not pay for inbox requests on token registration.
         registerTestPushToken()
@@ -2209,6 +2237,27 @@ final class ATTNSDKTests: XCTestCase {
 
     private func makeInboxMessage(id: String) -> Message {
         Message(id: id, title: "Title \(id)", body: "Body \(id)", timestamp: Date(), isRead: false)
+    }
+
+    /// Waits up to `timeout` for `sdk`'s inbox state stream to emit `.loaded` with exactly `ids`.
+    /// Subscribing materializes the inbox; the stream replays the current state first.
+    private func waitForLoadedInboxState(of sdk: ATTNSDK, ids: [String], timeout: TimeInterval = 2.0) async -> Bool {
+        let stream = await sdk.inboxStateStream
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                for await state in stream {
+                    if case .loaded(let messages) = state, messages.map(\.id) == ids { return true }
+                }
+                return false
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
     }
 
     private func makeHTTPResponse(statusCode: Int) -> HTTPURLResponse? {
