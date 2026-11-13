@@ -71,6 +71,10 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         var lastUpdateUserVisitorId: String?
 
         var domain = ""
+
+        // Held `sendPushToken` callbacks; see `holdsSendPushTokenCallbacks`.
+        var holdsSendPushTokenCallbacks = false
+        var heldSendPushTokenCallbacks: [() -> Void] = []
     }
 
     // MARK: - Call tracking
@@ -193,13 +197,45 @@ final class ATTNAPISpy: ATTNAPIProtocol {
                                          userIdentity: ATTNUserIdentity,
                                          authorizationStatus: UNAuthorizationStatus,
                                          callback: ATTNAPICallback?) {
-        let error = synced { storage -> Error? in
+        let (error, response, holds) = synced { storage -> (Error?, HTTPURLResponse?, Bool) in
             storage.lastPushToken = pushToken
             storage.lastAuthorizationStatus = authorizationStatus
             storage.sendPushTokenWasCalled = true
-            return storage.stubbedError
+            return (storage.stubbedError, storage.stubbedResponse, storage.holdsSendPushTokenCallbacks)
         }
-        callback?(nil, nil, nil, error)
+        // Pass `stubbedResponse` so ATTNSDK can tell a successful registration from a failed one.
+        let complete: () -> Void = { callback?(nil, nil, response, error) }
+        if holds {
+            synced { $0.heldSendPushTokenCallbacks.append(complete) }
+        } else {
+            complete()
+        }
+    }
+
+    /// When true, `sendPushToken` keeps its callback until `completeHeldSendPushTokens()`. Stands
+    /// in for a `/token` request still in flight, or one `ATTNAPI` drops as a debounced repeat,
+    /// which never calls back.
+    var holdsSendPushTokenCallbacks: Bool {
+        get { synced { $0.holdsSendPushTokenCallbacks } }
+        set { synced { $0.holdsSendPushTokenCallbacks = newValue } }
+    }
+
+    /// Runs only the oldest held `sendPushToken` callback, leaving later sends in flight.
+    func completeOldestHeldSendPushToken() {
+        let oldest = synced { storage -> (() -> Void)? in
+            storage.heldSendPushTokenCallbacks.isEmpty ? nil : storage.heldSendPushTokenCallbacks.removeFirst()
+        }
+        oldest?()
+    }
+
+    /// Runs the callbacks `sendPushToken` held, in the order the sends were made.
+    func completeHeldSendPushTokens() {
+        let held = synced { storage -> [() -> Void] in
+            let callbacks = storage.heldSendPushTokenCallbacks
+            storage.heldSendPushTokenCallbacks = []
+            return callbacks
+        }
+        held.forEach { $0() }
     }
 
     func sendAppEvents(

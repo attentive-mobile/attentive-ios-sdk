@@ -915,6 +915,239 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(messages.map(\.id), ["1"], "The message itself is still restored")
     }
 
+    // MARK: - Push token gate (MSDK-586)
+
+    /// Identity provider whose push token the test can set or clear, standing in for `ATTNSDK`
+    /// republishing the snapshot when APNs returns a token or the cached one is dropped.
+    private func switchablePushTokenProvider(_ pushToken: MutableString) -> InboxIdentityProvider {
+        return {
+            InboxIdentitySnapshot(visitorId: "v_test", pushToken: pushToken.value, email: nil, phone: nil, domain: "test-domain")
+        }
+    }
+
+    /// Stands in for `ATTNSDK` after the server confirms a `/token` registration of `pushToken`
+    /// for the identity `switchablePushTokenProvider` publishes (visitor `v_test`, `test-domain`).
+    private func runFetchesHeldForPushToken(_ manager: InboxManager, registeredToken pushToken: String = "fcm:abc") async {
+        await manager.refreshDeferredForPushToken(pushToken: pushToken, domain: "test-domain", visitorId: "v_test")
+    }
+
+    func testInit_emptyPushToken_skipsNetworkCalls() async {
+        // The server identifies the inbox recipient by push token alone and rejects a request
+        // without one, so the init fetch must not go out before a token exists.
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider(pushToken: ""))
+        await manager.refresh()
+        await manager.refreshUnreadCount()
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0)
+        guard case .loading = await manager.currentInboxStateForTesting else {
+            return XCTFail("a skipped first fetch leaves the inbox loading until a token arrives")
+        }
+    }
+
+    func testMutationsAndPaging_afterPushTokenCleared_skipNetworkCallsAndKeepLocalState() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1"), makeMessage(id: "2", isRead: true)], nextPageToken: "cursor-2")
+        ]
+        apiSpy.stubbedUnreadCount = 1
+        let pushToken = MutableString(value: "fcm:abc")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        _ = await waitForLoadedState(manager)
+        _ = await manager.unreadCount
+
+        // The SDK drops its cached token when push permission flips to authorized, until APNs
+        // returns one again.
+        pushToken.value = ""
+        await manager.loadNextPage()
+        await manager.markRead("1")
+        await manager.markUnread("2")
+        await manager.markClicked("1")
+        await manager.delete("1")
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "no page load without a push token")
+        XCTAssertEqual(apiSpy.markMessagesReadCallCount, 0)
+        XCTAssertEqual(apiSpy.markMessagesUnreadCallCount, 0)
+        XCTAssertEqual(apiSpy.markMessageClickedCallCount, 0)
+        XCTAssertEqual(apiSpy.deleteInboxMessageCallCount, 0)
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1", "2"], "a skipped delete must not remove the row")
+        XCTAssertEqual(messages.map(\.isRead), [false, true], "a skipped mark-read/unread must not flip the row")
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 1, "a skipped mutation must not adjust the badge")
+        let hasMore = await manager.hasMore
+        XCTAssertTrue(hasMore, "a skipped page load keeps the cursor for a later retry")
+    }
+
+    func testRefreshDeferredForPushToken_runsSkippedFetchOnceWithToken() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        // Like `InboxView.task` opening the inbox before APNs has answered.
+        await manager.refresh()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "precondition: skipped without a token")
+
+        pushToken.value = "fcm:abc"
+        await runFetchesHeldForPushToken(manager)
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1)
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "fcm:abc")
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "fcm:abc")
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"])
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 2)
+
+        // A second token registration has nothing left to run.
+        await runFetchesHeldForPushToken(manager)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the skipped fetch runs exactly once")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "the skipped fetch runs exactly once")
+    }
+
+    func testRefreshDeferredForPushToken_nothingSkipped_isNoOp() async {
+        // Warm launch: the token was persisted, so the init fetch went out with it.
+        apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
+        let manager = InboxManager(api: apiSpy, identityProvider: identityProvider())
+        _ = await waitForLoadedState(manager)
+        _ = await manager.unreadCount
+
+        await runFetchesHeldForPushToken(manager)
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "no duplicate fetch when nothing was skipped")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "no duplicate fetch when nothing was skipped")
+    }
+
+    func testRefreshDeferredForPushToken_onlyCountSkipped_refetchesCountOnly() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "p1")], nextPageToken: "cursor-2")
+        ]
+        apiSpy.stubbedUnreadCount = 1
+        let pushToken = MutableString(value: "fcm:abc")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        _ = await waitForLoadedState(manager)
+        _ = await manager.unreadCount
+
+        pushToken.value = ""
+        apiSpy.stubbedUnreadCount = 5
+        await manager.refreshUnreadCount()
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 1, "precondition: skipped without a token")
+
+        pushToken.value = "fcm:abc"
+        await runFetchesHeldForPushToken(manager)
+
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 2)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "only the count was skipped, so messages must not be re-fetched")
+        let unread = await manager.unreadCount
+        XCTAssertEqual(unread, 5)
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["p1"], "the loaded pages are kept")
+    }
+
+    func testRefreshDeferredForPushToken_fetchBeforeRegistrationConfirmed_stillRunsAfterIt() async {
+        // Adela on #340: the token is published before `/token` is sent, so a host refresh in that
+        // window can reach the server before the token is registered and come back empty. It must
+        // not settle the held fetch, which still runs once the registration is confirmed.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [], nextPageToken: nil),
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        await manager.refresh()
+
+        pushToken.value = "fcm:abc"
+        await manager.refresh()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "precondition: the host refresh went out")
+
+        await runFetchesHeldForPushToken(manager)
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 2, "the held fetch must still run after the registration is confirmed")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 2)
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"])
+
+        await runFetchesHeldForPushToken(manager)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 2, "and only once")
+    }
+
+    func testRefreshDeferredForPushToken_registrationNoLongerCurrent_keepsFetchesHeld() async {
+        // Codex on #340: a `/token` success for an older token (or another domain or visitor) must
+        // not release fetches that would go out with the current, unregistered one.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        await manager.refresh()
+        pushToken.value = "fcm:new"
+
+        await runFetchesHeldForPushToken(manager, registeredToken: "fcm:old")
+        await manager.refreshDeferredForPushToken(pushToken: "fcm:new", domain: "other-domain", visitorId: "v_test")
+        await manager.refreshDeferredForPushToken(pushToken: "fcm:new", domain: "test-domain", visitorId: "v_other")
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "a registration that doesn't match the current identity must not release them")
+
+        await runFetchesHeldForPushToken(manager, registeredToken: "fcm:new")
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the matching registration releases them")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "fcm:new")
+    }
+
+    func testShowEmptyInboxWithoutPushToken_replacesLoading_andLaterTokenStillLoads() async {
+        // Adela on #340: when no token is coming, `.loading` would never resolve.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        await manager.refresh()
+
+        await manager.showEmptyInboxWithoutPushToken()
+
+        guard case .loaded(let empty) = await manager.currentInboxStateForTesting, empty.isEmpty else {
+            return XCTFail("the spinner must give way to an empty inbox")
+        }
+        pushToken.value = "fcm:abc"
+        await runFetchesHeldForPushToken(manager)
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"], "the held fetch still runs once a token is registered")
+    }
+
+    func testShowEmptyInboxWithoutPushToken_withTokenOrLoadedInbox_isNoOp() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
+        ]
+        let pushToken = MutableString(value: "fcm:abc")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        _ = await waitForLoadedState(manager)
+
+        // Loaded with a token, then the token is dropped: the loaded list must stay.
+        pushToken.value = ""
+        await manager.showEmptyInboxWithoutPushToken()
+
+        let messages = await manager.allMessages
+        XCTAssertEqual(messages.map(\.id), ["1"], "an already-loaded inbox must not be emptied")
+    }
+
+    func testRefreshDeferredForPushToken_afterIdentityReset_dropsPreviousIdentitysFetch() async {
+        // Re-fetching messages right after an identity change can bring back the previous user's
+        // inbox (MSDK-549), so a messages refresh skipped before the reset must not run for the
+        // new identity.
+        let pushToken = MutableString(value: "")
+        let manager = InboxManager(api: apiSpy, identityProvider: switchablePushTokenProvider(pushToken))
+        await manager.refresh()
+
+        await manager.resetForIdentityChange()
+        pushToken.value = "fcm:abc"
+        await runFetchesHeldForPushToken(manager)
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0)
+    }
+
     // MARK: - Domain changes (MSDK-545)
 
     /// Identity provider whose domain the test can flip, standing in for `ATTNSDK` publishing a

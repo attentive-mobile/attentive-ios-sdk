@@ -51,6 +51,21 @@ public final class ATTNSDK: NSObject {
     private var pendingURL: URL?
     // Debounce mechanism to prevent duplicate events
     private var lastRegularOpenTime: Date?
+    /// A push token together with the domain and visitor id one `/token` request sent it for.
+    private struct PushTokenRegistration: Equatable {
+        let token: String
+        let domain: String
+        let visitorId: String
+    }
+    /// The registration the server last confirmed through a successful `/token` request in this
+    /// process. Guarded by `stateLock`. Inbox fetches held for lack of a token wait for this,
+    /// because the server resolves the inbox recipient by a registered push token. The visitor
+    /// id is part of the match: `clearUser()` with no token rotates it without a detach, so a
+    /// confirmation from before that logout must not count for the new visitor.
+    private var serverConfirmedPushToken: PushTokenRegistration?
+    /// Set by `failedToRegisterForPush` and cleared by `registerDeviceToken`. Guarded by
+    /// `stateLock`. While set and no token is cached, the inbox shows as empty rather than loading.
+    private var didFailToRegisterForPush = false
 
     var currentPushToken: String { pushTokenStore.token }
 
@@ -373,12 +388,12 @@ public final class ATTNSDK: NSObject {
             // No push token means there is nothing to detach server-side. Local was
             // already cleared and the visitor id rotated inside planClearUser.
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-            // No `/user-update` will fire, so drop the cached inbox state and kick the messages +
-            // count re-fetch now against the freshly-generated anonymous visitor. Safe: no token
-            // is sent, so no server-side association is pending. Both go through one helper because the
-            // reset must reach the InboxManager actor before the refresh — see
-            // `resetThenRefreshInboxIfMaterialized`.
-            resetThenRefreshInboxIfMaterialized()
+            // No `/user-update` will fire, so drop the cached inbox state and queue a count-only
+            // re-fetch for the freshly-generated anonymous visitor; it waits until the server has
+            // registered a token. Both go through one helper because the reset must reach the
+            // InboxManager actor before the refresh — see
+            // `resetThenRefreshInboxUnreadCountIfMaterialized`.
+            resetThenRefreshInboxUnreadCountIfMaterialized()
             return
         }
         resetInboxForIdentityChangeIfMaterialized()
@@ -687,12 +702,15 @@ public final class ATTNSDK: NSObject {
             return
         }
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        stateLock.withLock { didFailToRegisterForPush = false }
         Loggers.event.debug("Registering device token - Visitor ID: \(self.userIdentity.visitorId, privacy: .public), Push Token: \(tokenString, privacy: .public), Auth Status: \(authorizationStatus.stringValue, privacy: .public)")
         pushTokenStore.token = tokenString
         publishIdentitySnapshot()
         flushPendingMarketingRequests(with: tokenString)
-        // this is called after events are sent. we need a better way to persist this
-        api.sendPushToken(tokenString, userIdentity: userIdentity, authorizationStatus: authorizationStatus) { data, url, response, error in
+        // Captured before the send, which reads both: an `update(domain:)` or `clearUser()` landing
+        // mid-flight must not count this registration for the new domain or visitor.
+        let registration = PushTokenRegistration(token: tokenString, domain: domain, visitorId: userIdentity.visitorId)
+        let logResultAndForward: ATTNAPICallback = { data, url, response, error in
             Loggers.event.debug("----- Push-Token Request Result -----")
             if let url = url {
                 Loggers.event.debug("Request URL: \(url.absoluteString, privacy: .public)")
@@ -715,6 +733,22 @@ public final class ATTNSDK: NSObject {
 
             callback?(data, url, response, error)
         }
+        // this is called after events are sent. we need a better way to persist this
+        api.sendPushToken(
+            tokenString,
+            userIdentity: userIdentity,
+            authorizationStatus: authorizationStatus,
+            callback: pushTokenRegistrationCallback(for: registration, forward: logResultAndForward)
+        )
+        // Inbox fetches held for lack of a token run from the callback above, once the server has
+        // registered the token. If it already confirmed this exact registration earlier in this
+        // process (the cached copy is dropped when push permission flips to authorized, and APNs
+        // returns the same token), run them now: `sendPushToken` drops a repeat send inside its
+        // debounce window without calling back. A logout in between rotates the visitor id, so
+        // this waits for the new visitor's `/token` to succeed instead.
+        if isConfirmedByServer(registration) {
+            refreshInboxDeferredForPushTokenIfMaterialized(for: registration)
+        }
     }
 
     @objc(registerForPushFailed:)
@@ -724,6 +758,12 @@ public final class ATTNSDK: NSObject {
             return
         }
         Loggers.event.error("Failed to register for remote notifications: \(error.localizedDescription, privacy: .public)")
+        stateLock.withLock { didFailToRegisterForPush = true }
+        // No token is coming from this attempt, so don't leave an open inbox on its spinner. A
+        // manager created later checks the same flag when it's built.
+        if let manager = existingInboxManager() {
+            showEmptyInboxIfPushTokenUnavailable(manager)
+        }
     }
 
     // MARK: App Events
@@ -932,9 +972,7 @@ public final class ATTNSDK: NSObject {
                             if lastStatus != UNAuthorizationStatus.authorized.rawValue &&
                                  currentStatus == .authorized {
                                     Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
-                                    UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
-                                    self.pushTokenStore.token = ""
-                                    self.publishIdentitySnapshot()
+                                    self.clearCachedPushToken()
                                     await MainActor.run {
                                             UIApplication.shared.registerForRemoteNotifications()
                                     }
@@ -962,7 +1000,15 @@ public final class ATTNSDK: NSObject {
                     Loggers.event.debug("Deferring handleRegularOpen: push token not yet available. It will be triggered later from AppDelegate after APNs registration completes.")
                     return
                 }
-                self.api.sendPushToken(currentPushToken, userIdentity: userIdentity, authorizationStatus: updated.authorizationStatus, callback: nil)
+                self.api.sendPushToken(
+                    token,
+                    userIdentity: userIdentity,
+                    authorizationStatus: updated.authorizationStatus,
+                    callback: self.pushTokenRegistrationCallback(
+                        for: PushTokenRegistration(token: token, domain: self.domain, visitorId: self.userIdentity.visitorId),
+                        forward: nil
+                    )
+                )
                 self.handleRegularOpen(authorizationStatus: updated.authorizationStatus)
             }
         }
@@ -1131,8 +1177,8 @@ extension ATTNSDK {
         Task { await manager.refreshUnreadCount() }
     }
 
-    /// Drops the cached inbox state and then re-fetches messages and the unread count, both inside
-    /// a single `Task` so they reach the `InboxManager` actor in that order.
+    /// Drops the cached inbox state and then re-fetches the unread count, both inside a single
+    /// `Task` so they reach the `InboxManager` actor in that order.
     ///
     /// Calling `resetInboxForIdentityChangeIfMaterialized()` and
     /// `refreshInboxUnreadCountForNewIdentityIfMaterialized()` back to back does NOT order them:
@@ -1142,19 +1188,82 @@ extension ATTNSDK {
     /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
     /// `refreshInboxUnreadCount()` or app foreground.
     ///
-    /// Only for `clearUser()` with no push token: no token is sent, so the server can only resolve
-    /// the new anonymous visitor, which makes a messages fetch safe here. Paths that POST
-    /// `/user-update` use the count-only `refreshInboxUnreadCountForNewIdentityIfMaterialized`
-    /// from its callback instead, and a domain change refreshes the count from its identity
-    /// event's callback (see `updateDomainInternal`).
-    func resetThenRefreshInboxIfMaterialized() {
+    /// Only for `clearUser()` with no push token, which sends no `/user-update` to chain a
+    /// refresh from. Inbox fetches wait for a push token, so the count fetch runs once the server
+    /// confirms the token `registerDeviceToken` sends (see `pushTokenRegistrationCallback`).
+    ///
+    /// Count only, like the refresh after `/user-update`: the server identifies the inbox
+    /// recipient by push token, and with no detach sent the token may still be linked to the
+    /// previous user, so a messages fetch with it could bring back their inbox. An open inbox
+    /// shows the reset (empty) list until it's reopened or refreshed. A domain change refreshes
+    /// the count from its identity event's callback instead (see `updateDomainInternal`).
+    func resetThenRefreshInboxUnreadCountIfMaterialized() {
         // Captured at call time, like the other helpers: a manager created after this point
         // already reads the new identity and must not be reset.
         guard let manager = existingInboxManager() else { return }
         Task {
             await manager.resetForIdentityChange()
-            await manager.refresh()
+            await manager.refreshUnreadCount()
         }
+    }
+
+    /// Runs the inbox fetches that were skipped because no push token was known yet, now that the
+    /// server has confirmed `registration` (see `pushTokenRegistrationCallback`). The manager runs
+    /// them only if `registration` still matches the current identity when the task reaches it.
+    /// Only when the manager already exists, and captured at call time like the other helpers. A
+    /// manager created after this point reads the token on its own init fetch.
+    private func refreshInboxDeferredForPushTokenIfMaterialized(for registration: PushTokenRegistration) {
+        guard let manager = existingInboxManager() else { return }
+        Task {
+            await manager.refreshDeferredForPushToken(
+                pushToken: registration.token,
+                domain: registration.domain,
+                visitorId: registration.visitorId
+            )
+        }
+    }
+
+    /// Wraps a `/token` callback so a successful send records `registration` as confirmed by the
+    /// server, then runs inbox fetches held for lack of a push token. They wait for this rather
+    /// than for the token to be known locally: the server resolves the inbox recipient by a
+    /// registered token, so asking while `/token` is still in flight could cache an empty inbox.
+    /// A failed send records nothing and leaves them held for a later successful registration.
+    private func pushTokenRegistrationCallback(for registration: PushTokenRegistration, forward: ATTNAPICallback?) -> ATTNAPICallback {
+        return { [weak self] data, url, response, error in
+            if error == nil, (response as? HTTPURLResponse)?.isSuccessful == true {
+                self?.recordConfirmedByServer(registration)
+                self?.refreshInboxDeferredForPushTokenIfMaterialized(for: registration)
+            }
+            forward?(data, url, response, error)
+        }
+    }
+
+    /// Replaces `manager`'s first-load spinner with an empty inbox when no push token is coming:
+    /// push is disabled, or APNs registration failed and no token is cached. Otherwise the inbox
+    /// would sit on `.loading` for good, since it makes no requests without a token. The held
+    /// fetches stay recorded, so a token registered later still loads it.
+    private func showEmptyInboxIfPushTokenUnavailable(_ manager: InboxManager) {
+        let isPushTokenUnavailable = !pushEnabled
+            || (stateLock.withLock { didFailToRegisterForPush } && currentPushToken.isEmpty)
+        guard isPushTokenUnavailable else { return }
+        Task { await manager.showEmptyInboxWithoutPushToken() }
+    }
+
+    private func recordConfirmedByServer(_ registration: PushTokenRegistration) {
+        stateLock.withLock { serverConfirmedPushToken = registration }
+    }
+
+    private func isConfirmedByServer(_ registration: PushTokenRegistration) -> Bool {
+        stateLock.withLock { serverConfirmedPushToken == registration }
+    }
+
+    /// Drops the cached push token so APNs re-registration sends a fresh one. Inbox requests are
+    /// held back until a token is registered again. Internal so tests can reach
+    /// the no-token paths after loading the inbox with a token.
+    func clearCachedPushToken() {
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        pushTokenStore.token = ""
+        publishIdentitySnapshot()
     }
 
     /// Publishes the current identity (visitor id, push token, email, phone, domain) into the
@@ -1167,8 +1276,8 @@ extension ATTNSDK {
         identityStore.update(InboxIdentitySnapshot(
             visitorId: userIdentity.visitorId,
             // Same rule as opt-in/opt-out: a push-disabled instance may still find a token
-            // persisted by a previous push-enabled install, and the server scopes the inbox
-            // partly by it. Inbox requests omit `push_token` when this is empty.
+            // persisted by a previous push-enabled install, and the server identifies the inbox
+            // recipient by it. Inbox requests are held back while this is empty.
             pushToken: pushEnabled ? currentPushToken : "",
             email: identifiers[ATTNIdentifierType.email] as? String,
             phone: identifiers[ATTNIdentifierType.phone] as? String,
@@ -1200,8 +1309,11 @@ fileprivate extension ATTNSDK {
         // otherwise each build a manager (each starting its own fetch) and hand callers and
         // streams different state stores. `InboxManager.init` only spawns a Task, so holding the
         // lock across it doesn't call back into the SDK.
-        inboxManagerLock.withLock {
-            if let existing = _inboxManager { return existing }
+        let (manager, isNew) = inboxManagerLock.withLock { () -> (InboxManager, Bool) in
+            if let existing = _inboxManager { return (existing, false) }
+            if !pushEnabled {
+                Loggers.network.warning("The inbox requires Attentive push. With pushEnabled false there is no push token, so the inbox makes no requests.")
+            }
             // Passing `unreadCountBox` here (rather than letting the manager build its own default)
             // is what routes every write to `storedUnreadCount` back to `inboxUnreadCount` and the
             // `.ATTNSDKInboxUnreadCountChanged` notification.
@@ -1213,8 +1325,12 @@ fileprivate extension ATTNSDK {
                 unreadCountBox: unreadCountBox
             )
             _inboxManager = manager
-            return manager
+            return (manager, true)
         }
+        if isNew {
+            showEmptyInboxIfPushTokenUnavailable(manager)
+        }
+        return manager
     }
 
     func sendInfoEvent() {
