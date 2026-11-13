@@ -110,6 +110,11 @@ actor InboxManager {
     /// regardless of when the SDK's explicit reset Task lands (MSDK-545).
     private var dataDomain: String
 
+    /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken()` runs
+    /// them once `ATTNSDK` registers a token. A fetch of the same kind that gets past the gate in
+    /// the meantime settles its entry, so the token's arrival doesn't repeat it.
+    private var fetchesDeferredForPushToken: Set<DeferredFetch> = []
+
     var allMessages: [Message] {
         get async {
             dropStateIfDomainChanged()
@@ -297,6 +302,27 @@ actor InboxManager {
         await performUnreadCountFetch(skipNotify: false)
     }
 
+    /// Runs the fetches that were skipped while no push token was known. Called by `ATTNSDK`
+    /// once it registers a token. Messages and count are re-fetched together when the messages
+    /// were skipped, so an inbox opened before the token arrived loads; when only the count was
+    /// skipped (e.g. the refresh after an identity change), only the count is re-fetched, keeping
+    /// the count-only rule in `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`.
+    func refreshDeferredForPushToken() async {
+        dropStateIfDomainChanged()
+        let deferred = fetchesDeferredForPushToken
+        guard !deferred.isEmpty else { return }
+        // Settle now, before the first suspension, so a second token registration landing while
+        // these fetches are in flight doesn't repeat them. A fetch that is still gated re-records
+        // itself.
+        fetchesDeferredForPushToken = []
+        Loggers.network.debug("Push token registered; running inbox fetches skipped without one")
+        if deferred.contains(.messagesRefresh) {
+            await performMessagesAndUnreadCountRefresh()
+        } else {
+            await performUnreadCountFetch(skipNotify: false)
+        }
+    }
+
     /// Fetches the first page of messages and the server-authoritative unread count concurrently.
     /// Shared by init-time load and every `refresh()`. `skipNotify: false` lets subscribers get a
     /// nudge to re-read `unreadCount` when the count arrives after the messages have already
@@ -310,7 +336,7 @@ actor InboxManager {
     /// Internal worker used by both the init task and the public `refresh()`. Fetches page 1,
     /// resets pagination bookkeeping, and updates state.
     private func performMessagesRefresh() async {
-        guard let identity = requireIdentity(context: "inbox messages refresh") else { return }
+        guard let identity = requireIdentity(context: "inbox messages refresh", deferring: .messagesRefresh) else { return }
 
         messagesGeneration &+= 1
         let generation = messagesGeneration
@@ -369,7 +395,7 @@ actor InboxManager {
     /// task can call this without deadlocking on itself. `skipNotify == true` when the
     /// caller (e.g. `refresh()`) will emit its own `.loaded` after updating messages.
     private func performUnreadCountFetch(skipNotify: Bool) async {
-        guard let identity = requireIdentity(context: "inbox unread count refresh") else { return }
+        guard let identity = requireIdentity(context: "inbox unread count refresh", deferring: .unreadCountFetch) else { return }
         refreshGeneration &+= 1
         let generation = refreshGeneration
         do {
@@ -512,11 +538,7 @@ actor InboxManager {
         guard let removedMessage = messagesByID[messageID],
               let originalIndex = messageOrder.firstIndex(of: messageID) else { return }
 
-        let identity = identityProvider()
-        guard !identity.visitorId.isEmpty else {
-            Loggers.network.debug("Skipping inbox delete: empty visitor ID")
-            return
-        }
+        guard let identity = requireIdentity(context: "inbox delete") else { return }
 
         messagesByID.removeValue(forKey: messageID)
         messageOrder.remove(at: originalIndex)
@@ -641,6 +663,11 @@ actor InboxManager {
         hasFetchedFirstPage = false
         setLoadingNextPage(false)
         isRefreshingFirstPage = false
+        // A fetch skipped for the previous identity or domain is not owed to the new one: running
+        // it on the token's arrival could reload messages right after an identity change, which
+        // the SDK limits to a count-only refresh. The new identity's own fetches re-record
+        // themselves if they are skipped too.
+        fetchesDeferredForPushToken = []
         // Drop the init-time refresh handle. Without this, a `refreshUnreadCount()` fired from
         // ATTNSDK's `/user-update` callback would coalesce with an undrained init task, await
         // its (now-discarded) response, and return without issuing a POST — leaving the new
@@ -664,14 +691,39 @@ actor InboxManager {
 // MARK: - Private methods
 
 extension InboxManager {
+    /// A fetch that `refreshDeferredForPushToken()` re-runs after being skipped for lack of a
+    /// push token.
+    enum DeferredFetch: Hashable {
+        case messagesRefresh
+        case unreadCountFetch
+    }
+
     /// Snapshots the current identity and returns it only when scoped requests are viable.
-    /// Every inbox endpoint requires a non-empty `visitor_id`; returning nil (with a scoped log)
-    /// keeps the six inbox network methods aligned on a single guard instead of six near-copies.
-    private func requireIdentity(context: String) -> InboxIdentitySnapshot? {
+    /// Every inbox endpoint requires a non-empty `visitor_id` and push token: the server
+    /// identifies the inbox recipient by push token alone, so a request without one can't be
+    /// served (it comes back as a 401). Returning nil (with a scoped log) keeps the six inbox
+    /// network methods aligned on a single guard instead of six near-copies.
+    ///
+    /// - Parameter deferring: The fetch to re-run once a push token is registered, if this one is
+    ///   skipped for lack of one. When the identity passes, the same entry is settled instead.
+    ///   `nil` for page loads and mutations, which aren't re-run.
+    private func requireIdentity(context: String, deferring deferredFetch: DeferredFetch? = nil) -> InboxIdentitySnapshot? {
         let identity = identityProvider()
         guard !identity.visitorId.isEmpty else {
             Loggers.network.debug("Skipping \(context, privacy: .public): empty visitor ID")
             return nil
+        }
+        guard !identity.pushToken.isEmpty else {
+            if let deferredFetch {
+                fetchesDeferredForPushToken.insert(deferredFetch)
+                Loggers.network.debug("Deferring \(context, privacy: .public): no push token yet; it runs once one is registered")
+            } else {
+                Loggers.network.debug("Skipping \(context, privacy: .public): no push token yet")
+            }
+            return nil
+        }
+        if let deferredFetch {
+            fetchesDeferredForPushToken.remove(deferredFetch)
         }
         return identity
     }

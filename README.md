@@ -652,6 +652,7 @@ An in-app message center that renders messages Attentive delivers to a user. Eac
 **Requirements**
 - iOS 15+
 - SDK initialized (see [Step 1](#step-1---sdk-initialization)). Inbox fetches are a no-op until a `visitorId` is available.
+- Attentive push set up: `pushEnabled` left at its default of `true`, and `registerDeviceToken(_:authorizationStatus:callback:)` called from your app delegate. The inbox is tied to the device's push token, so inbox requests wait until one is registered and then run on their own. Until then the inbox shows its loading state and the unread count stays at 0, which is what a fresh install sees until APNs returns the first token. With `pushEnabled: false` the inbox makes no requests.
 
 ### Option A — Drop-in UI
 

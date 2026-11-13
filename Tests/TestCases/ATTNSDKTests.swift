@@ -725,8 +725,9 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastOptInPushToken, "", "Stale persisted token must not be sent when pushEnabled is false")
     }
 
-    func testInbox_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() async {
-        // Adela's repro on #327: the stale token reached both inbox requests.
+    func testInbox_whenPushDisabledWithStaleStoredToken_makesNoRequests() async {
+        // Adela's repro on #327: the stale token reached both inbox requests. The inbox requires
+        // Attentive push, so a push-disabled instance has no token and sends no inbox requests.
         UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
         let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
 
@@ -734,9 +735,11 @@ final class ATTNSDKTests: XCTestCase {
                        "The inbox identity snapshot must not carry a token when pushEnabled is false")
 
         _ = await pushDisabledSut.unreadCount
+        await pushDisabledSut.refreshInboxMessages()
 
-        XCTAssertEqual(apiSpy.lastInboxPushToken, "", "Unread-count request must not send the stale token")
-        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "", "Messages request must not send the stale token")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0, "no unread-count request without a push token")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "no messages request without a push token")
+        XCTAssertNil(apiSpy.lastInboxPushToken, "the stale token must never be sent")
     }
 
     func testOptOut_whenPushDisabledWithStaleStoredToken_sendsWithoutPushToken() {
@@ -1670,6 +1673,7 @@ final class ATTNSDKTests: XCTestCase {
     /// `materializedInboxManager()`, the notification firing with the SDK as `object`, and
     /// `userInfo["attentiveInboxUnreadCount"]` carrying the new value.
     func testInboxUnreadCount_notificationFiresWithSDKObjectAndPayload() async {
+        registerTestPushToken()
         apiSpy.stubbedUnreadCount = 4
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [], nextPageToken: nil)
@@ -1690,6 +1694,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testInboxUnreadCount_objectFilterIsolatesSDKInstances() async {
+        registerTestPushToken()
         apiSpy.stubbedUnreadCount = 7
         apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
 
@@ -1698,6 +1703,7 @@ final class ATTNSDKTests: XCTestCase {
         otherApiSpy.stubbedUnreadCount = 99
         otherApiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
         let otherSdk = ATTNSDK(api: otherApiSpy, urlBuilder: ATTNCreativeUrlProviderSpy())
+        otherSdk.registerDeviceToken(Data([0x04, 0x05, 0x06]), authorizationStatus: .authorized)
 
         // Only `sut`'s fetch should satisfy this — expectation is filtered by object.
         let notifiedForSut = expectation(forNotification: .ATTNSDKInboxUnreadCountChanged, object: sut) { note in
@@ -1763,6 +1769,7 @@ final class ATTNSDKTests: XCTestCase {
     /// Pins the end state rather than reproducing the interleaving — with the ordering fix the
     /// refresh is strictly last, so the final count is always the server's.
     func testClearUser_noPushToken_refreshLandsAfterInboxReset() async {
+        registerTestPushToken()
         apiSpy.stubbedUnreadCount = 4
         apiSpy.stubbedInboxMessagesResponses = [InboxResponse(messages: [], nextPageToken: nil)]
 
@@ -1776,8 +1783,11 @@ final class ATTNSDKTests: XCTestCase {
             (note.userInfo?["attentiveInboxUnreadCount"] as? Int) == 6
         }
 
-        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        // The cached token was dropped (as when push permission flips to authorized), so this
+        // takes the no-detach early return. The re-fetch waits for APNs to return the token.
+        sut.clearCachedPushToken()
         sut.clearUser()
+        registerTestPushToken()
 
         await fulfillment(of: [notified], timeout: 2.0)
         XCTAssertEqual(sut.inboxUnreadCount, 6,
@@ -1787,6 +1797,7 @@ final class ATTNSDKTests: XCTestCase {
     // MARK: - Inbox: custom-UI paging and refresh (MSDK-558)
 
     func testLoadMoreInboxMessages_appendsNextPageUsingCursor() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
             InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
@@ -1806,6 +1817,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testLoadMoreInboxMessages_noMorePages_isNoOp() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
         ]
@@ -1818,6 +1830,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testLoadMoreInboxMessages_emitsAppendedListOnStateStream() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
             InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
@@ -1842,6 +1855,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testInboxLoadingMoreStream_reportsInFlightPageFetch() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: "cursor-2"),
             InboxResponse(messages: [makeInboxMessage(id: "2")], nextPageToken: nil)
@@ -1871,6 +1885,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testRefreshInboxMessages_replacesListAndResetsPagination() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: "old-cursor"),
             InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
@@ -1887,6 +1902,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testRefreshInboxMessages_streamDrivenCustomUI_firstPullFetches() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "old")], nextPageToken: nil),
             InboxResponse(messages: [makeInboxMessage(id: "new")], nextPageToken: nil)
@@ -1915,6 +1931,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testHasMoreInboxMessages_afterDomainChange_isFalse() async {
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "old-account")], nextPageToken: "old-cursor")
         ]
@@ -1929,6 +1946,7 @@ final class ATTNSDKTests: XCTestCase {
     // MARK: - Inbox: account / identity changes and lazy creation (MSDK-545)
 
     func testUpdateDomain_withMaterializedInbox_dropsPreviousAccountsInbox() async {
+        registerTestPushToken()
         // Inbox requests are scoped by domain, so the previous account's cached messages must not
         // survive a domain switch. Messages aren't eagerly re-fetched (a fetch right behind the
         // identity event could reach the new domain before it can resolve this visitor); only
@@ -1952,6 +1970,7 @@ final class ATTNSDKTests: XCTestCase {
 
     func testClearUser_noPushToken_reloadsInboxMessagesForNewIdentity() async {
         // Re-fetching only the count left an open inbox empty after the identity reset.
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
             InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
@@ -1959,8 +1978,11 @@ final class ATTNSDKTests: XCTestCase {
         let before = await sut.allMessages
         XCTAssertEqual(before.map(\.id), ["previous-user"], "precondition: manager materialized")
 
-        // No push token registered (setUp scrubs it), so this takes the no-detach early return.
+        // The cached token was dropped, so this takes the no-detach early return. The re-fetch
+        // waits for APNs to return the token.
+        sut.clearCachedPushToken()
         sut.clearUser()
+        registerTestPushToken()
 
         let after = await waitForInboxMessageIds(["anonymous"])
         XCTAssertEqual(after, ["anonymous"], "clearUser must re-fetch messages, not just the unread count")
@@ -1969,6 +1991,7 @@ final class ATTNSDKTests: XCTestCase {
     func testClearUser_duringFirstInboxFetch_doesNotStrandLoadingState() async {
         // The reset discards the in-flight first-page response; without a messages re-fetch the
         // state stayed `.loading` forever.
+        registerTestPushToken()
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "previous-user")], nextPageToken: nil),
             InboxResponse(messages: [makeInboxMessage(id: "anonymous")], nextPageToken: nil)
@@ -1977,7 +2000,10 @@ final class ATTNSDKTests: XCTestCase {
         apiSpy.onFetchInboxMessages = { [sut] _ in
             guard fired.value == 0 else { return }
             fired.increment()
+            // Drop the token so clearUser takes the no-detach path, then let APNs return it.
+            sut?.clearCachedPushToken()
             sut?.clearUser()
+            sut?.registerDeviceToken(Data([0x01, 0x02, 0x03]), authorizationStatus: .authorized)
         }
 
         let stream = await sut.inboxStateStream
@@ -2051,7 +2077,39 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(after.map(\.id), ["p1"], "the retry path must keep the loaded list")
     }
 
+    // MARK: - Inbox: push token gate (MSDK-586)
+
+    func testRegisterDeviceToken_runsInboxFetchSkippedWithoutToken() async {
+        // Cold start: the inbox opens before APNs has returned a token.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 3
+        await sut.refreshInboxMessages()
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "no messages request without a push token")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0, "no unread-count request without a push token")
+
+        registerTestPushToken()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "the skipped fetch must run once the token is registered")
+        await waitForUnreadCountFetches(atLeast: 1)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1)
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "010203")
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "010203")
+    }
+
+    func testRegisterDeviceToken_withoutMaterializedInbox_makesNoInboxRequest() async {
+        // Hosts that never use the inbox must not pay for inbox requests on token registration.
+        registerTestPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0)
+    }
+
     func testInboxAccessors_concurrentFirstUse_materializeOneManager() async {
+        registerTestPushToken()
         // Two managers would each run their own init-time fetch.
         await withTaskGroup(of: Void.self) { group in
             for _ in 0..<50 {
