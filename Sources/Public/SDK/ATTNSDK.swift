@@ -747,7 +747,7 @@ public final class ATTNSDK: NSObject {
         // debounce window without calling back. A logout in between rotates the visitor id, so
         // this waits for the new visitor's `/token` to succeed instead.
         if isConfirmedByServer(registration) {
-            refreshInboxDeferredForPushTokenIfMaterialized()
+            refreshInboxDeferredForPushTokenIfMaterialized(for: registration)
         }
     }
 
@@ -1208,25 +1208,31 @@ extension ATTNSDK {
     }
 
     /// Runs the inbox fetches that were skipped because no push token was known yet, now that the
-    /// server has registered one (see `pushTokenRegistrationCallback`). Only when the manager
-    /// already exists, and captured at call time like the other helpers. A manager created after
-    /// this point reads the token on its own init fetch.
-    func refreshInboxDeferredForPushTokenIfMaterialized() {
+    /// server has confirmed `registration` (see `pushTokenRegistrationCallback`). The manager runs
+    /// them only if `registration` still matches the current identity when the task reaches it.
+    /// Only when the manager already exists, and captured at call time like the other helpers. A
+    /// manager created after this point reads the token on its own init fetch.
+    private func refreshInboxDeferredForPushTokenIfMaterialized(for registration: PushTokenRegistration) {
         guard let manager = existingInboxManager() else { return }
-        Task { await manager.refreshDeferredForPushToken() }
+        Task {
+            await manager.refreshDeferredForPushToken(
+                pushToken: registration.token,
+                domain: registration.domain,
+                visitorId: registration.visitorId
+            )
+        }
     }
 
     /// Wraps a `/token` callback so a successful send records `registration` as confirmed by the
     /// server, then runs inbox fetches held for lack of a push token. They wait for this rather
     /// than for the token to be known locally: the server resolves the inbox recipient by a
     /// registered token, so asking while `/token` is still in flight could cache an empty inbox.
-    /// A failed send records nothing and leaves them held; a later successful registration, or
-    /// any inbox fetch that goes out with the token, settles them.
+    /// A failed send records nothing and leaves them held for a later successful registration.
     private func pushTokenRegistrationCallback(for registration: PushTokenRegistration, forward: ATTNAPICallback?) -> ATTNAPICallback {
         return { [weak self] data, url, response, error in
             if error == nil, (response as? HTTPURLResponse)?.isSuccessful == true {
                 self?.recordConfirmedByServer(registration)
-                self?.refreshInboxDeferredForPushTokenIfMaterialized()
+                self?.refreshInboxDeferredForPushTokenIfMaterialized(for: registration)
             }
             forward?(data, url, response, error)
         }
