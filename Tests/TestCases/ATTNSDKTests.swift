@@ -2209,6 +2209,28 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(messages, ["anonymous"], "the held fetch runs once the new visitor's registration succeeds")
     }
 
+    func testRegisterDeviceToken_olderTokensRegistrationSucceeding_doesNotReleaseFetchesForNewerToken() async {
+        // Codex on #340: token A's `/token` succeeds after token B has replaced it. The held
+        // fetches would go out with B, which the server hasn't registered yet.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        await sut.refreshInboxMessages()
+        apiSpy.holdsSendPushTokenCallbacks = true
+        sut.registerDeviceToken(Data([0x0a]), authorizationStatus: .authorized)
+        sut.registerDeviceToken(Data([0x0b]), authorizationStatus: .authorized)
+
+        apiSpy.completeOldestHeldSendPushToken()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "token A's registration must not release fetches for token B")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "token B's registration releases them")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "0b")
+    }
+
     func testInbox_whenPushDisabled_showsEmptyInboxInsteadOfLoading() async {
         // Adela on #340: a push-disabled install never gets a token, so without a terminal state
         // the inbox would sit on its spinner for good.

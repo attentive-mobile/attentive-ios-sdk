@@ -110,9 +110,10 @@ actor InboxManager {
     /// regardless of when the SDK's explicit reset Task lands (MSDK-545).
     private var dataDomain: String
 
-    /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken()` runs
-    /// them once the server has registered a token. A fetch of the same kind that gets past the gate in
-    /// the meantime settles its entry, so the token's arrival doesn't repeat it.
+    /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken(...)` runs
+    /// them once the server has registered the current token. A fetch that gets past the gate
+    /// before then doesn't settle them: the token is published locally before `/token` is sent, so
+    /// that fetch may reach the server before the token is registered and come back empty.
     private var fetchesDeferredForPushToken: Set<DeferredFetch> = []
 
     var allMessages: [Message] {
@@ -303,14 +304,30 @@ actor InboxManager {
     }
 
     /// Runs the fetches that were skipped while no push token was known. Called by `ATTNSDK`
-    /// once the server has registered a token. Messages and count are re-fetched together when the messages
-    /// were skipped, so an inbox opened before the token arrived loads; when only the count was
-    /// skipped (e.g. the refresh after an identity change), only the count is re-fetched, keeping
-    /// the count-only rule in `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`.
-    func refreshDeferredForPushToken() async {
+    /// once the server has confirmed a `/token` registration. Messages and count are re-fetched
+    /// together when the messages were skipped, so an inbox opened before the token arrived loads;
+    /// when only the count was skipped (e.g. the refresh after an identity change), only the count
+    /// is re-fetched, keeping the count-only rule in
+    /// `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`.
+    ///
+    /// Runs only if that registration still matches the current identity, checked here on the
+    /// actor rather than when the request completed: a newer token, a domain change, or a logout
+    /// that landed while it was in flight means the server hasn't registered what these fetches
+    /// would send. They stay held for the matching registration.
+    ///
+    /// - Parameters:
+    ///   - pushToken: The token the confirmed `/token` request registered.
+    ///   - domain: The domain it was registered for.
+    ///   - visitorId: The visitor id it was registered for.
+    func refreshDeferredForPushToken(pushToken: String, domain: String, visitorId: String) async {
         dropStateIfDomainChanged()
         let deferred = fetchesDeferredForPushToken
         guard !deferred.isEmpty else { return }
+        let identity = identityProvider()
+        guard identity.pushToken == pushToken, identity.domain == domain, identity.visitorId == visitorId else {
+            Loggers.network.debug("Confirmed push token registration no longer matches the current identity; keeping inbox fetches held")
+            return
+        }
         // Settle now, before the first suspension, so a second token registration landing while
         // these fetches are in flight doesn't repeat them. A fetch that is still gated re-records
         // itself.
@@ -703,7 +720,7 @@ actor InboxManager {
 // MARK: - Private methods
 
 extension InboxManager {
-    /// A fetch that `refreshDeferredForPushToken()` re-runs after being skipped for lack of a
+    /// A fetch that `refreshDeferredForPushToken(...)` re-runs after being skipped for lack of a
     /// push token.
     enum DeferredFetch: Hashable {
         case messagesRefresh
@@ -717,8 +734,7 @@ extension InboxManager {
     /// network methods aligned on a single guard instead of six near-copies.
     ///
     /// - Parameter deferring: The fetch to re-run once a push token is registered, if this one is
-    ///   skipped for lack of one. When the identity passes, the same entry is settled instead.
-    ///   `nil` for page loads and mutations, which aren't re-run.
+    ///   skipped for lack of one. `nil` for page loads and mutations, which aren't re-run.
     private func requireIdentity(context: String, deferring deferredFetch: DeferredFetch? = nil) -> InboxIdentitySnapshot? {
         let identity = identityProvider()
         guard !identity.visitorId.isEmpty else {
@@ -733,9 +749,6 @@ extension InboxManager {
                 Loggers.network.debug("Skipping \(context, privacy: .public): no push token yet")
             }
             return nil
-        }
-        if let deferredFetch {
-            fetchesDeferredForPushToken.remove(deferredFetch)
         }
         return identity
     }
