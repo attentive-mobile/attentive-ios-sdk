@@ -373,9 +373,9 @@ public final class ATTNSDK: NSObject {
             // No push token means there is nothing to detach server-side. Local was
             // already cleared and the visitor id rotated inside planClearUser.
             Loggers.event.debug("clearUser: skipping push token detach — no push token available")
-            // No `/user-update` will fire, so drop the cached inbox state and kick the messages +
-            // count re-fetch now against the freshly-generated anonymous visitor. Safe: no token
-            // is sent, so no server-side association is pending. Both go through one helper because the
+            // No `/user-update` will fire, so drop the cached inbox state and queue the messages +
+            // count re-fetch for the freshly-generated anonymous visitor. With no token the fetch
+            // waits until `registerDeviceToken` publishes one. Both go through one helper because the
             // reset must reach the InboxManager actor before the refresh — see
             // `resetThenRefreshInboxIfMaterialized`.
             resetThenRefreshInboxIfMaterialized()
@@ -715,6 +715,11 @@ public final class ATTNSDK: NSObject {
 
             callback?(data, url, response, error)
         }
+        // Inbox requests are held back while there is no push token; run any that were skipped.
+        // Not chained off the push-token callback: `sendPushToken` drops repeat sends within its
+        // debounce window without calling back. Issued after the token send so that request
+        // goes out first.
+        refreshInboxDeferredForPushTokenIfMaterialized()
     }
 
     @objc(registerForPushFailed:)
@@ -932,9 +937,7 @@ public final class ATTNSDK: NSObject {
                             if lastStatus != UNAuthorizationStatus.authorized.rawValue &&
                                  currentStatus == .authorized {
                                     Loggers.event.debug("Push permission became authorized. Clearing cached token and forcing APNs re-registration.")
-                                    UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
-                                    self.pushTokenStore.token = ""
-                                    self.publishIdentitySnapshot()
+                                    self.clearCachedPushToken()
                                     await MainActor.run {
                                             UIApplication.shared.registerForRemoteNotifications()
                                     }
@@ -1142,8 +1145,10 @@ extension ATTNSDK {
     /// to 0 (and bump `unreadCountRevision`), leaving the badge stale until the next explicit
     /// `refreshInboxUnreadCount()` or app foreground.
     ///
-    /// Only for `clearUser()` with no push token: no token is sent, so the server can only resolve
-    /// the new anonymous visitor, which makes a messages fetch safe here. Paths that POST
+    /// Only for `clearUser()` with no push token, which sends no `/user-update` to chain a
+    /// refresh from. Inbox fetches wait for a push token, so the refresh itself runs once
+    /// `registerDeviceToken` publishes one, right after that token is sent for the new anonymous
+    /// visitor (see `refreshInboxDeferredForPushTokenIfMaterialized`). Paths that POST
     /// `/user-update` use the count-only `refreshInboxUnreadCountForNewIdentityIfMaterialized`
     /// from its callback instead, and a domain change refreshes the count from its identity
     /// event's callback (see `updateDomainInternal`).
@@ -1157,6 +1162,24 @@ extension ATTNSDK {
         }
     }
 
+    /// Runs the inbox fetches that were skipped because no push token was known yet, now that
+    /// `registerDeviceToken` has published one. Only when the manager already exists, and
+    /// captured at call time like the other helpers. A manager created after this point reads the
+    /// token on its own init fetch.
+    func refreshInboxDeferredForPushTokenIfMaterialized() {
+        guard let manager = existingInboxManager() else { return }
+        Task { await manager.refreshDeferredForPushToken() }
+    }
+
+    /// Drops the cached push token so APNs re-registration sends a fresh one. Inbox requests are
+    /// held back until `registerDeviceToken` publishes the new token. Internal so tests can reach
+    /// the no-token paths after loading the inbox with a token.
+    func clearCachedPushToken() {
+        UserDefaults.standard.removeObject(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        pushTokenStore.token = ""
+        publishIdentitySnapshot()
+    }
+
     /// Publishes the current identity (visitor id, push token, email, phone, domain) into the
     /// thread-safe `identityStore` for `InboxManager`'s `@Sendable` provider to read.
     /// Call after any mutation of `userIdentity`, `currentPushToken`, or `domain`.
@@ -1167,8 +1190,8 @@ extension ATTNSDK {
         identityStore.update(InboxIdentitySnapshot(
             visitorId: userIdentity.visitorId,
             // Same rule as opt-in/opt-out: a push-disabled instance may still find a token
-            // persisted by a previous push-enabled install, and the server scopes the inbox
-            // partly by it. Inbox requests omit `push_token` when this is empty.
+            // persisted by a previous push-enabled install, and the server identifies the inbox
+            // recipient by it. Inbox requests are held back while this is empty.
             pushToken: pushEnabled ? currentPushToken : "",
             email: identifiers[ATTNIdentifierType.email] as? String,
             phone: identifiers[ATTNIdentifierType.phone] as? String,
@@ -1202,6 +1225,9 @@ fileprivate extension ATTNSDK {
         // lock across it doesn't call back into the SDK.
         inboxManagerLock.withLock {
             if let existing = _inboxManager { return existing }
+            if !pushEnabled {
+                Loggers.network.warning("The inbox requires Attentive push. With pushEnabled false there is no push token, so the inbox makes no requests.")
+            }
             // Passing `unreadCountBox` here (rather than letting the manager build its own default)
             // is what routes every write to `storedUnreadCount` back to `inboxUnreadCount` and the
             // `.ATTNSDKInboxUnreadCountChanged` notification.
