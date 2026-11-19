@@ -925,10 +925,9 @@ final class InboxManagerTests: XCTestCase {
         }
     }
 
-    /// Stands in for `ATTNSDK` after the server confirms a `/token` registration of `pushToken`
-    /// for the identity `switchablePushTokenProvider` publishes (visitor `v_test`, `test-domain`).
+    /// Stands in for `ATTNSDK` after the server confirms a `/token` registration of `pushToken`.
     private func runFetchesHeldForPushToken(_ manager: InboxManager, registeredToken pushToken: String = "fcm:abc") async {
-        await manager.refreshDeferredForPushToken(pushToken: pushToken, domain: "test-domain", visitorId: "v_test")
+        await manager.refreshDeferredForPushToken(pushToken: pushToken)
     }
 
     func testInit_emptyPushToken_skipsNetworkCalls() async {
@@ -1073,9 +1072,9 @@ final class InboxManagerTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 2, "and only once")
     }
 
-    func testRefreshDeferredForPushToken_registrationNoLongerCurrent_keepsFetchesHeld() async {
-        // Codex on #340: a `/token` success for an older token (or another domain or visitor) must
-        // not release fetches that would go out with the current, unregistered one.
+    func testRefreshDeferredForPushToken_olderTokensRegistration_keepsFetchesHeld() async {
+        // Codex on #340: a `/token` success for an older token must not release fetches that
+        // would go out with the current, unregistered one.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
         ]
@@ -1085,14 +1084,12 @@ final class InboxManagerTests: XCTestCase {
         pushToken.value = "fcm:new"
 
         await runFetchesHeldForPushToken(manager, registeredToken: "fcm:old")
-        await manager.refreshDeferredForPushToken(pushToken: "fcm:new", domain: "other-domain", visitorId: "v_test")
-        await manager.refreshDeferredForPushToken(pushToken: "fcm:new", domain: "test-domain", visitorId: "v_other")
 
-        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "a registration that doesn't match the current identity must not release them")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "an older token's registration must not release them")
 
         await runFetchesHeldForPushToken(manager, registeredToken: "fcm:new")
 
-        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the matching registration releases them")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 1, "the current token's registration releases them")
         XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "fcm:new")
     }
 

@@ -18,7 +18,8 @@ final class ATTNAPI: ATTNAPIProtocol {
 
     private let retryClient: ATTNRetryingNetworkClient
     private let stateLock = NSLock()
-    private var lastPushTokenSendTime: Date?
+    /// The last token `sendPushToken` sent, and when. Guarded by `stateLock`.
+    private var lastPushTokenSend: (token: String, time: Date)?
 
     // MARK: ATTNAPIProtocol Properties
     var domain: String
@@ -59,13 +60,16 @@ final class ATTNAPI: ATTNAPIProtocol {
                                          userIdentity: ATTNUserIdentity,
                                          authorizationStatus: UNAuthorizationStatus,
                                          callback: ATTNAPICallback?) {
-        // debounce to remove duplicate events; only allow events tracking at most once every 2 seconds
+        // Debounce duplicates: drop a repeat of the last token sent within 2 seconds. A different
+        // token always goes out. APNs can return a new one right after the foreground re-send of
+        // the stored token (e.g. after a restore to a new device), and dropping it would leave the
+        // server without it, and the inbox waiting on it, until the next foreground.
         let shouldSkip: Bool = stateLock.withLock {
             let now = Date()
-            if let last = lastPushTokenSendTime, now.timeIntervalSince(last) < 2 {
+            if let last = lastPushTokenSend, last.token == pushToken, now.timeIntervalSince(last.time) < 2 {
                 return true
             }
-            lastPushTokenSendTime = now
+            lastPushTokenSend = (pushToken, now)
             return false
         }
         if shouldSkip {

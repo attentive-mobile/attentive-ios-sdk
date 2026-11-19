@@ -59,10 +59,10 @@ public final class ATTNSDK: NSObject {
     }
     /// Every registration the server has confirmed through a successful `/token` request in this
     /// process. Guarded by `stateLock`. A set, not the latest one, because `/token` requests can
-    /// complete out of order. Inbox fetches held for lack of a token wait for an exact match,
-    /// because the server resolves the inbox recipient by a registered push token. The visitor
-    /// id is part of the match: `clearUser()` with no token rotates it without a detach, so a
-    /// confirmation from before that logout must not count for the new visitor.
+    /// complete out of order. The inbox and its held fetches go by the token alone; the exact
+    /// match is for `registerDeviceToken`'s already-registered shortcut. The visitor id is part
+    /// of that match: `clearUser()` with no token rotates it without a detach, so a confirmation
+    /// from before that logout must not count for the new visitor.
     private var serverConfirmedPushTokens: Set<PushTokenRegistration> = []
     /// The push token an earlier run persisted, read once at init. The inbox uses it right away,
     /// as before: that run already sent it to `/token`. A token first seen in this process
@@ -1215,18 +1215,12 @@ extension ATTNSDK {
 
     /// Runs the inbox fetches that were skipped because no push token was known yet, now that the
     /// server has confirmed `registration` (see `pushTokenRegistrationCallback`). The manager runs
-    /// them only if `registration` still matches the current identity when the task reaches it.
+    /// them only if its token is still the current one when the task reaches it.
     /// Only when the manager already exists, and captured at call time like the other helpers. A
     /// manager created after this point reads the token on its own init fetch.
     private func refreshInboxDeferredForPushTokenIfMaterialized(for registration: PushTokenRegistration) {
         guard let manager = existingInboxManager() else { return }
-        Task {
-            await manager.refreshDeferredForPushToken(
-                pushToken: registration.token,
-                domain: registration.domain,
-                visitorId: registration.visitorId
-            )
-        }
+        Task { await manager.refreshDeferredForPushToken(pushToken: registration.token) }
     }
 
     /// Wraps a `/token` callback so a successful send records `registration` as confirmed by the
