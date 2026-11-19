@@ -52,17 +52,22 @@ public final class ATTNSDK: NSObject {
     // Debounce mechanism to prevent duplicate events
     private var lastRegularOpenTime: Date?
     /// A push token together with the domain and visitor id one `/token` request sent it for.
-    private struct PushTokenRegistration: Equatable {
+    private struct PushTokenRegistration: Hashable {
         let token: String
         let domain: String
         let visitorId: String
     }
-    /// The registration the server last confirmed through a successful `/token` request in this
-    /// process. Guarded by `stateLock`. Inbox fetches held for lack of a token wait for this,
+    /// Every registration the server has confirmed through a successful `/token` request in this
+    /// process. Guarded by `stateLock`. A set, not the latest one, because `/token` requests can
+    /// complete out of order. Inbox fetches held for lack of a token wait for an exact match,
     /// because the server resolves the inbox recipient by a registered push token. The visitor
     /// id is part of the match: `clearUser()` with no token rotates it without a detach, so a
     /// confirmation from before that logout must not count for the new visitor.
-    private var serverConfirmedPushToken: PushTokenRegistration?
+    private var serverConfirmedPushTokens: Set<PushTokenRegistration> = []
+    /// The push token an earlier run persisted, read once at init. The inbox uses it right away,
+    /// as before: that run already sent it to `/token`. A token first seen in this process
+    /// waits for its own `/token` to succeed (see `inboxIdentitySnapshot()`).
+    private let pushTokenStoredAtLaunch: String
     /// Set by `failedToRegisterForPush` and cleared by `registerDeviceToken`. Guarded by
     /// `stateLock`. While set and no token is cached, the inbox shows as empty rather than loading.
     private var didFailToRegisterForPush = false
@@ -196,6 +201,7 @@ public final class ATTNSDK: NSObject {
 
         self.userIdentity = .init()
         self.api = ATTNAPI(domain: domain)
+        self.pushTokenStoredAtLaunch = UserDefaults.standard.string(forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken) ?? ""
 
         super.init()
 
@@ -1224,10 +1230,12 @@ extension ATTNSDK {
     }
 
     /// Wraps a `/token` callback so a successful send records `registration` as confirmed by the
-    /// server, then runs inbox fetches held for lack of a push token. They wait for this rather
-    /// than for the token to be known locally: the server resolves the inbox recipient by a
-    /// registered token, so asking while `/token` is still in flight could cache an empty inbox.
-    /// A failed send records nothing and leaves them held for a later successful registration.
+    /// server, which also lets the inbox use a token first seen in this process (see
+    /// `inboxIdentitySnapshot()`), then runs inbox fetches held for lack of a push token. They
+    /// wait for this rather than for the token to be known locally: the server resolves the inbox
+    /// recipient by a registered token, so asking while `/token` is still in flight could cache
+    /// an empty inbox. A failed send records nothing and leaves them held for a later successful
+    /// registration.
     private func pushTokenRegistrationCallback(for registration: PushTokenRegistration, forward: ATTNAPICallback?) -> ATTNAPICallback {
         return { [weak self] data, url, response, error in
             if error == nil, (response as? HTTPURLResponse)?.isSuccessful == true {
@@ -1250,11 +1258,19 @@ extension ATTNSDK {
     }
 
     private func recordConfirmedByServer(_ registration: PushTokenRegistration) {
-        stateLock.withLock { serverConfirmedPushToken = registration }
+        _ = stateLock.withLock { serverConfirmedPushTokens.insert(registration) }
     }
 
     private func isConfirmedByServer(_ registration: PushTokenRegistration) -> Bool {
-        stateLock.withLock { serverConfirmedPushToken == registration }
+        stateLock.withLock { serverConfirmedPushTokens.contains(registration) }
+    }
+
+    /// Whether the server has `token`: an earlier run persisted it, or a `/token` request in this
+    /// process succeeded with it. Token only, since the server identifies the inbox recipient by
+    /// the token. A domain change or logout doesn't re-send `/token`, so also matching on those
+    /// would hold every fetch until the next foreground, where today they go out.
+    private func isPushTokenKnownToServer(_ token: String) -> Bool {
+        token == pushTokenStoredAtLaunch || stateLock.withLock { serverConfirmedPushTokens.contains { $0.token == token } }
     }
 
     /// Drops the cached push token so APNs re-registration sends a fresh one. Inbox requests are
@@ -1291,6 +1307,18 @@ extension ATTNSDK {
     func publishedInboxIdentitySnapshot() -> InboxIdentitySnapshot {
         identityStore.snapshot()
     }
+
+    /// What `InboxManager` reads: the published snapshot, with the push token left out until the
+    /// server has it (see `isPushTokenKnownToServer`). `registerDeviceToken` stores a new token
+    /// before sending `/token`, and an inbox fetch made in between would reach the server with a
+    /// token it doesn't have yet. Without a token the fetch is held instead, and runs from the
+    /// `/token` callback (see `pushTokenRegistrationCallback`). Resolved on every read, so a
+    /// confirmation counts as soon as it's recorded.
+    func inboxIdentitySnapshot() -> InboxIdentitySnapshot {
+        let published = identityStore.snapshot()
+        guard !published.pushToken.isEmpty, !isPushTokenKnownToServer(published.pushToken) else { return published }
+        return published.withoutPushToken()
+    }
 }
 
 fileprivate extension ATTNSDK {
@@ -1320,7 +1348,7 @@ fileprivate extension ATTNSDK {
             let manager = InboxManager(
                 api: api,
                 identityProvider: { [weak self] in
-                    self?.identityStore.snapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil, domain: "")
+                    self?.inboxIdentitySnapshot() ?? InboxIdentitySnapshot(visitorId: "", pushToken: "", email: nil, phone: nil, domain: "")
                 },
                 unreadCountBox: unreadCountBox
             )

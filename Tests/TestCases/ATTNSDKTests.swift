@@ -2280,6 +2280,83 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0)
     }
 
+    func testInbox_openedWhileNewTokenIsRegistering_waitsForRegistration() async {
+        // Adela on #340: `registerDeviceToken` stores the token before `/token` goes out. An inbox
+        // opened in between had nothing held, so its first fetch went out with a token the server
+        // didn't have yet, and nothing ran it again.
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedUnreadCount = 2
+        apiSpy.holdsSendPushTokenCallbacks = true
+        registerTestPushToken()
+
+        await sut.refreshInboxMessages()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "no messages request while the new token's /token is in flight")
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0, "no unread-count request either")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "the fetch runs once /token succeeds")
+        await waitForUnreadCountFetches(atLeast: 1)
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "010203")
+    }
+
+    func testInbox_afterNewTokensRegistrationFailed_waitsForASuccessfulOne() async {
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+        apiSpy.stubbedResponse = makeHTTPResponse(statusCode: 500)
+        registerTestPushToken()
+
+        await sut.refreshInboxMessages()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "the server never registered the token, so the inbox must not use it")
+
+        apiSpy.stubbedResponse = makeHTTPResponse(statusCode: 200)
+        registerTestPushToken()
+
+        let messages = await waitForInboxMessageIds(["1"])
+        XCTAssertEqual(messages, ["1"], "a later successful registration loads the inbox")
+    }
+
+    func testInbox_withTokenStoredByEarlierLaunch_doesNotWaitForTokenSend() async {
+        // Warm launch: an earlier run already sent the stored token, and the foreground re-send
+        // is in flight. Waiting on it would delay every warm launch's inbox.
+        UserDefaults.standard.set("0c0d", forKey: ATTNSDKConfiguration.UserDefaultsKey.deviceToken)
+        sut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy)
+        apiSpy.holdsSendPushTokenCallbacks = true
+        sut.registerDeviceToken(Data([0x0c, 0x0d]), authorizationStatus: .authorized)
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let messages = await waitForInboxMessageIds(["1"])
+
+        XCTAssertEqual(messages, ["1"], "a token stored by an earlier launch is used right away")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "0c0d")
+    }
+
+    func testRegisterDeviceToken_olderTokensRegistrationSucceedingLast_keepsNewerTokenUsable() async {
+        // `/token` requests can complete out of order. Token A's late success must not undo
+        // token B's, or the inbox would stop using B.
+        apiSpy.holdsSendPushTokenCallbacks = true
+        sut.registerDeviceToken(Data([0x0a]), authorizationStatus: .authorized)
+        sut.registerDeviceToken(Data([0x0b]), authorizationStatus: .authorized)
+        apiSpy.completeNewestHeldSendPushToken()
+        apiSpy.completeHeldSendPushTokens()
+        apiSpy.stubbedInboxMessagesResponses = [
+            InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
+        ]
+
+        let messages = await waitForInboxMessageIds(["1"])
+
+        XCTAssertEqual(messages, ["1"], "token B stays usable after token A's late confirmation")
+        XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "0b")
+    }
+
     func testInboxAccessors_concurrentFirstUse_materializeOneManager() async {
         registerTestPushToken()
         // Two managers would each run their own init-time fetch.
