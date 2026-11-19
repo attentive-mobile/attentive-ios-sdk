@@ -118,10 +118,9 @@ actor InboxManager {
     private var dataDomain: String
 
     /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken(...)` runs
-    /// them once the server has registered the current token for the current domain and visitor.
-    /// A fetch that gets past the gate before then doesn't settle them: the gate only knows the
-    /// server has the token (from an earlier launch, or for a previous domain or visitor), so that
-    /// fetch may still come back empty.
+    /// them once a `/token` request with the current token has succeeded. A fetch that gets past
+    /// the gate before then doesn't settle them: with a token from an earlier launch, this run's
+    /// registration may not have completed yet, so that fetch may still come back empty.
     private var fetchesDeferredForPushToken: Set<DeferredFetch> = []
 
     var allMessages: [Message] {
@@ -318,22 +317,20 @@ actor InboxManager {
     /// is re-fetched, keeping the count-only rule in
     /// `ATTNSDK.refreshInboxUnreadCountForNewIdentityIfMaterialized`.
     ///
-    /// Runs only if that registration still matches the current identity, checked here on the
-    /// actor rather than when the request completed: a newer token, a domain change, or a logout
-    /// that landed while it was in flight means the server hasn't registered what these fetches
-    /// would send. They stay held for the matching registration.
+    /// Runs only if that token is still the current one, checked here on the actor rather than
+    /// when the request completed: a newer token that landed while it was in flight hasn't been
+    /// registered, so these fetches stay held for its own registration. The token alone, like the
+    /// gate in `requireIdentity`: a domain change or logout in between doesn't stop a new fetch
+    /// from going out with this token, so it doesn't strand the held ones either. Neither path
+    /// re-sends `/token`, so they'd otherwise wait for the next foreground.
     ///
-    /// - Parameters:
-    ///   - pushToken: The token the confirmed `/token` request registered.
-    ///   - domain: The domain it was registered for.
-    ///   - visitorId: The visitor id it was registered for.
-    func refreshDeferredForPushToken(pushToken: String, domain: String, visitorId: String) async {
+    /// - Parameter pushToken: The token the confirmed `/token` request registered.
+    func refreshDeferredForPushToken(pushToken: String) async {
         dropStateIfDomainChanged()
         let deferred = fetchesDeferredForPushToken
         guard !deferred.isEmpty else { return }
-        let identity = identityProvider()
-        guard identity.pushToken == pushToken, identity.domain == domain, identity.visitorId == visitorId else {
-            Loggers.network.debug("Confirmed push token registration no longer matches the current identity; keeping inbox fetches held")
+        guard identityProvider().pushToken == pushToken else {
+            Loggers.network.debug("Confirmed push token is no longer the current one; keeping inbox fetches held")
             return
         }
         // Settle now, before the first suspension, so a second token registration landing while

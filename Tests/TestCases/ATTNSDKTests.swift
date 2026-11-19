@@ -2339,6 +2339,45 @@ final class ATTNSDKTests: XCTestCase {
         XCTAssertEqual(apiSpy.lastInboxMessagesPushToken, "0c0d")
     }
 
+    func testClearUser_whileNewTokenIsRegistering_refetchesCountOnceTokenIsRegistered() async {
+        // Adela and Codex on #340: `clearUser()` rotates the visitor while the new token's `/token`
+        // is in flight, so the count refresh after the detach is held. That `/token` was sent for
+        // the previous visitor, but it registered the same token, so it must still release the
+        // count. Nothing else re-sends `/token` for the new visitor until the next foreground.
+        apiSpy.holdsSendPushTokenCallbacks = true
+        registerTestPushToken()
+        await sut.refreshInboxMessages()
+        let visitorIdBefore = sut.visitorId
+
+        sut.clearUser()
+        XCTAssertNotEqual(sut.visitorId, visitorIdBefore, "precondition: the logout rotated the visitor id")
+        XCTAssertTrue(apiSpy.updateUserWasCalled, "precondition: the detach went out")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0, "precondition: the count is held while /token is in flight")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        await waitForUnreadCountFetches(atLeast: 1)
+        XCTAssertEqual(apiSpy.lastInboxPushToken, "010203")
+        XCTAssertEqual(apiSpy.fetchInboxMessagesCallCount, 0, "the logout's refresh stays count-only")
+    }
+
+    func testUpdateDomain_whileNewTokenIsRegistering_refetchesCountOnceTokenIsRegistered() async {
+        // Same as above for a domain change, which doesn't re-send `/token` either.
+        apiSpy.holdsSendPushTokenCallbacks = true
+        registerTestPushToken()
+        await sut.refreshInboxMessages()
+
+        sut.update(domain: newDomain)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(apiSpy.fetchInboxUnreadCountCallCount, 0, "precondition: the count is held while /token is in flight")
+
+        apiSpy.completeHeldSendPushTokens()
+
+        await waitForUnreadCountFetches(atLeast: 1)
+        XCTAssertEqual(apiSpy.lastInboxRequestDomain, newDomain)
+    }
+
     func testRegisterDeviceToken_olderTokensRegistrationSucceedingLast_keepsNewerTokenUsable() async {
         // `/token` requests can complete out of order. Token A's late success must not undo
         // token B's, or the inbox would stop using B.

@@ -364,6 +364,65 @@ final class ATTNAPITests: XCTestCase {
     }
 }
 
+extension ATTNAPITests {
+    // MARK: - sendPushToken debounce (MSDK-587)
+
+    func testSendPushToken_sameTokenTwiceWithinDebounceWindow_sendsOnce() {
+        let sessionMock = PushTokenCapturingSessionMock()
+        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
+        let identity = ATTNUserIdentity()
+        let firstSent = expectation(description: "first send completes")
+        let repeatSent = expectation(description: "repeat send completes")
+        repeatSent.isInverted = true
+
+        api.sendPushToken("token-a", userIdentity: identity, authorizationStatus: .authorized) { _, _, _, _ in firstSent.fulfill() }
+        api.sendPushToken("token-a", userIdentity: identity, authorizationStatus: .authorized) { _, _, _, _ in repeatSent.fulfill() }
+
+        wait(for: [firstSent, repeatSent], timeout: 0.5)
+        XCTAssertEqual(sessionMock.pushTokenRequests.count, 1, "a repeat of the last token inside 2 s is a duplicate")
+    }
+
+    func testSendPushToken_newTokenWithinDebounceWindow_stillSends() throws {
+        // Codex and Adela on #340: APNs can return a new token right after the foreground re-send
+        // of the stored one (e.g. after a restore to a new device). Dropping it left the server
+        // without it, and the inbox waiting on it, until the next foreground.
+        let sessionMock = PushTokenCapturingSessionMock()
+        let api = ATTNAPI(domain: testDomain, urlSession: sessionMock)
+        let identity = ATTNUserIdentity()
+        let bothSent = expectation(description: "both sends complete")
+        bothSent.expectedFulfillmentCount = 2
+
+        api.sendPushToken("token-a", userIdentity: identity, authorizationStatus: .authorized) { _, _, _, _ in bothSent.fulfill() }
+        api.sendPushToken("token-b", userIdentity: identity, authorizationStatus: .authorized) { _, _, _, _ in bothSent.fulfill() }
+
+        wait(for: [bothSent], timeout: 2.0)
+        XCTAssertEqual(sessionMock.pushTokenRequests.count, 2, "a different token is not a duplicate")
+        let body = try XCTUnwrap(sessionMock.pushTokenRequests.last?.httpBody)
+        let payload = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(payload["pt"] as? String, "token-b")
+    }
+}
+
+/// Captures `/token` requests, answering every request with a 200.
+private final class PushTokenCapturingSessionMock: URLSession {
+    var pushTokenRequests: [URLRequest] = []
+
+    override init() { super.init() }
+
+    override func dataTask(
+        with request: URLRequest,
+        completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void
+    ) -> URLSessionDataTask {
+        if request.url?.path == ATTNSDKConfiguration.Endpoint.Mobile.pushTokenPath {
+            pushTokenRequests.append(request)
+        }
+        return NSURLSessionDataTaskMock { _, _, _ in
+            let url = request.url ?? URL(string: "https://example.invalid")!
+            completionHandler(Data(), HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil), nil)
+        }
+    }
+}
+
 /// Session mock scoped to the MSDK-517 tests: captures `/user-update` requests without the
 /// `NSURLSessionMock` "events endpoint only" fatalError guard.
 private final class UserUpdateCapturingSessionMock: URLSession {
