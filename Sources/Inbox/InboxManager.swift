@@ -16,6 +16,8 @@ public enum InboxState: Sendable {
 /// Identifiers needed to call the inbox endpoints.
 struct InboxIdentitySnapshot: Sendable {
     let visitorId: String
+    /// Empty until the server has the device's push token: `ATTNSDK` leaves out a token whose
+    /// `/token` request hasn't succeeded yet (see `ATTNSDK.inboxIdentitySnapshot()`).
     let pushToken: String
     let email: String?
     let phone: String?
@@ -23,6 +25,11 @@ struct InboxIdentitySnapshot: Sendable {
     /// `ATTNSDK` before the API switches domains, so the manager can tell that its cached state
     /// belongs to another account (see `dropStateIfDomainChanged()`).
     let domain: String
+
+    /// This snapshot with the push token left out, for a token the server doesn't have yet.
+    func withoutPushToken() -> InboxIdentitySnapshot {
+        InboxIdentitySnapshot(visitorId: visitorId, pushToken: "", email: email, phone: phone, domain: domain)
+    }
 }
 
 /// Closure that supplies the identifiers needed to call the inbox endpoints.
@@ -111,9 +118,10 @@ actor InboxManager {
     private var dataDomain: String
 
     /// Fetches skipped because no push token was known yet. `refreshDeferredForPushToken(...)` runs
-    /// them once the server has registered the current token. A fetch that gets past the gate
-    /// before then doesn't settle them: the token is published locally before `/token` is sent, so
-    /// that fetch may reach the server before the token is registered and come back empty.
+    /// them once the server has registered the current token for the current domain and visitor.
+    /// A fetch that gets past the gate before then doesn't settle them: the gate only knows the
+    /// server has the token (from an earlier launch, or for a previous domain or visitor), so that
+    /// fetch may still come back empty.
     private var fetchesDeferredForPushToken: Set<DeferredFetch> = []
 
     var allMessages: [Message] {
@@ -744,9 +752,9 @@ extension InboxManager {
         guard !identity.pushToken.isEmpty else {
             if let deferredFetch {
                 fetchesDeferredForPushToken.insert(deferredFetch)
-                Loggers.network.debug("Deferring \(context, privacy: .public): no push token yet; it runs once one is registered")
+                Loggers.network.debug("Deferring \(context, privacy: .public): no registered push token yet; it runs once one is registered")
             } else {
-                Loggers.network.debug("Skipping \(context, privacy: .public): no push token yet")
+                Loggers.network.debug("Skipping \(context, privacy: .public): no registered push token yet")
             }
             return nil
         }

@@ -228,6 +228,14 @@ final class ATTNAPISpy: ATTNAPIProtocol {
         oldest?()
     }
 
+    /// Runs only the newest held `sendPushToken` callback, so a later send completes first.
+    func completeNewestHeldSendPushToken() {
+        let newest = synced { storage -> (() -> Void)? in
+            storage.heldSendPushTokenCallbacks.popLast()
+        }
+        newest?()
+    }
+
     /// Runs the callbacks `sendPushToken` held, in the order the sends were made.
     func completeHeldSendPushTokens() {
         let held = synced { storage -> [() -> Void] in
