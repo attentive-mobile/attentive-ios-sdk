@@ -726,7 +726,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testInbox_whenPushDisabledWithStaleStoredToken_makesNoRequests() async {
-        // Adela's repro on #327: the stale token reached both inbox requests. The inbox requires
+        // #327: the stale token reached both inbox requests. The inbox requires
         // Attentive push, so a push-disabled instance has no token and sends no inbox requests.
         UserDefaults.standard.set("stale-apns-token", forKey: "attentiveDeviceToken")
         let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
@@ -1969,7 +1969,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testClearUser_noPushToken_refetchesOnlyUnreadCountOnceTokenIsRegistered() async {
-        // Adela on #340: with no token, no detach is sent, so the server may still link the token
+        // #340: with no token, no detach is sent, so the server may still link the token
         // to the previous user. A messages re-fetch with it could bring their inbox back after
         // logout, so only the count may be re-fetched.
         registerTestPushToken()
@@ -2089,7 +2089,7 @@ final class ATTNSDKTests: XCTestCase {
 
     func testRegisterDeviceToken_heldInboxFetch_waitsForTokenRegistrationToComplete() async {
         // The server resolves the inbox recipient by a registered push token, so asking while
-        // `/token` is still in flight could come back empty for a brand-new token (Codex on #340).
+        // `/token` is still in flight could come back empty for a brand-new token (#340).
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
         ]
@@ -2210,7 +2210,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testRegisterDeviceToken_olderTokensRegistrationSucceeding_doesNotReleaseFetchesForNewerToken() async {
-        // Codex on #340: token A's `/token` succeeds after token B has replaced it. The held
+        // #340: token A's `/token` succeeds after token B has replaced it. The held
         // fetches would go out with B, which the server hasn't registered yet.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeInboxMessage(id: "1")], nextPageToken: nil)
@@ -2232,7 +2232,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testInbox_whenPushDisabled_showsEmptyInboxInsteadOfLoading() async {
-        // Adela on #340: a push-disabled install never gets a token, so without a terminal state
+        // #340: a push-disabled install never gets a token, so without a terminal state
         // the inbox would sit on its spinner for good.
         let pushDisabledSut = ATTNSDK(api: apiSpy, urlBuilder: creativeUrlProviderSpy, pushEnabled: false)
 
@@ -2281,7 +2281,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testInbox_openedWhileNewTokenIsRegistering_waitsForRegistration() async {
-        // Adela on #340: `registerDeviceToken` stores the token before `/token` goes out. An inbox
+        // #340: `registerDeviceToken` stores the token before `/token` goes out. An inbox
         // opened in between had nothing held, so its first fetch went out with a token the server
         // didn't have yet, and nothing ran it again.
         apiSpy.stubbedInboxMessagesResponses = [
@@ -2340,7 +2340,7 @@ final class ATTNSDKTests: XCTestCase {
     }
 
     func testClearUser_whileNewTokenIsRegistering_refetchesCountOnceTokenIsRegistered() async {
-        // Adela and Codex on #340: `clearUser()` rotates the visitor while the new token's `/token`
+        // #340: `clearUser()` rotates the visitor while the new token's `/token`
         // is in flight, so the count refresh after the detach is held. That `/token` was sent for
         // the previous visitor, but it registered the same token, so it must still release the
         // count. Nothing else re-sends `/token` for the new visitor until the next foreground.

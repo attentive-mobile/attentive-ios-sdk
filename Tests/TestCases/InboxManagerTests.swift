@@ -1046,7 +1046,7 @@ final class InboxManagerTests: XCTestCase {
     }
 
     func testRefreshDeferredForPushToken_fetchBeforeRegistrationConfirmed_stillRunsAfterIt() async {
-        // Adela on #340: the token is published before `/token` is sent, so a host refresh in that
+        // #340: the token is published before `/token` is sent, so a host refresh in that
         // window can reach the server before the token is registered and come back empty. It must
         // not settle the held fetch, which still runs once the registration is confirmed.
         apiSpy.stubbedInboxMessagesResponses = [
@@ -1073,7 +1073,7 @@ final class InboxManagerTests: XCTestCase {
     }
 
     func testRefreshDeferredForPushToken_olderTokensRegistration_keepsFetchesHeld() async {
-        // Codex on #340: a `/token` success for an older token must not release fetches that
+        // #340: a `/token` success for an older token must not release fetches that
         // would go out with the current, unregistered one.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
@@ -1094,7 +1094,7 @@ final class InboxManagerTests: XCTestCase {
     }
 
     func testShowEmptyInboxWithoutPushToken_replacesLoading_andLaterTokenStillLoads() async {
-        // Adela on #340: when no token is coming, `.loading` would never resolve.
+        // #340: when no token is coming, `.loading` would never resolve.
         apiSpy.stubbedInboxMessagesResponses = [
             InboxResponse(messages: [makeMessage(id: "1")], nextPageToken: nil)
         ]
