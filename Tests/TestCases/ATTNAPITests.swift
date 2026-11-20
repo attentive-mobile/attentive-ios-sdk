@@ -383,7 +383,7 @@ extension ATTNAPITests {
     }
 
     func testSendPushToken_newTokenWithinDebounceWindow_stillSends() throws {
-        // Codex and Adela on #340: APNs can return a new token right after the foreground re-send
+        // #340: APNs can return a new token right after the foreground re-send
         // of the stored one (e.g. after a restore to a new device). Dropping it left the server
         // without it, and the inbox waiting on it, until the next foreground.
         let sessionMock = PushTokenCapturingSessionMock()
