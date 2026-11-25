@@ -328,6 +328,101 @@ final class ATTNWebViewHandlerIntegrationTests: XCTestCase {
     }
 }
 
+// MARK: Hit area
+
+/// Which touches the creative's web view takes after a RESIZE_FRAME message.
+final class ATTNWebViewHitAreaTests: XCTestCase {
+
+    private var provider: MockWebViewProvider!
+    private var handler: ATTNWebViewHandler!
+    private var parentView: UIView!
+    private var webView: CustomWebView!
+
+    /// A style with no px values, which the SDK treats as a full-screen creative.
+    private let fullScreenStyle: [String: Any] = ["width": "100%", "height": "100%", "left": "0", "bottom": "0"]
+
+    override func setUp() {
+        super.setUp()
+        provider = MockWebViewProvider()
+        handler = ATTNWebViewHandler(
+            webViewProvider: provider,
+            creativeUrlBuilder: MockCreativeUrlProvider(),
+            stateManager: ATTNCreativeStateManager(),
+            launchTimeoutInterval: 3600
+        )
+    }
+
+    override func tearDown() {
+        webView = nil
+        parentView = nil
+        handler = nil
+        provider = nil
+        super.tearDown()
+    }
+
+    func testFullScreenResizeFrame_takesTouchesAcrossParentLargerThanScreen() {
+        // Larger than any iPhone screen, the way the open iPhone Duo's view is larger than
+        // the outer-screen size `UIScreen.main` reports there.
+        showWebView(in: CGSize(width: 2000, height: 1500))
+
+        resizeFrame(fullScreenStyle)
+
+        XCTAssertTrue(webView.point(inside: CGPoint(x: 1990, y: 1490), with: nil), "the far corner of the view takes touches")
+        XCTAssertTrue(webView.point(inside: CGPoint(x: 10, y: 10), with: nil))
+    }
+
+    func testFullScreenResizeFrame_followsParentWhenItChangesSize() {
+        // The iPhone Duo's outer screen, then its inner one after unfolding.
+        showWebView(in: CGSize(width: 466, height: 678))
+        resizeFrame(fullScreenStyle)
+
+        parentView.frame.size = CGSize(width: 951, height: 669)
+
+        XCTAssertTrue(webView.point(inside: CGPoint(x: 940, y: 300), with: nil), "the right side of the wider view takes touches")
+        XCTAssertFalse(webView.point(inside: CGPoint(x: 300, y: 675), with: nil), "touches below the new, shorter height go to the app")
+    }
+
+    func testPxResizeFrameAfterFullScreen_takesTouchesOnlyInsideFrame() {
+        showWebView(in: CGSize(width: 402, height: 874))
+        resizeFrame(fullScreenStyle)
+
+        resizeFrame(["width": "181px", "height": "60px", "left": "16px", "bottom": "100px"])
+
+        // The SDK places px frames inside the parent's safe area, measured from its bottom.
+        let safeFrame = parentView.safeAreaLayoutGuide.layoutFrame
+        let bubble = CGRect(x: safeFrame.minX + 16, y: safeFrame.maxY - 100 - 60, width: 181, height: 60)
+        XCTAssertTrue(webView.point(inside: CGPoint(x: bubble.midX, y: bubble.midY), with: nil), "the bubble takes touches")
+        XCTAssertFalse(bubble.contains(CGPoint(x: 200, y: 300)))
+        XCTAssertFalse(webView.point(inside: CGPoint(x: 200, y: 300), with: nil), "touches outside the bubble go to the app")
+    }
+
+    // MARK: Helpers
+
+    private func showWebView(in size: CGSize) {
+        parentView = UIView(frame: CGRect(origin: .zero, size: size))
+        webView = CustomWebView(frame: parentView.bounds, configuration: WKWebViewConfiguration())
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        parentView.addSubview(webView)
+        parentView.layoutIfNeeded()
+        provider.parentView = parentView
+        provider.webView = webView
+    }
+
+    /// Posts a RESIZE_FRAME message, then waits for the handler's main-queue hop to apply it.
+    private func resizeFrame(_ style: [String: Any]) {
+        handler.handleScriptMessage(
+            ["action": "RESIZE_FRAME", "style": style],
+            originProtocol: "https",
+            originHost: "creatives.attn.tv"
+        )
+        // GCD rather than a Task: the handler applies the area in `DispatchQueue.main.async`,
+        // and only a later block on the same serial queue is sure to run after it.
+        let applied = expectation(description: "RESIZE_FRAME applied")
+        DispatchQueue.main.async { applied.fulfill() }
+        wait(for: [applied], timeout: 5)
+    }
+}
+
 // MARK: Mocks
 
 /// A custom WKWebView subclass that records the URL when load(_:) is called.
