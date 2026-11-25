@@ -430,11 +430,12 @@ extension ATTNWebViewHandler: WKScriptMessageHandler {
                         let left = parsePx(style["left"] as? String),
                         let bottom = parsePx(style["bottom"] as? String) else {
                 Loggers.creative.debug("RESIZE_FRAME style has non-px or missing values. Defaulting to fullscreen.")
-                let fallbackArea = UIScreen.main.bounds
+                // The same main-queue hop as the px case below, so RESIZE_FRAME messages
+                // take effect in the order they arrive.
                 DispatchQueue.main.async {
                     if let customWebView = self.webViewProvider?.webView as? CustomWebView {
-                        customWebView.updateInteractiveHitArea(fallbackArea)
-                        Loggers.creative.debug("Creative interactive area updated to fullscreen fallback: \(fallbackArea.width, privacy: .public)x\(fallbackArea.height, privacy: .public)")
+                        customWebView.updateInteractiveHitAreaToFullView()
+                        Loggers.creative.debug("Creative interactive area updated to the full web view: \(customWebView.bounds.width, privacy: .public)x\(customWebView.bounds.height, privacy: .public)")
                     }
                 }
                 return
@@ -551,17 +552,37 @@ class CustomWebView: WKWebView {
         NotificationCenter.default.removeObserver(self)
     }
 
+    /// True while a full-screen creative shows: touches anywhere in the web view count, at
+    /// whatever size it has now.
+    private var hitAreaCoversFullView = false
+
+    /// The area that takes touches right now.
+    private var activeHitArea: CGRect {
+        hitAreaCoversFullView ? bounds : interactiveHitArea
+    }
+
     func updateInteractiveHitArea(_ newArea: CGRect) {
+        hitAreaCoversFullView = false
         interactiveHitArea = newArea
         lastKnownHitArea = newArea
     }
 
+    /// Lets the whole web view take touches, following its size as it changes. Used for
+    /// full-screen creatives. The screen's bounds are not the web view's: on iPhone Duo,
+    /// `UIScreen.main` reports the outer screen while the app is on the inner one, and a
+    /// fixed rect goes stale when the view rotates or the device folds (MSDK-571).
+    func updateInteractiveHitAreaToFullView() {
+        hitAreaCoversFullView = true
+        interactiveHitArea = bounds
+        lastKnownHitArea = bounds
+    }
+
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-        return interactiveHitArea.contains(point)
+        return activeHitArea.contains(point)
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        if interactiveHitArea.contains(point) {
+        if activeHitArea.contains(point) {
             return super.hitTest(point, with: event)
         }
         return nil
@@ -584,7 +605,8 @@ class CustomWebView: WKWebView {
     }
 
     private func updateScrollBehavior() {
-        let shouldReceiveTouches = !interactiveHitArea.isEmpty && bounds.intersects(interactiveHitArea)
+        let hitArea = activeHitArea
+        let shouldReceiveTouches = !hitArea.isEmpty && bounds.intersects(hitArea)
 
         scrollView.isScrollEnabled = shouldReceiveTouches
         scrollView.isUserInteractionEnabled = shouldReceiveTouches
